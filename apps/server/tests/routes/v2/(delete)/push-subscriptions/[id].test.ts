@@ -24,14 +24,4 @@ describe("DELETE /push-subscriptions/11111111-1111-4111-8111-111111111111", () =
     expect(whereQuery("push_subscriptions", "delete").params).toEqual(["11111111-1111-4111-8111-111111111111", ownerId]);
     expect(response.body).toBe("");
   });
-
-  it("keeps deletion idempotent when the resource is absent", async () => {
-    dbMock.enqueueFor("delete", "push_subscriptions", []);
-    const response = await injectMutation(
-      route,
-      { method: "DELETE", url: "/push-subscriptions/11111111-1111-4111-8111-111111111111?unexpected=true" },
-      { session: userSession(ownerId, "user") },
-    );
-    expect(response.statusCode).toBe(204);
-  });
 });

@@ -28,7 +28,8 @@ const errorReasons = {
   400:
     "The request did not pass validation, or a cell cannot be saved as sent. For example, its band is not in the country's band plan " +
     "or belongs to another technology, the same cell identifiers appear twice in the request, " +
-    "or the changes for one station contain more than one new LTE TAC. The `message` tells you what is wrong.",
+    "or the changes for one station contain more than one new LTE TAC in a country where all LTE cells of a station share one TAC. " +
+    "The `message` tells you what is wrong.",
   403:
     "A permission is missing, or your editor access does not cover every station in the request. " +
     "Editors also get this response when none of the stations exist. This response does not say which station it is about.",

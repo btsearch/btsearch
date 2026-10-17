@@ -3,10 +3,10 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Trans, useTranslation } from "react-i18next";
 
 import type { MapCountries } from "../../data/mapCountries";
-import type { MapFilters, MapFiltersChange } from "../../data/mapFilters";
+import type { CapableCountries, MapCountryCapability, MapFilters, MapFiltersChange } from "../../data/mapFilters";
 import { Reveal } from "./mapFilterMotion";
 import { FilterNote } from "./mapFilterNote";
-import { getRegisterLayersNote } from "./mapFilterPanelRules";
+import { type LayersNote, getLayersNote } from "./mapFilterPanelRules";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePreferences } from "@/hooks/usePreferences";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ type LayerTile = {
   label: string;
   icon: IconSvgElement;
   isActive: boolean;
-  isRegisterOnly: boolean;
+  requiredCapability: MapCountryCapability | null;
   keybind: string;
   onToggle: () => void;
 };
@@ -30,6 +30,7 @@ type FilterLayerStripProps = {
   isSheet: boolean;
   filters: MapFilters;
   mapCountries: MapCountries;
+  countries: CapableCountries;
   onFiltersChange: (update: MapFiltersChange) => void;
   onToggleHeatmap?: () => void;
   onTogglePlannedMeasurements?: () => void;
@@ -69,7 +70,7 @@ function LayerTileButton({ layer, isUnavailable }: LayerTileButtonProps) {
     </button>
   );
 
-  if (!layer.isRegisterOnly) return tile;
+  if (layer.requiredCapability === null) return tile;
 
   return (
     <Tooltip>
@@ -83,24 +84,29 @@ export function FilterLayerStrip({
   isSheet,
   filters,
   mapCountries,
+  countries,
   onFiltersChange,
   onToggleHeatmap,
   onTogglePlannedMeasurements,
 }: FilterLayerStripProps) {
   const { t } = useTranslation(["main", "common"]);
   const { preferences, updatePreferences } = usePreferences();
-  const layersNote = getRegisterLayersNote(filters, mapCountries);
   const hasPlannedMeasurementsTile = onTogglePlannedMeasurements !== undefined;
-  const sharedViewNote = hasPlannedMeasurementsTile ? t("main:filters.registerLayersNote") : t("main:filters.radiolinesLayerNote");
-  const offScreenNote = hasPlannedMeasurementsTile ? t("main:filters.registerLayersUnavailable") : t("main:filters.radiolinesLayerUnavailable");
+  const layersNote = getLayersNote(filters, mapCountries, hasPlannedMeasurementsTile, countries);
+  const layersNoteTexts: Record<LayersNote, string> = {
+    sharedView: hasPlannedMeasurementsTile ? t("main:filters.registerLayersNote") : t("main:filters.radiolinesLayerNote"),
+    linksAndEmfUnavailable: t("main:filters.registerLayersUnavailable"),
+    linksUnavailable: t("main:filters.radiolinesLayerUnavailable"),
+    emfUnavailable: t("main:filters.plannedPemLayerUnavailable"),
+  };
 
-  const layers = [
+  const possibleLayers: (LayerTile | null)[] = [
     {
       key: "stations",
       label: t("common:labels.stations"),
       icon: AirportTowerIcon,
       isActive: filters.showStations,
-      isRegisterOnly: false,
+      requiredCapability: null,
       keybind: "S",
       onToggle: () => onFiltersChange((current) => ({ ...current, showStations: !current.showStations })),
     },
@@ -109,7 +115,7 @@ export function FilterLayerStrip({
       label: t("common:labels.radiolines"),
       icon: Route02Icon,
       isActive: filters.showRadiolines,
-      isRegisterOnly: true,
+      requiredCapability: "microwaveLinks",
       keybind: "R",
       onToggle: () => onFiltersChange((current) => ({ ...current, showRadiolines: !current.showRadiolines })),
     },
@@ -120,7 +126,7 @@ export function FilterLayerStrip({
           label: "Heatmap",
           icon: Fire02Icon,
           isActive: filters.showHeatmap,
-          isRegisterOnly: false,
+          requiredCapability: null,
           keybind: "H",
           onToggle: onToggleHeatmap,
         },
@@ -131,7 +137,7 @@ export function FilterLayerStrip({
           label: t("main:filters.showPlannedPem"),
           icon: Radar01Icon,
           isActive: filters.showPlannedMeasurements,
-          isRegisterOnly: true,
+          requiredCapability: "emf",
           keybind: "P",
           onToggle: onTogglePlannedMeasurements,
         },
@@ -140,11 +146,12 @@ export function FilterLayerStrip({
       label: t("common:labels.azimuths"),
       icon: Navigation03Icon,
       isActive: preferences.showAzimuths,
-      isRegisterOnly: false,
+      requiredCapability: null,
       keybind: "A",
       onToggle: () => updatePreferences((current) => ({ showAzimuths: !current.showAzimuths })),
     },
-  ].filter((layer): layer is LayerTile => layer !== null);
+  ];
+  const layers = possibleLayers.filter((layer): layer is LayerTile => layer !== null);
 
   return (
     <div className={cn("shrink-0 border-t bg-muted/30 px-4 pt-2.5", isSheet ? "pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "pb-2")}>
@@ -155,11 +162,15 @@ export function FilterLayerStrip({
         style={{ gridTemplateColumns: `repeat(${layers.length}, minmax(0, 1fr))` }}
       >
         {layers.map((layer) => (
-          <LayerTileButton key={layer.key} layer={layer} isUnavailable={layer.isRegisterOnly && !mapCountries.isRegisterOnScreen} />
+          <LayerTileButton
+            key={layer.key}
+            layer={layer}
+            isUnavailable={layer.requiredCapability !== null && !mapCountries.capabilities[layer.requiredCapability]}
+          />
         ))}
       </div>
       <Reveal shown={layersNote !== null} className="pt-1.5">
-        <FilterNote>{layersNote === "offScreen" ? offScreenNote : sharedViewNote}</FilterNote>
+        <FilterNote>{layersNote === null ? null : layersNoteTexts[layersNote]}</FilterNote>
       </Reveal>
       {isSheet ? null : (
         <p className="pt-1.5 text-[11px] leading-4 text-muted-foreground">

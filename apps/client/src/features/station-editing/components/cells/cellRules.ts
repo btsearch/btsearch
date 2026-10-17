@@ -1,3 +1,5 @@
+import type { OperatorRef } from "@openbts/country-packs";
+
 import type { StationDraftApi } from "../../hooks/useStationDraft";
 import { type CellToolId, type CellToolInput, type ConfirmScope, listCellTools } from "../../model/cellTools";
 import { getCellRowState } from "../../model/changes";
@@ -5,7 +7,7 @@ import { findDraftOperator } from "../../model/snapshots";
 import type { CellDraft, CellRowState, DraftKey, EditError, FieldTarget, Rat, TextValues } from "../../model/types";
 import { NO_EDIT_ERRORS } from "../../model/validate";
 import { type CellColumn, NO_SITE_SWITCHES, listCellColumns } from "./cellGrid";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { toOperatorRef } from "@/features/station-details/station/utils/stations";
 import { shallowEqual } from "@/lib/shallowEqual";
 
 export type CellErrorIndex = ReadonlyMap<DraftKey, EditError[]>;
@@ -27,8 +29,10 @@ export function getFirstBandId(edit: StationDraftApi, rat: Rat): number | null {
   return edit.lookups.planBands[rat][0]?.id ?? null;
 }
 
-function getOperatorMnc(edit: StationDraftApi): number | null {
-  return toV1OperatorMnc(findDraftOperator(edit.session.draft, edit.lookups.operatorsById));
+function getOperatorRef(edit: StationDraftApi): OperatorRef | null {
+  const { operatorsById } = edit.lookups;
+  const operator = findDraftOperator(edit.session.draft, operatorsById);
+  return operator === null ? null : toOperatorRef(operator, operatorsById);
 }
 
 function hasSameValues(left: TextValues | undefined, right: TextValues | undefined): boolean {
@@ -105,13 +109,24 @@ export function listSheetColumns(edit: StationDraftApi, cell: CellDraft): readon
 
 export function listRatTools(edit: StationDraftApi, rat: Rat, canConfirm: boolean): CellToolId[] {
   if (!canEditCells(edit)) return [];
-  return listCellTools(rat, { operatorMnc: getOperatorMnc(edit), hasConfirmTool: canConfirm && edit.session.kind !== "form" });
+  return listCellTools(rat, {
+    countryCode: edit.lookups.countryCode,
+    operator: getOperatorRef(edit),
+    hasConfirmTool: canConfirm && edit.session.kind !== "form",
+  });
 }
 
 export function getToolInput(edit: StationDraftApi, rat: Rat): CellToolInput {
   const { session, lookups } = edit;
   const confirmScope: ConfirmScope = session.kind === "review" ? "new" : "all";
-  return { cells: session.draft.cells, rat, bandsById: lookups.bandsById, operatorMnc: getOperatorMnc(edit), confirmScope };
+  return {
+    cells: session.draft.cells,
+    rat,
+    bandsById: lookups.bandsById,
+    countryCode: lookups.countryCode,
+    operator: getOperatorRef(edit),
+    confirmScope,
+  };
 }
 
 function isRowlessCellError(error: EditError): boolean {

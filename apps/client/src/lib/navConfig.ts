@@ -35,7 +35,7 @@ import {
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
-import type { Settings } from "@openbts/shared/contract";
+import type { Country, Settings } from "@openbts/shared/contract";
 
 export type NavConfigItem = {
   titleKey: string;
@@ -45,6 +45,7 @@ export type NavConfigItem = {
   allowedRoles?: string[];
   requiresSetting?: "lists";
   requiresAccess?: "countries";
+  requiresCapability?: "kmz" | "emf";
 };
 
 export type NavConfigSection = {
@@ -72,6 +73,7 @@ export type TranslatedNavSection = {
 };
 
 type NavSettings = Pick<Settings, "features">;
+type NavCountry = Pick<Country, "capabilities">;
 
 export const navMainConfig: NavConfigSection[] = [
   {
@@ -85,11 +87,11 @@ export const navMainConfig: NavConfigSection[] = [
       { titleKey: "items.photos", url: "/photos", icon: Camera01Icon },
       { titleKey: "items.statistics", url: "/statistics", icon: AnalyticsUpIcon },
       { titleKey: "items.clfExport", url: "/clf-export", icon: Download04Icon },
-      { titleKey: "items.kmz", url: "/kmz", icon: EarthIcon },
+      { titleKey: "items.kmz", url: "/kmz", icon: EarthIcon, requiresCapability: "kmz" },
       { titleKey: "items.analyzer", url: "/analyzer", icon: FileSearchIcon },
       { titleKey: "items.nsg", url: "/nsg-explorer", icon: FileSignalIcon },
       { titleKey: "items.spectrum", url: "/spectrum", icon: FullSignalIcon },
-      { titleKey: "items.pem", url: "/pem-measurements", icon: Radar01Icon },
+      { titleKey: "items.pem", url: "/pem-measurements", icon: Radar01Icon, requiresCapability: "emf" },
       { titleKey: "items.hunters", url: "/hunters", icon: UserGroupIcon },
     ],
   },
@@ -147,7 +149,7 @@ export const adminNavConfig: NavConfigSection[] = [
       { titleKey: "items.stations", url: "/admin/stations", allowedRoles: ["admin", "editor"], icon: AirportTowerIcon },
       { titleKey: "items.locations", url: "/admin/locations", allowedRoles: ["admin", "editor"], icon: Location01Icon },
       { titleKey: "items.submissions", url: "/admin/submissions", allowedRoles: ["admin", "editor"], icon: SentIcon },
-      { titleKey: "items.ukeImport", url: "/admin/uke-import", allowedRoles: ["admin"], icon: Upload04Icon },
+      { titleKey: "items.officialImport", url: "/admin/official-import", allowedRoles: ["admin"], icon: Upload04Icon },
       { titleKey: "items.lists", url: "/admin/lists", allowedRoles: ["admin"], icon: TaskDaily01Icon, requiresSetting: "lists" },
       { titleKey: "items.comments", url: "/admin/comments", allowedRoles: ["admin", "editor"], icon: Message01Icon },
       { titleKey: "items.auditLogs", url: "/admin/audit-logs", allowedRoles: ["admin", "editor"], icon: Note01Icon, requiresAccess: "countries" },
@@ -169,18 +171,26 @@ export const adminNavConfig: NavConfigSection[] = [
   },
 ];
 
-export function translateNav(config: NavConfigSection[], t: (key: string) => string): TranslatedNavSection[] {
+function hasRequiredCapability(item: NavConfigItem, countries: readonly NavCountry[] | undefined): boolean {
+  const capability = item.requiresCapability;
+  if (capability === undefined || countries === undefined) return true;
+  return countries.some((country) => country.capabilities[capability]);
+}
+
+export function translateNav(config: NavConfigSection[], t: (key: string) => string, countries?: readonly NavCountry[]): TranslatedNavSection[] {
   return config.map((section) => ({
     title: t(section.titleKey),
     key: section.key,
     url: section.url,
     icon: section.icon,
-    items: section.items.map((item) => ({
-      title: t(item.titleKey),
-      url: item.url,
-      href: item.href,
-      icon: item.icon,
-    })),
+    items: section.items
+      .filter((item) => hasRequiredCapability(item, countries))
+      .map((item) => ({
+        title: t(item.titleKey),
+        url: item.url,
+        href: item.href,
+        icon: item.icon,
+      })),
   }));
 }
 

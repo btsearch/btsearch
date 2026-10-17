@@ -15,7 +15,7 @@ const table = getTableName(stations);
 describe("getStations", () => {
   it.each([false, true])("does not load stations when the public list has no internal members with totals=%s", async (includeTotal) => {
     getRuntimeSettings().enableUserLists = true;
-    dbMock.query.userLists.findFirst.mockResolvedValue({ is_public: true, stations: { uke: [1], internal: [] } });
+    dbMock.query.userLists.findFirst.mockResolvedValue({ is_public: true, stations: { official: [1], internal: [] } });
     dbMock.enqueueFor("select", "countries", []);
     const app = await createRouteHarness(getStations);
     const response = await app.inject({ url: `/stations?listId=${readUserId}&includeTotal=${includeTotal}` });

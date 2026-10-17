@@ -8,7 +8,8 @@ import { getCellTechnologyBands } from "@/features/map/utils";
 import { brandsQueryOptions } from "@/features/shared/lookups";
 import type { LocationStationRecord } from "@/features/station-details/station/types";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { NETWORKS_ID_KIND, findStationIdentifier, toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
+import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { getOperatorTintGradient } from "@/lib/cellular/operators";
 
 type LocationStationLinkProps = {
@@ -37,7 +38,7 @@ export function LocationStationList<StationRow extends LocationStationRecord>({
     <ul className={className}>
       {stations.map((station) => {
         const { siteId } = station;
-        const networksId = findStationIdentifier(station.identifiers, NETWORKS_ID_KIND);
+        const networksIdLabel = getNetworksIdLabel(station);
         const status = toV1StationStatus(station.status);
         const bands = getCellTechnologyBands(station.cells);
         const brand = getOperatorBrand(station.operator, brands);
@@ -52,7 +53,7 @@ export function LocationStationList<StationRow extends LocationStationRecord>({
                     {brand ? <div className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: brand.color }} /> : null}
                     <span className="text-sm font-medium">{station.operator?.name ?? t("unknownOperator")}</span>
                     <span className="font-mono text-xs text-foreground/70">{siteId}</span>
-                    {networksId ? <span className="font-mono text-xs text-foreground/70">N!{networksId}</span> : null}
+                    {networksIdLabel ? <span className="font-mono text-xs text-foreground/70">{networksIdLabel}</span> : null}
                     {status ? <StationStatusBadge status={status} statusChangedAt={station.statusChangedAt} className="ml-auto" /> : null}
                   </div>
                   {status !== "pending" && bands.length > 0 ? <TechnologySummary bands={bands} /> : null}

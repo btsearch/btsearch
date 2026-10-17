@@ -4,6 +4,7 @@ import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(get)/lists/index.js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
 import { expectError, injectMutation, whereQuery } from "../../../../helpers/mutationAssertions.js";
+import { scriptAdminVisibility } from "../../../../helpers/officialDataFixtures.js";
 
 const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const otherOwnerId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -16,7 +17,7 @@ const row = {
   is_public: false,
   notificationsEnabled: true,
   created_by: ownerId,
-  stations: { internal: [12], uke: [24] },
+  stations: { internal: [12], official: [24] },
   radiolines: [36],
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
@@ -55,7 +56,7 @@ describe("GET /lists", () => {
 
   it("narrows the all-owner view by owner and visibility and counts the same rows", async () => {
     getRuntimeSettings().enableUserLists = true;
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.enqueueFor("select", "user_lists", [], [{ total: 0 }]);
     const response = await injectMutation(
       route,
@@ -73,17 +74,19 @@ describe("GET /lists", () => {
 
   it("keeps only public lists among the owner's own", async () => {
     getRuntimeSettings().enableUserLists = true;
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.enqueueFor("select", "user_lists", []);
     const response = await injectMutation(route, { ...request, url: "/lists?isPublic=true" }, options);
     expect(response.statusCode).toBe(200);
     expect(whereQuery("user_lists", "select").params).toEqual(expect.arrayContaining([ownerId, true]));
-    expect(authBoundary.auth.api.userHasPermission).not.toHaveBeenCalled();
+    expect(authBoundary.auth.api.userHasPermission).not.toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.objectContaining({ permissions: { user_lists: ["read_all"] } }) }),
+    );
   });
 
   it("combines all three item filters within the owner's lists and counts the filtered result", async () => {
     getRuntimeSettings().enableUserLists = true;
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.enqueueFor("select", "user_lists", [], [{ total: 0 }]);
     const response = await injectMutation(
       route,
@@ -118,7 +121,7 @@ describe("GET /lists", () => {
 
   it("returns the documented owner result", async () => {
     getRuntimeSettings().enableUserLists = true;
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.enqueueFor("select", "user_lists", [row]);
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(200);

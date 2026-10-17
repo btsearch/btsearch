@@ -1,4 +1,4 @@
-import { parseSEOEntityId } from "@openbts/shared/seo";
+import { parseSEOEntityId, parseSEOListId } from "@openbts/shared/seo";
 
 export type SitemapResource = "stations" | "locations";
 export type SitemapChunk = { kind: SitemapResource; page: number };
@@ -7,6 +7,8 @@ export const MAX_SITEMAP_CHUNK_PAGE = 9999;
 
 const SEO_DETAIL_PATH = /^\/(?:stations|locations)\/([^/]+)$/;
 const SEO_IMAGE_PATH = /^\/public\/og\/(?:stations|locations)\/([^/]+)\.png$/;
+const SEO_LIST_PATH = /^\/lists\/([^/]+)$/;
+const SEO_LIST_IMAGE_PATH = /^\/public\/og\/lists\/([^/]+)\.png$/;
 const SITEMAP_CHUNK_FILE = /^(stations|locations)-([1-9]\d{0,3})\.xml$/;
 
 export function getRequestPathname(url: string): string {
@@ -30,6 +32,8 @@ export function isSEOPublicPath(pathname: string): boolean {
   if (detailMatch?.[1] !== undefined && parseSEOEntityId(detailMatch[1]) !== null) return true;
   const imageMatch = SEO_IMAGE_PATH.exec(pathname);
   if (imageMatch?.[1] !== undefined && parseSEOEntityId(imageMatch[1]) !== null) return true;
+  const listMatch = SEO_LIST_PATH.exec(pathname) ?? SEO_LIST_IMAGE_PATH.exec(pathname);
+  if (listMatch?.[1] !== undefined && parseSEOListId(listMatch[1]) !== null) return true;
   if (!pathname.startsWith("/sitemaps/")) return false;
   return parseSitemapChunkFile(pathname.slice("/sitemaps/".length)) !== null;
 }

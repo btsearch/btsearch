@@ -51,7 +51,8 @@ services:
       - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://client}
       - OG_RENDERER_URL=${OG_RENDERER_URL:-http://og-renderer:3040}
       - WORKERS=4 # Number of server workers, since javascript is single-threaded, this will improve performance of the server
-      - UKE_AUTO_IMPORT=${UKE_AUTO_IMPORT:-true}
+      # Scheduling of official-data imports
+      - OFFICIAL_AUTO_IMPORT=${OFFICIAL_AUTO_IMPORT:-true}
       # Resend (email)
       - RESEND_API_KEY=
       - RESEND_FROM=noreply@openbts.sakilabs.com
@@ -84,7 +85,7 @@ services:
     build:
       context: .
       dockerfile: apps/server/docker/Dockerfile
-    command: ["bun", "--bun", "/app/apps/server/dist/og-renderer.js"]
+    command: ["node", "/app/apps/server/dist/og-renderer.js"]
     expose:
       - "3040"
     environment:
@@ -92,6 +93,8 @@ services:
       - OG_RENDERER_PORT=3040
       - BASE_URL=${BASE_URL:-http://localhost:3030}
       - APP_NAME=${APP_NAME:-OpenBTS}
+    volumes:
+      - uploads-volume:/app/uploads:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3040/health"]
       interval: 10s
@@ -100,6 +103,38 @@ services:
       start_period: 5s
     cpus: 1.0
     mem_limit: 512m
+    restart: unless-stopped
+
+  importer:
+    image: btsearch-server:${COMMIT_SHA}
+    build:
+      context: .
+      dockerfile: apps/server/docker/Dockerfile
+    command: ["node", "/app/apps/server/dist/importer.js"]
+    environment:
+      # Database, connected directly: an import holds long transactions, which must not go through PgBouncer
+      - DATABASE_URL=${IMPORTER_DATABASE_URL:-postgres://user:password@postgres:5432/openbts}
+      - REDIS_URL=redis://redis:6379
+      - BASE_URL=${BASE_URL:-http://localhost:3030}
+      - APP_NAME=${APP_NAME:-OpenBTS}
+      # VAPID push notifications, the same values as the server's:
+      - VAPID_SUBJECT=
+      - VAPID_PUBLIC_KEY=
+      - VAPID_PRIVATE_KEY=
+      # AXIOM HQ logging
+      - AXIOM_TOKEN=
+      - AXIOM_DATASET=openbts
+      - KMZ_OUTPUT_DIR=/app/kmz
+      # Archive of downloaded files
+      - OFFICIAL_ARCHIVE_DIR=/app/official-archive
+    volumes:
+      - /opt/btsearch/kmz:/app/kmz
+      - official-archive-volume:/app/official-archive
+    depends_on:
+      - postgres
+      - redis
+    stop_grace_period: 10m
+    mem_limit: 4g
     restart: unless-stopped
 
   postgres:
@@ -138,6 +173,7 @@ services:
 
 volumes:
   disposable-email-blocklist-volume:
+  official-archive-volume:
   postgres-volume:
   uploads-volume:
   redis-volume:

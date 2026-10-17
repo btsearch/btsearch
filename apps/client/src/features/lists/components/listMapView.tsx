@@ -1,6 +1,6 @@
 import { TaskDaily01Icon, TaskRemove01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract";
+import { MAX_LOCATION_LIST_LIMIT, MAX_MICROWAVE_LINK_LIST_LIMIT } from "@openbts/shared/contract";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LngLatBounds } from "maplibre-gl";
@@ -12,11 +12,12 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Map as LibreMap, MapControls, useMap } from "@/components/ui/map";
 import { Spinner } from "@/components/ui/spinner";
 import { listQueryOptions } from "@/features/lists/api";
-import { fetchRadioLines, mapLocationsQueryOptions } from "@/features/map/api";
+import { mapLocationsQueryOptions, mapMicrowaveLinksQueryOptions } from "@/features/map/api";
+import { OfficialAttribution } from "@/features/map/components/officialAttribution";
 import { MapSearchOverlay } from "@/features/map/components/search-overlay";
 import { StationsLayer } from "@/features/map/components/stationsLayer";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "@/features/map/constants";
-import { getEffectiveMapFilters, isMapSourceUndecided, useMapCountries, useRegisterOnScreen } from "@/features/map/data/mapCountries";
+import { getEffectiveMapFilters, isMapSourceUndecided, useCapabilitiesOnScreen, useMapCountries } from "@/features/map/data/mapCountries";
 import { type MapFilters, areMapRatFiltersReady } from "@/features/map/data/mapFilters";
 import { useMapLookups, useMapMaxBounds } from "@/features/map/data/mapLookups";
 import { type MapPoint, type MapPopupStation, locationRecordToMapPoint, useMapPoints } from "@/features/map/data/mapPoints";
@@ -34,10 +35,9 @@ import { useSettings } from "@/hooks/useSettings";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { ApiResponseError } from "@/lib/api";
 
-const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesLayer"));
+const MicrowaveLinksLayer = lazy(() => import("@/features/map/components/microwaveLinksLayer"));
 
-const LIST_RADIOLINES_LIMIT = 1000;
-const LIST_MAP_QUERY_FAMILIES = new Set(["list-locations", "list-radiolines"]);
+const LIST_MAP_QUERY_FAMILIES = new Set(["list-locations", "list-microwave-links"]);
 const LIST_UNAVAILABLE_STATUSES = new Set([401, 403, 404]);
 const LIST_MAP_FILTER_OVERRIDES: Partial<MapFilters> = { showStations: true };
 const NO_POINTS: MapPoint[] = [];
@@ -67,17 +67,17 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const { preferences } = usePreferences();
   const [savedFilters, setSavedFilters, isRegisterRatListReady] = useSavedMapFilters("list-map", LIST_MAP_FILTER_OVERRIDES);
   const { lookups } = useMapLookups();
-  const registerOnScreen = useRegisterOnScreen(bounds);
+  const capabilitiesOnScreen = useCapabilitiesOnScreen(bounds);
 
   const { data: listData, error: listError, isLoading, isPaused, isFetching, refetch } = useQuery(listQueryOptions(uuid));
 
   useMapMaxBounds(map);
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
-  const isSourceUndecided = isMapSourceUndecided(savedFilters, registerOnScreen);
+  const isSourceUndecided = isMapSourceUndecided(savedFilters, capabilitiesOnScreen);
   useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: LIST_MAP_QUERY_FAMILIES });
 
-  const shownFilters = getEffectiveMapFilters(savedFilters, registerOnScreen);
+  const shownFilters = getEffectiveMapFilters(savedFilters, capabilitiesOnScreen);
   const { data: page } = useQuery({
     ...mapLocationsQueryOptions({
       bounds,
@@ -88,22 +88,18 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     placeholderData: keepPreviousData,
   });
 
-  const { data: radioLinesResponse } = useQuery({
-    queryKey: ["list-radiolines", bounds, uuid, shownFilters.radiolineOperators, shownFilters.recentDays],
-    queryFn: ({ signal }) =>
-      fetchRadioLines(bounds, {
-        signal,
-        operatorIds: shownFilters.radiolineOperators,
-        limit: LIST_RADIOLINES_LIMIT,
-        recentDays: shownFilters.recentDays,
-        list: uuid,
-      }),
+  const { data: microwaveLinksResponse } = useQuery({
+    ...mapMicrowaveLinksQueryOptions({
+      bounds,
+      family: "list-microwave-links",
+      filters: shownFilters,
+      limit: MAX_MICROWAVE_LINK_LIST_LIMIT,
+      listId: uuid,
+    }),
     enabled: shownFilters.showRadiolines && bounds !== "" && !isMoving,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60,
     placeholderData: keepPreviousData,
   });
-  const radioLines = radioLinesResponse?.data;
+  const microwaveLinks = microwaveLinksResponse?.data;
 
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [searchedLocations, setSearchedLocations] = useState<StationSearchHitLocation[]>([]);
@@ -131,14 +127,14 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     for (const location of page.locations) {
       listBounds.extend([location.longitude, location.latitude]);
     }
-    for (const rl of radioLines ?? []) {
-      listBounds.extend([rl.tx.longitude, rl.tx.latitude]);
-      listBounds.extend([rl.rx.longitude, rl.rx.latitude]);
+    for (const link of microwaveLinks ?? []) {
+      listBounds.extend([link.tx.longitude, link.tx.latitude]);
+      listBounds.extend([link.rx.longitude, link.rx.latitude]);
     }
     if (listBounds.isEmpty()) return;
     hasFitBoundsRef.current = true;
     map.fitBounds(listBounds, { padding: 80, maxZoom: 14 });
-  }, [map, isLoaded, page, radioLines]);
+  }, [map, isLoaded, page, microwaveLinks]);
 
   const handlePopupClose = useCallback((closedLocation: MapPopupLocation) => {
     if (closedLocation.source !== "internal") return;
@@ -214,8 +210,8 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   const locationCount = (page?.locations.length ?? 0) + searchedPoints.length;
   const totalCount = page?.total ?? 0;
-  const radioLineCount = shownFilters.showRadiolines ? (radioLines?.length ?? 0) : 0;
-  const radioLineTotalCount = shownFilters.showRadiolines ? (radioLinesResponse?.totalCount ?? 0) : 0;
+  const microwaveLinkCount = shownFilters.showRadiolines ? (microwaveLinks?.length ?? 0) : 0;
+  const microwaveLinkTotalCount = shownFilters.showRadiolines ? (microwaveLinksResponse?.paging.total ?? microwaveLinkCount) : 0;
   const listName = listData?.name;
   const listMapContext = useMemo(() => (listName !== undefined ? <ListMapContext name={listName} /> : undefined), [listName]);
   const isListLoading = isLoading || (isPaused && listData === undefined);
@@ -228,8 +224,8 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       <MapSearchOverlay
         locationCount={locationCount}
         totalCount={totalCount}
-        radioLineCount={radioLineCount}
-        radioLineTotalCount={radioLineTotalCount}
+        microwaveLinkCount={microwaveLinkCount}
+        microwaveLinkTotalCount={microwaveLinkTotalCount}
         filters={shownFilters}
         mapCountries={mapCountries}
         zoom={zoom}
@@ -278,12 +274,13 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
         activePopupLocations={openLocations}
       />
 
-      {shownFilters.showRadiolines && radioLines && radioLines.length > 0 ? (
+      {shownFilters.showRadiolines && microwaveLinks && microwaveLinks.length > 0 ? (
         <Suspense fallback={null}>
-          <RadioLinesLayer radioLines={radioLines} showAddToList={showAddToList} />
+          <MicrowaveLinksLayer microwaveLinks={microwaveLinks} showAddToList={showAddToList} />
         </Suspense>
       ) : null}
 
+      <OfficialAttribution filters={shownFilters} countryCodes={mapCountries.onScreen} />
       <MapControls showLocate showCompass showScale showFullscreen />
     </>
   );

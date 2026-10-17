@@ -17,13 +17,13 @@
       "types": "./src/operatorUtils.ts",
       "default": "./dist/src/operatorUtils.js"
     },
-    "./radiolinesUtils": {
-      "types": "./src/radiolinesUtils.ts",
-      "default": "./dist/src/radiolinesUtils.js"
+    "./geo": {
+      "types": "./src/geo.ts",
+      "default": "./dist/src/geo.js"
     },
-    "./addressValidation": {
-      "types": "./src/addressValidation.ts",
-      "default": "./dist/src/addressValidation.js"
+    "./microwaveLinkUtils": {
+      "types": "./src/microwaveLinkUtils.ts",
+      "default": "./dist/src/microwaveLinkUtils.js"
     },
     "./clfExportTemplates": {
       "types": "./src/clfExportTemplates.ts",
@@ -48,6 +48,10 @@
     "./stationId": {
       "types": "./src/stationId.ts",
       "default": "./dist/src/stationId.js"
+    },
+    "./permitLabel": {
+      "types": "./src/permitLabel.ts",
+      "default": "./dist/src/permitLabel.js"
     },
     "./contract": {
       "types": "./src/contract/index.ts",

@@ -118,7 +118,6 @@ export async function planStationRevert(context: StrategyContext, entry: AuditEn
       run: async (tx, state) => {
         await tx.update(stations).set(stationStatusUpdate("inactive")).where(eq(stations.id, id));
         state.affectedStationIds.add(id);
-        state.stationOrLocationWritten = true;
       },
     });
     plan.finalize = async (tx, audit) => {
@@ -165,7 +164,6 @@ export async function planStationRevert(context: StrategyContext, entry: AuditEn
         .set({ ...patch, ...statusPatch })
         .where(eq(stations.id, id));
       state.affectedStationIds.add(id);
-      state.stationOrLocationWritten = true;
     },
   });
   plan.finalize = async (tx, audit) => {

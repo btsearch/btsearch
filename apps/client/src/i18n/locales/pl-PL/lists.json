@@ -16,7 +16,7 @@
   "options": "Opcje listy",
   "enableNotifications": "Włącz powiadomienia",
   "disableNotifications": "Wyłącz powiadomienia",
-  "notificationsHint": "Dostaniesz powiadomienie, gdy na stacjach z tej listy zmienią się komórki, zdjęcia, komentarze lub pozwolenia UKE",
+  "notificationsHint": "Dostaniesz powiadomienie, gdy na stacjach z tej listy zmienią się komórki, zdjęcia, komentarze lub pozwolenia",
   "notificationsOnToast": "Powiadomienia włączone",
   "notificationsOffToast": "Powiadomienia wyłączone",
   "noLists": "Nie masz jeszcze żadnej listy",

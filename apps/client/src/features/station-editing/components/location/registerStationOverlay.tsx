@@ -1,22 +1,28 @@
+import type { OfficialLocation, OfficialSite } from "@openbts/shared/contract";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { MapMarker, MarkerContent } from "@/components/ui/map";
+import { PopupBrandMark } from "@/features/map/components/popupParts";
 import { getOperatorLook, useMapLookups } from "@/features/map/data/mapLookups";
-import { getPermitBands } from "@/features/map/utils";
+import { toOfficialLabelComparator } from "@/features/official/labels";
+import { officialBandLabelsQueryOptions } from "@/features/official/queries";
+import { listPermitBandTags } from "@/features/station-details/officialPermits";
 import { cn } from "@/lib/utils";
-import type { UkeLocationWithPermits, UkeStation } from "@/types/station";
 
 type RegisterStationOverlayProps = {
-  location: UkeLocationWithPermits;
-  stations: readonly UkeStation[];
-  onStationPick: (station: UkeStation) => void;
+  location: OfficialLocation;
+  onSitePick: (site: OfficialSite) => void;
 };
 
 const TAG_CLASS = "px-1 py-px rounded-md bg-muted text-[8px] text-muted-foreground border border-border/50";
+const COMPARE_LABELS_BY_NAME = toOfficialLabelComparator([]);
 
-export function RegisterStationOverlay({ location, stations, onStationPick }: RegisterStationOverlayProps) {
-  const { t } = useTranslation("submissions");
+export function RegisterStationOverlay({ location, onSitePick }: RegisterStationOverlayProps) {
+  const { t } = useTranslation(["submissions", "stationDetails"]);
   const { lookups } = useMapLookups();
+  const { data: compareLabels = COMPARE_LABELS_BY_NAME } = useQuery({ ...officialBandLabelsQueryOptions(), select: toOfficialLabelComparator });
+  const { sites = [], ...siteLocation } = location;
 
   return (
     <MapMarker longitude={location.longitude} latitude={location.latitude} anchor="bottom">
@@ -33,33 +39,37 @@ export function RegisterStationOverlay({ location, stations, onStationPick }: Re
             {location.address ? <p className="text-[11px] text-muted-foreground">{location.address}</p> : null}
           </div>
           <div className="max-h-54 overflow-y-auto custom-scrollbar">
-            {stations.map((station) => {
-              const { color } = getOperatorLook(lookups, station.operator?.id);
-              const permitCount = station.permits.length;
+            {sites.map((site) => {
+              const { operator, brand, color } = getOperatorLook(lookups, site.operatorId);
+              const permits = site.permits ?? [];
 
               return (
                 <button
-                  key={station.station_id}
+                  key={site.id}
                   type="button"
-                  onClick={() => onStationPick({ ...station, location: station.location ?? location })}
-                  className="w-full text-left px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-border/30 last:border-0"
+                  onClick={() => onSitePick({ ...site, location: siteLocation })}
+                  className="flex w-full gap-1.5 text-left px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-border/30 last:border-0"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <div className="size-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span className="font-medium text-xs" style={{ color }}>
-                      {station.operator?.name || t("main:unknownOperator")}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">{station.station_id}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1 pl-3.5">
-                    {getPermitBands(station.permits).map((band) => (
-                      <span key={band} className={cn(TAG_CLASS, "font-semibold uppercase tracking-wider")}>
-                        {band}
+                  <span className="flex h-4 min-w-4 shrink-0 items-center justify-center" aria-hidden="true">
+                    <PopupBrandMark brand={brand} color={color} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-xs" style={{ color }}>
+                        {operator?.name || t("main:unknownOperator")}
                       </span>
-                    ))}
-                    <span className={cn(TAG_CLASS, "font-mono font-medium")}>
-                      {permitCount} {permitCount === 1 ? "permit" : "permits"}
-                    </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{site.siteId}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {listPermitBandTags(permits, compareLabels).map((band) => (
+                        <span key={band} className={cn(TAG_CLASS, "font-semibold uppercase tracking-wider")}>
+                          {band}
+                        </span>
+                      ))}
+                      <span className={cn(TAG_CLASS, "font-mono font-medium")}>
+                        {t("stationDetails:permits.permitsCount", { count: permits.length })}
+                      </span>
+                    </div>
                   </div>
                 </button>
               );

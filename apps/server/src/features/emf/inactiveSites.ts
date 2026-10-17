@@ -2,7 +2,7 @@ import type { EmfInactiveSiteList, EmfInactiveSiteListQuery } from "@openbts/sha
 import { type SI2PEMExtendedBaseStationProperties, SI2PEM_WFS_FEATURE_TYPES } from "si2pem-reader";
 
 import { withRedisStaleCache } from "../../lib/redisCache.js";
-import { ENTITY_TO_MNC } from "../pem/entities.js";
+import { si2pemNameToMnc } from "../pem/entities.js";
 import { si2pemDateToWarsawDay } from "../pem/si2pemValues.js";
 import { getVoivodeshipByTeryt } from "../pem/voivodeships.js";
 import { type SiteRow, createSiteMatcher, resolveWindow, toPaging, withSiteRefs } from "./lists.js";
@@ -47,7 +47,7 @@ async function fetchInactiveSites(): Promise<InactiveSiteRow[]> {
     return [
       {
         siteId,
-        mnc: ENTITY_TO_MNC[properties.installation_operator_name ?? properties.operator_name ?? properties.operator ?? ""] ?? null,
+        mnc: si2pemNameToMnc(properties.installation_operator_name ?? properties.operator_name ?? properties.operator) ?? null,
         regionName: getVoivodeshipByTeryt(properties.teryt),
         latitude,
         longitude,

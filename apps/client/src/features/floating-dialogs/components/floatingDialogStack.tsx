@@ -21,8 +21,8 @@ import { cn } from "@/lib/utils";
 const StationDetailsDialogPanel = lazy(() =>
   import("@/features/station-details/components/stationsDetailsDialog").then((module) => ({ default: module.StationDetailsDialogPanel })),
 );
-const RadioLineDetailsDialogPanel = lazy(() =>
-  import("@/features/station-details/components/radioLineDetailsDialog").then((module) => ({ default: module.RadioLineDetailsDialogPanel })),
+const MicrowaveLinkDetailsDialogPanel = lazy(() =>
+  import("@/features/station-details/components/microwaveLinkDetailsDialog").then((module) => ({ default: module.MicrowaveLinkDetailsDialogPanel })),
 );
 const SI2PEMAntennaDialogPanel = lazy(() =>
   import("@/features/station-details/components/si2pemAntennaDialog").then((module) => ({ default: module.SI2PEMAntennaDialogPanel })),
@@ -110,7 +110,7 @@ function renderDialogPanelContent(
           stationId={dialog.id}
           locationId={dialog.locationId}
           source={dialog.source}
-          ukeStation={dialog.ukeStation}
+          officialSite={dialog.officialSite}
           switchedFrom={dialog.switchedFrom}
           showPhotoPanel={!isMobile}
           onContentLayoutChange={onContentLayoutChange}
@@ -118,8 +118,8 @@ function renderDialogPanelContent(
           onStartTerrainProfile={onStartTerrainProfile ?? undefined}
         />
       );
-    case "radioline":
-      return <RadioLineDetailsDialogPanel {...frameProps} link={dialog.link} />;
+    case "microwave-link":
+      return <MicrowaveLinkDetailsDialogPanel {...frameProps} link={dialog.link} />;
     case "si2pem-report":
       return (
         <Suspense fallback={<AntennaDialogFallback {...frameProps} />}>

@@ -27,7 +27,7 @@ describe("PUT /notifications/:id/read", () => {
         userId: ownerId,
         type: "station_cells_changed",
         stationId: null,
-        ukeStationId: null,
+        officialSiteId: null,
         submissionId: null,
         actionUrl: null,
         metadata: { added: 2 },

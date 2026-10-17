@@ -32,7 +32,8 @@ const schemaRoute = {
     "and countries you cannot access are left out.\n\n" +
     "Each line includes a description of the cell. You can replace the default description per technology with `templateGsm`, " +
     "`templateUmts`, `templateLte`, `templateNrNsa` and `templateNr`, using placeholders such as `{station_id}`, `{location}` and `{notes}`. " +
-    "`displayNrSeparately` only applies to `ntm`, where it writes non-standalone NR cells with the TAC of the station's LTE cells.\n\n" +
+    "`displayNrSeparately` only applies to `ntm`, where it writes non-standalone NR cells with the TAC of the station's LTE cells. In countries " +
+    "where the LTE cells of one station can have different TACs, the TAC is written as unknown unless all of them have the same one.\n\n" +
     "The `Last-Modified` header tells you when the newest exported cell was changed, and a `HEAD` request returns the headers " +
     "without the file. The server only runs a few exports at the same time, and you can call this endpoint up to 10 times every 5 minutes. " +
     "Editors and administrators are not held to those 10 calls, unless they use an API key.",

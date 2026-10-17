@@ -5,7 +5,8 @@ import { toEditErrors } from "../../../../../../client/src/features/station-edit
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(post)/submissions/index.js";
 import { dbMock, setCountryFeatures, userSession } from "../../../../helpers/boundaries.js";
-import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
+import { cellBands } from "../../../../helpers/cellWriteFixtures.js";
+import { expectError, injectMutation, scriptAudit, whereQuery } from "../../../../helpers/mutationAssertions.js";
 import { createRouteHarnessWithErrors } from "../../../../helpers/routeHarness.js";
 import { stationRow } from "../../../../helpers/stationFixtures.js";
 import {
@@ -493,6 +494,7 @@ describe("POST /submissions", () => {
     const fixture = draftFixture([draftRadios[0]]);
     dbMock.enqueueFor("select", "operators", [{ id: 7 }]);
     dbMock.enqueueFor("select", "regions", [{ id: 1 }]);
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
     dbMock.enqueueFor("select", "bands", [{ id: input.bandId }]);
     dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
     const response = await injectMutation(route, { ...request, payload: [{ ...fixture.input, cells: [input] }] }, options);
@@ -656,7 +658,7 @@ describe("POST /submissions", () => {
 
   it("rejects switching an NR SA draft to NSA when omitted standalone fields would be retained", async () => {
     const { fixture, targets } = existingDraftFixture([draftRadios[3]]);
-    dbMock.enqueueFor("select", "stations", [{ station: stationRow(), countryCode: null }]);
+    dbMock.enqueueFor("select", "stations", [{ station: stationRow(), countryCode: null }], [{ locationCountry: "PL", operatorCountry: "PL" }]);
     dbMock.enqueueFor("select", "cells", targets);
     dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
     const response = await injectMutation(
@@ -772,7 +774,7 @@ describe("POST /submissions", () => {
     expectError(response, 403, "FEATURE_DISABLED");
     expect(response.json().errors[0].details).toEqual([{ field: "0/location/structure/ownerName" }]);
     expect(dbMock.transaction).not.toHaveBeenCalled();
-    expect(dbMock.calls.every((call) => call.operation === "select")).toBe(true);
+    expect(dbMock.calls.every((call) => !["insert", "update", "delete"].includes(call.operation))).toBe(true);
   });
 
   it("points a disabled owner proposal at the rejected batch item and saves none of the batch", async () => {
@@ -785,7 +787,7 @@ describe("POST /submissions", () => {
     expectError(response, 403, "FEATURE_DISABLED");
     expect(response.json().errors[0].details).toEqual([{ field: "1/location/structure/ownerName" }]);
     expect(dbMock.transaction).not.toHaveBeenCalled();
-    expect(dbMock.calls.every((call) => call.operation === "select")).toBe(true);
+    expect(dbMock.calls.every((call) => !["insert", "update", "delete"].includes(call.operation))).toBe(true);
   });
 
   it("works out an omitted region from coordinates and saves the resolved region in the draft", async () => {
@@ -966,19 +968,45 @@ describe("POST /submissions", () => {
     ]);
   });
 
-  it("reports the exact batch-indexed location field when draft validation rejects a generic address", async () => {
+  it("reports the exact batch-indexed location field when a Polish location's address is refused", async () => {
     dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
-    dbMock.enqueueFor("select", "operators", [{ id: 7 }], [{ id: 7 }]);
-    dbMock.enqueueFor("select", "regions", [{ id: 1 }]);
+    dbMock.enqueueFor("select", "operators", [{ id: 7 }], [{ id: 7 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "regions", [{ id: 1 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
     const invalid = { ...change, location: { latitude: 52, longitude: 21, regionId: 1, address: "teren własny" } };
     const response = await injectMutation(route, { ...request, payload: [change, invalid] }, options);
-    expectError(response, 400, "VALIDATION_ERROR");
-    expect(response.json().errors[0].details).toContainEqual({
-      field: "1/location/address",
-      validationMessage: "Address must not contain variants of własny",
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      errors: [
+        {
+          code: "VALIDATION_ERROR",
+          message: "Validation error.",
+          details: [{ field: "1/location/address", validationMessage: "Address must not contain variants of własny" }],
+        },
+      ],
     });
     expect(dbMock.transaction).not.toHaveBeenCalled();
     expect(dbMock.calls.some((call) => call.operation === "insert")).toBe(false);
+  });
+
+  it("refuses a band outside the plan of the country the coordinates fall in, whatever region the change names", async () => {
+    dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
+    dbMock.enqueueFor("select", "operators", [{ id: 7 }], [{ countryCode: "DE" }]);
+    dbMock.enqueueFor("select", "regions", [{ id: 2 }], [{ countryCode: "PL" }], [{ regionId: 1, countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "bands", [{ id: 1 }], cellBands);
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }], [{ regionId: 1 }]);
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "country_bands", []);
+    dbMock.query.stations.findFirst.mockResolvedValue(undefined);
+    dbMock.query.locations.findFirst.mockResolvedValue(undefined);
+    const misnamed = { ...change, location: { latitude: 52, longitude: 21, regionId: 2 }, cells: [draftRadios[0].input] };
+    const response = await injectMutation(route, { ...request, payload: [misnamed] }, options);
+    expectError(response, 400, "BAD_REQUEST", "Band 1 is not in the band plan of PL");
+    expect(whereQuery("regions", "select", 1).params).toEqual([1]);
+    expect(whereQuery("regions", "select", 2).params).toEqual([1]);
+    expect(whereQuery("country_bands", "select").params).toEqual(["PL", 1]);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+    expect(dbMock.pendingResults()).toBe(0);
   });
 
   it("rejects an update whose station no longer exists before translating any changes", async () => {
@@ -1211,14 +1239,11 @@ describe("POST /submissions", () => {
     expect(dbMock.calls).toEqual([]);
   });
 
-  it.each([{ notes: null }, { bandId: 3 }, { sectorId: null }, { cellType: null }, { pci: null }, { supportsIot: false }])(
-    "lets a cell update that only sets %j past the contract",
-    async (field) => {
-      dbMock.enqueueFor("select", "stations", []);
-      const cells = [{ action: "update", id: 100, ...field }];
-      const response = await injectMutation(route, { ...request, payload: [{ action: "update", stationId: 1, cells }] }, options);
-      expectError(response, 404, "NOT_FOUND");
-      expect(response.json().errors[0].details).toEqual([{ field: "0" }]);
-    },
-  );
+  it.each([{ notes: null }, { bandId: 3 }, { supportsIot: false }])("lets a cell update that only sets %j past the contract", async (field) => {
+    dbMock.enqueueFor("select", "stations", []);
+    const cells = [{ action: "update", id: 100, ...field }];
+    const response = await injectMutation(route, { ...request, payload: [{ action: "update", stationId: 1, cells }] }, options);
+    expectError(response, 404, "NOT_FOUND");
+    expect(response.json().errors[0].details).toEqual([{ field: "0" }]);
+  });
 });

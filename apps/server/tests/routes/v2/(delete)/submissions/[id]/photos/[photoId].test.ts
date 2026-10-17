@@ -98,15 +98,15 @@ describe("DELETE /submissions/:id/photos/:photoId", () => {
     expect(dbMock.calls.some((call) => call.operation === "delete")).toBe(false);
   });
 
-  it.each([false, true])("removes an uploaded photo with main=%s, its attachment and every file tier after committing an audit", async (isMain) => {
+  it("removes an uploaded photo, its attachment and every file tier after committing an audit", async () => {
     const unlink = vi.spyOn(fs, "unlink").mockResolvedValue(undefined);
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
-    scriptPhotoRemoval(isMain);
+    scriptPhotoRemoval(false);
     expect((await injectMutation(route, request, options)).statusCode).toBe(204);
     expect(whereQuery("submission_photos", "delete").params).toEqual([7, submissionId]);
     expect(whereQuery("attachments", "delete").params).toEqual([8]);
     expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toMatchObject([
-      { entity: "submission_photos", op: "delete", record_id: "7", old_values: { ...submissionPhotoRow, is_main: isMain }, new_values: null },
+      { entity: "submission_photos", op: "delete", record_id: "7", old_values: submissionPhotoRow, new_values: null },
     ]);
     expect(unlink.mock.calls.map(([file]) => file)).toEqual([
       photoFilePath(submissionPhotoId),

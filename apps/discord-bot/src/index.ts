@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Client, Events, GatewayIntentBits, type TextChannel } from "discord.js";
 import { createClient } from "redis";
 
+import { getSourceShortNames } from "./api.js";
 import { handleImportStatusCommand } from "./commands/import-status.js";
 import { handleLocationCommand } from "./commands/location.js";
 import { handleSearchCommand, handleSearchSelectMenu } from "./commands/search.js";
@@ -15,21 +16,19 @@ if (!REDIS_URL) throw new Error("REDIS_URL is required");
 if (!process.env.API_KEY) throw new Error("API_KEY is required");
 if (!process.env.API_BASE_URL) throw new Error("API_BASE_URL is required");
 
+const IMPORT_COMPLETE_CHANNEL = "official:import:complete";
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-const redis = createClient({ url: REDIS_URL });
-const subscriber = redis.duplicate();
-
-redis.on("error", (err: Error) => console.error("[redis]", err));
+const subscriber = createClient({ url: REDIS_URL });
 subscriber.on("error", (err: Error) => console.error("[redis:sub]", err));
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`[discord] Logged in as ${c.user.tag}`);
 
   await subscriber.connect();
-  await redis.connect();
 
-  await subscriber.subscribe("uke:import:complete", (message) => {
+  await subscriber.subscribe(IMPORT_COMPLETE_CHANNEL, async (message) => {
     if (!DISCORD_IMPORT_CHANNEL_ID) return;
 
     let event: ImportCompleteEvent;
@@ -46,10 +45,13 @@ client.once(Events.ClientReady, async (c) => {
       return;
     }
 
-    channel.send(buildImportCompleteEmbed(event)).catch((err: unknown) => console.error("[uke] Failed to send import embed:", err));
+    const sourceNames = await getSourceShortNames();
+    channel
+      .send(buildImportCompleteEmbed(event, sourceNames.get(event.sourceKey) ?? event.sourceKey))
+      .catch((err: unknown) => console.error("[uke] Failed to send import embed:", err));
   });
 
-  console.log("[redis] Subscribed to uke:import:complete");
+  console.log(`[redis] Subscribed to ${IMPORT_COMPLETE_CHANNEL}`);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -66,9 +68,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await handleLocationCommand(interaction);
           break;
         case "import":
-          if (interaction.options.getSubcommand() === "status") {
-            await handleImportStatusCommand(interaction, redis as Parameters<typeof handleImportStatusCommand>[1]);
-          }
+          if (interaction.options.getSubcommand() === "status") await handleImportStatusCommand(interaction);
           break;
       }
       return;

@@ -94,8 +94,8 @@ function ListRowsSkeleton() {
 
 type AddToListPopoverProps = {
   stationId?: number;
-  radiolineIds?: number[];
-  ukeStationId?: number;
+  microwaveLinkIds?: number[];
+  officialSiteId?: number;
   size?: "sm" | "md";
   className?: string;
   showLabel?: boolean;
@@ -118,8 +118,8 @@ type AddToListPopoverInnerProps = AddToListPopoverProps & { userId: string };
 function AddToListPopoverInner({
   userId,
   stationId,
-  radiolineIds,
-  ukeStationId,
+  microwaveLinkIds,
+  officialSiteId,
   size = "sm",
   className,
   showLabel = false,
@@ -139,7 +139,7 @@ function AddToListPopoverInner({
       void queryClient.invalidateQueries({ queryKey: listKeys.ownLists() });
       void queryClient.invalidateQueries({ queryKey: listKeys.everyList() });
       void queryClient.invalidateQueries({ queryKey: ["list-locations"] });
-      void queryClient.invalidateQueries({ queryKey: ["list-radiolines"] });
+      void queryClient.invalidateQueries({ queryKey: ["list-microwave-links"] });
       toast.success(isAdding ? t("lists:addedTo", { name: list.name }) : t("lists:removedFrom", { name: list.name }));
     },
     onError: (error) => {
@@ -162,7 +162,7 @@ function AddToListPopoverInner({
   const visibleLists = searchQuery ? lists.filter((list) => list.name.toLowerCase().includes(searchQuery)) : lists;
   const pendingListId = toggleMutation.isPending ? toggleMutation.variables?.list.id : undefined;
   const isBusy = toggleMutation.isPending || (isFetching && !isLoading);
-  const isStationTarget = Boolean(stationId || ukeStationId);
+  const isStationTarget = Boolean(stationId || officialSiteId);
 
   function warmLists() {
     prefetchOwnLists(queryClient, userId);
@@ -176,16 +176,16 @@ function AddToListPopoverInner({
 
   function isChecked(list: ListWithItems) {
     if (stationId) return list.items.stationIds.includes(stationId);
-    if (ukeStationId) return list.items.officialSiteIds.includes(ukeStationId);
-    if (radiolineIds) return radiolineIds.every((id) => list.items.microwaveLinkIds.includes(id));
+    if (officialSiteId) return list.items.officialSiteIds.includes(officialSiteId);
+    if (microwaveLinkIds) return microwaveLinkIds.every((id) => list.items.microwaveLinkIds.includes(id));
     return false;
   }
 
   function handleToggle(list: ListWithItems) {
     const isAdding = !isChecked(list);
     if (stationId) toggleMutation.mutate({ list, isAdding, items: { stationIds: [stationId] } });
-    else if (ukeStationId) toggleMutation.mutate({ list, isAdding, items: { officialSiteIds: [ukeStationId] } });
-    else if (radiolineIds) toggleMutation.mutate({ list, isAdding, items: { microwaveLinkIds: radiolineIds } });
+    else if (officialSiteId) toggleMutation.mutate({ list, isAdding, items: { officialSiteIds: [officialSiteId] } });
+    else if (microwaveLinkIds) toggleMutation.mutate({ list, isAdding, items: { microwaveLinkIds } });
   }
 
   const label = t("lists:addToList");
@@ -240,7 +240,7 @@ function AddToListPopoverInner({
   } else {
     body = visibleLists.map((list) => {
       const stationCount = list.itemCounts.stations + list.itemCounts.officialSites;
-      const radiolineCount = list.itemCounts.microwaveLinks;
+      const microwaveLinkCount = list.itemCounts.microwaveLinks;
 
       return (
         <ListRow
@@ -250,8 +250,10 @@ function AddToListPopoverInner({
           isFavorite={isFavorite(list.id)}
           isToggling={pendingListId === list.id}
           disabled={isBusy}
-          count={isStationTarget ? stationCount : radiolineCount}
-          countLabel={isStationTarget ? t("common:labels.stations", { count: stationCount }) : t("lists:radiolineCount", { count: radiolineCount })}
+          count={isStationTarget ? stationCount : microwaveLinkCount}
+          countLabel={
+            isStationTarget ? t("common:labels.stations", { count: stationCount }) : t("lists:radiolineCount", { count: microwaveLinkCount })
+          }
           onToggle={() => handleToggle(list)}
         />
       );
@@ -331,8 +333,8 @@ function AddToListPopoverInner({
             open={createOpen}
             onOpenChange={setCreateOpen}
             initialStationId={stationId}
-            initialRadiolineIds={radiolineIds}
-            initialUkeStationId={ukeStationId}
+            initialMicrowaveLinkIds={microwaveLinkIds}
+            initialOfficialSiteId={officialSiteId}
           />
         </Suspense>
       ) : null}

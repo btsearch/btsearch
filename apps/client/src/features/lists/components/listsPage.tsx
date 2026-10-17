@@ -208,8 +208,8 @@ function ListCard({
   const favoriteLabel = isFavorite ? t("lists:removeFavorite") : t("lists:addFavorite");
   const notificationsLabel = isNotified ? t("lists:disableNotifications") : t("lists:enableNotifications");
   const stationCount = list.itemCounts.stations + list.itemCounts.officialSites;
-  const radiolineCount = list.itemCounts.microwaveLinks;
-  const isEmpty = stationCount === 0 && radiolineCount === 0;
+  const microwaveLinkCount = list.itemCounts.microwaveLinks;
+  const isEmpty = stationCount === 0 && microwaveLinkCount === 0;
   const legendOperators = operatorLooks === null ? [] : listLegendOperators(list.operatorCounts, operatorLooks, t("main:unknownOperator"));
   const hasLegend = legendOperators.length > 0;
 
@@ -298,10 +298,10 @@ function ListCard({
           <HugeiconsIcon icon={AirportTowerIcon} className="size-3.5" />
           {t("common:labels.stations", { count: stationCount })}
         </span>
-        {radiolineCount > 0 ? (
+        {microwaveLinkCount > 0 ? (
           <span className="inline-flex items-center gap-1">
             <HugeiconsIcon icon={UPLINK_APPEARANCE.microwave.icon} className="size-3.5" />
-            {t("lists:radiolineCount", { count: radiolineCount })}
+            {t("lists:radiolineCount", { count: microwaveLinkCount })}
           </span>
         ) : null}
       </div>

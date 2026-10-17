@@ -9,10 +9,10 @@ import { ErrorResponse } from "../../../../errors.js";
 import { actorIdFromRequest } from "../../../../features/access/access.js";
 import { hasStaffPermission } from "../../../../features/access/staff.js";
 import { runAuditedOperation, standaloneAuditContext } from "../../../../features/audit/index.js";
-import { loadHiddenCountryCodes } from "../../../../features/countries/visibility.js";
 import { applyItemChanges, assertItemsExist, itemsNotStored } from "../../../../features/lists/items.js";
 import { toLists } from "../../../../features/lists/serialize.js";
 import { assertListsEnabled, findListForViewer, getUserListMembership } from "../../../../features/lists/visibility.js";
+import { loadOfficialVisibility } from "../../../../features/official/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -20,7 +20,8 @@ const schemaRoute = {
   summary: "Update a list",
   description:
     "Updates a list and returns it. You need to be the owner or an administrator. " +
-    "Every item you add has to exist, and stations in countries you cannot access count as missing.",
+    "Every item you add has to exist. Stations in countries you cannot access count as missing, " +
+    "and so do official sites and microwave links of sources that are hidden from you.",
   params: listParamsSchema,
   body: listUpdateSchema,
   response: {
@@ -44,9 +45,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   const { name, description, isPublic, notificationsEnabled, items, addItems, removeItems } = req.body;
 
-  const list = await findListForViewer(req, req.params.id, userId);
+  const [list, visibility] = await Promise.all([findListForViewer(req, req.params.id, userId), loadOfficialVisibility(req)]);
   if (list.created_by !== userId && !(await hasStaffPermission(req, { user_lists: ["manage_all"] }))) throw new ErrorResponse("FORBIDDEN");
-  const hidden = await loadHiddenCountryCodes(req);
 
   try {
     const updated = await runAuditedOperation(standaloneAuditContext(req), { kind: "list.update" }, async (tx, audit) => {
@@ -61,15 +61,19 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           .limit(1);
         if (sameName) throw new ErrorResponse("CONFLICT", { message: "The owner already has a list with this name" });
       }
-      if (addItems) await assertItemsExist(tx, addItems, hidden);
+      if (addItems) await assertItemsExist(tx, addItems, visibility);
 
       const membership = getUserListMembership(current);
-      if (items) await assertItemsExist(tx, itemsNotStored(items, membership), hidden);
+      if (items) await assertItemsExist(tx, itemsNotStored(items, membership), visibility);
       const changesItems = items !== undefined || addItems !== undefined || removeItems !== undefined;
       const next = {
         internal: applyItemChanges(items?.stationIds ?? membership.internal, addItems?.stationIds, removeItems?.stationIds),
-        uke: applyItemChanges(items?.officialSiteIds ?? membership.uke, addItems?.officialSiteIds, removeItems?.officialSiteIds),
-        radiolines: applyItemChanges(items?.microwaveLinkIds ?? membership.radiolines, addItems?.microwaveLinkIds, removeItems?.microwaveLinkIds),
+        official: applyItemChanges(items?.officialSiteIds ?? membership.official, addItems?.officialSiteIds, removeItems?.officialSiteIds),
+        microwaveLinks: applyItemChanges(
+          items?.microwaveLinkIds ?? membership.microwaveLinks,
+          addItems?.microwaveLinkIds,
+          removeItems?.microwaveLinkIds,
+        ),
       };
 
       const [result] = await tx
@@ -79,8 +83,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           description: description === undefined ? undefined : description || null,
           is_public: isPublic,
           notificationsEnabled,
-          stations: changesItems ? { internal: next.internal, uke: next.uke } : undefined,
-          radiolines: changesItems ? next.radiolines : undefined,
+          stations: changesItems ? { internal: next.internal, official: next.official } : undefined,
+          radiolines: changesItems ? next.microwaveLinks : undefined,
           updatedAt: new Date(),
         })
         .where(eq(userLists.id, current.id))
@@ -91,7 +95,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       return result;
     });
 
-    const [serialized] = await toLists([updated], userId, hidden);
+    const [serialized] = await toLists([updated], userId, visibility);
     if (!serialized) throw new ErrorResponse("FAILED_TO_UPDATE");
 
     return res.send({ data: serialized });

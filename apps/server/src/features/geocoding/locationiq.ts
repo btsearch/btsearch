@@ -6,9 +6,9 @@ import {
   createResultId,
   describePlace,
   fetchProviderJson,
-  formatRegion,
   formatStreetLine,
   getStatusCooldownMs,
+  normalizePlaceNames,
   pickText,
 } from "./provider.js";
 import type { GeocodingKind, GeocodingProvider, GeocodingResult } from "./types.js";
@@ -83,16 +83,18 @@ function getKind(place: LocationIqPlace, name: string, city: string | null): Geo
 
 function toGeocodingResult(place: LocationIqPlace): GeocodingResult | null {
   const details = place.address;
+  const countryCode = pickText(details.country_code);
+  const names = normalizePlaceNames(countryCode, { region: pickText(details.state), municipality: pickText(details.municipality) });
   const address = {
     street: pickText(details.road),
     houseNumber: pickText(details.house_number),
     postcode: pickText(details.postcode),
     city: pickText(details.city, details.town, details.village, details.hamlet),
-    municipality: pickText(details.municipality),
+    municipality: names.municipality,
     county: pickText(details.county),
-    region: formatRegion(details.state),
+    region: names.region,
     country: pickText(details.country),
-    countryCode: pickText(details.country_code),
+    countryCode,
   };
   const streetLine = formatStreetLine(address.street, address.houseNumber, address.city);
   const placeName = pickText(

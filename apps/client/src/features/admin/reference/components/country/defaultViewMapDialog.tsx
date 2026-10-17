@@ -1,7 +1,7 @@
 import { type FormEvent, Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { CountryView } from "../../types";
+import type { BoundingBox } from "../../types";
 import { DialogFormFooter } from "../shared/dialogFormFooter";
 import { REFERENCE_DESCRIPTION_CLASS, ReferenceMeta, ReferenceMetaItem } from "../shared/referenceCards";
 import { useOpeningCount } from "../shared/useOpeningCount";
@@ -15,19 +15,19 @@ import { cn } from "@/lib/utils";
 type DefaultViewMapDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialView: CountryView | null;
-  onPick: (view: CountryView) => void;
+  initialView: BoundingBox | null;
+  onPick: (view: BoundingBox) => void;
 };
 
 type DefaultViewMapFormProps = {
-  initialView: CountryView | null;
-  onPick: (view: CountryView) => void;
+  initialView: BoundingBox | null;
+  onPick: (view: BoundingBox) => void;
   onCancel: () => void;
 };
 
 const DefaultViewPickerMap = lazy(() => import("./defaultViewMap").then((module) => ({ default: module.DefaultViewPickerMap })));
 
-function VisibleViewSummary({ view }: { view: CountryView | null }) {
+function VisibleViewSummary({ view }: { view: BoundingBox | null }) {
   const { t, i18n } = useTranslation("admin");
   const edgeLabels = useViewEdgeLabels();
 
@@ -51,7 +51,7 @@ function VisibleViewSummary({ view }: { view: CountryView | null }) {
 function DefaultViewMapForm({ initialView, onPick, onCancel }: DefaultViewMapFormProps) {
   const { t } = useTranslation("admin");
   const [startView] = useState(initialView);
-  const [visibleView, setVisibleView] = useState<CountryView | null>(null);
+  const [visibleView, setVisibleView] = useState<BoundingBox | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,7 +93,7 @@ function DefaultViewMapForm({ initialView, onPick, onCancel }: DefaultViewMapFor
 export function DefaultViewMapDialog({ open, onOpenChange, initialView, onPick }: DefaultViewMapDialogProps) {
   const openingCount = useOpeningCount(open);
 
-  function pickView(view: CountryView) {
+  function pickView(view: BoundingBox) {
     onPick(view);
     onOpenChange(false);
   }

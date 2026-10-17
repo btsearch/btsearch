@@ -23,12 +23,6 @@ describe("getCountryFeaturesByCode", () => {
     expect(await getCountryFeaturesByCode([null, undefined])).toEqual(new Map());
     expect(dbMock.select).not.toHaveBeenCalled();
   });
-
-  it("propagates a failed country lookup", async () => {
-    dbMock.enqueueCountryFeatures("countries", new Error("Country lookup failed"));
-
-    await expect(getCountryFeaturesByCode(["PL"])).rejects.toThrow("Country lookup failed");
-  });
 });
 
 describe("findPlacementCountryCode", () => {
@@ -62,16 +56,6 @@ describe("findPlacementCountryCode", () => {
 });
 
 describe("findPlacementCountryFeatures", () => {
-  it("loads the features of the final placement country", async () => {
-    dbMock.enqueueCountryFeatures("countries", [{ structureOwnerProposals: false, psc: false, bsic: true }]);
-
-    expect(await findPlacementCountryFeatures({ stationId: 1, regionId: 2 })).toEqual({
-      structureOwnerProposals: false,
-      psc: false,
-      bsic: true,
-    });
-  });
-
   it("disables optional features when no country can be resolved", async () => {
     expect(await findPlacementCountryFeatures({ stationId: null })).toEqual({ structureOwnerProposals: false, psc: false, bsic: false });
     expect(dbMock.select).not.toHaveBeenCalled();

@@ -3,7 +3,7 @@ import type { AnalyzerUsagePoint, AnalyzerUsageQuery } from "@openbts/shared/con
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import { loadAnalyzerUsage } from "../../../../features/stats/countries.js";
+import { loadAnalyzerUsage } from "../../../../features/stats/read.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 

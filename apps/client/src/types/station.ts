@@ -1,4 +1,4 @@
-export type Band = {
+type Band = {
   id: number;
   value: number;
   rat: string;
@@ -24,7 +24,7 @@ export type Location = {
   region: Region;
 };
 
-export type Operator = {
+type Operator = {
   id: number;
   name: string;
   full_name: string;
@@ -122,54 +122,7 @@ export type Station = {
   physicalStation?: PhysicalStation;
 };
 
-export type RadioLineEquipmentType = {
-  id: number;
-  name: string;
-  manufacturer?: { id: number; name: string };
-};
-
-export type RadioLine = {
-  id: number;
-  tx: {
-    longitude: number;
-    latitude: number;
-    height: number;
-    eirp?: number;
-    antenna_attenuation?: number;
-    transmitter?: { type?: RadioLineEquipmentType };
-    antenna?: { type?: RadioLineEquipmentType; gain?: number; height?: number };
-  };
-  rx: {
-    longitude: number;
-    latitude: number;
-    height: number;
-    type?: RadioLineEquipmentType;
-    gain?: number;
-    height_antenna?: number;
-    noise_figure?: number;
-    atpc_attenuation?: number;
-  };
-  link: {
-    freq: number;
-    ch_num?: number;
-    plan_symbol?: string;
-    ch_width?: number;
-    polarization?: string;
-    modulation_type?: string;
-    bandwidth?: string;
-  };
-  operator?: UkeOperator;
-  permit: {
-    number?: string;
-    decision_type?: string;
-    expiry_date: string;
-  };
-  specs_date?: string;
-  updatedAt: string;
-  createdAt: string;
-};
-
-export type StationSource = "internal" | "uke";
+export type StationSource = "internal" | "official";
 
 export type StationWithoutCells = Omit<Station, "location" | "cells"> & {
   cells?: Cell[];
@@ -185,77 +138,6 @@ export type LocationWithStations = {
   createdAt: string;
   region: Region;
   stations: StationWithoutCells[];
-};
-
-export type UkeOperator = {
-  id: number;
-  name: string;
-  full_name: string;
-  parent_id?: number | null;
-  mnc?: number | null;
-};
-
-export type UkeLocation = {
-  id: number;
-  city: string | null;
-  address: string | null;
-  longitude: number;
-  latitude: number;
-  updatedAt: string;
-  createdAt: string;
-  region: Region;
-};
-
-export type UkePermitSector = {
-  id: number;
-  azimuth: number | null;
-  elevation: number | null;
-  antenna_height: number | null;
-  antenna_type: "indoor" | "outdoor" | null;
-};
-
-export type UkeStationPermit = {
-  id: number;
-  decision_number: string;
-  decision_type: "zmP" | "P";
-  expiry_date: string;
-  source?: "permits" | "device_registry";
-  sectors?: UkePermitSector[];
-  updatedAt: string;
-  createdAt: string;
-  band?: Band | null;
-};
-
-export type UkePermit = UkeStationPermit & {
-  station: Omit<UkeStation, "permits">;
-};
-
-export type UkeLocationWithPermits = {
-  id: number;
-  city: string | null;
-  address: string | null;
-  longitude: number;
-  latitude: number;
-  updatedAt: string;
-  createdAt: string;
-  region: Region;
-  stations: UkeStation[];
-};
-
-export type UkeStation = {
-  id: number;
-  station_id: string;
-  createdAt?: string;
-  updatedAt?: string;
-  operator: UkeOperator | null;
-  permits: UkeStationPermit[];
-  location?:
-    | (Omit<UkeLocation, "createdAt" | "updatedAt"> & {
-        createdAt?: string;
-        updatedAt?: string;
-      })
-    | null;
-  internalStation?: PhysicalStation | null;
 };
 
 export type Sector = {

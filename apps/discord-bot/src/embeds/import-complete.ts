@@ -1,10 +1,16 @@
 import type { BaseMessageOptions } from "discord.js";
 import { MessageFlags, SeparatorBuilder, TextDisplayBuilder } from "discord.js";
 
-export interface ImportDelta {
-  stations: { added: number };
-  permits: { added: number; updated: number; deleted: number };
-  radiolines: { added: number; deleted: number };
+export interface ImportCompleteDataset {
+  key: string;
+  outcome: "applied" | "held" | "failed" | "skipped";
+  heldSlices: string[];
+  error: string | null;
+}
+
+export interface ImportChangeCount {
+  kind: string;
+  count: number;
 }
 
 export interface SnapshotOperatorDelta {
@@ -14,7 +20,7 @@ export interface SnapshotOperatorDelta {
 }
 
 export interface SnapshotBandDelta {
-  id: number;
+  id: string;
   name: string;
   permitsDelta: number;
 }
@@ -25,13 +31,14 @@ export interface SnapshotDelta {
 }
 
 export interface ImportCompleteEvent {
-  state: "success" | "error";
+  runId: string;
+  sourceKey: string;
+  trigger: "scheduled" | "manual" | "cli";
   startedAt: string;
   finishedAt: string;
-  error?: string;
-  warning?: string;
-  delta?: ImportDelta;
-  snapshotDelta?: SnapshotDelta | null;
+  datasets: ImportCompleteDataset[];
+  changes: ImportChangeCount[];
+  snapshotDelta: SnapshotDelta | null;
 }
 
 function formatDuration(startedAt: string, finishedAt: string): string {
@@ -50,45 +57,55 @@ type MessageComponent = NonNullable<BaseMessageOptions["components"]>[number];
 
 export type ImportCompleteMessage = { flags: typeof MessageFlags.IsComponentsV2; components: MessageComponent[] };
 
-export function buildImportCompleteEmbed(event: ImportCompleteEvent): ImportCompleteMessage {
+export function buildImportCompleteEmbed(event: ImportCompleteEvent, sourceName: string): ImportCompleteMessage {
   const components: MessageComponent[] = [];
   const duration = formatDuration(event.startedAt, event.finishedAt);
+  const error = event.datasets
+    .filter((dataset) => dataset.error !== null)
+    .map((dataset) => `${dataset.key}: ${dataset.error}`)
+    .join("; ");
+  const warning = event.datasets
+    .filter((dataset) => dataset.heldSlices.length > 0)
+    .map((dataset) => `${dataset.key}: wstrzymano ${dataset.heldSlices.join(", ")}`)
+    .join("; ");
 
-  components.push(new TextDisplayBuilder().setContent(`### ✅ Import UKE zakończony\n⏱️ Czas trwania: **${duration}**`));
+  components.push(new TextDisplayBuilder().setContent(`### ✅ Import ${sourceName} zakończony\n⏱️ Czas trwania: **${duration}**`));
 
-  if (event.error)
-    components.push(new TextDisplayBuilder().setContent(`⚠️ **Niektóre etapy importu nie powiodły się**\n\`\`\`${event.error.slice(0, 1000)}\`\`\``));
+  if (error) {
+    components.push(new TextDisplayBuilder().setContent(`⚠️ **Niektóre etapy importu nie powiodły się**\n\`\`\`${error.slice(0, 1000)}\`\`\``));
+  }
 
-  if (event.warning) components.push(new TextDisplayBuilder().setContent(`ℹ️ **Uwagi do importu**\n\`\`\`${event.warning.slice(0, 1000)}\`\`\``));
+  if (warning) components.push(new TextDisplayBuilder().setContent(`ℹ️ **Uwagi do importu**\n\`\`\`${warning.slice(0, 1000)}\`\`\``));
 
-  if (event.delta) {
-    const { stations, permits, radiolines } = event.delta;
+  if (event.datasets.some((dataset) => dataset.outcome === "applied")) {
+    const countOf = (kind: string) => event.changes.find((change) => change.kind === kind)?.count ?? 0;
+    const sitesAdded = countOf("siteAdded");
+    const permits = { added: countOf("permitAdded"), deleted: countOf("permitArchived") };
+    const microwaveLinks = { added: countOf("microwaveLinkAdded"), deleted: countOf("microwaveLinkArchived") };
 
-    const hasChanges =
-      stations.added > 0 || permits.added > 0 || permits.updated > 0 || permits.deleted > 0 || radiolines.added > 0 || radiolines.deleted > 0;
+    const hasChanges = sitesAdded > 0 || permits.added > 0 || permits.deleted > 0 || microwaveLinks.added > 0 || microwaveLinks.deleted > 0;
 
     components.push(new SeparatorBuilder());
 
     if (!hasChanges) {
       components.push(new TextDisplayBuilder().setContent("Nie wykryto żadnych zmian w danych."));
     } else {
-      if (stations.added > 0) {
-        components.push(new TextDisplayBuilder().setContent(`🏗️ **Stacje**\n+${stations.added} dodanych`));
+      if (sitesAdded > 0) {
+        components.push(new TextDisplayBuilder().setContent(`🏗️ **Stacje**\n+${sitesAdded} dodanych`));
       }
 
-      if (permits.added > 0 || permits.updated > 0 || permits.deleted > 0) {
+      if (permits.added > 0 || permits.deleted > 0) {
         const rows = [
           permits.added > 0 && `+${permits.added.toLocaleString("pl-PL")} nowych`,
-          permits.updated > 0 && `~${permits.updated.toLocaleString("pl-PL")} zaktualizowanych`,
           permits.deleted > 0 && `-${permits.deleted.toLocaleString("pl-PL")} usuniętych`,
         ].filter(Boolean);
         components.push(new TextDisplayBuilder().setContent(`📋 **Pozwolenia**\n${rows.join("  ·  ")}`));
       }
 
-      if (radiolines.added > 0 || radiolines.deleted > 0) {
+      if (microwaveLinks.added > 0 || microwaveLinks.deleted > 0) {
         const rows = [
-          radiolines.added > 0 && `+${radiolines.added.toLocaleString("pl-PL")} nowych`,
-          radiolines.deleted > 0 && `-${radiolines.deleted.toLocaleString("pl-PL")} usuniętych`,
+          microwaveLinks.added > 0 && `+${microwaveLinks.added.toLocaleString("pl-PL")} nowych`,
+          microwaveLinks.deleted > 0 && `-${microwaveLinks.deleted.toLocaleString("pl-PL")} usuniętych`,
         ].filter(Boolean);
         components.push(new TextDisplayBuilder().setContent(`📡 **Linie radiowe**\n${rows.join("  ·  ")}`));
       }

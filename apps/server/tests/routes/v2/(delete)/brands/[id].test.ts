@@ -9,19 +9,24 @@ const request = { method: "DELETE" as const, url: "/brands/7" };
 const options = { session: userSession("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "admin") };
 
 describe("DELETE /brands/7", () => {
-  it.each(["operators", "uke_operators", "structure_owners"])("rejects a brand still used by %s", async (reference) => {
+  it.each(["operators", "official.licensees", "structure_owners"])("rejects a brand still used by %s", async (reference) => {
     dbMock.query.brands.findFirst.mockResolvedValue(row);
     scriptAudit();
-    for (const table of ["operators", "uke_operators", "structure_owners"])
+    for (const table of ["operators", "official.licensees", "structure_owners"])
       dbMock.enqueueFor("select", table, table === reference ? [{ id: 1 }] : []);
-    expectError(await injectMutation(route, request, options), 409, "CONFLICT", "Cannot delete a brand that operators or structure owners still use");
+    expectError(
+      await injectMutation(route, request, options),
+      409,
+      "CONFLICT",
+      "Cannot delete a brand that operators, licensees or structure owners still use",
+    );
     expect(dbMock.calls.some((call) => call.operation === "delete")).toBe(false);
   });
 
   it("returns 404 when another request already deleted the brand", async () => {
     dbMock.query.brands.findFirst.mockResolvedValue(row);
     scriptAudit();
-    for (const table of ["operators", "uke_operators", "structure_owners"]) dbMock.enqueueFor("select", table, []);
+    for (const table of ["operators", "official.licensees", "structure_owners"]) dbMock.enqueueFor("select", table, []);
     dbMock.enqueueFor("delete", "brands", []);
     expectError(await injectMutation(route, request, options), 404, "NOT_FOUND");
     expect(dbMock.calls.some((call) => call.table === "audit_logs")).toBe(false);
@@ -31,7 +36,7 @@ describe("DELETE /brands/7", () => {
     scriptAudit();
     dbMock.query.brands.findFirst.mockResolvedValue(row);
     dbMock.enqueueFor("select", "operators", []);
-    dbMock.enqueueFor("select", "uke_operators", []);
+    dbMock.enqueueFor("select", "official.licensees", []);
     dbMock.enqueueFor("select", "structure_owners", []);
     dbMock.enqueueFor("delete", "brands", [row]);
     const response = await injectMutation(route, request, options);

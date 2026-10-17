@@ -2,9 +2,8 @@ import type { StationStatus } from "@openbts/shared/contract";
 import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
 
 import type { MapPoint, MapPointStation } from "./data/mapPoints";
-import { type DuplexRadioLink, getRadioLineMnc } from "./utils";
+import { type DuplexMicrowaveLink, type MicrowaveLinkLookups, getMicrowaveLinkLook } from "./utils";
 import { FALLBACK_BRAND_COLOR } from "@/features/station-details/station/utils/brands";
-import { getOperatorColor } from "@/lib/cellular/operators";
 
 export type AzimuthPoint = {
   latitude: number;
@@ -86,7 +85,10 @@ export function toAzimuthPoints(points: readonly MapPoint[]): AzimuthPoint[] {
   }));
 }
 
-export function radioLinesToGeoJSON(links: DuplexRadioLink[]): {
+export function microwaveLinksToGeoJSON(
+  links: DuplexMicrowaveLink[],
+  lookups: MicrowaveLinkLookups | undefined,
+): {
   lines: FeatureCollection;
   endpoints: FeatureCollection;
 } {
@@ -94,10 +96,9 @@ export function radioLinesToGeoJSON(links: DuplexRadioLink[]): {
   const endpointFeatures: Feature[] = [];
 
   for (const link of links) {
-    const mnc = getRadioLineMnc(link);
     const properties = {
-      radioLineId: link.directions[0].id,
-      color: mnc ? getOperatorColor(mnc) : FALLBACK_BRAND_COLOR,
+      microwaveLinkId: link.directions[0].id,
+      color: getMicrowaveLinkLook(link, lookups).color,
       isExpired: link.isExpired,
     };
 

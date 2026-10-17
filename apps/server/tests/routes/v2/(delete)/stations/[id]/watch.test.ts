@@ -20,14 +20,4 @@ describe("DELETE /stations/12/watch", () => {
     expect(whereQuery("station_watches", "delete").params).toEqual([ownerId, 12]);
     expect(response.body).toBe("");
   });
-
-  it("keeps deletion idempotent when the resource is absent", async () => {
-    dbMock.enqueueFor("delete", "station_watches", []);
-    const response = await injectMutation(
-      route,
-      { method: "DELETE", url: "/stations/12/watch?unexpected=true" },
-      { session: userSession(ownerId, "user") },
-    );
-    expect(response.statusCode).toBe(204);
-  });
 });

@@ -4,7 +4,7 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { loadVisibleCountryCodes } from "../../../../features/countries/visibility.js";
-import { loadStatisticsHistory } from "../../../../features/stats/countries.js";
+import { loadStatisticsHistory } from "../../../../features/stats/read.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 

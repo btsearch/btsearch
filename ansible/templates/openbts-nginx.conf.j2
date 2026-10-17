@@ -122,7 +122,7 @@ server {
         return 308 /$1/$2;
     }
 
-    location ~ "^/(?:(?:stations|locations)/[0-9]+|robots\.txt|sitemap\.xml|sitemaps/(?:pages|(?:stations|locations)-[1-9][0-9]{0,3})\.xml)$" {
+    location ~ "^/(?:(?:stations|locations)/[0-9]+|lists/[A-Za-z0-9_-]{14}|robots\.txt|sitemap\.xml|sitemaps/(?:pages|(?:stations|locations)-[1-9][0-9]{0,3})\.xml)$" {
         proxy_connect_timeout 1s;
         proxy_send_timeout 10s;
         proxy_read_timeout 10s;
@@ -138,7 +138,7 @@ server {
         include /etc/nginx/snippets/security-headers.conf;
     }
 
-    location ~ "^/public/og/(stations|locations)/[1-9][0-9]*\.png$" {
+    location ~ "^/public/og/(?:(?:stations|locations)/[1-9][0-9]*|lists/[A-Za-z0-9_-]{14})\.png$" {
         proxy_cache og_images;
         proxy_cache_key "$scheme$host$uri";
         proxy_cache_lock on;

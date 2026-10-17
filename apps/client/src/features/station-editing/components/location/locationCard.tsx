@@ -1,6 +1,7 @@
 import { Gps01Icon, InformationCircleIcon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { formatDistance } from "@openbts/shared/radiolinesUtils";
+import type { OfficialSite } from "@openbts/shared/contract";
+import { formatDistance } from "@openbts/shared/geo";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,12 +22,11 @@ import type { PickerMatchMode } from "./pickerMap";
 import { type PlaceStation, PlaceStations, useOwnPlaceStations } from "./placeStations";
 import { StructureFields } from "./structureFields";
 import { useRegionLookup } from "./useRegionLookup";
-import type { UkeStation } from "@/types/station";
 
 type LocationCardProps = {
   edit: StationDraftApi;
   stationId?: number | null;
-  onRegisterStationPick?: (station: UkeStation) => void;
+  onRegisterStationPick?: (site: OfficialSite) => void;
 };
 
 type CoordinateLooks = {

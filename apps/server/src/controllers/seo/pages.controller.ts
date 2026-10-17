@@ -1,12 +1,15 @@
+import { conventionsFor } from "@openbts/country-packs";
 import { bands, cells, extraIdentificators, locations, operators, regions, stations } from "@openbts/drizzle";
 import {
   type JsonLdObject,
   type SEOMetadata,
   SEO_IMAGE_HEIGHT,
   SEO_IMAGE_WIDTH,
+  createListSEOMetadata,
   createLocationSEOMetadata,
   createStationSEOMetadata,
   parseSEOEntityId,
+  parseSEOListId,
 } from "@openbts/shared/seo";
 import { and, asc, eq } from "drizzle-orm";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -15,6 +18,9 @@ import { baseUrl, clientOrigin, dlogger, siteName } from "../../config.js";
 import db from "../../database/psql.js";
 import redis from "../../database/redis.js";
 import { locationInPublicCountry } from "../../features/countries/visibility.js";
+import { loadPublicListPreview } from "../../features/lists/preview.js";
+import { loadPublicSiteSourceNames } from "../../features/official/visibility.js";
+import { stationCountryCode } from "../../features/stations/country.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
 import { SingleFlight } from "../../lib/async/singleFlight.js";
 import { escapeHtml } from "../../lib/html.js";
@@ -25,12 +31,15 @@ const SHELL_MAX_STALE_MS = 5 * 60_000;
 const SHELL_REQUEST_TIMEOUT_MS = 5_000;
 const SHELL_MAX_BYTES = 2 * 1024 * 1024;
 const FRAGMENT_TTL_SECONDS = 3600;
+const LIST_FRAGMENT_TTL_SECONDS = 300;
 const NOT_FOUND_TTL_SECONDS = 300;
 const NOT_FOUND = "__not_found__";
 const NOINDEX_TAG = `<meta data-seo-inject name="robots" content="noindex" />`;
 const SEO_FALLBACK_PATTERN = /\s*<!-- seo-fallback:start -->[\s\S]*?<!-- seo-fallback:end -->/;
 const SEO_SITE = { name: siteName, url: baseUrl } as const;
 const FRAGMENT_CACHE_KEY_PREFIX = `seo:page:v2:${encodeURIComponent(baseUrl)}:${encodeURIComponent(siteName)}`;
+
+type PageKind = "station" | "location" | "list";
 
 let cachedShell: string | null = null;
 let shellFetchedAt = 0;
@@ -137,7 +146,7 @@ async function buildStationFragment(id: number): Promise<string | null> {
       status: stations.status,
       extraAddress: stations.extra_address,
       operatorName: operators.name,
-      operatorMnc: operators.mnc,
+      countryCode: stationCountryCode,
       networksId: extraIdentificators.networks_id,
       city: locations.city,
       address: locations.address,
@@ -156,11 +165,10 @@ async function buildStationFragment(id: number): Promise<string | null> {
   const station = rows[0];
   if (!station) return null;
 
-  const cellRows = await db
-    .select({ rat: cells.rat, value: bands.value })
-    .from(cells)
-    .innerJoin(bands, eq(cells.band_id, bands.id))
-    .where(eq(cells.station_id, id));
+  const [cellRows, siteSourceNames] = await Promise.all([
+    db.select({ rat: cells.rat, value: bands.value }).from(cells).innerJoin(bands, eq(cells.band_id, bands.id)).where(eq(cells.station_id, id)),
+    loadPublicSiteSourceNames(station.countryCode),
+  ]);
 
   return buildHeadFragment(
     createStationSEOMetadata(SEO_SITE, {
@@ -168,14 +176,14 @@ async function buildStationFragment(id: number): Promise<string | null> {
       stationCode: station.stationCode,
       status: station.status,
       operatorName: station.operatorName,
-      operatorMnc: station.operatorMnc,
-      networksId: station.networksId,
+      networksLabel: station.networksId ? conventionsFor(station.countryCode).formatIdentifier("networksId", String(station.networksId)) : null,
       city: station.city,
       address: station.extraAddress || station.address,
       regionName: station.regionName,
       latitude: station.latitude,
       longitude: station.longitude,
       bands: cellRows,
+      siteSourceNames,
     }),
   );
 }
@@ -189,6 +197,7 @@ async function buildLocationFragment(id: number): Promise<string | null> {
       latitude: locations.latitude,
       longitude: locations.longitude,
       regionName: regions.name,
+      countryCode: regions.countryCode,
     })
     .from(locations)
     .leftJoin(regions, eq(locations.region_id, regions.id))
@@ -198,13 +207,16 @@ async function buildLocationFragment(id: number): Promise<string | null> {
   const location = rows[0];
   if (!location) return null;
 
-  const stationRows = await db
-    .select({ id: stations.id, stationCode: stations.station_id, operatorName: operators.name, status: stations.status })
-    .from(stations)
-    .innerJoin(operators, eq(stations.operator_id, operators.id))
-    .where(and(eq(stations.location_id, id), eq(stations.status, "published")))
-    .orderBy(asc(stations.id))
-    .limit(9);
+  const [stationRows, siteSourceNames] = await Promise.all([
+    db
+      .select({ id: stations.id, stationCode: stations.station_id, operatorName: operators.name, status: stations.status })
+      .from(stations)
+      .innerJoin(operators, eq(stations.operator_id, operators.id))
+      .where(and(eq(stations.location_id, id), eq(stations.status, "published")))
+      .orderBy(asc(stations.id))
+      .limit(9),
+    loadPublicSiteSourceNames(location.countryCode),
+  ]);
 
   return buildHeadFragment(
     createLocationSEOMetadata(SEO_SITE, {
@@ -215,29 +227,42 @@ async function buildLocationFragment(id: number): Promise<string | null> {
       latitude: location.latitude,
       longitude: location.longitude,
       stations: stationRows,
+      siteSourceNames,
     }),
   );
 }
 
-async function cachedFragment(key: string, build: () => Promise<string | null>): Promise<string | null> {
+async function buildListFragment(id: string): Promise<string | null> {
+  const list = await loadPublicListPreview(id);
+  if (!list) return null;
+
+  return buildHeadFragment(createListSEOMetadata(SEO_SITE, { ...list, hasMoreOperators: list.otherOperators !== null }));
+}
+
+async function cachedFragment(key: string, ttlSeconds: number, build: () => Promise<string | null>): Promise<string | null> {
   const hit = await redis.get(key);
   if (hit !== null && hit !== undefined) return hit === NOT_FOUND ? null : hit;
 
   return fragmentRequests.run(key, async () => {
     const value = await build();
-    await redis.setEx(key, value === null ? NOT_FOUND_TTL_SECONDS : FRAGMENT_TTL_SECONDS, value ?? NOT_FOUND);
+    await redis.setEx(key, value === null ? NOT_FOUND_TTL_SECONDS : ttlSeconds, value ?? NOT_FOUND);
     return value;
   });
 }
 
-function buildPageFragment(kind: "station" | "location", id: number): Promise<string | null> {
-  if (kind === "station") return buildStationFragment(id);
-  return buildLocationFragment(id);
+function pageFragmentBuilder(kind: PageKind, id: string): (() => Promise<string | null>) | null {
+  if (kind === "list") {
+    const listId = parseSEOListId(id);
+    return listId === null ? null : () => buildListFragment(listId);
+  }
+
+  const numericId = parseSEOEntityId(id);
+  if (numericId === null) return null;
+  return kind === "station" ? () => buildStationFragment(numericId) : () => buildLocationFragment(numericId);
 }
 
-async function handlePage(req: FastifyRequest, res: FastifyReply, kind: "station" | "location") {
+async function handlePage(req: FastifyRequest, res: FastifyReply, kind: PageKind) {
   const { id } = req.params as { id: string };
-  const numericId = parseSEOEntityId(id);
 
   const shell = await getShell();
   if (shell === null) {
@@ -252,14 +277,13 @@ async function handlePage(req: FastifyRequest, res: FastifyReply, kind: "station
     return res.status(503).send(cleanShell);
   }
 
-  let fragment: string | null = null;
-  if (numericId !== null) {
-    const cacheKey = `${FRAGMENT_CACHE_KEY_PREFIX}:${kind}:${numericId}`;
-    fragment = await cachedFragment(cacheKey, () => buildPageFragment(kind, numericId));
-  }
+  const buildFragment = pageFragmentBuilder(kind, id);
+  const ttlSeconds = kind === "list" ? LIST_FRAGMENT_TTL_SECONDS : FRAGMENT_TTL_SECONDS;
+  const fragment = buildFragment === null ? null : await cachedFragment(`${FRAGMENT_CACHE_KEY_PREFIX}:${kind}:${id}`, ttlSeconds, buildFragment);
 
   if (fragment === null) {
     res.header("Cache-Control", "no-cache");
+    if (kind === "list") return res.send(shell.replace("</head>", `${NOINDEX_TAG}\n</head>`));
     return res.status(404).send(cleanShell.replace("</head>", `${NOINDEX_TAG}\n</head>`));
   }
 
@@ -272,4 +296,5 @@ async function handlePage(req: FastifyRequest, res: FastifyReply, kind: "station
 export async function SEOPagesController(fastify: FastifyZodInstance): Promise<void> {
   fastify.get("/stations/:id", { config: { allowGuestAccess: true } }, (req, res) => handlePage(req, res, "station"));
   fastify.get("/locations/:id", { config: { allowGuestAccess: true } }, (req, res) => handlePage(req, res, "location"));
+  fastify.get("/lists/:id", { config: { allowGuestAccess: true } }, (req, res) => handlePage(req, res, "list"));
 }

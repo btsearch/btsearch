@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { type EditorArea, useEditorArea } from "./editorArea";
 import { fitCountryCodes, isRegionInScope, listCountryOptionCodes } from "./listScope";
 import { MOST_ALWAYS_OPEN_OPERATOR_ROWS } from "@/features/map/components/search-overlay/mapFilterPanelRules";
-import { type MapCountries, sortCountryCodesByName } from "@/features/map/data/mapCountries";
+import { type MapCountries, NO_MAP_CAPABILITIES, sortCountryCodesByName } from "@/features/map/data/mapCountries";
 import type { MapFilters } from "@/features/map/data/mapFilters";
 import { type MapLookups, useMapLookups } from "@/features/map/data/mapLookups";
 
@@ -47,7 +47,7 @@ const NO_LIST_COUNTRIES: ListCountries = {
   hasCountrySection: false,
   hasCountryTiles: false,
   hasOperatorRows: true,
-  mapCountries: { onScreen: [], first: null, isRegisterOnScreen: false },
+  mapCountries: { onScreen: [], first: null, capabilities: NO_MAP_CAPABILITIES },
 };
 
 function getListCountries(
@@ -71,7 +71,7 @@ function getListCountries(
     hasCountrySection: options.length > 1,
     hasCountryTiles: inPlay.length > 1,
     hasOperatorRows: picked.length > 0 || options.length <= MOST_ALWAYS_OPEN_OPERATOR_ROWS,
-    mapCountries: { onScreen: inPlay, first: inPlay.at(0) ?? null, isRegisterOnScreen: false },
+    mapCountries: { onScreen: inPlay, first: inPlay.at(0) ?? null, capabilities: NO_MAP_CAPABILITIES },
   };
 }
 

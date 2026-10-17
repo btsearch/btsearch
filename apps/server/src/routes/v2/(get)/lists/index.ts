@@ -9,9 +9,9 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { actorIdFromRequest } from "../../../../features/access/access.js";
 import { hasStaffPermission } from "../../../../features/access/staff.js";
-import { loadHiddenCountryCodes } from "../../../../features/countries/visibility.js";
 import { toLists } from "../../../../features/lists/serialize.js";
 import { assertListsEnabled } from "../../../../features/lists/visibility.js";
+import { loadOfficialVisibility } from "../../../../features/official/visibility.js";
 import { containsPattern } from "../../../../features/search/text.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -29,7 +29,8 @@ const schemaRoute = {
     "`isPublic` keeps only the public lists or only the private ones. " +
     "`q` matches part of the list name. " +
     "`stationIds`, `officialSiteIds` and `microwaveLinkIds` each keep only lists that contain at least one of the given ids. " +
-    "Stations in countries you cannot access are left out of `itemCounts.stations` and `items.stationIds`.",
+    "Stations in countries you cannot access are left out of `itemCounts` and `items`, " +
+    "and so are official sites and microwave links of sources that are hidden from you.",
   querystring: listListQuerySchema,
   response: {
     200: listListSchema,
@@ -67,12 +68,12 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     isPublic === undefined ? undefined : flagCondition(userLists.is_public, isPublic),
     q ? ilike(userLists.name, containsPattern(q)) : undefined,
     containsAny(sql`${userLists.stations} -> 'internal'`, stationIds),
-    containsAny(sql`${userLists.stations} -> 'uke'`, officialSiteIds),
+    containsAny(sql`${userLists.stations} -> 'official'`, officialSiteIds),
     containsAny(sql`${userLists.radiolines}`, microwaveLinkIds),
   );
   const after = cursor === undefined ? undefined : decodeCursor(cursor, cursorSchema).id;
 
-  const [rows, totals] = await Promise.all([
+  const [rows, totals, visibility] = await Promise.all([
     db
       .select()
       .from(userLists)
@@ -81,13 +82,14 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       .limit(limit + 1)
       .offset(offset ?? 0),
     includeTotal ? db.select({ total: count() }).from(userLists).where(filters) : null,
+    loadOfficialVisibility(req),
   ]);
   const page = rows.slice(0, limit);
   const last = page.at(-1);
   const paging: Paging = { limit, nextCursor: rows.length > limit && last ? encodeCursor({ id: last.id }) : null };
   if (totals) paging.total = totals[0]?.total ?? 0;
 
-  return res.send({ data: await toLists(page, userId, await loadHiddenCountryCodes(req), include), paging });
+  return res.send({ data: await toLists(page, userId, visibility, include), paging });
 }
 
 const getLists: Route<ReqQuery, ListList> = {

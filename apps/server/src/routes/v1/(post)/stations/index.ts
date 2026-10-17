@@ -21,13 +21,12 @@ import {
   umtsNullableFields,
 } from "../../../../features/cells/ratCellSchemas.js";
 import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
+import { correctStationLinks } from "../../../../features/official/links.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
-import { syncStationsPermitsAssociations } from "../../../../features/stations/permitsAssociation.js";
 import { stationStatusForCellCount } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { logger } from "../../../../utils/logger.js";
 
 const stationsInsertSchema = createInsertSchema(stations).omit({ extra_address: true, status: true, statusChangedAt: true });
 const stationSchema = createSelectSchema(stations);
@@ -97,12 +96,6 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const { cells: cellsData, ...stationData } = req.body;
 
   validateCellDuplicates(cellsData);
-  // await checkLTEClidConsistency(
-  //   null,
-  //   cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
-  //   [],
-  //   stationData.operator_id,
-  // );
 
   if (stationData.operator_id && cellsData && cellsData.length > 0) {
     await checkCellDuplicatesBatch(
@@ -131,6 +124,8 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
         .returning();
 
       if (!newStation) throw new ErrorResponse("FAILED_TO_CREATE");
+
+      await correctStationLinks(tx, [{ operatorId: newStation.operator_id, siteId: newStation.station_id }]);
 
       if (cellsData.length > 0) {
         const featuresByStation = await getStationCountryFeatures([newStation.id], tx);
@@ -216,10 +211,6 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 
       return response;
     });
-
-    void syncStationsPermitsAssociations().catch((e) =>
-      logger.error("Failed to sync stations_permits after station creation", { error: e instanceof Error ? e.message : String(e) }),
-    );
 
     return res.send({ data: station });
   } catch (error) {

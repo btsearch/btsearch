@@ -7,11 +7,12 @@ import { cellChangeList, cellUpdateChangeSchema, newGsmCellSchema, newLteCellSch
 export const MAX_STATIONS_PER_APPLY = 50;
 
 const CHANGES_NOTE =
-  "Every cell created or updated here is marked as confirmed. A new or changed LTE TAC is also applied to the station's other LTE cells, " +
-  "so the changes for one station can contain only one such TAC";
+  "Every cell created or updated here is marked as confirmed. In countries where all LTE cells of a station share one TAC, " +
+  "a new or changed LTE TAC is also applied to the station's other LTE cells, so the changes for one station can contain only one such TAC. " +
+  "In other countries every cell keeps the TAC you send and the station's other cells are left as they are";
 const WRITTEN_NOTE =
   "The cells written to the station: first the created cells, then the updated cells, both in the order sent, " +
-  "then the other LTE cells that received the TAC";
+  "then, in countries where all LTE cells of a station share one TAC, the other LTE cells that received the TAC";
 const OPERATION_ID_NOTE =
   "The audit operation that recorded everything the request wrote. One request is always one operation of the kind `analyzer.apply`. " +
   "`GET /audit-operations/{id}` returns it to administrators and to maintainers of the country";

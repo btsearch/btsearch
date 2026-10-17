@@ -9,6 +9,7 @@ import {
   type MapRecentDateField,
   clampRecentDays,
   isDefaultMapStatus,
+  readMapSource,
   sanitizeMapFilters,
 } from "../data/mapFilters";
 import { findOperatorIdsByMncs } from "../data/mapLookups";
@@ -21,9 +22,9 @@ export type UrlInitialization = {
   center?: [number, number];
   zoom?: number;
   stationId?: string;
-  ukeStationId?: number;
+  officialSiteId?: number;
   locationId?: number;
-  radiolineId?: number;
+  microwaveLinkId?: number;
 };
 
 type UseUrlSyncArgs = {
@@ -90,7 +91,7 @@ function parseLegacyFilters(params: URLSearchParams): UrlFilters | null {
     bands: parseNumberList(params.get("bands")),
     rat: params.get("rat")?.split(",").filter(Boolean) ?? [],
     status: statusParam === null ? DEFAULT_MAP_FILTERS.status : parseStatusList(statusParam),
-    source: params.get("source") === "uke" ? "uke" : "internal",
+    source: readMapSource(params.get("source")),
     recentDays,
     showStations: params.get("stations") !== "0",
     showRadiolines: params.get("radiolines") === "1",
@@ -119,7 +120,7 @@ function parseFlagToken(value: string): Pick<MapFilters, "showRadiolines" | "sho
     showRadiolines: value.includes("r"),
     showHeatmap: value.includes("h"),
     showStations: !value.includes("s"),
-    source: value.includes("u") ? "uke" : "internal",
+    source: value.includes("u") ? "official" : "internal",
     showPlannedMeasurements: value.includes("p"),
   };
 }
@@ -187,9 +188,9 @@ function parseUrlHash(): ParsedUrlHash {
 
   let urlFilters: UrlFilters | null = null;
   let stationId: string | undefined;
-  let ukeStationId: number | undefined;
+  let officialSiteId: number | undefined;
   let locationId: number | undefined;
-  let radiolineId: number | undefined;
+  let microwaveLinkId: number | undefined;
 
   if (hasTokens) {
     const tokens = hash.split("~").slice(1);
@@ -197,11 +198,11 @@ function parseUrlHash(): ParsedUrlHash {
       const key = token[0];
       const value = token.slice(1);
       if (key === "L") locationId = Number.parseInt(value, 10) || undefined;
-      else if (key === "R") radiolineId = Number.parseInt(value, 10) || undefined;
+      else if (key === "R") microwaveLinkId = Number.parseInt(value, 10) || undefined;
       else if (key === "S") stationId = value || undefined;
       else if (key === "U") {
         const id = Number(value);
-        if (Number.isSafeInteger(id) && id > 0) ukeStationId = id;
+        if (Number.isSafeInteger(id) && id > 0) officialSiteId = id;
       }
     }
     urlFilters = parseTokenFilters(tokens.filter((token) => !TARGET_TOKEN_KEYS.has(token[0])));
@@ -212,8 +213,8 @@ function parseUrlHash(): ParsedUrlHash {
     stationId = params.get("station") || undefined;
     const locationIdStr = params.get("location");
     locationId = locationIdStr ? Number.parseInt(locationIdStr, 10) : undefined;
-    const radiolineIdStr = params.get("radioline");
-    radiolineId = radiolineIdStr ? Number.parseInt(radiolineIdStr, 10) : undefined;
+    const microwaveLinkIdStr = params.get("radioline");
+    microwaveLinkId = microwaveLinkIdStr ? Number.parseInt(microwaveLinkIdStr, 10) : undefined;
   }
 
   return {
@@ -221,9 +222,9 @@ function parseUrlHash(): ParsedUrlHash {
     center: !Number.isNaN(lat) && !Number.isNaN(lng) ? [lng, lat] : undefined,
     zoom: !Number.isNaN(z) ? z : undefined,
     stationId,
-    ukeStationId,
+    officialSiteId,
     locationId: locationId !== undefined && !Number.isNaN(locationId) ? locationId : undefined,
-    radiolineId: radiolineId !== undefined && !Number.isNaN(radiolineId) ? radiolineId : undefined,
+    microwaveLinkId: microwaveLinkId !== undefined && !Number.isNaN(microwaveLinkId) ? microwaveLinkId : undefined,
   };
 }
 
@@ -247,7 +248,7 @@ function buildUrlHash(filters: MapFilters, map: MapLibreMap): string {
     filters.showHeatmap && "h",
     filters.showPlannedMeasurements && "p",
     !filters.showStations && "s",
-    filters.source === "uke" && "u",
+    filters.source === "official" && "u",
   ]
     .filter(Boolean)
     .join("");
@@ -292,7 +293,7 @@ export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitializ
     if (!enabled || !isLoaded || !map || hasStartedInitialization.current) return;
     hasStartedInitialization.current = true;
 
-    const { urlFilters, center, zoom, stationId, ukeStationId, locationId, radiolineId } = parseUrlHash();
+    const { urlFilters, center, zoom, stationId, officialSiteId, locationId, microwaveLinkId } = parseUrlHash();
 
     if (center || zoom !== undefined) {
       map.flyTo({
@@ -307,7 +308,7 @@ export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitializ
       if (!isMounted.current) return;
 
       const initialFilters = urlFilters === null ? undefined : addOperatorIds(urlFilters.filters, convertedOperatorIds);
-      notifyInitialized({ filters: initialFilters, center, zoom, stationId, ukeStationId, locationId, radiolineId });
+      notifyInitialized({ filters: initialFilters, center, zoom, stationId, officialSiteId, locationId, microwaveLinkId });
       isInitialized.current = true;
     };
 

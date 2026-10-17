@@ -155,8 +155,11 @@ export async function createStationComment(req: FastifyRequest, stationId: numbe
 }
 
 export async function updateStationComment(req: FastifyRequest, comment: CommentRow, changes: CommentChanges): Promise<CommentRow> {
-  const { content, status } = changes;
+  const { content } = changes;
   const isTextEdited = content !== undefined && content !== comment.content;
+  const isApprovedTextEdit = isTextEdited && changes.status === undefined && comment.status === "approved";
+  const returnsToQueue = isApprovedTextEdit && getRuntimeSettings().commentQueueEnabled && !(await canModerateComments(req, comment.station_id));
+  const status = returnsToQueue ? "pending" : changes.status;
 
   const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "comment.update" }, async (tx, audit) => {
     const [result] = await tx

@@ -8,13 +8,13 @@ import {
   INTERNAL_AZIMUTHS_OUTLINE_LAYER_ID,
   INTERNAL_AZIMUTHS_OUTLINE_SOURCE_ID,
   INTERNAL_AZIMUTHS_SOURCE_ID,
+  OFFICIAL_AZIMUTHS_FILL_LAYER_ID,
+  OFFICIAL_AZIMUTHS_LABEL_LAYER_ID,
+  OFFICIAL_AZIMUTHS_LABEL_SOURCE_ID,
+  OFFICIAL_AZIMUTHS_OUTLINE_LAYER_ID,
+  OFFICIAL_AZIMUTHS_OUTLINE_SOURCE_ID,
+  OFFICIAL_AZIMUTHS_SOURCE_ID,
   POINT_LAYER_ID,
-  UKE_AZIMUTHS_FILL_LAYER_ID,
-  UKE_AZIMUTHS_LABEL_LAYER_ID,
-  UKE_AZIMUTHS_LABEL_SOURCE_ID,
-  UKE_AZIMUTHS_OUTLINE_LAYER_ID,
-  UKE_AZIMUTHS_OUTLINE_SOURCE_ID,
-  UKE_AZIMUTHS_SOURCE_ID,
 } from "../constants";
 import type { MapPoint } from "../data/mapPoints";
 import { type AzimuthPoint, toAzimuthPoints } from "../geojson";
@@ -395,29 +395,29 @@ const INTERNAL_AZIMUTH_LAYER_PARTS: AzimuthLayerPart[] = [
   },
 ];
 
-const UKE_AZIMUTH_LAYER_PARTS: AzimuthLayerPart[] = [
+const OFFICIAL_AZIMUTH_LAYER_PARTS: AzimuthLayerPart[] = [
   {
-    sourceId: UKE_AZIMUTHS_SOURCE_ID,
-    layerId: UKE_AZIMUTHS_FILL_LAYER_ID,
+    sourceId: OFFICIAL_AZIMUTHS_SOURCE_ID,
+    layerId: OFFICIAL_AZIMUTHS_FILL_LAYER_ID,
     dataKey: "fill",
     createLayerConfig: (id, sourceId, minzoom) => createFillLayerConfig(id, sourceId, minzoom),
   },
   {
-    sourceId: UKE_AZIMUTHS_OUTLINE_SOURCE_ID,
-    layerId: UKE_AZIMUTHS_OUTLINE_LAYER_ID,
+    sourceId: OFFICIAL_AZIMUTHS_OUTLINE_SOURCE_ID,
+    layerId: OFFICIAL_AZIMUTHS_OUTLINE_LAYER_ID,
     dataKey: "outline",
     createLayerConfig: createOutlineLayerConfig,
     syncPaint: syncOutlineLayerPaint,
   },
   {
-    sourceId: UKE_AZIMUTHS_LABEL_SOURCE_ID,
-    layerId: UKE_AZIMUTHS_LABEL_LAYER_ID,
+    sourceId: OFFICIAL_AZIMUTHS_LABEL_SOURCE_ID,
+    layerId: OFFICIAL_AZIMUTHS_LABEL_LAYER_ID,
     dataKey: "label",
     createLayerConfig: (id, sourceId, minzoom) => createLabelLayerConfig(id, sourceId, minzoom),
   },
 ];
 
-const AZIMUTH_LAYER_PARTS = [...INTERNAL_AZIMUTH_LAYER_PARTS, ...UKE_AZIMUTH_LAYER_PARTS];
+const AZIMUTH_LAYER_PARTS = [...INTERNAL_AZIMUTH_LAYER_PARTS, ...OFFICIAL_AZIMUTH_LAYER_PARTS];
 
 function ensureAzimuthLayerPartsExist(
   map: MapLibreMap,
@@ -469,8 +469,8 @@ type UseAzimuthLayerArgs = {
 export function useAzimuthLayer({ map, isLoaded, points, enabled, minZoom, lineLength, spread }: UseAzimuthLayerArgs) {
   const halfAngle = spread / 2;
   const lineMode = halfAngle === 0;
-  const ukeTriple = useMemo(
-    () => (enabled ? makeSourceGeoJSONTriple(points, "uke", lineLength, halfAngle) : EMPTY_TRIPLE),
+  const officialTriple = useMemo(
+    () => (enabled ? makeSourceGeoJSONTriple(points, "official", lineLength, halfAngle) : EMPTY_TRIPLE),
     [enabled, lineLength, points, halfAngle],
   );
   const internalTriple = useMemo(
@@ -478,17 +478,17 @@ export function useAzimuthLayer({ map, isLoaded, points, enabled, minZoom, lineL
     [points, enabled, lineLength, halfAngle],
   );
 
-  const ukeTripleRef = useRef(ukeTriple);
+  const officialTripleRef = useRef(officialTriple);
   const internalTripleRef = useRef(internalTriple);
   const minZoomRef = useRef(minZoom);
   const lineModeRef = useRef(lineMode);
 
   useEffect(() => {
-    ukeTripleRef.current = ukeTriple;
+    officialTripleRef.current = officialTriple;
     internalTripleRef.current = internalTriple;
     minZoomRef.current = minZoom;
     lineModeRef.current = lineMode;
-  }, [internalTriple, lineMode, minZoom, ukeTriple]);
+  }, [internalTriple, lineMode, minZoom, officialTriple]);
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
@@ -505,7 +505,14 @@ export function useAzimuthLayer({ map, isLoaded, points, enabled, minZoom, lineL
           beforeLayer,
           lineModeRef.current,
         );
-        ensureAzimuthLayerPartsExist(map, UKE_AZIMUTH_LAYER_PARTS, ukeTripleRef.current, minZoomRef.current, beforeLayer, lineModeRef.current);
+        ensureAzimuthLayerPartsExist(
+          map,
+          OFFICIAL_AZIMUTH_LAYER_PARTS,
+          officialTripleRef.current,
+          minZoomRef.current,
+          beforeLayer,
+          lineModeRef.current,
+        );
       } catch {}
     };
 
@@ -525,8 +532,8 @@ export function useAzimuthLayer({ map, isLoaded, points, enabled, minZoom, lineL
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
-    syncAzimuthLayerPartsData(map, UKE_AZIMUTH_LAYER_PARTS, ukeTriple);
-  }, [map, isLoaded, enabled, ukeTriple]);
+    syncAzimuthLayerPartsData(map, OFFICIAL_AZIMUTH_LAYER_PARTS, officialTriple);
+  }, [map, isLoaded, enabled, officialTriple]);
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;

@@ -1,4 +1,4 @@
-import { brands, operators, structureOwners, ukeOperators } from "@openbts/drizzle";
+import { brands, licensees, operators, structureOwners } from "@openbts/drizzle";
 import { brandParamsSchema, noContentSchema } from "@openbts/shared/contract";
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -28,13 +28,13 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
   let removedFile: string | null;
   try {
     removedFile = await runAuditedOperation(standaloneAuditContext(req), { kind: "brand.delete" }, async (tx, audit) => {
-      const [[operator], [ukeOperator], [structureOwner]] = await Promise.all([
+      const [[operator], [licensee], [structureOwner]] = await Promise.all([
         tx.select({ id: operators.id }).from(operators).where(eq(operators.brandId, id)).limit(1),
-        tx.select({ id: ukeOperators.id }).from(ukeOperators).where(eq(ukeOperators.brandId, id)).limit(1),
+        tx.select({ id: licensees.id }).from(licensees).where(eq(licensees.brandId, id)).limit(1),
         tx.select({ id: structureOwners.id }).from(structureOwners).where(eq(structureOwners.brandId, id)).limit(1),
       ]);
-      if (operator || ukeOperator || structureOwner) {
-        throw new ErrorResponse("CONFLICT", { message: "Cannot delete a brand that operators or structure owners still use" });
+      if (operator || licensee || structureOwner) {
+        throw new ErrorResponse("CONFLICT", { message: "Cannot delete a brand that operators, licensees or structure owners still use" });
       }
 
       const [deleted] = await tx.delete(brands).where(eq(brands.id, id)).returning();
@@ -59,7 +59,7 @@ const deleteBrand: Route<ReqParams, void> = {
     permissions: ["delete:brands"],
     errorReasons: {
       404: "The brand does not exist.",
-      409: "An operator, an operator in the official register or a structure owner still uses this brand.",
+      409: "An operator, a licensee or a structure owner still uses this brand.",
     },
   },
   schema: schemaRoute,

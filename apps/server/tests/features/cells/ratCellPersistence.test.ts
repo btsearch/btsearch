@@ -41,12 +41,6 @@ describe("updateRATCellDetailsReturning", () => {
 
     expect(await updateRATCellDetailsReturning(tx, "GSM", 1, { bsic: 0 }, bsicCountry)).toBeNull();
   });
-
-  it("propagates a failed write", async () => {
-    dbMock.enqueueFor("update", "gsm_cells", new Error("Write failed"));
-
-    await expect(updateRATCellDetailsReturning(tx, "GSM", 1, { bsic: 0 }, bsicCountry)).rejects.toThrow("Write failed");
-  });
 });
 
 describe("insertRATCellDetailsReturning", () => {

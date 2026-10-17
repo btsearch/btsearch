@@ -1,16 +1,29 @@
+import { type TerrainProfilesCapability, capabilitiesFor } from "@openbts/country-packs";
+import { officialPermits, officialSites } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
-import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
+import { type SQL, type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { ErrorResponse } from "../../errors.js";
-import { stationIdInLegacyCountry } from "../countries/legacy.js";
+import { type OfficialVisibility, loadPublicOfficialVisibility, officialLocationIsPublic } from "../official/visibility.js";
+import { findSharedSiblingIds, sharesNetworkWith } from "../stations/sharedSiblings.js";
 import type { AntennaCandidate, ResolvedTerrainStation, TerrainProfileRequest } from "./types.js";
+
+type ReceiverBounds = TerrainProfilesCapability["receiverBounds"];
 
 export type ResolvedStationWithFallbacks = {
   station: ResolvedTerrainStation;
   locationId: number;
-  ukeCandidates: AntennaCandidate[];
+  operatorId: number | null;
+  receiverBounds: ReceiverBounds;
+  permitCandidates: AntennaCandidate[];
 };
+
+function requireReceiverBounds(countryCode: string): ReceiverBounds {
+  const { terrainProfiles } = capabilitiesFor(countryCode);
+  if (terrainProfiles === null) throw new ErrorResponse("NOT_FOUND");
+  return terrainProfiles.receiverBounds;
+}
 
 function toStationOperator(
   operator: { id: number; name: string; full_name: string; parent_id: number | null; mnc: number | null } | null | undefined,
@@ -19,16 +32,12 @@ function toStationOperator(
   return { id: operator.id, name: operator.name, full_name: operator.full_name, parent_id: operator.parent_id, mnc: operator.mnc };
 }
 
-type UkePermitWithDetails = {
+type OfficialPermitWithSectors = {
   id: number;
   decision_number: string;
-  band: {
-    id: number;
-    name: string;
-    value: number;
-    rat: string;
-    variant: "commercial" | "railway";
-  } | null;
+  rat: string;
+  label_mhz: number;
+  label_variant: "commercial" | "railway";
   sectors: {
     id: number;
     azimuth: number | null;
@@ -38,16 +47,16 @@ type UkePermitWithDetails = {
 };
 
 function makeCandidateKey(parts: unknown[]): string {
-  return `uke-${createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 16)}`;
+  return `permit-${createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 16)}`;
 }
 
-function buildUkeCandidates(permits: UkePermitWithDetails[]): AntennaCandidate[] {
+function buildPermitCandidates(permits: OfficialPermitWithSectors[]): AntennaCandidate[] {
   const seen = new Set<string>();
   const candidates: AntennaCandidate[] = [];
 
   for (const permit of permits) {
-    const frequencyMHz = permit.band?.value;
-    if (frequencyMHz === null || frequencyMHz === undefined || frequencyMHz <= 0) continue;
+    const frequencyMHz = permit.label_mhz;
+    if (frequencyMHz <= 0) continue;
 
     for (const sector of permit.sectors) {
       if (sector.antenna_height === null || sector.antenna_height <= 0) continue;
@@ -59,19 +68,11 @@ function buildUkeCandidates(permits: UkePermitWithDetails[]): AntennaCandidate[]
 
       candidates.push({
         key,
-        source: "uke_permit_fallback",
+        source: "permit_fallback",
         antenna: { mountedHeight: sector.antenna_height, azimuth: sector.azimuth },
         frequencyMHz,
         measuredTilt: sector.elevation,
-        band: permit.band
-          ? {
-              id: permit.band.id,
-              name: permit.band.name,
-              value: permit.band.value,
-              rat: permit.band.rat,
-              variant: permit.band.variant,
-            }
-          : null,
+        band: { value: frequencyMHz, rat: permit.rat, variant: permit.label_variant },
         provenance: {
           report_url: null,
           report_date: null,
@@ -85,22 +86,35 @@ function buildUkeCandidates(permits: UkePermitWithDetails[]): AntennaCandidate[]
   return candidates;
 }
 
-async function resolveInternalStation(id: number): Promise<ResolvedStationWithFallbacks> {
+function locationIsPublic(locationId: SQLWrapper, visibility: OfficialVisibility): SQL {
+  return officialLocationIsPublic(locationId, visibility) ?? sql`true`;
+}
+
+function permitIsPublic(permitId: SQLWrapper, visibility: OfficialVisibility): SQL {
+  return sql`EXISTS (
+    SELECT 1 FROM ${officialPermits}
+    INNER JOIN ${officialSites} ON ${officialSites.id} = ${officialPermits.official_site_id}
+    WHERE ${officialPermits.id} = ${permitId} AND ${locationIsPublic(officialSites.location_id, visibility)}
+  )`;
+}
+
+async function resolveInternalStation(id: number, visibility: OfficialVisibility): Promise<ResolvedStationWithFallbacks> {
   const station = await db.query.stations.findFirst({
-    where: { id, RAW: (fields) => stationIdInLegacyCountry(fields.id) },
-    with: { location: true, operator: true },
+    where: { id },
+    with: { location: { with: { region: { columns: { countryCode: true } } } }, operator: true },
   });
   if (!station?.location) throw new ErrorResponse("NOT_FOUND");
+  const receiverBounds = requireReceiverBounds(station.location.region.countryCode);
 
   const permitLinks = await db.query.stationsPermits.findMany({
-    where: { station_id: id },
+    where: { station_id: id, RAW: (link) => permitIsPublic(link.permit_id, visibility) },
     with: {
       permit: {
-        with: { band: true, sectors: true },
+        with: { sectors: true },
       },
     },
   });
-  const permits = permitLinks.flatMap((link) => (link.permit ? [link.permit] : []));
+  const permits = permitLinks.map((link) => link.permit);
   const operator = toStationOperator(station.operator);
 
   return {
@@ -113,26 +127,29 @@ async function resolveInternalStation(id: number): Promise<ResolvedStationWithFa
       operator,
     },
     locationId: station.location.id,
-    ukeCandidates: buildUkeCandidates(permits),
+    operatorId: station.operator_id,
+    receiverBounds,
+    permitCandidates: buildPermitCandidates(permits),
   };
 }
 
-async function resolveUkeStation(id: number): Promise<ResolvedStationWithFallbacks> {
-  const station = await db.query.ukeStations.findFirst({
-    where: { id },
+async function resolveOfficialSite(id: number, visibility: OfficialVisibility): Promise<ResolvedStationWithFallbacks> {
+  const station = await db.query.officialSites.findFirst({
+    where: { id, RAW: (site) => locationIsPublic(site.location_id, visibility) },
     with: {
-      location: true,
+      location: { with: { region: { columns: { countryCode: true } } } },
       operator: true,
-      permits: { with: { band: true, sectors: true } },
+      permits: { with: { sectors: true } },
     },
   });
   if (!station?.location) throw new ErrorResponse("NOT_FOUND");
+  const receiverBounds = requireReceiverBounds(station.location.region.countryCode);
 
   const operator = toStationOperator(station.operator);
 
   return {
     station: {
-      source: "uke",
+      source: "official",
       id: station.id,
       station_id: station.station_id,
       latitude: station.location.latitude,
@@ -140,31 +157,32 @@ async function resolveUkeStation(id: number): Promise<ResolvedStationWithFallbac
       operator,
     },
     locationId: station.location.id,
-    ukeCandidates: buildUkeCandidates(station.permits),
+    operatorId: station.operator_id,
+    receiverBounds,
+    permitCandidates: buildPermitCandidates(station.permits),
   };
 }
 
 export async function resolveTerrainStation(stationRef: TerrainProfileRequest["station"]): Promise<ResolvedStationWithFallbacks> {
-  if (stationRef.source === "internal") return resolveInternalStation(stationRef.id);
-  return resolveUkeStation(stationRef.id);
+  const visibility = await loadPublicOfficialVisibility();
+  if (stationRef.source === "internal") return resolveInternalStation(stationRef.id, visibility);
+  return resolveOfficialSite(stationRef.id, visibility);
 }
 
-export async function resolveNetWorksSharingSibling(resolved: ResolvedStationWithFallbacks): Promise<ResolvedStationWithFallbacks | null> {
-  const siblingMnc = getNetworksSiblingMnc(resolved.station.operator?.mnc);
-  if (siblingMnc === null) return null;
+export async function resolveSharedSibling(resolved: ResolvedStationWithFallbacks): Promise<ResolvedStationWithFallbacks | null> {
+  const { station, locationId, operatorId } = resolved;
 
-  const siblingOperator = await db.query.operators.findFirst({ where: { mnc: siblingMnc } });
-  if (!siblingOperator) return null;
-
-  if (resolved.station.source === "internal") {
-    const sibling = await db.query.stations.findFirst({
-      where: { location_id: resolved.locationId, operator_id: siblingOperator.id },
-    });
-    return sibling ? resolveInternalStation(sibling.id) : null;
+  if (station.source === "internal") {
+    const [siblingId] = await findSharedSiblingIds({ id: station.id, locationId, operatorId });
+    return siblingId === undefined ? null : resolveInternalStation(siblingId, await loadPublicOfficialVisibility());
   }
+  if (operatorId === null) return null;
 
-  const sibling = await db.query.ukeStations.findFirst({
-    where: { location_id: resolved.locationId, operator_id: siblingOperator.id },
-  });
-  return sibling ? resolveUkeStation(sibling.id) : null;
+  const [sibling] = await db
+    .select({ id: officialSites.id })
+    .from(officialSites)
+    .where(and(eq(officialSites.location_id, locationId), sharesNetworkWith(officialSites.operator_id, operatorId)))
+    .orderBy(asc(officialSites.id))
+    .limit(1);
+  return sibling ? resolveOfficialSite(sibling.id, await loadPublicOfficialVisibility()) : null;
 }

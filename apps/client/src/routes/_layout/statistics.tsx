@@ -1,38 +1,34 @@
-import { Clock01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { type ReactNode, Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StaleDataNotice } from "@/components/ui/error-state";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRegisterPageSections } from "@/contexts/pageSections";
-import { operatorsQueryOptions } from "@/features/shared/lookups";
-import { InternalKpiCards, UkeKpiCards } from "@/features/statistics/components/kpiCards";
-import { statsPermitsQueryOptions, statsSummaryQueryOptions, statsVoivodeshipsQueryOptions } from "@/features/statistics/queries";
-import { formatFullDate } from "@/lib/format";
+import { countriesQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
+import { InternalKpiCards, RegisterKpiCards } from "@/features/statistics/components/kpiCards";
+import { listRegisterOperators } from "@/features/statistics/lib/register";
+import {
+  statisticsByBandQueryOptions,
+  statisticsByRegionQueryOptions,
+  statisticsSummaryQueryOptions,
+  useRegisterSourceName,
+} from "@/features/statistics/queries";
 import { buildStaticPageHead } from "@/lib/seo";
 
-const STATS_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const SUMMARY_QUERY_KEY = ["stats", "summary", undefined] as const;
-const PERMITS_QUERY_KEY = ["stats", "permits", undefined] as const;
-
-const UkeDistributionCharts = lazy(() =>
-  import("@/features/statistics/components/distributionCharts").then((m) => ({ default: m.UkeDistributionCharts })),
+const RegisterDistributionCharts = lazy(() =>
+  import("@/features/statistics/components/distributionCharts").then((m) => ({ default: m.RegisterDistributionCharts })),
 );
 const InternalDistributionCharts = lazy(() =>
   import("@/features/statistics/components/distributionCharts").then((m) => ({ default: m.InternalDistributionCharts })),
 );
-const UkeBandBarChart = lazy(() => import("@/features/statistics/components/bandBarChart").then((m) => ({ default: m.UkeBandBarChart })));
+const RegisterBandBarChart = lazy(() => import("@/features/statistics/components/bandBarChart").then((m) => ({ default: m.RegisterBandBarChart })));
 const InternalBandStationsBarChart = lazy(() =>
   import("@/features/statistics/components/bandBarChart").then((m) => ({ default: m.InternalBandStationsBarChart })),
 );
-const UkeVoivodeshipChart = lazy(() => import("@/features/statistics/components/voivodeshipChart").then((m) => ({ default: m.UkeVoivodeshipChart })));
-const InternalVoivodeshipChart = lazy(() =>
-  import("@/features/statistics/components/voivodeshipChart").then((m) => ({ default: m.InternalVoivodeshipChart })),
-);
+const RegisterRegionChart = lazy(() => import("@/features/statistics/components/regionChart").then((m) => ({ default: m.RegisterRegionChart })));
+const InternalRegionChart = lazy(() => import("@/features/statistics/components/regionChart").then((m) => ({ default: m.InternalRegionChart })));
 const HistoryChart = lazy(() => import("@/features/statistics/components/historyChart").then((m) => ({ default: m.HistoryChart })));
 const CompletenessCharts = lazy(() => import("@/features/statistics/components/completenessCharts").then((m) => ({ default: m.CompletenessCharts })));
 const ContributionsChart = lazy(() => import("@/features/statistics/components/contributionsChart").then((m) => ({ default: m.ContributionsChart })));
@@ -126,74 +122,32 @@ function getChartQueryState(query: ChartQuery) {
   return { isLoading: query.isLoading, isError: query.isError && query.data === undefined, onRetry: query.refetch, isRetrying: query.isFetching };
 }
 
-function formatRefreshCountdown(milliseconds: number) {
-  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
-}
-
-function StatisticsRefreshStatus({ label, lastUpdated, queryKey }: { label: string; lastUpdated: string; queryKey: readonly unknown[] }) {
-  const { i18n, t } = useTranslation("statistics");
-  const queryClient = useQueryClient();
-  const [now, setNow] = useState(() => Date.now());
-  const nextRefreshAt = Date.parse(lastUpdated) + STATS_REFRESH_INTERVAL_MS;
-  const remaining = nextRefreshAt - now;
-  const isExpired = remaining <= -1000;
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
-  useEffect(() => {
-    if (!isExpired) return;
-    void queryClient.invalidateQueries({ queryKey, exact: true });
-  }, [isExpired, queryClient, queryKey]);
-
-  return (
-    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-      <HugeiconsIcon icon={Clock01Icon} className="size-3.5 shrink-0" aria-hidden="true" />
-      <span className="font-medium text-foreground">{label}</span>
-      <span>
-        {t("refresh.lastUpdated")} <time dateTime={lastUpdated}>{formatFullDate(lastUpdated, i18n.language)}</time>
-      </span>
-      <span className="inline-flex items-center gap-2">
-        <Separator render={<span />} orientation="vertical" aria-hidden="true" className="h-3 data-vertical:self-center" />
-        <span className="tabular-nums">{t("refresh.next", { duration: formatRefreshCountdown(remaining) })}</span>
-      </span>
-    </p>
-  );
-}
-
 function StatisticsPage() {
   const { t } = useTranslation("statistics");
-  const summaryQuery = useQuery(statsSummaryQueryOptions());
-  const permitsQuery = useQuery(statsPermitsQueryOptions());
-  const voivodeshipsQuery = useQuery(statsVoivodeshipsQueryOptions());
-  const { data: operators } = useQuery({
-    ...operatorsQueryOptions(),
-    select: (operators) => operators.filter((operator) => operator.countryCode === "PL"),
-  });
+  const summaryQuery = useQuery(statisticsSummaryQueryOptions());
+  const bandsQuery = useQuery(statisticsByBandQueryOptions());
+  const regionsQuery = useQuery(statisticsByRegionQueryOptions());
+  const { data: operators } = useQuery(operatorsQueryOptions());
+  const { data: countries } = useQuery(countriesQueryOptions());
+  const sourceName = useRegisterSourceName();
+  const snapshotTitle = sourceName === null ? t("sections.registerSnapshot") : t("sections.permitSnapshot", { source: sourceName });
 
   useRegisterPageSections([
-    { id: "uke-permits", title: t("common:labels.ukePermits") },
+    { id: "uke-permits", title: t("common:labels.permitRegister") },
     { id: "internal-db", title: t("main:stats.internalData") },
     { id: "quality", title: t("sections.quality") },
-    { id: "permit-snapshot", title: t("sections.permitSnapshot") },
+    { id: "permit-snapshot", title: snapshotTitle },
     { id: "history", title: t("charts.history") },
   ]);
 
-  const summaryResponse = summaryQuery.data;
-  const permitsResponse = permitsQuery.data;
-  const summary = summaryResponse?.data;
-  const permits = permitsResponse?.data;
-  const voivodeships = voivodeshipsQuery.data;
+  const summary = summaryQuery.data;
+  const bands = bandsQuery.data;
+  const regions = regionsQuery.data;
   const summaryState = getChartQueryState(summaryQuery);
-  const permitsState = getChartQueryState(permitsQuery);
-  const voivodeshipsState = getChartQueryState(voivodeshipsQuery);
-  const staleQueries = [summaryQuery, permitsQuery, voivodeshipsQuery].filter((query) => query.isRefetchError);
+  const bandsState = getChartQueryState(bandsQuery);
+  const regionsState = getChartQueryState(regionsQuery);
+  const staleQueries = [summaryQuery, bandsQuery, regionsQuery].filter((query) => query.isRefetchError);
+  const registerOperators = operators === undefined || countries === undefined ? undefined : listRegisterOperators(operators, countries);
 
   return (
     <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
@@ -201,26 +155,6 @@ function StatisticsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("nav:items.statistics")}</h1>
           <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{t("description")}</p>
-          {summaryResponse || permitsResponse ? (
-            <div className="mt-3 flex flex-col gap-1.5">
-              {summaryResponse ? (
-                <StatisticsRefreshStatus
-                  key={`summary:${summaryResponse.lastUpdated}`}
-                  label={t("refresh.summary")}
-                  lastUpdated={summaryResponse.lastUpdated}
-                  queryKey={SUMMARY_QUERY_KEY}
-                />
-              ) : null}
-              {permitsResponse ? (
-                <StatisticsRefreshStatus
-                  key={`permits:${permitsResponse.lastUpdated}`}
-                  label={t("common:labels.ukePermits")}
-                  lastUpdated={permitsResponse.lastUpdated}
-                  queryKey={PERMITS_QUERY_KEY}
-                />
-              ) : null}
-            </div>
-          ) : null}
           {staleQueries.length > 0 ? (
             <StaleDataNotice
               className="mt-3"
@@ -231,33 +165,33 @@ function StatisticsPage() {
         </div>
 
         <section id="uke-permits" className="space-y-4">
-          <SectionHeader>{t("common:labels.ukePermits")}</SectionHeader>
-          <UkeKpiCards data={summary} {...summaryState} />
+          <SectionHeader>{t("common:labels.permitRegister")}</SectionHeader>
+          <RegisterKpiCards data={summary?.register} {...summaryState} />
           <div className="space-y-4 pt-1">
             <Suspense fallback={distributionSkeleton}>
-              <UkeDistributionCharts data={summary} {...summaryState} />
+              <RegisterDistributionCharts data={summary?.register} {...summaryState} />
             </Suspense>
             <LazyChart fallback={chartSkeleton}>
-              <UkeBandBarChart data={permits?.uke} {...permitsState} />
+              <RegisterBandBarChart data={bands?.register} {...bandsState} />
             </LazyChart>
             <LazyChart fallback={tallChartSkeleton}>
-              <UkeVoivodeshipChart data={voivodeships?.uke} {...voivodeshipsState} />
+              <RegisterRegionChart data={regions?.register} {...regionsState} />
             </LazyChart>
           </div>
         </section>
 
         <section id="internal-db" className="space-y-4">
           <SectionHeader>{t("main:stats.internalData")}</SectionHeader>
-          <InternalKpiCards data={summary} {...summaryState} />
+          <InternalKpiCards data={summary?.database} {...summaryState} />
           <div className="space-y-4 pt-1">
             <LazyChart fallback={chartSkeleton}>
-              <InternalDistributionCharts data={summary} {...summaryState} />
+              <InternalDistributionCharts data={summary?.database} {...summaryState} />
             </LazyChart>
             <LazyChart fallback={chartSkeleton}>
-              <InternalBandStationsBarChart data={permits?.internal} {...permitsState} />
+              <InternalBandStationsBarChart data={bands?.database} {...bandsState} />
             </LazyChart>
             <LazyChart fallback={tallChartSkeleton}>
-              <InternalVoivodeshipChart data={voivodeships?.internal} {...voivodeshipsState} />
+              <InternalRegionChart data={regions?.database} {...regionsState} />
             </LazyChart>
           </div>
         </section>
@@ -276,7 +210,7 @@ function StatisticsPage() {
         </section>
 
         <section id="permit-snapshot" className="space-y-4">
-          <SectionHeader>{t("sections.permitSnapshot")}</SectionHeader>
+          <SectionHeader>{snapshotTitle}</SectionHeader>
           <LazyChart fallback={chartSkeleton}>
             <PermitsByMonthChart />
           </LazyChart>
@@ -285,7 +219,7 @@ function StatisticsPage() {
         <section id="history" className="space-y-4">
           <SectionHeader>{t("charts.history")}</SectionHeader>
           <LazyChart fallback={chartSkeleton}>
-            <HistoryChart operators={operators} />
+            <HistoryChart operators={registerOperators} />
           </LazyChart>
         </section>
       </div>

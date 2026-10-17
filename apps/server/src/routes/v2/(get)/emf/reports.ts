@@ -13,7 +13,8 @@ const schemaRoute = {
   summary: "List the EMF reports of a site",
   description:
     "Returns the reports published for a site, newest first. This includes the measurement reports for the site and the reports " +
-    "the operator attached to its filings. SI2PEM is the only register connected so far, so the data currently covers Poland.\n\n" +
+    "the operator attached to its filings. SI2PEM is the only register connected so far. " +
+    "`capabilities.emf` in `GET /countries` tells you which countries the data covers.\n\n" +
     "Identify the site with exactly one of `stationId`, `officialSiteId`, or `siteId` together with `latitude` and `longitude`. " +
     "To get the antennas from a report marked with `hasAntennaTable`, pass its `url` as `reportUrl` to `GET /emf/antennas`.\n\n" +
     "A station without a location returns an empty list. If SI2PEM fails for one of the two kinds of report, you still get the other. " +
@@ -27,8 +28,8 @@ const schemaRoute = {
 };
 const errorReasons = {
   404:
-    "The station, official site or operator does not exist, or the station is not in Poland. " +
-    "Also returned when you cannot access Poland, the country this data covers.",
+    "The station, official site or operator does not exist, or the station is in a country where `capabilities.emf` is `false`. " +
+    "Also returned when you cannot access any of the countries this data covers.",
   503: SI2PEM_UNAVAILABLE_REASON,
 };
 type ReqQuery = { Querystring: EmfReportListQuery };

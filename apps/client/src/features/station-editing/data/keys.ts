@@ -13,7 +13,7 @@ export const editingKeys = {
   dashboardPendingSubmissions: ["admin", "dashboard", "pending-submissions"] as const,
   pickerLocationsRoot: ["picker-locations"] as const,
   pickerLocations: (bbox: string, includeEmpty: boolean) => ["picker-locations", "v2", bbox, includeEmpty] as const,
-  registerLocations: (bounds: string, wantsAzimuths: boolean) => ["picker-register-locations", bounds, wantsAzimuths] as const,
+  registerLocations: (bbox: string, countryCode: string | null) => ["picker-official-locations", "v2", bbox, countryCode] as const,
   regionAt: (latitude: number | null, longitude: number | null) => ["regions", "v2", "at", latitude, longitude] as const,
   duplicateSiteIdRoot: ["duplicate-station-check"] as const,
   duplicateSiteId: (siteId: string, operatorId: number | null) => ["duplicate-station-check", "v2", siteId, operatorId] as const,

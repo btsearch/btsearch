@@ -1,1 +1,0 @@
-ALTER TABLE "station_uplinks" ADD COLUMN "updatedAt" timestamp with time zone DEFAULT now() NOT NULL;

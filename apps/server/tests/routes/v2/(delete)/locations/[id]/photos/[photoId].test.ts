@@ -100,10 +100,10 @@ describe("DELETE /locations/:id/photos/:photoId", () => {
     expect(files.unlink).not.toHaveBeenCalled();
   });
 
-  it.each(["not-a-uuid", "0"])("rejects photo id %s before database or filesystem access", async (id) => {
+  it("rejects a photo id that is not a uuid before database or filesystem access", async () => {
     const app = await createRouteHarness(route);
 
-    expect((await app.inject({ method: "DELETE", url: `/locations/2/photos/${id}` })).statusCode).toBe(400);
+    expect((await app.inject({ method: "DELETE", url: "/locations/2/photos/not-a-uuid" })).statusCode).toBe(400);
     expect(dbMock.calls).toEqual([]);
     expect(files.unlink).not.toHaveBeenCalled();
   });

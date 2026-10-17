@@ -29,6 +29,7 @@ const TWO_FACTOR_ALLOWED = [
   "/api/v1/auth/two-factor/verify-backup-code",
   "/api/v1/auth/two-factor/view-backup-codes",
 ];
+const CLIENT_PAGE_ROUTES = new Set(["/stations/:id", "/locations/:id", "/lists/:id"]);
 
 export async function authHook(req: FastifyRequest) {
   const route = req.routeOptions as unknown as Route;
@@ -45,7 +46,7 @@ async function authenticate(req: FastifyRequest, route: Route) {
   if (isSignInRequest(req, path)) return;
 
   const settings = getRuntimeSettings();
-  const isClientPage = req.routeOptions.url === "/stations/:id" || req.routeOptions.url === "/locations/:id";
+  const isClientPage = CLIENT_PAGE_ROUTES.has(req.routeOptions.url ?? "");
   if (settings.maintenanceEnabled && (isClientPage || isAccountRecoveryRequest(req, path))) return;
   const isMaintenanceRestricted = settings.maintenanceEnabled && !isSettingsRoute(req) && !TWO_FACTOR_ALLOWED.includes(path);
   if (isMaintenanceRestricted) {

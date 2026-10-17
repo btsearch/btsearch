@@ -161,6 +161,8 @@ export const RAT_FIELDS: Record<Rat, RatSpec> = {
   },
 };
 
+export const TAC_RATS: readonly Rat[] = RAT_ORDER.filter((rat) => RAT_FIELDS[rat].areaCodeField === "tac");
+
 const NUMBER_FIELD_NAMES: ReadonlySet<string> = new Set(Object.keys(CELL_NUMBER_LABELS));
 const FLAG_FIELD_NAMES: ReadonlySet<string> = new Set(Object.keys(CELL_FLAG_LABELS));
 
@@ -182,6 +184,10 @@ export function getAreaCodeField(rat: Rat): AreaCodeField {
 
 export function getAreaCodeMax(rat: Rat): number {
   return findNumberFieldSpec(rat, getAreaCodeField(rat))?.max ?? MAX_16_BIT;
+}
+
+export function canShareAreaCode(rat: Rat, hoistedTac: boolean): boolean {
+  return hoistedTac || !TAC_RATS.includes(rat);
 }
 
 export function carriesAreaCode(cell: ModedCell): boolean {

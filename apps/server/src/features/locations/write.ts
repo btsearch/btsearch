@@ -1,13 +1,16 @@
-import { locations, stations } from "@openbts/drizzle";
+import { conventionsFor } from "@openbts/country-packs";
+import { locations, regions, stations } from "@openbts/drizzle";
 import { and, eq, ne } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify";
 import type { z } from "zod/v4";
 
 import db from "../../database/psql.js";
-import { ErrorResponse } from "../../errors.js";
+import { DetailedErrorResponse, ErrorResponse } from "../../errors.js";
+import type { DbTx } from "../../types/global.js";
 import { type ScopeRefs, locationRefs } from "../access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../audit/index.js";
+import { correctStationLinks, findStationGroups } from "../official/links.js";
 import { findRegionIdAt } from "../regions/lookup.js";
 import { assertOwnerFitsAfterWrite } from "./structure.js";
 
@@ -21,6 +24,16 @@ export type NewLocation = Omit<LocationInsert, "region_id"> & { region_id?: numb
 export type LocationPatch = Partial<LocationInsert>;
 
 const NO_REGION_MESSAGE = "No region could be worked out for these coordinates, send regionId";
+const REQUEST_VALIDATION_MESSAGE = "Validation error";
+
+async function assertAddressFitsRegion(reader: Pick<DbTx, "select">, address: string | null | undefined, regionId: number): Promise<void> {
+  if (!address) return;
+
+  const [region] = await reader.select({ countryCode: regions.countryCode }).from(regions).where(eq(regions.id, regionId)).limit(1);
+  const refusal = conventionsFor(region?.countryCode ?? null).validateAddress(address);
+  if (refusal === null) return;
+  throw new DetailedErrorResponse("VALIDATION_ERROR", [{ field: "address", validationMessage: refusal }], { message: REQUEST_VALIDATION_MESSAGE });
+}
 
 function movesOrRefiles({ region_id, longitude, latitude }: LocationPatch): boolean {
   return region_id !== undefined || longitude !== undefined || latitude !== undefined;
@@ -39,10 +52,14 @@ export async function findOrCreateLocation(req: FastifyRequest, values: NewLocat
   const { longitude, latitude, region_id: claimedRegionId } = values;
 
   const existing = await db.query.locations.findFirst({ where: { AND: [{ longitude }, { latitude }] } });
-  if (existing) return { location: existing, isNew: false };
+  if (existing) {
+    await assertAddressFitsRegion(db, values.address, existing.region_id);
+    return { location: existing, isNew: false };
+  }
 
   const regionId = (await findRegionIdAt({ longitude, latitude, regionId: claimedRegionId })) ?? claimedRegionId;
   if (regionId === undefined) throw new ErrorResponse("BAD_REQUEST", { message: NO_REGION_MESSAGE });
+  await assertAddressFitsRegion(db, values.address, regionId);
 
   const location = await runAuditedOperation(auditContextFromRequest(req), { kind: "location.create" }, async (tx, audit) => {
     await assertOwnerFitsAfterWrite(tx, null, { region_id: regionId, structure_owner_id: values.structure_owner_id });
@@ -71,7 +88,8 @@ export async function updateLocation(req: FastifyRequest, id: number, patch: Loc
 
     const longitude = patch.longitude ?? oldLocation.longitude;
     const latitude = patch.latitude ?? oldLocation.latitude;
-    if (longitude !== oldLocation.longitude || latitude !== oldLocation.latitude) {
+    const moves = longitude !== oldLocation.longitude || latitude !== oldLocation.latitude;
+    if (moves) {
       const [taken] = await tx
         .select({ id: locations.id })
         .from(locations)
@@ -81,6 +99,7 @@ export async function updateLocation(req: FastifyRequest, id: number, patch: Loc
     }
 
     const regionId = await filedRegionId(patch, oldLocation);
+    await assertAddressFitsRegion(tx, patch.address, regionId ?? oldLocation.region_id);
     await assertOwnerFitsAfterWrite(tx, oldLocation, { region_id: regionId ?? oldLocation.region_id, structure_owner_id: patch.structure_owner_id });
     const changes = { ...patch, updatedAt: new Date() };
     if (regionId !== undefined) changes.region_id = regionId;
@@ -89,6 +108,7 @@ export async function updateLocation(req: FastifyRequest, id: number, patch: Loc
 
     await audit.log({ entity: "locations", op: "update", recordId: id, old: oldLocation, new: nextLocation });
     if (stationIds.length > 0) await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.location_id, id));
+    if (moves) await correctStationLinks(tx, await findStationGroups(tx, { locationIds: [id] }));
     return nextLocation;
   });
 }

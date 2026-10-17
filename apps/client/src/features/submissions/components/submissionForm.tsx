@@ -13,8 +13,7 @@ import type { SubmissionSeed } from "./useSubmissionForm";
 import { EmptyPanel } from "@/components/content/emptyPanel";
 import { Button } from "@/components/ui/button";
 import { ErrorState, InlineError, PageErrorState } from "@/components/ui/error-state";
-import { registerStationPermitsQueryOptions } from "@/features/admin/stations/queries";
-import { groupPermitsByStation } from "@/features/map/utils";
+import { registerSiteQueryOptions } from "@/features/admin/stations/queries";
 import { stationRecordQueryOptions } from "@/features/station-details/station/api";
 import { retryEditLookups, useEditReference } from "@/features/station-editing/data/lookups";
 import { submissionQueryOptions } from "@/features/station-editing/data/submissions";
@@ -25,10 +24,10 @@ import { isNotFound } from "@/lib/api";
 type SubmissionFormProps = {
   stationId: number | null;
   submissionId: string | null;
-  registerStationId: string | null;
+  registerSiteId: string | null;
 };
 
-type FreshSubmissionFormProps = Pick<SubmissionFormProps, "stationId" | "registerStationId">;
+type FreshSubmissionFormProps = Pick<SubmissionFormProps, "stationId" | "registerSiteId">;
 
 type StoredSubmissionFormProps = {
   submissionId: string;
@@ -48,7 +47,7 @@ type TargetFormProps = {
 };
 
 type RegisterStationFormProps = TargetFormProps & {
-  registerStationId: string;
+  registerSiteId: string;
 };
 
 type ExistingStationFormProps = TargetFormProps & {
@@ -70,20 +69,19 @@ function useFirstLoaded<Value>(value: Value | null): Value | null {
   return firstValue ?? value;
 }
 
-function RegisterStationForm({ registerStationId, controls, onAgain }: RegisterStationFormProps) {
+function RegisterStationForm({ registerSiteId, controls, onAgain }: RegisterStationFormProps) {
   const queryClient = useQueryClient();
   const reference = useEditReference();
-  const { data: permits, isLoadingError, isFetching, refetch } = useQuery(registerStationPermitsQueryOptions(registerStationId));
+  const { data: registerSite, isLoadingError, isFetching, refetch } = useQuery(registerSiteQueryOptions(registerSiteId));
   const target = <TargetCard mode="new" station={null} controls={controls} />;
 
   if (isLoadingError) return <SubmissionPendingPage target={target} cells={<ErrorState onRetry={() => refetch()} isRetrying={isFetching} />} />;
   if (reference.hasFailed) {
     return <SubmissionPendingPage target={target} cells={<ErrorState onRetry={() => retryEditLookups(queryClient, null, reference)} />} />;
   }
-  if (permits === undefined || !reference.isReady) return <SubmissionPendingPage target={target} cells={<LoadingPanel />} />;
+  if (registerSite === undefined || !reference.isReady) return <SubmissionPendingPage target={target} cells={<LoadingPanel />} />;
 
-  const registerStation = groupPermitsByStation(permits).at(0);
-  const prefill = registerStation === undefined ? null : toRegisterStationDraft(registerStation, reference, REGISTER_PREFILL_RULES.form);
+  const prefill = registerSite === null ? null : toRegisterStationDraft(registerSite, reference, REGISTER_PREFILL_RULES.form);
   return <SubmissionFormPage seed={{ ...EMPTY_SEED, prefill }} controls={controls} onAgain={onAgain} />;
 }
 
@@ -132,7 +130,7 @@ function ExistingStationForm({ stationId, summary, note, controls, focusesModeSw
   );
 }
 
-function FreshSubmissionForm({ stationId, registerStationId }: FreshSubmissionFormProps) {
+function FreshSubmissionForm({ stationId, registerSiteId }: FreshSubmissionFormProps) {
   const { t } = useTranslation("common");
   const typedNote = useRef("");
   const [target, setTarget] = useState<FormTarget>({ mode: stationId === null ? "new" : "existing", stationId, summary: null, note: "", round: 0 });
@@ -159,8 +157,8 @@ function FreshSubmissionForm({ stationId, registerStationId }: FreshSubmissionFo
   };
   const focusesModeSwitch = target.round > 0;
 
-  if (target.mode === "new" && target.round === 0 && registerStationId !== null) {
-    return <RegisterStationForm registerStationId={registerStationId} controls={controls} onAgain={startAgain} />;
+  if (target.mode === "new" && target.round === 0 && registerSiteId !== null) {
+    return <RegisterStationForm registerSiteId={registerSiteId} controls={controls} onAgain={startAgain} />;
   }
   if (target.mode === "new") {
     return <SubmissionFormPage key={target.round} seed={EMPTY_SEED} controls={controls} focusesModeSwitch={focusesModeSwitch} onAgain={startAgain} />;
@@ -263,9 +261,9 @@ function StoredSubmissionForm({ submissionId }: StoredSubmissionFormProps) {
   );
 }
 
-export function SubmissionForm({ stationId, submissionId, registerStationId }: SubmissionFormProps) {
+export function SubmissionForm({ stationId, submissionId, registerSiteId }: SubmissionFormProps) {
   useEditReference();
 
   if (submissionId !== null) return <StoredSubmissionForm submissionId={submissionId} />;
-  return <FreshSubmissionForm stationId={stationId} registerStationId={registerStationId} />;
+  return <FreshSubmissionForm stationId={stationId} registerSiteId={registerSiteId} />;
 }

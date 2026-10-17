@@ -57,6 +57,19 @@ describe("searchGeocoding", () => {
     expect(url.searchParams.get("lang")).toBe("en");
   });
 
+  it.each([
+    { name: "a Polish place", countryCode: "pl", region: "Łódzkie", municipality: "Zgierz" },
+    { name: "a place in another country", countryCode: "fr", region: "województwo łódzkie", municipality: "gmina Zgierz" },
+    { name: "a place without a country", countryCode: undefined, region: "województwo łódzkie", municipality: "gmina Zgierz" },
+  ])("names the region and the municipality of $name by its country's conventions", async ({ countryCode, region, municipality }) => {
+    const place = { lat: 51.85, lon: 19.4, name: "Zgierz", country_code: countryCode, state: "województwo łódzkie", municipality: "gmina Zgierz" };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: [place] }), { status: 200 })));
+    const app = await createRouteHarness(searchGeocoding);
+    const response = await app.inject({ url: "/geocoding/search?q=Zgierz", headers });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0].address).toMatchObject({ region, municipality });
+  });
+
   it.each([new Response("{}", { status: 500 }), new Response(JSON.stringify({ results: "invalid" }), { status: 200 })])(
     "returns service unavailable when the only provider fails",
     async (providerResponse) => {

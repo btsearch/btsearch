@@ -1,7 +1,6 @@
 import { getOperatorSortIndex, resolveOperatorMnc } from "@openbts/shared/operatorUtils";
 
-import type { StatsOperator } from "../../features/stats/schemas.ts";
-import type { DatabaseMonthlyStats } from "./data.ts";
+import type { DatabaseMonthlyStats, StatsOperator } from "./data.ts";
 
 export type Language = "pl" | "en";
 export type Formatters = { number: (value: number) => string; percent: (value: number) => string };

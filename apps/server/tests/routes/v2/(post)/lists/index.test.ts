@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(post)/lists/index.js";
-import { dbMock, userSession } from "../../../../helpers/boundaries.js";
-import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
+import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
+import { expectError, injectMutation, scriptAudit, whereQuery } from "../../../../helpers/mutationAssertions.js";
+import { scriptAdminVisibility, scriptGuestVisibility } from "../../../../helpers/officialDataFixtures.js";
 
 const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const row = {
@@ -14,7 +15,7 @@ const row = {
   is_public: false,
   notificationsEnabled: true,
   created_by: ownerId,
-  stations: { internal: [12], uke: [24] },
+  stations: { internal: [12], official: [24] },
   radiolines: [36],
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
@@ -26,7 +27,7 @@ describe("POST /lists", () => {
   it.each([15, 16])("rejects creating a list when the owner already has %s lists", async (count) => {
     getRuntimeSettings().enableUserLists = true;
     scriptAudit();
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.enqueueFor(
       "select",
       "user_lists",
@@ -40,7 +41,7 @@ describe("POST /lists", () => {
   it("rejects a duplicate trimmed name before validating or inserting items", async () => {
     getRuntimeSettings().enableUserLists = true;
     scriptAudit();
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.enqueueFor("select", "user_lists", [{ name: "Sites" }]);
     const response = await injectMutation(route, request, options);
     expectError(response, 409, "CONFLICT", "You already have a list with this name");
@@ -50,11 +51,11 @@ describe("POST /lists", () => {
   it("reports missing ids separately for each item kind", async () => {
     getRuntimeSettings().enableUserLists = true;
     scriptAudit();
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.enqueueFor("select", "user_lists", []);
     dbMock.enqueueFor("select", "stations", []);
-    dbMock.enqueueFor("select", "uke_stations", []);
-    dbMock.enqueueFor("select", "uke_radiolines", []);
+    dbMock.enqueueFor("select", "official.sites", []);
+    dbMock.enqueueFor("select", "official.microwave_links", []);
     const response = await injectMutation(
       route,
       { ...request, payload: { name: "Sites", items: { stationIds: [12], officialSiteIds: [24], microwaveLinkIds: [36] } } },
@@ -75,6 +76,25 @@ describe("POST /lists", () => {
     expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "user_lists")).toBe(false);
   });
 
+  it("counts official sites and microwave links of sources hidden from a user as missing", async () => {
+    getRuntimeSettings().enableUserLists = true;
+    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    scriptAudit();
+    scriptGuestVisibility([1]);
+    dbMock.enqueueFor("select", "user_lists", []);
+    dbMock.enqueueFor("select", "official.sites", []);
+    dbMock.enqueueFor("select", "official.microwave_links", []);
+    const payload = { name: "Sites", items: { officialSiteIds: [24], microwaveLinkIds: [36] } };
+    const response = await injectMutation(route, { ...request, payload }, options);
+    expectError(response, 400, "BAD_REQUEST", "Some of the items do not exist");
+    const sites = whereQuery("official.sites", "select");
+    const links = whereQuery("official.microwave_links", "select");
+    expect(sites.sql).toContain('"public_location"."source_id" in');
+    expect(sites.params).toEqual([24, 1]);
+    expect(links.sql).toContain('"link_dataset"."source_id" in');
+    expect(links.params).toEqual([36, 1]);
+  });
+
   it("returns FEATURE_DISABLED while lists are disabled", async () => {
     const response = await injectMutation(route, request, options);
     expectError(response, 403, "FEATURE_DISABLED");
@@ -90,17 +110,17 @@ describe("POST /lists", () => {
 
   it("returns the documented owner result", async () => {
     getRuntimeSettings().enableUserLists = true;
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     scriptAudit();
     dbMock.enqueueFor("select", "user_lists", []);
     dbMock.enqueueFor("select", "stations", [{ id: 12 }]);
-    dbMock.enqueueFor("insert", "user_lists", [{ ...row, stations: { internal: [12], uke: [] }, radiolines: [] }]);
+    dbMock.enqueueFor("insert", "user_lists", [{ ...row, stations: { internal: [12], official: [] }, radiolines: [] }]);
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ data: { id: "list-1", isOwner: true, notificationsEnabled: true } });
     expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "user_lists")?.values).toMatchObject({
       name: "Sites",
-      stations: { internal: [12], uke: [] },
+      stations: { internal: [12], official: [] },
       radiolines: [],
     });
   });

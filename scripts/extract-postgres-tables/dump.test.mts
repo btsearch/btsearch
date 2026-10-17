@@ -4,42 +4,42 @@ import test from "node:test";
 import { findIdentitySequences, findOwningTable, findReferencedTables, parseObjectHeader, parseSimpleQualifiedName } from "./dump.mjs";
 
 void test("parses pg_dump object headers", () => {
-  assert.deepEqual(parseObjectHeader("-- Name: stations; Type: TABLE; Schema: uke; Owner: btsearch"), {
+  assert.deepEqual(parseObjectHeader("-- Name: stations; Type: TABLE; Schema: official; Owner: btsearch"), {
     name: "stations",
     type: "TABLE",
-    schema: "uke",
+    schema: "official",
   });
-  assert.deepEqual(parseObjectHeader("-- Data for Name: stations; Type: TABLE DATA; Schema: uke; Owner: btsearch"), {
+  assert.deepEqual(parseObjectHeader("-- Data for Name: stations; Type: TABLE DATA; Schema: official; Owner: btsearch"), {
     name: "stations",
     type: "TABLE DATA",
-    schema: "uke",
+    schema: "official",
   });
   assert.equal(parseObjectHeader("-- ordinary comment"), undefined);
 });
 
 void test("parses CLI table names", () => {
-  assert.deepEqual(parseSimpleQualifiedName("stations", "uke"), { schema: "uke", name: "stations" });
+  assert.deepEqual(parseSimpleQualifiedName("stations", "official"), { schema: "official", name: "stations" });
   assert.deepEqual(parseSimpleQualifiedName("public.stations"), { schema: "public", name: "stations" });
   assert.throws(() => parseSimpleQualifiedName("stations"), /Expected schema\.name/);
 });
 
 void test("finds owning and referenced tables with quoted identifiers", () => {
-  const sql = `ALTER TABLE ONLY "uke"."child"\n  ADD CONSTRAINT child_parent_fkey FOREIGN KEY (parent_id) REFERENCES "uke"."parent"(id);`;
+  const sql = `ALTER TABLE ONLY "official"."child"\n  ADD CONSTRAINT child_parent_fkey FOREIGN KEY (parent_id) REFERENCES "official"."parent"(id);`;
 
-  assert.deepEqual(findOwningTable(sql), { schema: "uke", name: "child" });
-  assert.deepEqual(findReferencedTables(sql), [{ schema: "uke", name: "parent" }]);
+  assert.deepEqual(findOwningTable(sql), { schema: "official", name: "child" });
+  assert.deepEqual(findReferencedTables(sql), [{ schema: "official", name: "parent" }]);
 });
 
 void test("finds identity and serial sequences", () => {
   const sql = `
-ALTER TABLE ONLY uke.identity_table ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-  SEQUENCE NAME uke.identity_table_id_seq
+ALTER TABLE ONLY official.identity_table ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+  SEQUENCE NAME official.identity_table_id_seq
 );
-ALTER TABLE ONLY uke.serial_table ALTER COLUMN id SET DEFAULT nextval('uke.serial_table_id_seq'::regclass);
+ALTER TABLE ONLY official.serial_table ALTER COLUMN id SET DEFAULT nextval('official.serial_table_id_seq'::regclass);
 SELECT nextval('invalid.sequence.extra'::regclass);`;
 
   assert.deepEqual(findIdentitySequences(sql), [
-    { schema: "uke", name: "identity_table_id_seq" },
-    { schema: "uke", name: "serial_table_id_seq" },
+    { schema: "official", name: "identity_table_id_seq" },
+    { schema: "official", name: "serial_table_id_seq" },
   ]);
 });

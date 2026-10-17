@@ -11,7 +11,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import { stationParamScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../../../features/cells/duplicateCheck.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../../../features/cells/duplicateCheck.js";
 import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../../../features/cells/ratCellPersistence.js";
 import {
   INSERT_OMIT,
@@ -100,10 +100,6 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           station.operator_id,
         )
       : Promise.resolve(),
-    // checkLTEClidConsistency(
-    //   station_id,
-    //   cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
-    // ),
     validateCellBandsInCountry(
       cellsData.map((cell) => ({ rat: cell.rat, band_id: cell.band_id, details: cell.details })),
       LEGACY_COUNTRY_CODE,

@@ -12,16 +12,16 @@
     "noCommentsToModerate": "Brak komentarzy do moderacji",
     "openImportPage": "Otwórz stronę importu",
     "importSteps": {
-      "permits": "Pozwolenia",
-      "radiolines": "Radiolinie",
-      "device_registry": "Rejestr urządzeń",
-      "prune_deleted_entries": "Czyszczenie usuniętych",
-      "prune_associations": "Czyszczenie powiązań",
-      "cleanup_orphaned_uke_entities": "Czyszczenie osieroconych",
-      "associate": "Powiązanie",
-      "cleanup": "Czyszczenie",
-      "snapshot": "Snapshot",
-      "refresh_statistics": "Odświeżenie statystyk"
+      "unlistedPermits": "Archiwizacja pozwoleń",
+      "siteNotifications": "Powiadomienia o stacjach z rejestru",
+      "links": "Powiązanie pozwoleń",
+      "stationNotifications": "Powiadomienia o stacjach",
+      "orphans": "Usuwanie pustych stacji",
+      "statistics": "Odświeżenie statystyk",
+      "push": "Powiadomienia push",
+      "kmz": "Eksport KMZ",
+      "publish": "Wysłanie podsumowania",
+      "prune": "Usuwanie starych importów"
     },
     "area": "Twój obszar: {{area}}",
     "noArea": "Nie masz przydzielonego obszaru",
@@ -120,7 +120,7 @@
     "signIn": {
       "title": "Wymagane logowanie",
       "description": "Bez zalogowania nie działa ani serwis, ani API. Klucze publiczne (pk_...) też przestają działać",
-      "note": "Wpis <mono>/api/v1/auth</mono> utrzymuje rejestrację i reset hasła. Logowanie i odczyt tych ustawień są zawsze otwarte",
+      "note": "Zostaw na liście <mono>/api/v1/auth</mono>, żeby działały rejestracja i reset hasła. Logowanie i odczyt tych ustawień działają zawsze",
       "confirm": {
         "title": "Wymagać logowania?",
         "description": "Goście stracą dostęp do serwisu i API, poza trasami otwartymi dla gości. Zalogowani nie zauważą zmiany",
@@ -164,7 +164,7 @@
     },
     "features": {
       "submissions": {
-        "description": "Wysyłanie, przeglądanie i rozpatrywanie zgłoszeń. Każdy kraj otwiera je osobno na swojej stronie",
+        "description": "Wysyłanie, przeglądanie i rozpatrywanie zgłoszeń. Trzeba je też włączyć osobno dla każdego kraju",
         "confirm": {
           "title": "Wyłączyć zgłoszenia?",
           "description": "Nikt nie wyśle ani nie rozpatrzy zgłoszenia, także redakcja. Oczekujące zgłoszenia zostają w bazie",
@@ -184,7 +184,7 @@
         "note": "Moderowanie i usuwanie komentarzy działa także wtedy, gdy komentarze są wyłączone"
       },
       "commentReview": {
-        "description": "Nowe komentarze czekają na zatwierdzenie, chyba że pisze je moderator",
+        "description": "Nowe i edytowane komentarze czekają na zatwierdzenie, chyba że pisze lub edytuje je moderator",
         "waiting": "Zacznie działać po włączeniu komentarzy"
       }
     },
@@ -591,23 +591,23 @@
       "public": "Publiczne",
       "private": "Prywatne"
     },
-    "stationsPlusOfficial": "{{stations}} + {{officialSites, number}} UKE",
+    "stationsPlusOfficial": "{{stations}} + {{officialSites, number}} z rejestru",
     "stationsTip": {
       "database_one": "{{count, number}} stacja z bazy",
       "database_few": "{{count, number}} stacje z bazy",
       "database_many": "{{count, number}} stacji z bazy",
       "database_other": "{{count, number}} stacji z bazy",
-      "official_one": "{{count, number}} stacja z rejestru UKE",
-      "official_few": "{{count, number}} stacje z rejestru UKE",
-      "official_many": "{{count, number}} stacji z rejestru UKE",
-      "official_other": "{{count, number}} stacji z rejestru UKE",
+      "official_one": "{{count, number}} stacja z rejestru",
+      "official_few": "{{count, number}} stacje z rejestru",
+      "official_many": "{{count, number}} stacji z rejestru",
+      "official_other": "{{count, number}} stacji z rejestru",
       "both": "{{database}} i {{official}}"
     },
     "contents": {
-      "officialSites_one": "{{count, number}} stacja UKE",
-      "officialSites_few": "{{count, number}} stacje UKE",
-      "officialSites_many": "{{count, number}} stacji UKE",
-      "officialSites_other": "{{count, number}} stacji UKE"
+      "officialSites_one": "{{count, number}} stacja z rejestru",
+      "officialSites_few": "{{count, number}} stacje z rejestru",
+      "officialSites_many": "{{count, number}} stacji z rejestru",
+      "officialSites_other": "{{count, number}} stacji z rejestru"
     },
     "menu": {
       "openOnMap": "Otwórz na mapie",
@@ -632,55 +632,124 @@
       "searchPlaceholder": "Szukaj po mieście, adresie lub ID stacji..."
     }
   },
-  "ukeImport": {
-    "subtitle": "Importuj dane z UKE (Urząd Komunikacji Elektronicznej)",
-    "hourlySchedule": "Automatyczny import odbywa się co godzinę",
-    "sources": {
-      "label": "Źródła",
-      "importPermits": "Pozwolenia",
-      "importRadiolines": "Radiolinie",
-      "importDeviceRegistry": "Rejestr urządzeń"
+  "officialImport": {
+    "subtitle": "Pozwolenia i radiolinie z oficjalnych rejestrów",
+    "schedule": {
+      "every_one": "Automatyczny import co godzinę sprawdza, czy są nowe dane",
+      "every_few": "Automatyczny import co {{count}} godziny sprawdza, czy są nowe dane",
+      "every_many": "Automatyczny import co {{count}} godzin sprawdza, czy są nowe dane",
+      "every_other": "Automatyczny import co {{count}} godziny sprawdza, czy są nowe dane",
+      "range": "Automatyczny import co {{min}} do {{max}} godzin sprawdza, czy są nowe dane",
+      "off": "Automatyczny import jest wyłączony"
+    },
+    "datasets": {
+      "permits": "Pozwolenia",
+      "deviceRegistry": "Rejestr urządzeń",
+      "microwaveLinks": "Radiolinie"
     },
     "startImport": "Rozpocznij import",
     "startFailed": "Nie udało się uruchomić importu. Spróbuj ponownie",
     "alreadyRunning": "Import jest już w toku",
+    "cancel": "Anuluj import",
     "status": {
-      "idle": "Bezczynne",
+      "queued": "W kolejce",
       "running": "W toku",
       "success": "Zakończono",
       "completedWithErrors": "Zakończono z błędami",
-      "error": "Nie powiodło się"
+      "held": "Częściowo wstrzymano",
+      "error": "Nie powiodło się",
+      "cancelled": "Anulowano"
+    },
+    "kind": {
+      "replay": "Ponowny odczyt",
+      "remap": "Zmiana operatora",
+      "relink": "Ponowne powiązanie"
     },
     "steps": {
-      "permits": "Import pozwoleń",
-      "radiolines": "Import radiolinii",
-      "device_registry": "Import rejestru urządzeń",
-      "prune_deleted_entries": "Usuwanie starych usuniętych wpisów",
-      "prune_associations": "Czyszczenie powiązań stacji z pozwoleniami",
-      "cleanup_orphaned_uke_entities": "Usuwanie osieroconych stacji i lokalizacji UKE",
-      "associate": "Powiązanie stacji z pozwoleniami",
-      "cleanup": "Czyszczenie plików tymczasowych",
-      "snapshot": "Tworzenie snapshotu bazy danych",
-      "refresh_statistics": "Odświeżanie statystyk"
+      "unlistedPermits": "Archiwizacja pozwoleń, których nie ma już w wykazach",
+      "siteNotifications": "Powiadamianie obserwujących stacje z rejestru",
+      "links": "Powiązanie stacji z pozwoleniami",
+      "stationNotifications": "Powiadamianie obserwujących stacje",
+      "orphans": "Usuwanie pustych stacji i lokalizacji z rejestru",
+      "statistics": "Odświeżanie statystyk",
+      "push": "Wysyłanie powiadomień push",
+      "kmz": "Eksport plików KMZ",
+      "publish": "Wysłanie podsumowania importu",
+      "prune": "Usuwanie starych importów"
     },
     "stepStatus": {
       "pending": "Oczekujące",
       "running": "W toku",
       "success": "Gotowe",
+      "unchanged": "Bez zmian",
+      "held": "Wstrzymane",
       "skipped": "Pominięte",
+      "stopped": "Nieukończone",
       "error": "Błąd"
     },
     "failure": {
-      "dashboard": "Import UKE wymaga uwagi",
+      "dashboard": "Import rejestru wymaga uwagi",
       "job": "Import nie powiódł się"
     },
+    "queuedAt": "W kolejce od",
     "startedAt": "Rozpoczęto",
     "finishedAt": "Zakończono",
     "duration": "Czas trwania",
     "trigger": {
       "label": "Tryb uruchomienia",
       "manual": "Ręczny",
-      "scheduled": "Automatyczny"
+      "scheduled": "Automatyczny",
+      "cli": "Wiersz poleceń"
+    },
+    "slices": "Części",
+    "sliceOutcome": {
+      "applied": "Zastosowane",
+      "unchanged": "Bez zmian",
+      "held": "Wstrzymane"
+    },
+    "changes": {
+      "label": "Zmiany",
+      "other": "Pozostałe zmiany",
+      "siteAdded": "Dodane stacje z rejestru",
+      "siteMoved": "Przeniesione stacje z rejestru",
+      "siteRemapped": "Stacje z rejestru przeniesione do innego operatora",
+      "permitAdded": "Dodane pozwolenia",
+      "permitListed": "Pozwolenia dopisane do wykazu",
+      "permitUnlisted": "Pozwolenia usunięte z wykazu",
+      "permitArchived": "Zarchiwizowane pozwolenia",
+      "stationLinked": "Stacje powiązane z pozwoleniami",
+      "stationUnlinked": "Stacje odłączone od pozwoleń",
+      "microwaveLinkAdded": "Dodane radiolinie",
+      "microwaveLinkRenewed": "Odnowione radiolinie",
+      "microwaveLinkArchived": "Zarchiwizowane radiolinie"
+    },
+    "skippedRecords": "Pominięte rekordy",
+    "skipReasons": {
+      "badCoordinates": "Nieprawidłowe współrzędne",
+      "missingSiteId": "Brak ID stacji",
+      "missingLicensee": "Brak nazwy posiadacza pozwolenia",
+      "unknownLabel": "Nierozpoznane pasmo",
+      "unknownDecisionType": "Nierozpoznany rodzaj decyzji",
+      "unknownRegion": "Nie znaleziono regionu",
+      "unmappedLicensee": "Posiadacz pozwolenia bez operatora",
+      "siteIdTooLong": "Za długie ID stacji",
+      "decisionNumberTooLong": "Za długi numer decyzji",
+      "badLabel": "Nieprawidłowe pasmo",
+      "duplicateLink": "Zduplikowana radiolinia"
+    },
+    "held": {
+      "slice": "Wstrzymano {{slice}} - rekordów w nowej wersji: {{releaseRecordCount, number}}, w bazie: {{storedRecordCount, number}}",
+      "dataset": "Wstrzymano - rekordów w nowej wersji: {{releaseRecordCount, number}}, w bazie: {{storedRecordCount, number}}",
+      "apply": "Zastosuj mimo to",
+      "confirmTitle": "Zastosować wstrzymaną wersję?",
+      "confirmDescription": "Nowy import tego zbioru danych zastosuje tę wersję, choć ma znacznie mniej rekordów, niż jest w bazie. Rekordy, których w niej nie ma, zostaną usunięte"
+    },
+    "dryRun": {
+      "label": "Import próbny",
+      "reportGone": "Raport tego importu próbnego nie jest już dostępny",
+      "stationNamesWritten": "Zapisane nazwy stacji",
+      "stationNamesSkipped": "Pominięte nazwy stacji",
+      "licenseeNamesCorrected": "Poprawione nazwy posiadaczy pozwoleń"
     },
     "latest": {
       "title": "Ostatni import",
@@ -690,11 +759,10 @@
     },
     "history": {
       "title": "Poprzednie importy",
-      "description": "Importy z ostatnich 7 dni",
-      "empty": "Brak wcześniejszych importów z ostatnich 7 dni",
+      "description": "Wcześniejsze importy, od najnowszych",
+      "empty": "Brak wcześniejszych importów",
       "loading": "Ładowanie poprzednich importów...",
-      "loadError": "Nie udało się wczytać poprzednich importów",
-      "showMore": "Pokaż jeszcze {{count}}"
+      "loadError": "Nie udało się wczytać poprzednich importów"
     }
   },
   "auditLogs": {
@@ -752,7 +820,10 @@
       "user": "Użytkownicy",
       "list": "Listy użytkowników",
       "settings": "Ustawienia",
-      "uke": "Import UKE",
+      "official": "Import rejestru",
+      "official_source": "Źródła rejestru",
+      "official_dataset": "Zbiory danych rejestru",
+      "licensee": "Posiadacze pozwoleń",
       "analyzer": "Analizator",
       "system": "System",
       "revert": "Cofnięcia",
@@ -840,8 +911,17 @@
       "settings": {
         "update": "Aktualizacja ustawień"
       },
-      "uke": {
-        "import": "Import UKE"
+      "official": {
+        "import": "Import rejestru"
+      },
+      "official_source": {
+        "update": "Aktualizacja źródła rejestru"
+      },
+      "official_dataset": {
+        "update": "Aktualizacja zbioru danych rejestru"
+      },
+      "licensee": {
+        "update": "Aktualizacja posiadacza pozwolenia"
       },
       "system": {
         "inactive_cleanup": "Czyszczenie nieaktywnych stacji",
@@ -876,6 +956,9 @@
       "users": "Użytkownicy",
       "user_lists": "Listy użytkowników",
       "settings": "Ustawienia",
+      "official_sources": "Źródła rejestru",
+      "official_datasets": "Zbiory danych rejestru",
+      "licensees": "Posiadacze pozwoleń",
       "structure_owners": "Właściciele obiektów"
     },
     "ops": {
@@ -968,6 +1051,18 @@
       "settings_few": "{{count, number}} ustawienia",
       "settings_many": "{{count, number}} ustawień",
       "settings_other": "{{count, number}} ustawień",
+      "official_sources_one": "{{count, number}} źródło rejestru",
+      "official_sources_few": "{{count, number}} źródła rejestru",
+      "official_sources_many": "{{count, number}} źródeł rejestru",
+      "official_sources_other": "{{count, number}} źródeł rejestru",
+      "official_datasets_one": "{{count, number}} zbiór danych rejestru",
+      "official_datasets_few": "{{count, number}} zbiory danych rejestru",
+      "official_datasets_many": "{{count, number}} zbiorów danych rejestru",
+      "official_datasets_other": "{{count, number}} zbiorów danych rejestru",
+      "licensees_one": "{{count, number}} posiadacz pozwolenia",
+      "licensees_few": "{{count, number}} posiadaczy pozwoleń",
+      "licensees_many": "{{count, number}} posiadaczy pozwoleń",
+      "licensees_other": "{{count, number}} posiadaczy pozwoleń",
       "other": "{{count, number}} x {{entity}}",
       "structure_owners_one": "{{count, number}} właściciel obiektów",
       "structure_owners_few": "{{count, number}} właścicieli obiektów",
@@ -1044,7 +1139,7 @@
       },
       "brand": {
         "slugTaken": "Marka o tym slugu już istnieje",
-        "inUse": "Tej marki używają jeszcze operatorzy, operatorzy radiolinii albo właściciele obiektów",
+        "inUse": "Tej marki używają jeszcze operatorzy, posiadacze pozwoleń albo właściciele obiektów",
         "notFound": "Ta marka już nie istnieje",
         "slugFormat": "Slug to małe litery i cyfry, słowa rozdzielone myślnikiem",
         "colorFormat": "Kolor zapisuje się jako #RRGGBB"

@@ -1,6 +1,6 @@
 import { InformationCircleIcon, Tick02Icon, Undo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Operator, StationStatus } from "@openbts/shared/contract";
+import type { OfficialSite, Operator, StationStatus } from "@openbts/shared/contract";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, type SyntheticEvent, useState } from "react";
@@ -56,7 +56,6 @@ import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
-import type { UkeStation } from "@/types/station";
 
 type SavedStationEditorProps = {
   record: StationRecord;
@@ -441,8 +440,8 @@ export function NewStationEditor({ prefill }: NewStationEditorProps) {
     setPhotoTakenAts([]);
   }
 
-  function applyRegisterStation(station: UkeStation) {
-    for (const action of listRegisterStationActions(station, edit.lookups, REGISTER_PREFILL_RULES.editor)) edit.dispatch(action);
+  function applyRegisterStation(site: OfficialSite) {
+    for (const action of listRegisterStationActions(site, edit.lookups, REGISTER_PREFILL_RULES.editor)) edit.dispatch(action);
   }
 
   const photoChanges = buildPhotoChanges({ addedCount: photos.length, shownCount: 0, hiddenCount: 0, hasNewMainPhoto: false });

@@ -1,0 +1,17 @@
+export const HEARTBEAT_INTERVAL_MS = 30_000;
+export const STALE_HEARTBEAT_MINUTES = 10;
+export const MAX_RUN_ATTEMPTS = 5;
+export const DEFAULT_HOLD_SHRINK_PERCENT = 20;
+export const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const PAGE_TIMEOUT_MS = 60_000;
+export const DOWNLOAD_TIMEOUT_MS = 30 * 60_000;
+export const STAGING_BATCH_SIZE = 10_000;
+export const STAGING_IO_CONCURRENCY = 16;
+export const STAGING_WORK_MEM = "64MB";
+export const IMPORTER_TEMP_BUFFERS = "256MB";
+export const STATEMENT_BATCH_SIZE = 1_000;
+export const LINK_INSERT_BATCH_SIZE = 500;
+export const SITE_CODE_MAX_LENGTH = 16;
+export const DECISION_NUMBER_MAX_LENGTH = 100;
+export const REPORTED_IDS_LIMIT = 100;
+export const REPORTED_NAMES_LIMIT = 100;

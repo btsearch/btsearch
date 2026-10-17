@@ -11,7 +11,7 @@ import { type FacetOptionGroup, ListFacetCombobox } from "./listFacetCombobox";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { FadeItem, Reveal, SmoothHeight } from "@/features/map/components/search-overlay/mapFilterMotion";
 import { OperatorRowsSection } from "@/features/map/components/search-overlay/mapFilterOperatorRows";
-import type { MapCountries } from "@/features/map/data/mapCountries";
+import { type MapCountries, NO_MAP_CAPABILITIES } from "@/features/map/data/mapCountries";
 import type { MapFilters, MapFiltersChange } from "@/features/map/data/mapFilters";
 import { FacetDisclosurePill, FacetPill, FilterPanelSection } from "@/features/shared/filterPanel";
 import { StructureTypeIcon } from "@/features/station-details/station/components/structureTypeIcon";
@@ -189,7 +189,7 @@ export function ListOperatorSection({ panel, onToggleOperator, onMapFiltersChang
   const rowFilters: MapFilters = hasRowPerCountry ? mapFilters : { ...mapFilters, countryCodes: tickedCountryCodes };
   const rowCountries: MapCountries = hasRowPerCountry
     ? countries.mapCountries
-    : { onScreen: tickedCountryCodes, first: tickedCountryCodes.at(0) ?? null, isRegisterOnScreen: false };
+    : { onScreen: tickedCountryCodes, first: tickedCountryCodes.at(0) ?? null, capabilities: NO_MAP_CAPABILITIES };
   const title = t("common:labels.operator");
   const countryHint = <p className="text-xs leading-4 text-muted-foreground">{t("main:filters.pickCountryForOperators")}</p>;
 

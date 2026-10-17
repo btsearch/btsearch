@@ -165,7 +165,7 @@ describe("PATCH /cells/:id", () => {
     const row = storedCell(cellInputs.gsm);
     const invalid = { ...row, gsm: { ...row.radio, bsic: 64 } };
     dbMock.enqueueFor("select", "cells", [invalid], [invalid]);
-    dbMock.enqueueFor("select", "stations", [{ station: row.station, countryCode: null }]);
+    dbMock.enqueueFor("select", "stations", [{ station: row.station, countryCode: null }], [{ locationCountry: null, operatorCountry: null }]);
     const app = await createRouteHarness(route, { session: userSession() });
     const response = await app.inject({ method: "PATCH", url: "/cells/11", payload: { notes: "new" } });
 

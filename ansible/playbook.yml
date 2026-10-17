@@ -371,6 +371,7 @@
         dest: /opt/openbts/.env
         content: |
           DATABASE_URL=postgres://user:{{ db_password }}@pgbouncer:6432/openbts
+          IMPORTER_DATABASE_URL=postgres://user:{{ db_password }}@postgres:5432/openbts
           REDIS_PASSWORD={{ redis_password }}
           BETTER_AUTH_SECRET={{ auth_secret }}
           BASE_URL=https://{{ openbts_domain }}

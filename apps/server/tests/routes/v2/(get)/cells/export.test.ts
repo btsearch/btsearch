@@ -20,6 +20,7 @@ import { stationAreaConditions, stationPlacementConditions } from "../../../../.
 import type { AreaFilterQuery } from "../../../../../src/features/stations/read.js";
 import getCellsExport from "../../../../../src/routes/v2/(get)/cells/export.js";
 import { type DatabaseCall, dbMock } from "../../../../helpers/boundaries.js";
+import { cacheCountryVisibility } from "../../../../helpers/officialDataFixtures.js";
 import { readDate } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
@@ -67,6 +68,7 @@ const stationMetadataRow: StationExportMetadata = {
   address: null,
   region_code: null,
   country_code: null,
+  station_country_code: null,
   structure_type: null,
   structure_owner: null,
   structure_note: null,
@@ -242,7 +244,7 @@ describe("getCellsExport", () => {
   });
 
   it("stops reading and releases the export slot when the downloading client disconnects", async () => {
-    dbMock.enqueueFor("select", "countries", [], []);
+    cacheCountryVisibility();
     dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }], [gsmExportRow], [{ lastModified: null }]);
     const pendingRead = createDeferredPromise<{ id: number }[]>();
     dbMock.enqueueFor("select", getTableName(stations), [{ id: 1 }], [stationMetadataRow], pendingRead.promise, []);
@@ -282,7 +284,7 @@ describe("getCellsExport", () => {
 
   it("terminates a partial download after a database failure and restores both export slots", async () => {
     const streams = vi.spyOn(Readable, "from");
-    dbMock.enqueueFor("select", "countries", [], [], []);
+    cacheCountryVisibility();
     dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }], [gsmExportRow]);
     const pendingRead = createDeferredPromise<{ id: number }[]>();
     dbMock.enqueueFor("select", getTableName(stations), [{ id: 1 }], [stationMetadataRow], pendingRead.promise, [], []);
@@ -372,7 +374,7 @@ describe("getCellsExport", () => {
       if (!select) throw new Error("Missing database boundary");
       return select(selection);
     });
-    dbMock.enqueueFor("select", "countries", [], [], []);
+    cacheCountryVisibility();
     dbMock.enqueueFor("select", "cells", pendingMetadata.promise, pendingRecovery.promise, pendingRecovery.promise);
     dbMock.enqueueFor("select", getTableName(stations), [], []);
     const app = await createRouteHarness(getCellsExport);
@@ -446,10 +448,6 @@ describe("getCellsExport", () => {
 
   it.each([
     ["2.0", "clf"],
-    ["2.1", "clf"],
-    ["3.0-dec", "clf"],
-    ["3.0-hex", "clf"],
-    ["4.0", "clf"],
     ["ntm", "ntm"],
     ["netmonitor", "csv"],
   ])("describes an empty %s export with the correct extension", async (format, extension) => {
@@ -656,15 +654,40 @@ describe("loadNativeExportLines", () => {
     const first = mixedExportRows().metadata[0];
     if (!lte || !nr || !first) throw new Error("Missing cell fixture");
     rows.lteRows = [
-      { ...lte, lte_tac: 200 },
-      { ...lte, lte_tac: 100 },
+      { ...lte, station_country_code: "PL", lte_tac: 200 },
+      { ...lte, station_country_code: "PL", lte_tac: 100 },
     ];
-    rows.nrRows = [{ ...nr, ...first, nr_type: "nsa", nr_pci: 31 }];
+    rows.nrRows = [{ ...nr, ...first, station_country_code: "PL", nr_type: "nsa", nr_pci: 31 }];
     enqueueExportRows(rows);
     const lines = await loadNativeExportLines(nativeSelection(), [1, 2], "ntm", { ...options, displayNRSeparately: true });
     expect(lines).toContain("5G;310;260;456;200;;31;0;0;FIRST;2147483647");
     expect(dbMock.calls.some((call) => call.table === getTableName(stations))).toBe(false);
     expect(dbMock.calls.find((call) => call.table === "cells")?.selection).toHaveProperty("station_sid");
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it.each<[title: string, stationTacs: (number | null)[], written: string]>([
+    ["the TAC all LTE cells share", [200, 200], "200"],
+    ["no TAC when the LTE cells have different TACs", [200, 100], "2147483647"],
+    ["no TAC when an LTE cell has none", [200, null], "2147483647"],
+  ])("writes %s on a separately displayed NTM NR line in a country where cells do not share a station TAC", async (_title, stationTacs, written) => {
+    const { rows } = mixedExportRows();
+    const lte = rows.lteRows[0];
+    const nr = rows.nrRows[0];
+    const first = mixedExportRows().metadata[0];
+    if (!lte || !nr || !first) throw new Error("Missing cell fixture");
+    rows.lteRows = [{ ...lte, station_country_code: "DE", lte_tac: 200 }];
+    rows.nrRows = [{ ...nr, ...first, station_country_code: "DE", nr_type: "nsa", nr_pci: 31 }];
+    enqueueExportRows(rows);
+    dbMock.enqueueFor(
+      "select",
+      "cells",
+      stationTacs.map((tac) => ({ station_id: 1, station_lte_tac: tac })),
+    );
+    const lines = await loadNativeExportLines(nativeSelection(), [1, 2], "ntm", { ...options, displayNRSeparately: true });
+    expect(lines).toContain(`5G;310;260;456;${written};;31;0;0;FIRST;2147483647`);
+    const stationTacQuery = dbMock.calls.findLast((call) => call.table === "cells");
+    expect(new PgDialect().sqlToQuery(stationTacQuery?.clauses.where?.[0] as SQL).params).toEqual([1]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -727,6 +750,63 @@ describe("compiled export templates", () => {
     const options = { templates: { GSM: template } };
     expect(convertToCLF(cell, "4.0", prepareConvertOptions(options))).toBe(convertToCLF(cell, "4.0", options));
     expect(dbMock.calls).toHaveLength(0);
+  });
+});
+
+describe("LTE EARFCN in export lines", () => {
+  const options: ConvertOptions = { templates: { LTE: "{lte_earfcn}" } };
+  const selection: ExportSelection = { ...nativeSelection(), rats: { gsm: false, umts: false, lte: true, nr: false } };
+  const station: StationExportMetadata = { ...stationMetadataRow, operator_mnc: 26002 };
+  const cell = {
+    ...station,
+    cell_type: "MACROCELL",
+    notes: null,
+    sector_id: null,
+    is_confirmed: true,
+    band_value: 1800,
+    band_name: "LTE 1800",
+    band_duplex: "FDD",
+    lte_tac: 67,
+    lte_enbid: 1,
+    lte_clid: 89,
+    lte_ecid: 345,
+    lte_pci: 7,
+  };
+
+  function enqueueLteCell(earfcn: number | null): void {
+    dbMock.enqueueFor("select", getTableName(stations), [station]);
+    dbMock.enqueueFor("select", "cells", [{ ...cell, lte_earfcn: earfcn }], []);
+    dbMock.enqueueFor("select", "station_sectors", []);
+  }
+
+  it.each<[format: ClfFormat, stored: string, missing: string]>([
+    ["2.0", "0159004326002\t1300", "0159004326002\t"],
+    ["2.1", "003450006726002\t1300", "003450006726002\t"],
+    ["3.0-dec", "26002;00345;00067;00000;52;21;-1;1300;0", "26002;00345;00067;00000;52;21;-1;;0"],
+    ["3.0-hex", "26002;0x0159;0x0043;0x0000;52;21;-1;1300;0", "26002;0x0159;0x0043;0x0000;52;21;-1;;0"],
+    ["4.0", "26002;00345;00067;0;52;21;-1;1300;4;SITE_345;0;0;0;0;0;SITE", "26002;00345;00067;0;52;21;-1;;4;SITE_345;0;0;0;0;0;SITE"],
+    ["ntm", "4G;260;02;89;67;1;7;52;21;1300;1300", "4G;260;02;89;67;1;7;52;21;;2147483647"],
+    ["netmonitor", "L;260;02;67;345;7;1300;52;21;100;1300;", "L;260;02;67;345;7;;52;21;100;;"],
+  ])("prints the cell's stored EARFCN in %s and none for a cell without one", async (format, stored, missing) => {
+    enqueueLteCell(1300);
+    expect(await loadNativeExportLines(selection, [1], format, options)).toEqual([stored]);
+    enqueueLteCell(null);
+    expect(await loadNativeExportLines(selection, [1], format, options)).toEqual([missing]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("prints no EARFCN in a NetMonitor line for a stored 0", async () => {
+    enqueueLteCell(0);
+    const lines = await loadNativeExportLines(selection, [1], "netmonitor", { templates: { LTE: "{station_id}" } });
+    expect(lines).toEqual(["L;260;02;67;345;7;;52;21;100;SITE;"]);
+  });
+
+  it("reads the stored EARFCN on the full-loader path too", async () => {
+    dbMock.enqueueFor("select", "cells", [{ ...cell, lte_earfcn: 1300 }], []);
+    dbMock.enqueueFor("select", "station_sectors", []);
+    expect(await loadExportLines(selection, "netmonitor", options)).toEqual(["L;260;02;67;345;7;1300;52;21;100;1300;"]);
+    expect(dbMock.calls.find((call) => call.table === "cells")?.selection).toHaveProperty("lte_earfcn");
+    expect(dbMock.pendingResults()).toBe(0);
   });
 });
 

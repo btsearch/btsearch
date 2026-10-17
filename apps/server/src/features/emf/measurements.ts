@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../errors.js";
 import { withRedisStaleCache } from "../../lib/redisCache.js";
-import { ENTITY_TO_MNC } from "../pem/entities.js";
+import { si2pemNameToMnc } from "../pem/entities.js";
 import { si2pemDateToWarsawDay, toSI2PEMFileUrl } from "../pem/si2pemValues.js";
 import {
   type ListWindow,
@@ -68,7 +68,7 @@ function toRegisterRow(result: unknown): MeasurementRow | null {
   return {
     id: measurement.id,
     siteId: station.identity_name,
-    mnc: ENTITY_TO_MNC[station.operator ?? ""] ?? null,
+    mnc: si2pemNameToMnc(station.operator) ?? null,
     regionName: station.voivodeship === null ? null : station.voivodeship.charAt(0).toUpperCase() + station.voivodeship.slice(1),
     latitude: station.latitude,
     longitude: station.longitude,
@@ -157,7 +157,7 @@ async function fetchMapRows(box: Bbox): Promise<MeasurementRow[]> {
       {
         id: null,
         siteId,
-        mnc: ENTITY_TO_MNC[properties.installation_operator_name ?? ""] ?? null,
+        mnc: si2pemNameToMnc(properties.installation_operator_name) ?? null,
         regionName: null,
         latitude,
         longitude,

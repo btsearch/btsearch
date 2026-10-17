@@ -3,8 +3,11 @@ import { DrizzleQueryError, inArray } from "drizzle-orm";
 import postgres from "postgres";
 
 import { DetailedErrorResponse, FOREIGN_KEY_VIOLATION, UNIQUE_VIOLATION, isStillReferenced } from "../../../errors.js";
+import { unique } from "../../../lib/collections.js";
 import type { DbTx } from "../../../types/global.js";
+import { correctStationLinks, findStationGroups } from "../../official/links.js";
 import type { AuditRecorder } from "../types.js";
+import { recordIdNumber } from "./columns.js";
 import { bumpIdentitySequences } from "./sequences.js";
 import { appliedSkippedFields } from "./strategies/common.js";
 import {
@@ -25,7 +28,6 @@ export type AppliedRevertPlan = {
   affectedStationIds: number[];
   cellChanges: ApplyState["cellChanges"];
   indirectlyRevertedEntryIds: ApplyState["indirectlyRevertedEntryIds"];
-  stationOrLocationWritten: boolean;
 };
 
 function publicConflict(conflict: PlannedConflict): RevertConflict {
@@ -105,9 +107,15 @@ async function includeStationsAtLocations(tx: DbTx, state: ApplyState): Promise<
   for (const row of rows) state.affectedStationIds.add(row.id);
 }
 
+function restoredStationIds(plans: readonly PlannedEntry[]): number[] {
+  return unique(plans.map(({ entry }) => (entry.entity === "stations" && entry.op !== "create" ? recordIdNumber(entry.record_id) : null)));
+}
+
 export async function applyRevertPlan(tx: DbTx, audit: AuditRecorder, plans: readonly PlannedEntry[], force: boolean): Promise<AppliedRevertPlan> {
   const { active, skipped } = resolvePlans(plans, force);
   const state = emptyApplyState();
+  const restoredIds = restoredStationIds(active);
+  const groupsBefore = restoredIds.length > 0 ? await findStationGroups(tx, { stationIds: restoredIds }) : [];
   const actions = active
     .flatMap((plan) => plan.actions.map((action) => ({ ...action, plan })))
     .sort((left, right) => left.order - right.order || right.plan.entry.id - left.plan.entry.id);
@@ -119,6 +127,10 @@ export async function applyRevertPlan(tx: DbTx, audit: AuditRecorder, plans: rea
       .update(stations)
       .set({ updatedAt: new Date() })
       .where(inArray(stations.id, [...state.affectedStationIds]));
+  if (restoredIds.length > 0 || state.touchedLocationIds.size > 0) {
+    const groupsAfter = await findStationGroups(tx, { stationIds: [...state.affectedStationIds] });
+    await correctStationLinks(tx, [...groupsBefore, ...groupsAfter]);
+  }
   await bumpIdentitySequences(tx, state.sequenceTables);
 
   const finalizePlans = [...active].sort((left, right) => right.entry.id - left.entry.id);
@@ -132,6 +144,5 @@ export async function applyRevertPlan(tx: DbTx, audit: AuditRecorder, plans: rea
     affectedStationIds: [...state.affectedStationIds].sort((left, right) => left - right),
     cellChanges: state.cellChanges,
     indirectlyRevertedEntryIds: state.indirectlyRevertedEntryIds,
-    stationOrLocationWritten: state.stationOrLocationWritten,
   };
 }

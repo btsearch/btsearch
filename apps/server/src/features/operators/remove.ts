@@ -1,4 +1,4 @@
-import { operatorLinks, operators, proposedStations, stations, statsSnapshots, submissions, ukeStations } from "@openbts/drizzle";
+import { officialSites, operatorLinks, operators, proposedStations, stations, statsSnapshots, submissions } from "@openbts/drizzle";
 import { and, count, eq } from "drizzle-orm";
 
 import { ErrorResponse } from "../../errors.js";
@@ -10,7 +10,7 @@ import { type OperatorRow, toOperator } from "./serialize.js";
 export async function removeOperator(tx: DbTx, audit: AuditRecorder, operator: OperatorRow): Promise<void> {
   const [[station], [officialSite], [member], [pendingProposal], [snapshotCount], details] = await Promise.all([
     tx.select({ id: stations.id }).from(stations).where(eq(stations.operator_id, operator.id)).limit(1),
-    tx.select({ id: ukeStations.id }).from(ukeStations).where(eq(ukeStations.operator_id, operator.id)).limit(1),
+    tx.select({ id: officialSites.id }).from(officialSites).where(eq(officialSites.operator_id, operator.id)).limit(1),
     tx.select({ id: operatorLinks.id }).from(operatorLinks).where(eq(operatorLinks.relatedOperatorId, operator.id)).limit(1),
     tx
       .select({ id: proposedStations.id })

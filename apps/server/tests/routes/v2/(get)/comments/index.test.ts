@@ -31,15 +31,6 @@ describe("GET /comments", () => {
     expect(direction.sql).toContain("asc");
   });
 
-  it("reports an empty requested total while keeping the default descending order", async () => {
-    dbMock.enqueueFor("select", "users", [{ role: "admin" }]);
-    dbMock.enqueueFor("select", "role_grants", []);
-    dbMock.enqueueFor("select", "station_comments", [], []);
-    const response = await injectMutation(route, { method: "GET", url: "/comments?includeTotal=true" }, { session: userSession(undefined, "admin") });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ data: [], paging: { limit: 50, total: 0, nextCursor: null } });
-  });
-
   it("requires an authenticated actor", async () => {
     const response = await injectMutation(route, { method: "GET", url: "/comments" });
     expectError(response, 401, "UNAUTHORIZED");

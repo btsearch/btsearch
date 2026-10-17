@@ -9,6 +9,9 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { runAuditedOperation, standaloneAuditContext } from "../../../../features/audit/index.js";
 import { toCountry, viewColumns } from "../../../../features/countries/serialize.js";
+import { forgetCountryVisibility } from "../../../../features/countries/visibility.js";
+import { loadSourceCapabilities } from "../../../../features/official/capabilities.js";
+import { loadOfficialVisibility } from "../../../../features/official/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -50,8 +53,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       await audit.log({ entity: "countries", op: "update", recordId: code, old: country, new: result });
       return result;
     });
+    await forgetCountryVisibility();
 
-    return res.send({ data: toCountry(updated) });
+    return res.send({ data: toCountry(updated, await loadSourceCapabilities(await loadOfficialVisibility(req))) });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });

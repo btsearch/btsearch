@@ -1,11 +1,29 @@
-import { type Band, type CellRat, MAX_LOCATION_LIST_LIMIT, type Operator, type StationStatus } from "@openbts/shared/contract";
+import {
+  type Band,
+  type CellRat,
+  MAX_LOCATION_LIST_LIMIT,
+  MAX_MICROWAVE_LINK_LIST_LIMIT,
+  type MicrowaveLinkInclude,
+  type OfficialLocationInclude,
+  type Operator,
+  type StationStatus,
+} from "@openbts/shared/contract";
 
-import { REGISTER_COUNTRY_CODE } from "../constants";
-import { DEFAULT_MAP_FILTERS, IOT_RAT, type MapFilters, UNKNOWN_BAND_LABEL, listAppliedMapBands, listAppliedMapRats } from "./mapFilters";
+import {
+  DEFAULT_MAP_FILTERS,
+  IOT_RAT,
+  type MapCountryCapability,
+  type MapFilters,
+  UNKNOWN_BAND_LABEL,
+  hasCountryCapability,
+  listAppliedMapBands,
+  listOfficialRatFilters,
+} from "./mapFilters";
 import { type MapLookups, listBandIdsByLabels } from "./mapLookups";
-import { toV1OperatorMnc, toV2StationStatus } from "@/features/station-details/station/utils/stations";
+import type { MicrowaveLinkListParams, OfficialLocationListParams } from "@/features/official/api";
+import { toV2StationStatus } from "@/features/station-details/station/utils/stations";
 import { MOST_LIST_VALUES, normalizeSearchText } from "@/lib/apiValues";
-import type { StationSource, StationStatus as V1StationStatus } from "@/types/station";
+import type { StationStatus as V1StationStatus } from "@/types/station";
 
 export type MapListRequest = {
   filters: MapFilters;
@@ -16,12 +34,10 @@ export type MapListRequest = {
   listId?: string;
 };
 
-export type MapLocationsQuery = {
-  source: StationSource;
-  params: string | null;
-};
+export type MapLocationsQuery = { source: "internal"; params: string | null } | { source: "official"; params: OfficialLocationListParams | null };
 
 type RecentFilters = Pick<MapFilters, "recentDays" | "recentDateFields">;
+type RegisterRecentParams = Pick<OfficialLocationListParams, "createdAfter" | "updatedAfter" | "changedAfter">;
 
 const V1_STATUS_ORDER: readonly V1StationStatus[] = ["published", "pending", "inactive"];
 const CELL_RATS: ReadonlyMap<string, CellRat> = new Map<string, CellRat>([
@@ -33,9 +49,11 @@ const CELL_RATS: ReadonlyMap<string, CellRat> = new Map<string, CellRat>([
 const UNKNOWN_BAND_WORD = "unknown";
 const NO_MATCHING_BAND_ID = 2_147_483_647;
 const MIN_PAGE_SIZE = 1;
-const MAX_REGISTER_PAGE_SIZE = 1000;
 const LIST_INCLUDE = "stations";
 const LIST_INCLUDE_WITH_SECTORS = "stations,stations.sectors";
+const REGISTER_INCLUDE: OfficialLocationInclude[] = ["sites", "sites.permits"];
+const REGISTER_INCLUDE_WITH_SECTORS: OfficialLocationInclude[] = ["sites", "sites.permits", "sites.permits.sectors"];
+const MICROWAVE_LINK_INCLUDE: MicrowaveLinkInclude[] = ["licensee"];
 
 type BandFilterEntry = number | typeof UNKNOWN_BAND_WORD;
 
@@ -118,42 +136,68 @@ function buildMapListParams(request: MapListRequest): string | null {
   return params.toString();
 }
 
-export function listRegisterOperators(operatorIds: readonly number[], operators: readonly Operator[] | undefined): Operator[] | null {
+export function listCapableOperators(
+  capability: MapCountryCapability,
+  operatorIds: readonly number[],
+  lookups: Pick<MapLookups, "operators" | "countries"> | undefined,
+): Operator[] | null {
   if (operatorIds.length === 0) return [];
-  if (operators === undefined) return null;
+  if (lookups === undefined) return null;
 
   const chosenIds = new Set(operatorIds);
-  return operators.filter((operator) => chosenIds.has(operator.id) && operator.countryCode === REGISTER_COUNTRY_CODE);
+  return lookups.operators.filter(
+    (operator) => chosenIds.has(operator.id) && hasCountryCapability(lookups.countries, operator.countryCode, capability),
+  );
 }
 
-function listOperatorMncs(operators: readonly Operator[]): number[] {
-  return operators.flatMap((operator) => {
-    const mnc = toV1OperatorMnc(operator);
-    return mnc === null ? [] : [mnc];
-  });
+function toListParam<T>(values: readonly T[]): T[] | undefined {
+  return values.length > 0 ? values.slice(0, MOST_LIST_VALUES) : undefined;
 }
 
-function buildRegisterListParams({ filters, lookups, limit, wantAzimuths, listId }: MapListRequest): string | null {
-  const registerOperators = listRegisterOperators(filters.operatorIds, lookups?.operators);
+function toRegisterRecentParams({ recentDays, recentDateFields }: RecentFilters): RegisterRecentParams {
+  if (recentDays === null) return {};
+
+  const cutoff = getRecentCutoff(recentDays);
+  const dateFields = recentDateFields.length > 0 ? recentDateFields : DEFAULT_MAP_FILTERS.recentDateFields;
+  if (dateFields.includes("createdAt") && dateFields.includes("updatedAt")) return { changedAfter: cutoff };
+  return dateFields.includes("updatedAt") ? { updatedAfter: cutoff } : { createdAfter: cutoff };
+}
+
+export function buildRegisterListParams({ filters, lookups, limit, wantAzimuths, listId }: MapListRequest): OfficialLocationListParams | null {
+  const registerOperators = listCapableOperators("official", filters.operatorIds, lookups);
   if (registerOperators === null) return null;
 
-  const params = new URLSearchParams();
-  const operatorMncs = listOperatorMncs(registerOperators);
-  const bands = listAppliedMapBands(filters);
-  const rats = listAppliedMapRats(filters);
-  const dateFields = filters.recentDateFields.length > 0 ? filters.recentDateFields : DEFAULT_MAP_FILTERS.recentDateFields;
+  const operatorIds = toListParam(sortIds(registerOperators.map((operator) => operator.id)));
 
-  if (operatorMncs.length > 0) params.set("operators", operatorMncs.join(","));
-  if (bands.length > 0) params.set("bands", bands.join(","));
-  if (rats.length > 0) params.set("rat", rats.join(","));
-  if (filters.recentDays !== null) params.set("since", `${dateFields.join(",")}:${filters.recentDays}`);
-  if (listId !== undefined) params.set("list", listId);
-  if (wantAzimuths) params.set("azimuths", "true");
-  params.set("limit", String(clampPageSize(limit, MAX_REGISTER_PAGE_SIZE)));
-  return params.toString();
+  return {
+    operatorIds,
+    keepOtherCountries: operatorIds === undefined ? undefined : true,
+    rats: toListParam(listOfficialRatFilters(filters.rat)),
+    bandLabels: toListParam(sortIds(listAppliedMapBands(filters))),
+    ...toRegisterRecentParams(filters),
+    listId,
+    include: wantAzimuths ? REGISTER_INCLUDE_WITH_SECTORS : REGISTER_INCLUDE,
+    includeTotal: true,
+    limit: clampPageSize(limit, MAX_LOCATION_LIST_LIMIT),
+  };
 }
 
 export function buildMapLocationsQuery(request: MapListRequest): MapLocationsQuery {
-  const { source } = request.filters;
-  return { source, params: source === "uke" ? buildRegisterListParams(request) : buildMapListParams(request) };
+  if (request.filters.source === "official") return { source: "official", params: buildRegisterListParams(request) };
+  return { source: "internal", params: buildMapListParams(request) };
+}
+
+export function buildMicrowaveLinkListParams(
+  { radiolineOperators, recentDays }: Pick<MapFilters, "radiolineOperators" | "recentDays">,
+  limit: number,
+  listId?: string,
+): MicrowaveLinkListParams {
+  return {
+    licenseeIds: toListParam(sortIds(radiolineOperators)),
+    createdAfter: recentDays === null ? undefined : getRecentCutoff(recentDays),
+    listId,
+    include: MICROWAVE_LINK_INCLUDE,
+    includeTotal: true,
+    limit: clampPageSize(limit, MAX_MICROWAVE_LINK_LIST_LIMIT),
+  };
 }

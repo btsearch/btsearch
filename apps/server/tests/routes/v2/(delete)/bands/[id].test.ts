@@ -36,17 +36,4 @@ describe("DELETE /bands/7", () => {
     expectError(response, 409, "CONFLICT");
     expect(dbMock.calls.some((call) => call.operation === "delete" && call.table === "bands")).toBe(false);
   });
-
-  it("ignores permits and snapshots that reference a separate label with the same id", async () => {
-    scriptAudit();
-    dbMock.query.bands.findFirst.mockResolvedValue(row);
-    for (const table of ["cells", "proposed_cells"]) dbMock.enqueueFor("select", table, []);
-    for (const table of ["uke_permits", "stats_snapshots"]) dbMock.enqueueFor("select", table, [{ id: 1 }]);
-    dbMock.enqueueFor("delete", "country_bands", []);
-    dbMock.enqueueFor("delete", "bands", []);
-
-    const response = await injectMutation(route, request, options);
-    expect(response.statusCode).toBe(204);
-    expect(dbMock.calls.some((call) => call.table === "uke_permits" || call.table === "stats_snapshots")).toBe(false);
-  });
 });

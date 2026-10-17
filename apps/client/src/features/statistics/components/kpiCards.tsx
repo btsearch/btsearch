@@ -1,18 +1,13 @@
 import NumberFlow, { continuous } from "@number-flow/react";
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { StatsSummary } from "../api";
+import type { DatabaseSummary, RegisterSummary } from "../lib/chartData";
 import type { ChartErrorProps } from "./statChartCard";
 import { InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { registerBandsQueryOptions } from "@/features/map/api";
-import { compareRatsByName, toRegisterRatComparator } from "@/features/shared/rat";
 
-const INTERNAL_RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"];
-
-type KpiCardsProps = { data?: StatsSummary; isLoading: boolean } & ChartErrorProps;
+type KpiCardsProps<T> = { data?: T; isLoading: boolean } & ChartErrorProps;
 
 function magnitudeFloor(n: number): number {
   if (n <= 0) return 0;
@@ -87,12 +82,9 @@ function KpiTile({
   );
 }
 
-export function UkeKpiCards({ data, isLoading, isError, onRetry, isRetrying }: KpiCardsProps) {
+export function RegisterKpiCards({ data, isLoading, isError, onRetry, isRetrying }: KpiCardsProps<RegisterSummary>) {
   const { t, i18n } = useTranslation("statistics");
   const { ref, visible } = useContainerVisible();
-  const { data: compareRats = compareRatsByName } = useQuery({ ...registerBandsQueryOptions(), select: toRegisterRatComparator });
-
-  const sortedRats = useMemo(() => (data ? [...data.by_rat].sort((a, b) => compareRats(a.rat, b.rat)) : []), [data, compareRats]);
 
   if (isLoading) return <KpiSkeleton />;
   if (!data) return isError ? <InlineError onRetry={onRetry} isRetrying={isRetrying} /> : null;
@@ -100,17 +92,17 @@ export function UkeKpiCards({ data, isLoading, isError, onRetry, isRetrying }: K
   return (
     <div ref={ref} className="relative border border-border">
       <div className="flex flex-wrap items-start gap-x-8 gap-y-4 px-5 py-4">
-        <KpiTile label={t("kpi.totalPermits")} value={data.total_permits} visible={visible} locale={i18n.language} />
-        <KpiTile label={t("kpi.totalStations")} value={data.total_unique_stations} visible={visible} locale={i18n.language} />
+        <KpiTile label={t("kpi.totalPermits")} value={data.permits} visible={visible} locale={i18n.language} />
+        <KpiTile label={t("kpi.totalStations")} value={data.sites} visible={visible} locale={i18n.language} />
         <div className="hidden w-px self-stretch bg-border shrink-0 sm:block" />
-        {sortedRats.map((rat) => (
+        {data.rats.map((rat) => (
           <KpiTile
             key={rat.rat}
-            label={rat.rat}
-            value={rat.unique_stations}
+            label={rat.label}
+            value={rat.sites}
             visible={visible}
             locale={i18n.language}
-            description={`${Number(rat.share_pct).toLocaleString(i18n.language, { maximumFractionDigits: 1 })}% · ${t("stationDetails:permits.permitsCount", { count: rat.permits, formatParams: { val: { lng: i18n.language } } })}`}
+            description={`${rat.sharePct.toLocaleString(i18n.language, { maximumFractionDigits: 1 })}% · ${t("stationDetails:permits.permitsCount", { count: rat.permits, formatParams: { val: { lng: i18n.language } } })}`}
           />
         ))}
       </div>
@@ -118,14 +110,9 @@ export function UkeKpiCards({ data, isLoading, isError, onRetry, isRetrying }: K
   );
 }
 
-export function InternalKpiCards({ data, isLoading, isError, onRetry, isRetrying }: KpiCardsProps) {
+export function InternalKpiCards({ data, isLoading, isError, onRetry, isRetrying }: KpiCardsProps<DatabaseSummary>) {
   const { t, i18n } = useTranslation("statistics");
   const { ref, visible } = useContainerVisible();
-
-  const sortedRats = useMemo(
-    () => (data ? [...data.internal.by_rat].sort((a, b) => INTERNAL_RAT_ORDER.indexOf(a.rat) - INTERNAL_RAT_ORDER.indexOf(b.rat)) : []),
-    [data],
-  );
 
   if (isLoading) return <KpiSkeleton />;
   if (!data) return isError ? <InlineError onRetry={onRetry} isRetrying={isRetrying} /> : null;
@@ -133,17 +120,17 @@ export function InternalKpiCards({ data, isLoading, isError, onRetry, isRetrying
   return (
     <div ref={ref} className="relative border border-border">
       <div className="flex flex-wrap items-start gap-x-8 gap-y-4 px-5 py-4">
-        <KpiTile label={t("kpi.totalInternalStations")} value={data.internal.total_stations} visible={visible} locale={i18n.language} />
-        <KpiTile label={t("kpi.totalCells")} value={data.internal.total_cells} visible={visible} locale={i18n.language} />
+        <KpiTile label={t("kpi.totalInternalStations")} value={data.stations} visible={visible} locale={i18n.language} />
+        <KpiTile label={t("kpi.totalCells")} value={data.cells} visible={visible} locale={i18n.language} />
         <div className="hidden w-px self-stretch bg-border shrink-0 sm:block" />
-        {sortedRats.map((rat) => (
+        {data.rats.map((rat) => (
           <KpiTile
             key={rat.rat}
-            label={rat.rat}
+            label={rat.label}
             value={rat.cells}
             visible={visible}
             locale={i18n.language}
-            description={`${Number(rat.share_pct).toLocaleString(i18n.language, { maximumFractionDigits: 1 })}% · ${t("common:labels.stations", { count: rat.stations })}`}
+            description={`${rat.sharePct.toLocaleString(i18n.language, { maximumFractionDigits: 1 })}% · ${t("common:labels.stations", { count: rat.stations })}`}
           />
         ))}
       </div>

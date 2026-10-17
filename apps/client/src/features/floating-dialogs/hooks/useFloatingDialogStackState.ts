@@ -1,3 +1,4 @@
+import type { OfficialSite } from "@openbts/shared/contract";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -13,9 +14,9 @@ import type {
   StationHistoryDialogPayload,
   TerrainProfileDialogPayload,
 } from "../types";
-import type { DuplexRadioLink } from "@/features/map/utils";
+import type { DuplexMicrowaveLink } from "@/features/map/utils";
 import { isTextEntryTarget } from "@/features/terrain-profile/focus";
-import type { StationSource, UkeStation } from "@/types/station";
+import type { StationSource } from "@/types/station";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
 const MAX_DIALOGS_PER_KIND = 2;
@@ -46,8 +47,8 @@ function getDialogKey(request: FloatingDialogOpenRequest): string {
   switch (request.kind) {
     case "station":
       return `station:${request.source}:${request.id}`;
-    case "radioline":
-      return `radioline:${request.link.groupId}`;
+    case "microwave-link":
+      return `microwave-link:${request.link.groupId}`;
     case "si2pem-report":
       return `si2pem-report:${request.report.url}`;
     case "station-history":
@@ -63,8 +64,8 @@ function hasSamePayload(dialog: FloatingDialogItem, request: FloatingDialogOpenR
   switch (request.kind) {
     case "station":
       return dialog.kind === "station";
-    case "radioline":
-      return dialog.kind === "radioline" && dialog.link === request.link;
+    case "microwave-link":
+      return dialog.kind === "microwave-link" && dialog.link === request.link;
     case "si2pem-report":
       return false;
     case "station-history":
@@ -177,7 +178,7 @@ export function useFloatingDialogStackState() {
 
         const switched: FloatingDialogItem = {
           ...request,
-          switchedFrom: { id: dialog.id, source: dialog.source, ukeStation: dialog.ukeStation },
+          switchedFrom: target.switchedFrom ?? { id: dialog.id, source: dialog.source, officialSite: dialog.officialSite },
           key: targetKey,
           frameId: dialog.frameId,
           rect: dialog.rect,
@@ -194,12 +195,12 @@ export function useFloatingDialogStackState() {
     [openDialog],
   );
 
-  const openUkePermitDialog = useCallback(
-    (station: UkeStation) => openDialog({ kind: "station", id: station.id, source: "uke", ukeStation: station }),
+  const openOfficialSiteDialog = useCallback(
+    (id: number, officialSite?: OfficialSite) => openDialog({ kind: "station", id, source: "official", officialSite }),
     [openDialog],
   );
 
-  const openRadioLineDialog = useCallback((link: DuplexRadioLink) => openDialog({ kind: "radioline", link }), [openDialog]);
+  const openMicrowaveLinkDialog = useCallback((link: DuplexMicrowaveLink) => openDialog({ kind: "microwave-link", link }), [openDialog]);
 
   const openSI2PEMReportDialog = useCallback(
     (payload: SI2PEMReportDialogPayload) => {
@@ -270,8 +271,8 @@ export function useFloatingDialogStackState() {
     dialogs,
     switchStationDialog,
     openStationDialog,
-    openUkePermitDialog,
-    openRadioLineDialog,
+    openOfficialSiteDialog,
+    openMicrowaveLinkDialog,
     openSI2PEMReportDialog,
     openStationHistoryDialog,
     openTerrainProfileDialog,

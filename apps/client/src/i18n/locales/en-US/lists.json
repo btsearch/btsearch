@@ -14,7 +14,7 @@
   "options": "List options",
   "enableNotifications": "Turn on notifications",
   "disableNotifications": "Turn off notifications",
-  "notificationsHint": "You will be notified when cells, photos, comments or UKE permits change on stations in this list",
+  "notificationsHint": "You will be notified when cells, photos, comments or permits change on stations in this list",
   "notificationsOnToast": "Notifications turned on",
   "notificationsOffToast": "Notifications turned off",
   "noLists": "You don't have any lists yet",

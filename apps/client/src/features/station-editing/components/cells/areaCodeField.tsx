@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { type StationDraftApi, useEditText } from "../../hooks/useStationDraft";
 import { getFieldState, parseDigits } from "../../model/changes";
 import { findMostFrequentAreaCode } from "../../model/draftReducer";
-import { CELL_NUMBER_LABELS, RAT_FIELDS, carriesAreaCode, getAreaCodeField, getCellNumber } from "../../model/ratFields";
+import { CELL_NUMBER_LABELS, RAT_FIELDS, canShareAreaCode, carriesAreaCode, getAreaCodeField, getCellNumber } from "../../model/ratFields";
 import type { Rat } from "../../model/types";
 import { findFieldError } from "../../model/validate";
 import { editTargetProps } from "../frame/editTargets";
@@ -40,7 +40,7 @@ export function AreaCodeField({ edit, rat }: AreaCodeFieldProps) {
   const ratName = RAT_FIELDS[rat].name;
   const targetProps = editTargetProps({ scope: "areaCode", rat, field });
   const carriers = draft.cells.filter((cell) => cell.rat === rat && !cell.isDeleted && carriesAreaCode(cell));
-  if (carriers.length === 0) return null;
+  if (carriers.length === 0 || !canShareAreaCode(rat, session.hoistedTac)) return null;
 
   if (areaCode.mode === "perCell") {
     const valueCount = new Set(carriers.map((cell) => getCellNumber(cell, field))).size;

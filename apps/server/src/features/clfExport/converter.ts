@@ -127,46 +127,6 @@ export interface NRBandPCIs {
   has_missing_pci: boolean;
 }
 
-const EARFCN_MAP: Record<number, Partial<Record<number, { fdd?: number; tdd?: number }>>> = {
-  26001: {
-    800: { fdd: -1 },
-    900: { fdd: 3526 },
-    1800: { fdd: 1355 },
-    2100: { fdd: 350 },
-    2600: { fdd: 2850, tdd: 37900 },
-  },
-  26002: {
-    800: { fdd: 6375 },
-    900: { fdd: 3686 },
-    1800: { fdd: 1575 },
-    2100: { fdd: 225 },
-    2600: { fdd: 3175, tdd: NTM_UNKNOWN },
-  },
-  26003: {
-    700: { fdd: 9310 },
-    800: { fdd: 6200 },
-    900: { fdd: 3764 },
-    1800: { fdd: 1725 },
-    2100: { fdd: 75 },
-    2600: { fdd: 3025, tdd: NTM_UNKNOWN },
-  },
-  26006: {
-    700: { fdd: 9460 },
-    800: { fdd: 6275 },
-    900: { fdd: 3476 },
-    1800: { fdd: 1875 },
-    2100: { fdd: 525 },
-    2600: { fdd: 3350, tdd: NTM_UNKNOWN },
-  },
-};
-
-function getEARFCN(mnc: number | null | undefined, bandValue: number | null | undefined, duplex: BandDuplex | undefined): number {
-  if (!mnc || !bandValue) return NTM_UNKNOWN;
-  const entry = EARFCN_MAP[mnc]?.[bandValue];
-  if (!entry) return NTM_UNKNOWN;
-  return (duplex === "TDD" ? entry.tdd : entry.fdd) ?? NTM_UNKNOWN;
-}
-
 function getNRDesignation(bandValue: number | null | undefined, duplex: BandDuplex | undefined): string | null {
   switch (bandValue) {
     case 700:
@@ -679,9 +639,9 @@ export function toNetMonitor(cell: CellExportData, options?: ConvertOptions): st
       const tac = cell.tac ?? 0;
       const ci = cell.ecid ?? 0;
       const pci = cell.pci ?? "";
-      const earfcn = getEARFCN(cell.operator_mnc, cell.band_value, cell.band_duplex);
+      const earfcn = cell.arfcn || "";
       const description = renderDescription(cell, options);
-      return `L;${mcc};${mnc};${tac};${ci};${pci};${earfcn !== NTM_UNKNOWN ? earfcn : ""};${lat};${lon};${accuracy};${description};${azimuth}`;
+      return `L;${mcc};${mnc};${tac};${ci};${pci};${earfcn};${lat};${lon};${accuracy};${description};${azimuth}`;
     }
     case "NR": {
       const tac = cell.nrtac ?? 0;

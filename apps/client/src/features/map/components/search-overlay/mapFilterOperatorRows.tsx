@@ -184,7 +184,7 @@ export function OperatorRowsSection({
   const [openRowCountryCodes, setOpenRowCountryCodes] = useState<string[]>([]);
   const { rows, hasCountryTiles, hasRowPills } = listOperatorRows(filters, mapCountries, lookups, i18n.language);
   const shownRows = hasRowPills ? rows.filter((row) => openRowCountryCodes.includes(row.countryCode)) : rows;
-  const hasTickedOperators = countAllowedMapOperators(filters, lookups?.operators) > 0;
+  const hasTickedOperators = countAllowedMapOperators(filters, lookups?.operators, lookups?.countries) > 0;
 
   function toggleExpandedCountry(countryCode: string) {
     setExpandedCountryCodes((current) => toggleValue(current, countryCode));

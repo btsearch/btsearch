@@ -1,6 +1,5 @@
 import type { Me } from "@openbts/shared/contract";
 
-import { REGISTER_COUNTRY_CODE } from "@/features/map/constants";
 import type { MapLookups } from "@/features/map/data/mapLookups";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { useEditorMe } from "@/lib/auth/me";
@@ -93,10 +92,6 @@ export function getStationEditPlace(station: PlacedStation): EditablePlace {
     countryCode: station.location?.countryCode ?? station.operator?.countryCode ?? null,
     regionId: station.location?.regionId ?? null,
   };
-}
-
-export function getV1RecordEditPlace(regionId: number | null | undefined): EditablePlace {
-  return { countryCode: REGISTER_COUNTRY_CODE, regionId: regionId ?? null };
 }
 
 export function useEditorArea(isNeeded = true): EditorAreaState {

@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
 import { ContainerBuilder, MessageFlags, TextDisplayBuilder } from "discord.js";
 
-import { getStation, getStationPem, getStationPhotos, searchStations } from "../api.js";
+import { getBrands, getStation, getStationEmfReports, getStationPhotos, searchStations } from "../api.js";
 import { buildCellsView, buildPhotosView, buildStationView } from "../embeds/station.js";
 
 const V2 = MessageFlags.IsComponentsV2 as const;
@@ -26,17 +26,21 @@ export async function handleStationCommand(interaction: ChatInputCommandInteract
     return;
   }
 
-  const [station, photos] = await Promise.all([getStation(dbId).catch(() => null), getStationPhotos(dbId).catch(() => [])]);
+  const [station, photos, pem, brands] = await Promise.all([
+    getStation(dbId).catch(() => null),
+    getStationPhotos(dbId).catch(() => []),
+    getStationEmfReports(dbId).catch(() => []),
+    getBrands(),
+  ]);
 
   if (!station) {
     await interaction.reply({ content: `Stacja **${stationId}** nie została znaleziona.`, flags: MessageFlags.Ephemeral });
     return;
   }
 
-  const pem = await getStationPem(station).catch(() => []);
   const pemUrl = pem[0]?.url;
 
-  await interaction.reply(buildStationView(station, photos, pemUrl));
+  await interaction.reply(buildStationView(station, photos, brands, pemUrl));
 }
 
 export async function handleStationNavMenu(interaction: StringSelectMenuInteraction): Promise<void> {
@@ -59,8 +63,8 @@ export async function handleStationNavMenu(interaction: StringSelectMenuInteract
   const photos = await getStationPhotos(stationId).catch(() => []);
 
   if (view === "s") {
-    const pem = await getStationPem(station).catch(() => []);
-    await interaction.editReply(buildStationView(station, photos, pem[0]?.url));
+    const [pem, brands] = await Promise.all([getStationEmfReports(stationId).catch(() => []), getBrands()]);
+    await interaction.editReply(buildStationView(station, photos, brands, pem[0]?.url));
   } else if (view === "p") await interaction.editReply(buildPhotosView(station, photos));
   else if (view === "c") await interaction.editReply(buildCellsView(station, photos));
 }

@@ -3,7 +3,7 @@ import type { TerrainProfile, TerrainProfileCreate, TerrainProfileQuery } from "
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import { assertEmfCountryVisible } from "../../../../features/emf/site.js";
+import { assertCapabilityVisible } from "../../../../features/countries/visibility.js";
 import { TERRAIN_PROFILE_POLL_SECONDS, createTerrainProfile, toTerrainProfile } from "../../../../features/terrainProfile/profiles.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -23,7 +23,8 @@ const schemaRoute = {
     "hour, and the response is that earlier profile, which can be pending or ready. Failed and cancelled profiles are never reused.\n\n" +
     "Send either `stationId` or `officialSiteId`, not both. An `antennaKey` the station does not have is not rejected here. " +
     "The profile is created and then fails with the reason `antennaNotFound`. " +
-    "The antenna and elevation data connected so far only cover Poland, so the station and the receiver have to be there.",
+    "The antenna and elevation data connected so far only cover some countries. The station has to be in one where " +
+    "`capabilities.terrainProfiles` in `GET /countries` is not `null`, and the receiver inside its `receiverBounds`.",
   querystring: terrainProfileQuerySchema,
   body: terrainProfileCreateSchema,
   response: {
@@ -32,10 +33,12 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, or the receiver is closer than 10 m to the station or farther than 30 km, which is the default maximum.",
+  400:
+    "The request is invalid, the receiver is outside the `receiverBounds` of the station's country, " +
+    "or it is closer than 10 m to the station or farther than 30 km, which is the default maximum.",
   404:
-    "The station or official site does not exist or has no location, or the station is not in Poland. " +
-    "Also returned when you cannot access Poland, the country this data covers.",
+    "The station or official site does not exist or has no location, or it is in a country where `capabilities.terrainProfiles` is `null`. " +
+    "Also returned when you cannot access any country that has terrain profiles.",
   429:
     "You can start up to 15 new profiles every 5 minutes. Requests that return an existing profile do not count, and editors and " +
     "administrators have no limit unless they use an API key. The general rate limits apply as well.",
@@ -44,7 +47,7 @@ const errorReasons = {
 type RequestData = { Querystring: TerrainProfileQuery; Body: TerrainProfileCreate };
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<TerrainProfile>>) {
-  await assertEmfCountryVisible(req);
+  await assertCapabilityVisible(req, "terrainProfiles");
 
   const { profile, isNew } = await createTerrainProfile(req.body, () => countAgainstLimit(req, res, NEW_PROFILE_LIMIT));
 
@@ -58,7 +61,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const createTerrainProfileRoute: Route<RequestData, TerrainProfile> = {
   url: "/terrain-profiles",
   method: "POST",
-  config: { allowGuestAccess: true, permissions: ["read:stations", "read:uke_permits"], errorReasons },
+  config: { allowGuestAccess: true, permissions: ["read:stations", "read:official_permits"], errorReasons },
   schema: schemaRoute,
   handler,
 };

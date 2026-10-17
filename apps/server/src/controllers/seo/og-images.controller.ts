@@ -1,26 +1,28 @@
 import { brands, locations, operators, stations } from "@openbts/drizzle";
 import { DEFAULT_OPERATOR_COLOR } from "@openbts/shared/operatorUtils";
-import { parseSEOEntityId } from "@openbts/shared/seo";
+import { parseSEOEntityId, parseSEOListId } from "@openbts/shared/seo";
 import { and, asc, eq } from "drizzle-orm";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
 import { locationInPublicCountry } from "../../features/countries/visibility.js";
+import { loadPublicListPreview } from "../../features/lists/preview.js";
 import { requestOGImage } from "../../features/ogImages/client.js";
-import type { OGRenderRequest, OGRenderResult } from "../../features/ogImages/contract.js";
+import { type OGRenderRequest, type OGRenderResult, OG_LIST_NAME_MAX_LENGTH } from "../../features/ogImages/contract.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
 
-const IMAGE_FILE_PATTERN = /^([1-9]\d*)\.png$/;
+const IMAGE_FILE_PATTERN = /^([\w-]+)\.png$/;
 const MAX_LOCATION_COLORS = 32;
 
-type ImageResource = "locations" | "stations";
-type ImageRequestLoader = (id: number) => Promise<OGRenderRequest | null>;
+type ImageRequest = { id: number; resource: "locations" | "stations" } | { id: string; resource: "lists" };
+type ImageRequestLoader<Id> = (id: Id) => Promise<OGRenderRequest | null>;
 type ImageRenderer = (request: OGRenderRequest, signal?: AbortSignal) => Promise<OGRenderResult>;
 
 type OGImagesControllerDependencies = {
-  loadLocationRequest: ImageRequestLoader;
-  loadStationRequest: ImageRequestLoader;
+  loadListRequest: ImageRequestLoader<string>;
+  loadLocationRequest: ImageRequestLoader<number>;
+  loadStationRequest: ImageRequestLoader<number>;
   renderImage: ImageRenderer;
 };
 
@@ -75,20 +77,48 @@ async function loadLocationRequest(id: number): Promise<OGRenderRequest | null> 
   };
 }
 
+async function loadListRequest(id: string): Promise<OGRenderRequest | null> {
+  const list = await loadPublicListPreview(id);
+  if (!list) return null;
+
+  return {
+    version: 1,
+    kind: "list",
+    id,
+    name: list.name.slice(0, OG_LIST_NAME_MAX_LENGTH),
+    ownerUsername: list.ownerUsername,
+    stationCount: list.stationCount,
+    microwaveLinkCount: list.microwaveLinkCount,
+    operators: list.operators,
+    otherOperators: list.otherOperators,
+  };
+}
+
 const defaultDependencies: OGImagesControllerDependencies = {
+  loadListRequest,
   loadLocationRequest,
   loadStationRequest,
   renderImage: requestOGImage,
 };
 
-function parseImageRequest(resource: string, file: string): { id: number; resource: ImageResource } | null {
-  if (resource !== "stations" && resource !== "locations") return null;
-
+function parseImageRequest(resource: string, file: string): ImageRequest | null {
   const rawId = IMAGE_FILE_PATTERN.exec(file)?.[1];
   if (!rawId) return null;
 
+  if (resource === "lists") {
+    const id = parseSEOListId(rawId);
+    return id === null ? null : { id, resource };
+  }
+  if (resource !== "stations" && resource !== "locations") return null;
+
   const id = parseSEOEntityId(rawId);
   return id === null ? null : { id, resource };
+}
+
+function loadRenderRequest(dependencies: OGImagesControllerDependencies, imageRequest: ImageRequest): Promise<OGRenderRequest | null> {
+  if (imageRequest.resource === "lists") return dependencies.loadListRequest(imageRequest.id);
+  if (imageRequest.resource === "stations") return dependencies.loadStationRequest(imageRequest.id);
+  return dependencies.loadLocationRequest(imageRequest.id);
 }
 
 function createRequestAbortSignal(req: FastifyRequest, res: FastifyReply): { cleanup: () => void; signal: AbortSignal } {
@@ -119,8 +149,7 @@ function createImageHandler(dependencies: OGImagesControllerDependencies) {
     const imageRequest = parseImageRequest(resource, file);
     if (!imageRequest) throw new ErrorResponse("NOT_FOUND");
 
-    const loadRequest = imageRequest.resource === "stations" ? dependencies.loadStationRequest : dependencies.loadLocationRequest;
-    const renderRequest = await loadRequest(imageRequest.id);
+    const renderRequest = await loadRenderRequest(dependencies, imageRequest);
     if (!renderRequest) throw new ErrorResponse("NOT_FOUND");
 
     const { cleanup, signal } = createRequestAbortSignal(req, res);

@@ -1,25 +1,18 @@
-import type { Cell as StationCell } from "@openbts/shared/contract";
-import {
-  calculateBearing,
-  calculateDistance,
-  calculateRadiolineSpeed,
-  destinationPoint,
-  formatBandwidth,
-  formatDistance,
-  formatFrequency,
-  formatSpeed,
-  getModulationBits,
-} from "@openbts/shared/radiolinesUtils";
+import type { Brand, Licensee, MicrowaveLink, OfficialSite, OfficialSitePermit, Cell as StationCell } from "@openbts/shared/contract";
+import { calculateBearing, calculateDistance, destinationPoint, formatDistance } from "@openbts/shared/geo";
+import { calculateMicrowaveLinkSpeed, formatBandwidth, formatFrequency, formatSpeed, getModulationBits } from "@openbts/shared/microwaveLinkUtils";
 
+import type { MapLookups } from "./data/mapLookups";
+import { toOfficialRatFilter, toOfficialRatOption } from "@/features/official/labels";
 import { toRatType } from "@/features/station-details/station/utils/bands";
-import { resolveOperatorMnc } from "@/lib/cellular/operators";
+import { findBrand, getBrandColor } from "@/features/station-details/station/utils/brands";
 import { isPermitExpired } from "@/lib/dateUtils";
-import type { Cell, RadioLine, UkeLocationWithPermits, UkePermit, UkeStation, UkeStationPermit } from "@/types/station";
+import type { Cell } from "@/types/station";
 
 export {
   calculateBearing,
   calculateDistance,
-  calculateRadiolineSpeed,
+  calculateMicrowaveLinkSpeed,
   destinationPoint,
   formatBandwidth,
   formatDistance,
@@ -37,82 +30,18 @@ const TA_STEP = {
   NR_30KHZ: 39.0625, // ~39.06 m per step (SCS 30 kHz)
 } as const;
 
-export type RadioLinkType = "FDD" | "2+0 FDD" | "XPIC" | "SD" | "UNKNOWN";
+export type MicrowaveLinkType = "FDD" | "2+0 FDD" | "XPIC" | "SD" | "UNKNOWN";
 
-export type DuplexRadioLink = {
+export type MicrowaveLinkLookups = Pick<MapLookups, "brands" | "operatorsById">;
+
+export type DuplexMicrowaveLink = {
   groupId: string;
   a: { latitude: number; longitude: number };
   b: { latitude: number; longitude: number };
-  directions: RadioLine[];
-  linkType: RadioLinkType;
+  directions: MicrowaveLink[];
+  linkType: MicrowaveLinkType;
   isExpired: boolean;
 };
-
-export function groupPermitsByStation(permits: UkePermit[], ukeLocation?: UkeLocationWithPermits): UkeStation[] {
-  const stationMap = new Map<string, UkeStation>();
-
-  const overrideLocation = ukeLocation
-    ? {
-        id: ukeLocation.id,
-        city: ukeLocation.city,
-        address: ukeLocation.address,
-        latitude: ukeLocation.latitude,
-        longitude: ukeLocation.longitude,
-        region: ukeLocation.region,
-      }
-    : null;
-
-  for (const permit of permits) {
-    const station = permit.station;
-    const stationPermit: UkeStationPermit = {
-      id: permit.id,
-      decision_number: permit.decision_number,
-      decision_type: permit.decision_type,
-      expiry_date: permit.expiry_date,
-      source: permit.source,
-      sectors: permit.sectors,
-      updatedAt: permit.updatedAt,
-      createdAt: permit.createdAt,
-      band: permit.band,
-    };
-    const existing = stationMap.get(String(station.id));
-    if (existing) {
-      existing.permits.push(stationPermit);
-    } else {
-      stationMap.set(String(station.id), {
-        id: station.id,
-        station_id: station.station_id,
-        createdAt: station.createdAt,
-        updatedAt: station.updatedAt,
-        operator: station.operator ?? null,
-        permits: [stationPermit],
-        location: overrideLocation ?? station.location ?? null,
-      });
-    }
-  }
-
-  return Array.from(stationMap.values());
-}
-
-export function attachUkeLocationToStations(stations: UkeStation[], ukeLocation?: UkeLocationWithPermits): UkeStation[] {
-  if (!ukeLocation) return stations;
-
-  const location: NonNullable<UkeStation["location"]> = {
-    id: ukeLocation.id,
-    city: ukeLocation.city,
-    address: ukeLocation.address,
-    latitude: ukeLocation.latitude,
-    longitude: ukeLocation.longitude,
-    region: ukeLocation.region,
-    createdAt: ukeLocation.createdAt,
-    updatedAt: ukeLocation.updatedAt,
-  };
-
-  return stations.map((station) => ({
-    ...station,
-    location: station.location ?? location,
-  }));
-}
 
 function ratOrder(rat: string): number {
   const index = RAT_ORDER.indexOf(rat.toUpperCase() as (typeof RAT_ORDER)[number]);
@@ -143,32 +72,41 @@ export function getCellTechnologyBands(cells: readonly StationCell[]): string[] 
   return sortBands([...new Set(cells.map((cell) => `${toRatType(cell.rat)}${cell.band?.labelMhz ?? ""}`))]);
 }
 
-export function getPermitBands(permits: { band?: UkeStationPermit["band"] }[]): string[] {
-  const bands = permits.reduce<string[]>((acc, p) => {
-    if (!p.band) return acc;
-    const rat = p.band.rat === "GSM" && p.band.variant === "railway" ? "GSM-R" : p.band.rat;
-    acc.push(`${rat}${p.band.value}`);
-    return acc;
-  }, []);
+export function getOfficialPermitBands(permits: readonly Pick<OfficialSitePermit, "label">[]): string[] {
+  const bands = permits.flatMap(({ label }) => {
+    const rat = toOfficialRatFilter(label);
+    if (rat === null) return [];
+    return [`${toOfficialRatOption(rat).label.toUpperCase()}${label.labelMhz ?? ""}`];
+  });
   return sortBands([...new Set(bands)]);
 }
 
-export function getRadioLineMnc(link: DuplexRadioLink): number | null {
-  const first = link.directions[0];
-  return resolveOperatorMnc(first.operator?.mnc, first.operator?.name);
+export function getLicenseeBrand(
+  licensee: Pick<Licensee, "operatorId" | "brandId"> | null | undefined,
+  lookups: MicrowaveLinkLookups | undefined,
+): Brand | null {
+  if (lookups === undefined || licensee === null || licensee === undefined) return null;
+  if (licensee.operatorId !== null) return lookups.operatorsById.get(licensee.operatorId)?.brand ?? null;
+  return findBrand(lookups.brands, licensee.brandId);
 }
 
-export function isUkeStationExpired(station: UkeStation): boolean {
-  return station.permits.length > 0 && station.permits.every((permit) => isPermitExpired(permit.expiry_date));
+export function getMicrowaveLinkLook(link: DuplexMicrowaveLink, lookups: MicrowaveLinkLookups | undefined): { brand: Brand | null; color: string } {
+  const brand = getLicenseeBrand(link.directions[0].licensee, lookups);
+  return { brand, color: getBrandColor(brand) };
 }
 
-export function calculateLinkDirectionalSpeeds(link: DuplexRadioLink): { dl: number | null; ul: number | null } {
+export function isOfficialSiteExpired(site: Pick<OfficialSite, "permits">): boolean {
+  const permits = site.permits ?? [];
+  return permits.length > 0 && permits.every((permit) => permit.expiresOn !== null && isPermitExpired(permit.expiresOn));
+}
+
+export function calculateLinkDirectionalSpeeds(link: DuplexMicrowaveLink): { dl: number | null; ul: number | null } {
   const aKey = `${link.a.latitude},${link.a.longitude}`;
   let dl: number | null = null;
   let ul: number | null = null;
 
   for (const dir of link.directions) {
-    const speed = dir.link.ch_width && dir.link.modulation_type ? calculateRadiolineSpeed(dir.link.ch_width, dir.link.modulation_type) : null;
+    const speed = dir.channelWidthMhz && dir.modulation ? calculateMicrowaveLinkSpeed(dir.channelWidthMhz, dir.modulation) : null;
     if (speed === null) continue;
     const isForward = `${dir.tx.latitude},${dir.tx.longitude}` === aKey;
     if (isForward) dl = (dl ?? 0) + speed;
@@ -178,7 +116,7 @@ export function calculateLinkDirectionalSpeeds(link: DuplexRadioLink): { dl: num
   return { dl, ul };
 }
 
-export function buildRadiolineShareUrl(link: DuplexRadioLink): string {
+export function buildMicrowaveLinkShareUrl(link: DuplexMicrowaveLink): string {
   const distance = calculateDistance(link.a.latitude, link.a.longitude, link.b.latitude, link.b.longitude);
   const zoom = Math.max(8, Math.min(14, Math.round(14.5 - Math.log2(distance / 1000))));
   const lat = ((link.a.latitude + link.b.latitude) / 2).toFixed(6);
@@ -193,22 +131,22 @@ const LINK_TYPE_STYLES: Record<string, { bg: string; text: string; border: strin
   SD: { bg: "bg-muted", text: "text-muted-foreground", border: "border-border/50" },
 };
 
-export function getLinkTypeStyle(linkType: RadioLinkType): { bg: string; text: string; border: string } | null {
+export function getLinkTypeStyle(linkType: MicrowaveLinkType): { bg: string; text: string; border: string } | null {
   return LINK_TYPE_STYLES[linkType] ?? null;
 }
 
-export function endpointPairKey(rl: RadioLine): string {
-  const a = `${rl.tx.latitude},${rl.tx.longitude}`;
-  const b = `${rl.rx.latitude},${rl.rx.longitude}`;
+export function endpointPairKey(link: MicrowaveLink): string {
+  const a = `${link.tx.latitude},${link.tx.longitude}`;
+  const b = `${link.rx.latitude},${link.rx.longitude}`;
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
-function txRxDirectionKey(rl: RadioLine): string {
-  return `${rl.tx.latitude},${rl.tx.longitude}→${rl.rx.latitude},${rl.rx.longitude}`;
+function txRxDirectionKey(link: MicrowaveLink): string {
+  return `${link.tx.latitude},${link.tx.longitude}→${link.rx.latitude},${link.rx.longitude}`;
 }
 
-function classifyLinkType(entries: RadioLine[]): RadioLinkType {
-  const byDirection = new Map<string, RadioLine[]>();
+function classifyLinkType(entries: MicrowaveLink[]): MicrowaveLinkType {
+  const byDirection = new Map<string, MicrowaveLink[]>();
   for (const e of entries) {
     const key = txRxDirectionKey(e);
     const group = byDirection.get(key);
@@ -219,8 +157,8 @@ function classifyLinkType(entries: RadioLine[]): RadioLinkType {
   const ref = [...byDirection.values()].reduce((a, b) => (a.length >= b.length ? a : b));
   if (ref.length === 1) return "FDD";
 
-  const freqs = new Set(ref.map((e) => e.link.freq));
-  const pols = new Set(ref.map((e) => e.link.polarization));
+  const freqs = new Set(ref.map((e) => e.frequencyMhz));
+  const pols = new Set(ref.map((e) => e.polarization));
 
   if (freqs.size === 1 && pols.size > 1) return "XPIC";
   if (freqs.size > 1 && pols.size === 1) return "2+0 FDD";
@@ -237,16 +175,16 @@ function interleave<T>(a: T[], b: T[]): T[] {
   return result;
 }
 
-export function groupRadioLinesIntoLinks(radioLines: RadioLine[]): DuplexRadioLink[] {
-  const groups = new Map<string, RadioLine[]>();
+export function groupMicrowaveLinksIntoDuplexLinks(microwaveLinks: MicrowaveLink[]): DuplexMicrowaveLink[] {
+  const groups = new Map<string, MicrowaveLink[]>();
 
-  for (const rl of radioLines) {
-    const opId = rl.operator?.id ?? "unknown";
-    const key = rl.permit.number ? `permit:${opId}::${rl.permit.number}` : `coords:${opId}::${endpointPairKey(rl)}`;
+  for (const link of microwaveLinks) {
+    const licenseeKey = link.licenseeId ?? "unknown";
+    const key = link.permit.number ? `permit:${licenseeKey}::${link.permit.number}` : `coords:${licenseeKey}::${endpointPairKey(link)}`;
 
     const group = groups.get(key);
-    if (group) group.push(rl);
-    else groups.set(key, [rl]);
+    if (group) group.push(link);
+    else groups.set(key, [link]);
   }
 
   return [...groups.entries()].map(([key, entries]) => {
@@ -261,8 +199,8 @@ export function groupRadioLinesIntoLinks(radioLines: RadioLine[]): DuplexRadioLi
     const [a, b] = p1Key <= p2Key ? [p1, p2] : [p2, p1];
     const aKey = `${a.latitude},${a.longitude}`;
 
-    const pairSortKey = (e: RadioLine) => `${e.link.polarization ?? ""}:${e.link.freq}`;
-    const sorted = (lines: RadioLine[]) => [...lines].sort((x, y) => pairSortKey(x).localeCompare(pairSortKey(y)));
+    const pairSortKey = (e: MicrowaveLink) => `${e.polarization ?? ""}:${e.frequencyMhz}`;
+    const sorted = (lines: MicrowaveLink[]) => [...lines].sort((x, y) => pairSortKey(x).localeCompare(pairSortKey(y)));
 
     const forward = sorted(entries.filter((e) => `${e.tx.latitude},${e.tx.longitude}` === aKey));
     const reverse = sorted(entries.filter((e) => `${e.tx.latitude},${e.tx.longitude}` !== aKey));
@@ -275,13 +213,13 @@ export function groupRadioLinesIntoLinks(radioLines: RadioLine[]): DuplexRadioLi
       b,
       directions,
       linkType,
-      isExpired: entries.some((d) => isPermitExpired(d.permit.expiry_date)),
+      isExpired: entries.some((d) => d.permit.expiresOn !== null && isPermitExpired(d.permit.expiresOn)),
     };
   });
 }
 
-export function findDuplexLinkByRadioLineId(radioLineId: number, links: DuplexRadioLink[]): DuplexRadioLink | undefined {
-  return links.find((link) => link.directions.some((d) => d.id === radioLineId));
+export function findDuplexLinkByMicrowaveLinkId(microwaveLinkId: number, links: DuplexMicrowaveLink[]): DuplexMicrowaveLink | undefined {
+  return links.find((link) => link.directions.some((d) => d.id === microwaveLinkId));
 }
 
 export function calculateTA(distanceMeters: number) {

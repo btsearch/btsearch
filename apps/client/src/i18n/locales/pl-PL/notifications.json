@@ -5,13 +5,18 @@
   "empty": "Brak powiadomień",
   "emptyDescription": "Tutaj pojawią się decyzje w sprawie Twoich zgłoszeń i zmiany na obserwowanych stacjach.",
   "markAllRead": "Oznacz jako przeczytane",
+  "delete": "Usuń powiadomienie",
+  "clearConfirm": {
+    "title": "Wyczyścić wszystkie powiadomienia?",
+    "description": "Wszystkie powiadomienia zostaną usunięte, również nieprzeczytane. Tej operacji nie można cofnąć"
+  },
   "loadOlder": "Wczytaj starsze",
   "allLoaded": "To wszystkie powiadomienia",
   "pushTitle": "Powiadomienia push",
   "pushEnable": "Włącz",
   "enabling": "Włączanie...",
   "pushDescription": "Otrzymuj powiadomienia o aktualizacjach zgłoszeń",
-  "ukeStationDeleted": "Stacja usunięta z danych UKE",
+  "registerStationDeleted": "Stacja usunięta z rejestru",
   "types": {
     "submissionAccepted": "Zgłoszenie zatwierdzone",
     "submissionRejected": "Zgłoszenie odrzucone",
@@ -20,7 +25,7 @@
     "stationCellsChanged": "Zmieniono komórki stacji",
     "stationPhotosAdded": "Dodano zdjęcia stacji",
     "stationCommentApproved": "Nowy komentarz na stacji",
-    "officialPermitsChanged": "Zmieniono pozwolenia UKE"
+    "officialPermitsChanged": "Zmieniono pozwolenia stacji"
   },
   "facts": {
     "cellsAdded_one": "<n>{{count}}</n> dodana",
@@ -38,9 +43,10 @@
     "permitsDeleted_one": "<n>{{count}}</n> usunięte pozwolenie",
     "permitsDeleted_few": "<n>{{count}}</n> usunięte pozwolenia",
     "permitsDeleted_many": "<n>{{count}}</n> usuniętych pozwoleń",
-    "ukeStationsAdded_one": "<n>{{count}}</n> nowa stacja UKE",
-    "ukeStationsAdded_few": "<n>{{count}}</n> nowe stacje UKE",
-    "ukeStationsAdded_many": "<n>{{count}}</n> nowych stacji UKE",
+    "registerStationsAdded_one": "<n>{{count}}</n> nowa stacja z rejestru",
+    "registerStationsAdded_few": "<n>{{count}}</n> nowe stacje z rejestru",
+    "registerStationsAdded_many": "<n>{{count}}</n> nowych stacji z rejestru",
+    "registerStationsAdded_other": "<n>{{count}}</n> nowych stacji z rejestru",
     "events_one": "<n>{{count}}</n> zdarzenie",
     "events_few": "<n>{{count}}</n> zdarzenia",
     "events_many": "<n>{{count}}</n> zdarzeń"

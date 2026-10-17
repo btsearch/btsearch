@@ -1,4 +1,4 @@
-import type { TerrainAntenna, TerrainProfile, TerrainResult, TerrainSelectedAntenna } from "@openbts/shared/contract";
+import type { CountryCapabilities, TerrainAntenna, TerrainProfile, TerrainResult, TerrainSelectedAntenna } from "@openbts/shared/contract";
 
 import type { StationSource } from "@/types/station";
 
@@ -13,6 +13,8 @@ export type GeoPoint = {
   longitude: number;
 };
 
+export type TerrainReceiverBounds = NonNullable<CountryCapabilities["terrainProfiles"]>["receiverBounds"];
+
 type TerrainProfileStationRef = {
   source: StationSource;
   id: number;
@@ -25,6 +27,7 @@ export type TerrainProfileStationTarget = TerrainProfileStationRef &
     operatorName: string;
     city: string | null;
     address: string | null;
+    receiverBounds: TerrainReceiverBounds;
   };
 
 export type TerrainProfileGpsError = "unsupported" | "permissionDenied" | "unavailable" | "timeout" | "unknown";

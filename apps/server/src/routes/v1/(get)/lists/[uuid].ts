@@ -25,7 +25,7 @@ type ResponseBody = z.infer<(typeof schemaRoute.response)["200"]>;
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<ResponseBody>>) {
   const list = await getVisibleUserList(req, req.params.uuid);
-  const { internal, uke, radiolines } = getUserListMembership(list);
+  const { internal, official, microwaveLinks } = getUserListMembership(list);
   const foreign = await findForeignStationIds(internal);
 
   return res.send({
@@ -36,8 +36,8 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       description: list.description,
       is_public: list.is_public,
       notificationsEnabled: list.notificationsEnabled,
-      stations: { internal: internal.filter((id) => !foreign.has(id)), uke },
-      radiolines,
+      stations: { internal: internal.filter((id) => !foreign.has(id)), uke: official },
+      radiolines: microwaveLinks,
       createdAt: list.createdAt,
       updatedAt: list.updatedAt,
     },

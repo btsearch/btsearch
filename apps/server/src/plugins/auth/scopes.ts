@@ -6,13 +6,13 @@ export const OAUTH_READ_SCOPES = [
   "read:bands",
   "read:cells",
   "read:locations",
+  "read:microwave_links",
+  "read:official_permits",
   "read:operators",
   "read:regions",
   "read:stations",
   "read:stats",
   "read:submissions",
-  "read:uke_permits",
-  "read:uke_radiolines",
   "read:user_lists",
 ] as const satisfies readonly RoutePermission[];
 

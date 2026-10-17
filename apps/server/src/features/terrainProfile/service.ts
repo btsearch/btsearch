@@ -1,5 +1,5 @@
 import { getSI2PEMAntennaCandidates } from "./si2pem.adapter.js";
-import { type ResolvedStationWithFallbacks, resolveNetWorksSharingSibling } from "./stationResolver.js";
+import { type ResolvedStationWithFallbacks, resolveSharedSibling } from "./stationResolver.js";
 import type { AntennaCandidate, SI2PEMReport, TerrainWarningCode } from "./types.js";
 
 type AntennaDataLookup = {
@@ -9,19 +9,19 @@ type AntennaDataLookup = {
 };
 
 export async function lookupAntennaData(resolved: ResolvedStationWithFallbacks): Promise<AntennaDataLookup> {
-  const si2pem = await getSI2PEMAntennaCandidates(resolved.station, resolved.ukeCandidates).catch(() => ({
+  const si2pem = await getSI2PEMAntennaCandidates(resolved.station, resolved.permitCandidates).catch(() => ({
     report: null,
     candidates: [],
     warningCodes: ["SI2PEM_REPORT_UNAVAILABLE" as const],
   }));
   const warningCodes: TerrainWarningCode[] = [...si2pem.warningCodes];
-  const candidates = si2pem.candidates.length ? si2pem.candidates : resolved.ukeCandidates;
-  if (!si2pem.candidates.length && resolved.ukeCandidates.length) warningCodes.push("UKE_ANTENNA_FALLBACK");
+  const candidates = si2pem.candidates.length ? si2pem.candidates : resolved.permitCandidates;
+  if (!si2pem.candidates.length && resolved.permitCandidates.length) warningCodes.push("PERMIT_ANTENNA_FALLBACK");
   return { report: si2pem.report, candidates, warningCodes };
 }
 
 export async function lookupSiblingAntennaData(resolved: ResolvedStationWithFallbacks): Promise<AntennaDataLookup | null> {
-  const sibling = await resolveNetWorksSharingSibling(resolved).catch(() => null);
+  const sibling = await resolveSharedSibling(resolved).catch(() => null);
   if (!sibling) return null;
   const siblingData = await lookupAntennaData(sibling);
   if (!siblingData.candidates.length) return null;

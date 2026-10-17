@@ -1,3 +1,4 @@
+import { OFFICIAL_SITE_INCLUDES, type OfficialSite, type OfficialSiteInclude } from "@openbts/shared/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Map as MapLibreMap, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -7,7 +8,7 @@ import { toast } from "sonner";
 import { PLANNED_PEM_LAYER_ID, POINT_LAYER_ID } from "../constants";
 import type { MapFilters } from "../data/mapFilters";
 import { useMapLookups } from "../data/mapLookups";
-import { type MapPlace, type MapPoint, listRegisterStations, toMapPlace } from "../data/mapPoints";
+import { type MapPlace, type MapPoint, listOfficialSites, toMapPlace } from "../data/mapPoints";
 import { mapPointsToGeoJSON } from "../geojson";
 import { useAzimuthLayer } from "../hooks/useAzimuthLayer";
 import { useHeatmapLayer } from "../hooks/useHeatmapLayer";
@@ -15,14 +16,14 @@ import { useMapKeybinds } from "../hooks/useMapKeybinds";
 import { type FeatureClickData, useMapLayer } from "../hooks/useMapLayer";
 import type { FollowMapPoints, MapPopupLocation, ShowMapPopup } from "../hooks/useMapPopup";
 import { type UrlInitialization, useUrlSync } from "../hooks/useURLSync";
-import { groupPermitsByStation } from "../utils";
 import { StationHoverTooltipContent } from "./stationHoverTooltipContent";
 import { useMap } from "@/components/ui/map";
-import { fetchUkePermit, fetchUkeStation } from "@/features/station-details/api";
+import { fetchOfficialSite, fetchOfficialSites } from "@/features/official/api";
+import { officialSiteQueryOptions } from "@/features/official/queries";
 import { locationRecordQueryOptions, stationRecordQueryOptions } from "@/features/station-details/station/api";
 import { usePreferences } from "@/hooks/usePreferences";
 import { showApiError } from "@/lib/api";
-import type { StationSource, UkeStation } from "@/types/station";
+import type { StationSource } from "@/types/station";
 
 const EMPTY_GEOJSON = { type: "FeatureCollection" as const, features: [] };
 const EMPTY_BLOCKED_LAYERS: string[] = [];
@@ -31,41 +32,42 @@ const MAP_TOUCH_LONG_PRESS_MS = 500;
 const MAP_TOUCH_MOVE_TOLERANCE_PX = 12;
 const SHARED_STATION_COORDINATE_TOLERANCE = 0.00001;
 const SHARED_TARGET_ZOOM = 16;
+const LEGACY_SITE_INCLUDE: OfficialSiteInclude[] = ["location"];
 
-class LegacyUkeStationLinkError extends Error {
+class LegacyOfficialSiteLinkError extends Error {
   constructor(readonly reason: "ambiguous" | "notFound") {
     super(reason);
   }
 }
 
-async function resolveLegacyUkeStation(stationId: string, center?: [number, number]): Promise<UkeStation> {
-  const numericId = Number(stationId);
-  const hasNumericId = /^\d+$/.test(stationId) && Number.isSafeInteger(numericId) && numericId > 0;
-  const [permitsResult, stationResult] = await Promise.allSettled([
-    fetchUkePermit(stationId),
-    hasNumericId ? fetchUkeStation(numericId) : Promise.resolve(null),
+async function resolveLegacyOfficialSite(siteId: string, center?: [number, number]): Promise<OfficialSite> {
+  const numericId = Number(siteId);
+  const hasNumericId = /^\d+$/.test(siteId) && Number.isSafeInteger(numericId) && numericId > 0;
+  const [sitesResult, siteResult] = await Promise.allSettled([
+    fetchOfficialSites({ siteIds: [siteId], include: LEGACY_SITE_INCLUDE }),
+    hasNumericId ? fetchOfficialSite(numericId, LEGACY_SITE_INCLUDE) : Promise.resolve(null),
   ]);
-  const candidates = new Map<number, UkeStation>();
-  if (permitsResult.status === "fulfilled") for (const station of groupPermitsByStation(permitsResult.value)) candidates.set(station.id, station);
-  if (stationResult.status === "fulfilled" && stationResult.value) candidates.set(stationResult.value.id, stationResult.value);
+  const candidates = new Map<number, OfficialSite>();
+  if (sitesResult.status === "fulfilled") for (const site of sitesResult.value.data) candidates.set(site.id, site);
+  if (siteResult.status === "fulfilled" && siteResult.value) candidates.set(siteResult.value.id, siteResult.value);
 
   const coordinateMatches = center
     ? [...candidates.values()].filter(
-        (station) =>
-          station.location &&
-          Math.abs(station.location.latitude - center[1]) < SHARED_STATION_COORDINATE_TOLERANCE &&
-          Math.abs(station.location.longitude - center[0]) < SHARED_STATION_COORDINATE_TOLERANCE,
+        (site) =>
+          site.location &&
+          Math.abs(site.location.latitude - center[1]) < SHARED_STATION_COORDINATE_TOLERANCE &&
+          Math.abs(site.location.longitude - center[0]) < SHARED_STATION_COORDINATE_TOLERANCE,
       )
     : [];
   if (coordinateMatches.length === 1) return coordinateMatches[0];
-  if (coordinateMatches.length > 1) throw new LegacyUkeStationLinkError("ambiguous");
+  if (coordinateMatches.length > 1) throw new LegacyOfficialSiteLinkError("ambiguous");
 
-  const [onlyStation] = candidates.values();
-  if (candidates.size === 1 && onlyStation) return onlyStation;
-  if (candidates.size > 1) throw new LegacyUkeStationLinkError("ambiguous");
-  if (permitsResult.status === "rejected") throw permitsResult.reason;
-  if (stationResult.status === "rejected") throw stationResult.reason;
-  throw new LegacyUkeStationLinkError("notFound");
+  const [onlySite] = candidates.values();
+  if (candidates.size === 1 && onlySite) return onlySite;
+  if (candidates.size > 1) throw new LegacyOfficialSiteLinkError("ambiguous");
+  if (sitesResult.status === "rejected") throw sitesResult.reason;
+  if (siteResult.status === "rejected") throw siteResult.reason;
+  throw new LegacyOfficialSiteLinkError("notFound");
 }
 
 function flyToSharedTarget(map: MapLibreMap, longitude: number, latitude: number): void {
@@ -89,7 +91,7 @@ type PopupActions = {
 
 type StationActions = {
   openDetails: (id: number, source: StationSource) => boolean | void;
-  openUkeDetails: (station: UkeStation) => boolean | void;
+  openOfficialSiteDetails: (site: OfficialSite) => boolean | void;
 };
 
 type CommonStationsLayerProps = {
@@ -100,7 +102,7 @@ type CommonStationsLayerProps = {
   onActiveMarkerChange?: (marker: { latitude: number; longitude: number } | null) => void;
   stationActions: StationActions;
   popupActions: PopupActions;
-  onRadiolineIdFromUrl?: (id: number) => void;
+  onMicrowaveLinkIdFromUrl?: (id: number) => void;
   activePopupLocations?: MapPopupLocation[];
 };
 
@@ -120,7 +122,7 @@ export function StationsLayer({
   onActiveMarkerChange,
   stationActions,
   popupActions,
-  onRadiolineIdFromUrl,
+  onMicrowaveLinkIdFromUrl,
   activePopupLocations,
   urlSyncEnabled = true,
 }: StationsLayerProps) {
@@ -133,20 +135,19 @@ export function StationsLayer({
   const hasOpenedLinkedLocation = useRef(false);
 
   const { show: showPopup, followPoints, cleanup: cleanupPopup } = popupActions;
-  const { openDetails: onOpenStationDetails, openUkeDetails: onOpenUkeStationDetails } = stationActions;
+  const { openDetails: onOpenStationDetails, openOfficialSiteDetails: onOpenOfficialSiteDetails } = stationActions;
 
-  function handleUrlInitialize({ filters: urlFilters, center, stationId, ukeStationId, locationId, radiolineId }: UrlInitialization) {
+  function handleUrlInitialize({ filters: urlFilters, center, stationId, officialSiteId, locationId, microwaveLinkId }: UrlInitialization) {
     if (urlFilters) onFiltersChange?.(urlFilters);
     const activeFilters = urlFilters ?? savedFilters;
 
-    if (ukeStationId && map) {
+    if (officialSiteId && map) {
       queryClient
-        .query({ queryKey: ["uke-station", ukeStationId], queryFn: () => fetchUkeStation(ukeStationId) })
-        .then((station) => {
-          if (station.location?.latitude && station.location?.longitude) {
-            flyToSharedTarget(map, station.location.longitude, station.location.latitude);
-            onOpenUkeStationDetails(station);
-          }
+        .query(officialSiteQueryOptions(officialSiteId, OFFICIAL_SITE_INCLUDES))
+        .then((site) => {
+          if (site.location === undefined) return;
+          flyToSharedTarget(map, site.location.longitude, site.location.latitude);
+          onOpenOfficialSiteDetails(site);
         })
         .catch((error) => {
           console.error("Failed to fetch shared station:", error);
@@ -154,12 +155,11 @@ export function StationsLayer({
         });
     } else if (stationId && map) {
       const stationPromise =
-        activeFilters.source === "uke"
-          ? resolveLegacyUkeStation(stationId, center).then((ukeStation) => {
-              if (ukeStation?.location?.latitude && ukeStation?.location?.longitude) {
-                flyToSharedTarget(map, ukeStation.location.longitude, ukeStation.location.latitude);
-                onOpenUkeStationDetails(ukeStation);
-              }
+        activeFilters.source === "official"
+          ? resolveLegacyOfficialSite(stationId, center).then((site) => {
+              if (site.location === undefined) return;
+              flyToSharedTarget(map, site.location.longitude, site.location.latitude);
+              onOpenOfficialSiteDetails(site);
             })
           : queryClient.query(stationRecordQueryOptions(Number(stationId))).then((station) => {
               if (station.location === null) return;
@@ -167,14 +167,14 @@ export function StationsLayer({
               onOpenStationDetails(station.id, "internal");
             });
       stationPromise.catch((error) => {
-        if (error instanceof LegacyUkeStationLinkError) {
-          toast.error(t(error.reason === "ambiguous" ? "page.ambiguousUkeStationLink" : "page.stationNotFoundTitle"));
+        if (error instanceof LegacyOfficialSiteLinkError) {
+          toast.error(t(error.reason === "ambiguous" ? "page.ambiguousStationLink" : "page.stationNotFoundTitle"));
           return;
         }
         console.error("Failed to fetch shared station:", error);
         showApiError(error);
       });
-    } else if (radiolineId) onRadiolineIdFromUrl?.(radiolineId);
+    } else if (microwaveLinkId) onMicrowaveLinkIdFromUrl?.(microwaveLinkId);
     else if (locationId) setLinkedLocation({ locationId, source: activeFilters.source });
   }
 
@@ -216,14 +216,14 @@ export function StationsLayer({
   useEffect(() => {
     if (linkedLocation === null || hasOpenedLinkedLocation.current) return;
 
-    if (linkedLocation.source === "uke") {
-      if (filters.source !== "uke") return;
+    if (linkedLocation.source === "official") {
+      if (filters.source !== "official") return;
 
-      const point = findPoint(pointsById, linkedLocation.locationId, "uke");
+      const point = findPoint(pointsById, linkedLocation.locationId, "official");
       if (point === undefined) return;
 
       hasOpenedLinkedLocation.current = true;
-      showPopup([point.longitude, point.latitude], point, null, listRegisterStations(point), "uke");
+      showPopup([point.longitude, point.latitude], point, null, listOfficialSites(point), "official");
       return;
     }
 
@@ -256,8 +256,8 @@ export function StationsLayer({
     const point = findPoint(pointsById, locationId, source);
     const place: MapPlace = point ?? { id: locationId, city: city ?? null, address: address ?? null, regionName: null, latitude, longitude };
 
-    if (source === "uke") {
-      showPopup(coordinates, place, null, point === undefined ? [] : listRegisterStations(point), source);
+    if (source === "official") {
+      showPopup(coordinates, place, null, point === undefined ? [] : listOfficialSites(point), source);
       return;
     }
 

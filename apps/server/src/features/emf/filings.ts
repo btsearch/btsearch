@@ -1,7 +1,7 @@
 import type { EmfFilingList, EmfFilingListQuery } from "@openbts/shared/contract";
 import { z } from "zod/v4";
 
-import { ENTITY_TO_MNC } from "../pem/entities.js";
+import { si2pemNameToMnc } from "../pem/entities.js";
 import { si2pemDateToInstant, si2pemDateToWarsawDay, toSI2PEMFileUrl } from "../pem/si2pemValues.js";
 import { getVoivodeshipByTeryt } from "../pem/voivodeships.js";
 import { type RegisterFilter, type SiteRow, registerFilters, resolveWindow, toPaging, withSiteRefs } from "./lists.js";
@@ -59,8 +59,7 @@ function toFilingRow(result: unknown): FilingRow | null {
   return {
     siteId: station.identity_name ?? filing.base_station_identity_name,
     siteName: station.name,
-    mnc:
-      ENTITY_TO_MNC[filing.entity ?? ""] ?? ENTITY_TO_MNC[station.installation_operator_name ?? ""] ?? ENTITY_TO_MNC[station.operator ?? ""] ?? null,
+    mnc: si2pemNameToMnc(filing.entity) ?? si2pemNameToMnc(station.installation_operator_name) ?? si2pemNameToMnc(station.operator) ?? null,
     regionName: getVoivodeshipByTeryt(station.teryt),
     latitude: station.latitude,
     longitude: station.longitude,

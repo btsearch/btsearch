@@ -14,6 +14,7 @@ import {
   runAuditedOperation,
 } from "../../../../features/audit/index.js";
 import { deleteLocationWithPhotos } from "../../../../features/locations/deleteWithPhotos.js";
+import { correctStationLinks } from "../../../../features/official/links.js";
 import { migrateStationPhotosToLocation } from "../../../../features/stations/photoMigration.js";
 import { stationStatusUpdate } from "../../../../features/stations/status.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
@@ -91,6 +92,12 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
       const oldLocationId = current.location_id;
       const newLocationId = saved.location_id;
+      if (saved.station_id !== current.station_id || saved.operator_id !== current.operator_id || newLocationId !== oldLocationId) {
+        await correctStationLinks(tx, [
+          { operatorId: current.operator_id, siteId: current.station_id },
+          { operatorId: saved.operator_id, siteId: saved.station_id },
+        ]);
+      }
       if (oldLocationId !== null && oldLocationId !== newLocationId) {
         try {
           const previousSelections = await loadPhotoSelectionSnapshots(tx, [station_id]);

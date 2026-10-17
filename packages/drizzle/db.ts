@@ -6,28 +6,33 @@ import postgres from "postgres";
 
 import { relations } from "./schemas/relations.ts";
 
-const connectionString = process.env.DATABASE_URL;
+export function connectDatabase(connection: Partial<postgres.ConnectionParameters> = {}) {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL environment variable is not set");
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL environment variable is not set");
+  const client = postgres(connectionString, {
+    prepare: false,
+    max: 10,
+    idle_timeout: 100,
+    connect_timeout: 10,
+    connection,
+  });
+
+  return {
+    sql: client,
+    db: drizzle({
+      client,
+      relations,
+      jit: true,
+      codecs: refineCodecs(postgresJsCodecs, {
+        timestamp: { normalize: textToDate },
+        timestamptz: { normalize: textToDateWithTz },
+      }),
+    }),
+  };
 }
 
-export const sql = postgres(connectionString, {
-  prepare: false,
-  max: 10,
-  idle_timeout: 100,
-  connect_timeout: 10,
-});
-
-export const db = drizzle({
-  client: sql,
-  relations,
-  jit: true,
-  codecs: refineCodecs(postgresJsCodecs, {
-    timestamp: { normalize: textToDate },
-    timestamptz: { normalize: textToDateWithTz },
-  }),
-});
+export const { sql, db } = connectDatabase();
 
 export type Database = typeof db;
 export default db;

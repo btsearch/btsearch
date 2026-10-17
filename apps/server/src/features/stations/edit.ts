@@ -1,7 +1,7 @@
-import { operators, stations } from "@openbts/drizzle";
+import { conventionsFor } from "@openbts/country-packs";
+import { stations } from "@openbts/drizzle";
 import type { AuditOperationKind } from "@openbts/shared/audit";
-import type { StationCreate, StationUpdate } from "@openbts/shared/contract";
-import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS } from "@openbts/shared/operatorUtils";
+import type { StationCreate, StationIdentifierKind, StationUpdate } from "@openbts/shared/contract";
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 
@@ -14,6 +14,7 @@ import { hasStaffPermission } from "../access/staff.js";
 import { auditContextFromRequest, runAuditedOperation } from "../audit/index.js";
 import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../cells/duplicateCheck.js";
 import type { PciDuplicateDetails } from "../cells/pciDuplicateSpecs.js";
+import { loadOperatorRefs } from "../operators/ref.js";
 import { type AppliedChange, applyDirectChange, finishDirectChange, getDestinationStationIds } from "../submissions/actions.js";
 import { loadCurrentLocations } from "../submissions/contributions.js";
 import { type SubmissionChange, hasMeaningfulChanges, validateChange } from "../submissions/create.js";
@@ -54,21 +55,31 @@ async function currentOperatorId(stationId: number | null | undefined): Promise<
   return row?.operatorId ?? null;
 }
 
+function sentIdentifierKinds(station: SubmissionChange["station"]): StationIdentifierKind[] {
+  const kinds: StationIdentifierKind[] = [];
+  if (typeof station?.networks_id === "number") kinds.push("networksId");
+  if (typeof station?.networks_name === "string") kinds.push("networksName");
+  if (typeof station?.mno_name === "string") kinds.push("operatorName");
+  return kinds;
+}
+
+function identifierRefusal(acceptedKinds: readonly StationIdentifierKind[]): string {
+  if (acceptedKinds.length === 0) return "This operator's stations take no identifiers";
+  return `This operator's stations take only the ${acceptedKinds.join(", ")} identifier${acceptedKinds.length === 1 ? "" : "s"}`;
+}
+
 async function assertIdentifiersFitOperator({ station, station_id: stationId }: SubmissionChange): Promise<void> {
-  const setsNetworks = typeof station?.networks_id === "number" || typeof station?.networks_name === "string";
-  if (!setsNetworks && typeof station?.mno_name !== "string") return;
+  const sentKinds = sentIdentifierKinds(station);
+  if (sentKinds.length === 0) return;
 
   const operatorId = station?.operator_id ?? (await currentOperatorId(stationId));
   if (operatorId === null) return;
 
-  const [operator] = await db.select({ mnc: operators.mnc }).from(operators).where(eq(operators.id, operatorId)).limit(1);
-  const mnc = operator?.mnc;
-  if (mnc === null || mnc === undefined) return;
-  if (MNO_NAME_ONLY_MNCS.includes(mnc)) {
-    if (setsNetworks) throw new ErrorResponse("BAD_REQUEST", { message: "This operator's stations take only the operatorName identifier" });
-    return;
-  }
-  if (!EXTRA_IDENTIFICATORS_MNCS.includes(mnc)) throw new ErrorResponse("BAD_REQUEST", { message: "This operator's stations take no identifiers" });
+  const operator = (await loadOperatorRefs([operatorId])).get(operatorId);
+  if (!operator || operator.primaryPlmn === null) return;
+
+  const acceptedKinds = conventionsFor(operator.countryCode).identifierKinds(operator);
+  if (sentKinds.some((kind) => !acceptedKinds.includes(kind))) throw new ErrorResponse("BAD_REQUEST", { message: identifierRefusal(acceptedKinds) });
 }
 
 export async function prepareStationChange(req: FastifyRequest, edit: StationEdit, bodyPath?: BodyPath): Promise<SubmissionChange> {
@@ -89,7 +100,7 @@ export async function applyStationChange(
 
   const change = await prepareStationChange(req, edit, bodyPath);
   const applied = await runAuditedOperation(auditContextFromRequest(req), { kind }, (_tx, audit) => applyDirectChange(audit, change));
-  await finishDirectChange(change.type ?? "new", applied);
+  await finishDirectChange(applied);
   return applied;
 }
 

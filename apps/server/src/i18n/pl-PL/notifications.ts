@@ -1,7 +1,7 @@
 export default {
-  ukeUpdate: {
-    title: "Zaktualizowano dane UKE",
-    body: "Dostępne są nowe dane z UKE",
+  officialDataUpdate: {
+    title: "Zaktualizowano dane {source}",
+    body: "Dostępne są nowe dane z {source}",
   },
   submissionApproved: {
     title: "Zgłoszenie zatwierdzone",
@@ -35,9 +35,9 @@ export default {
     title: "Nowy komentarz na stacji",
     body: "Obserwowana stacja ma nowy komentarz",
   },
-  stationUkePermitAdded: {
-    title: "Zmieniono pozwolenia UKE",
-    body: "Obserwowana stacja ma zmiany w pozwoleniach UKE",
+  stationOfficialPermitAdded: {
+    title: "Zmieniono pozwolenia stacji",
+    body: "Obserwowana stacja ma zmiany w pozwoleniach",
   },
   labels: {
     station: "Stacja",
@@ -47,10 +47,10 @@ export default {
     cellsAdded: "Dodane komórki",
     cellsRemoved: "Usunięte komórki",
     cellsUpdated: "Zmienione komórki",
-    permitsAdded: "Dodane pozwolenia UKE",
-    permitsDeleted: "Usunięte pozwolenia UKE",
-    ukeStationsAdded: "Dodane stacje UKE",
-    ukeStationDeleted: "Stacja usunięta z danych UKE",
+    permitsAdded: "Dodane pozwolenia",
+    permitsDeleted: "Usunięte pozwolenia",
+    officialSitesAdded: "Dodane stacje z rejestru",
+    officialSiteDeleted: "Stacja usunięta z rejestru",
     count: "Liczba",
   },
 } as const;

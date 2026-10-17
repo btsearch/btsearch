@@ -1,13 +1,9 @@
 {
-  "description": "Permit statistics, database coverage, contributions, and historical trends across operators and bands. Data is updated every 24 hours",
-  "refresh": {
-    "summary": "Summary",
-    "lastUpdated": "Last updated:",
-    "next": "Next refresh in {{duration}}"
-  },
+  "description": "Permit statistics, database coverage, contributions, and historical trends across operators and bands",
   "sections": {
     "quality": "Data quality",
-    "permitSnapshot": "UKE by month"
+    "permitSnapshot": "{{source}} by month",
+    "registerSnapshot": "Register by month"
   },
   "chartType": {
     "label": "Chart type",
@@ -53,8 +49,10 @@
     "addedCellsWithPCI": "Added cells with PCI"
   },
   "permitsByMonth": {
-    "title": "UKE stations and permits by month",
-    "description": "Select a month to inspect UKE station and permit counts",
+    "title": "{{source}} stations and permits by month",
+    "registerTitle": "Register stations and permits by month",
+    "description": "Select a month to inspect {{source}} station and permit counts",
+    "registerDescription": "Select a month to inspect register station and permit counts",
     "snapshotDate": "Data from {{date}} vs {{previousDate}}",
     "month": "Month",
     "view": "View",
@@ -67,7 +65,8 @@
       "button": "Download PNG",
       "generating": "Generating PNG...",
       "error": "Couldn't generate the image. Please try again",
-      "imageTitle": "UKE in {{month}} {{year}}"
+      "imageTitle": "{{source}} in {{month}} {{year}}",
+      "registerImageTitle": "Permit register in {{month}} {{year}}"
     }
   },
   "filters": {

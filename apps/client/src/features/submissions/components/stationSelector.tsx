@@ -18,7 +18,7 @@ import { getCellTechnologyBands } from "@/features/map/utils";
 import { brandsQueryOptions } from "@/features/shared/lookups";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { NETWORKS_ID_KIND, findStationIdentifier } from "@/features/station-details/station/utils/stations";
+import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { normalizeSearchText } from "@/lib/apiValues";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
@@ -66,7 +66,7 @@ function StationSummary({ station, action }: StationSummaryProps) {
   const { data: brands } = useQuery(brandsQueryOptions());
   const { operator } = station;
   const place = [station.location?.city, station.location?.address].filter((part): part is string => Boolean(part)).join(" · ");
-  const networksId = findStationIdentifier(station.identifiers, NETWORKS_ID_KIND);
+  const networksIdLabel = getNetworksIdLabel(station);
 
   return (
     <div className="min-w-0 flex-1">
@@ -78,7 +78,7 @@ function StationSummary({ station, action }: StationSummaryProps) {
           </span>
         )}
         <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline">{station.siteId}</span>
-        {networksId === null ? null : <span className="shrink-0 font-mono text-[11px] text-foreground/70">N!{networksId}</span>}
+        {networksIdLabel === null ? null : <span className="shrink-0 font-mono text-[11px] text-foreground/70">{networksIdLabel}</span>}
         {action === undefined ? null : <div className="ml-auto shrink-0">{action}</div>}
       </div>
       {place === "" ? null : <p className="mt-1 truncate text-[11px] text-muted-foreground">{place}</p>}

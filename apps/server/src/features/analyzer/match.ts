@@ -1,3 +1,4 @@
+import { type OperatorRef, conventionsFor } from "@openbts/country-packs";
 import { bands, cells, gsmCells, lteCells, nrCells, operatorLinks, operators, plmns, stations, umtsCells } from "@openbts/drizzle";
 import type {
   Cell,
@@ -21,13 +22,13 @@ import { type LimitedTask, runLimited } from "../../lib/async/runLimited.js";
 import { chunks, unique } from "../../lib/collections.js";
 import { logger } from "../../utils/logger.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
+import { loadOperatorRefs } from "../operators/ref.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, toCell } from "../stations/serialize.js";
-import { UKE_MATCH_MNCS, candidateLTEEnbids, lteEnbidKey, ukeFragmentCandidates } from "./logic.js";
-import { type OfficialSiteMatches, type OfficialSiteSearch, findOfficialSites } from "./officialSites.js";
+import { type OfficialSiteMatches, type UnmatchedCell, findOfficialSites } from "./officialSites.js";
 
-type Network = { operatorId: number; legacyMnc: number; partnerIds: number[] };
+type Network = { operatorId: number; partnerIds: number[]; operator: OperatorRef; countryCode: string };
 type StoredCell = CellRows & { operatorId: number | null };
 type IdentifierPair = [number, number];
 type IdentifiersByOperator<T> = Map<number, Map<string, T>>;
@@ -59,6 +60,14 @@ function plmnCandidates(plmn: string): string[] {
 
 function identityKey(operatorId: number, ...values: (number | string)[]): string {
   return `${operatorId}:${values.join(":")}`;
+}
+
+function equivalentEnbids({ operator, countryCode }: Network, enbid: number): number[] {
+  return conventionsFor(countryCode).equivalentEnbids(operator, enbid);
+}
+
+function canonicalEnbid(network: Network, enbid: number): number {
+  return Math.min(...equivalentEnbids(network, enbid));
 }
 
 function knownRnc(rnc: number | null | undefined): number | null {
@@ -147,17 +156,21 @@ async function loadPartners(operatorIds: readonly number[]): Promise<Map<number,
 
 async function resolveNetworks(plmnCodes: readonly string[], hidden: readonly string[]): Promise<Map<string, Network>> {
   const rows = await db
-    .select({ code: plmns.code, operatorId: plmns.operatorId, legacyMnc: operators.mnc, countryCode: operators.countryCode })
+    .select({ code: plmns.code, operatorId: plmns.operatorId, countryCode: operators.countryCode })
     .from(plmns)
     .innerJoin(operators, eq(operators.id, plmns.operatorId))
     .where(inArray(plmns.code, unique(plmnCodes.flatMap(plmnCandidates))));
   const visible = new Map(rows.filter((row) => !hidden.includes(row.countryCode)).map((row) => [row.code, row]));
-  const partners = await loadPartners(unique([...visible.values()].map((row) => row.operatorId)));
+  const operatorIds = unique([...visible.values()].map((row) => row.operatorId));
+  const [partners, operatorRefs] = await Promise.all([loadPartners(operatorIds), loadOperatorRefs(operatorIds)]);
 
   const networks = new Map<string, Network>();
   for (const plmn of plmnCodes) {
     const row = plmnCandidates(plmn).flatMap((code) => visible.get(code) ?? [])[0];
-    if (row) networks.set(plmn, { operatorId: row.operatorId, legacyMnc: row.legacyMnc ?? 0, partnerIds: partners.get(row.operatorId) ?? [] });
+    const operator = row ? operatorRefs.get(row.operatorId) : undefined;
+    if (!row || !operator) continue;
+
+    networks.set(plmn, { operatorId: row.operatorId, partnerIds: partners.get(row.operatorId) ?? [], operator, countryCode: row.countryCode });
   }
   return networks;
 }
@@ -254,7 +267,7 @@ async function findStoredCells(
       const isFound = rnc !== null && found.umtsByRnc.has(identityKey(own, rnc, cell.cid));
       if (!isFound) addIdentifier(umtsLacPairs, own, [cell.lac, cell.cid]);
     } else if (cell.rat === "lte" && cell.enbid > 0 && !found.lte.has(identityKey(own, cell.enbid, cell.clid))) {
-      for (const enbid of candidateLTEEnbids(network.legacyMnc, cell.enbid)) addIdentifier(enbids, own, enbid);
+      for (const enbid of equivalentEnbids(network, cell.enbid)) addIdentifier(enbids, own, enbid);
     }
   }
 
@@ -265,9 +278,11 @@ async function findStoredCells(
       }
     }),
     ...lookupTasks(enbids, VALUES_PER_QUERY, async (own, chunk) => {
-      const legacyMnc = networksById.get(own)?.legacyMnc ?? 0;
+      const network = networksById.get(own);
+      if (!network) return;
+
       for (const row of await loadPublishedCells(inArray(lteCells.enbid, chunk), sharedBy(own), hidden)) {
-        if (row.lte) keep(found.lteStations, identityKey(own, lteEnbidKey(legacyMnc, row.lte.enbid)), row, own);
+        if (row.lte) keep(found.lteStations, identityKey(own, canonicalEnbid(network, row.lte.enbid)), row, own);
       }
     }),
   ]);
@@ -365,7 +380,7 @@ function resolveCell(
         return matched("cell", network, exact, differences);
       }
 
-      const station = found.lteStations.get(identityKey(own, lteEnbidKey(network.legacyMnc, cell.enbid)));
+      const station = found.lteStations.get(identityKey(own, canonicalEnbid(network, cell.enbid)));
       return station ? matched("station", network, station) : unmatched(own, "cellUnknown");
     }
 
@@ -415,19 +430,20 @@ async function serializeMatchedCells(storedCells: readonly StoredCell[], feature
 }
 
 async function findOfficialSitesForUnknownCells(
+  req: FastifyRequest,
   observed: readonly ObservedCell[],
   results: readonly CellMatchResult[],
   networks: ReadonlyMap<string, Network>,
 ): Promise<OfficialSiteMatches> {
-  const searches = observed.map((cell, index): OfficialSiteSearch => {
+  const unmatchedCells = observed.map((cell, index): UnmatchedCell | null => {
     const network = networks.get(cell.plmn);
-    if (!network || cell.rat !== "lte" || results[index]?.reason !== "cellUnknown" || !UKE_MATCH_MNCS.has(network.legacyMnc)) {
-      return { operatorIds: [], fragments: [] };
-    }
-    return { operatorIds: [network.operatorId, ...network.partnerIds], fragments: ukeFragmentCandidates(network.legacyMnc, cell.enbid) };
+    if (!network || cell.rat !== "lte" || results[index]?.reason !== "cellUnknown") return null;
+
+    const operatorIds = [network.operatorId, ...network.partnerIds];
+    return { countryCode: network.countryCode, operator: network.operator, operatorIds, enbid: cell.enbid };
   });
 
-  return findOfficialSites(searches).catch((error: unknown) => {
+  return findOfficialSites(req, unmatchedCells).catch((error: unknown) => {
     logger.error("analyzer.officialSites", { error });
     return { siteIds: [], sites: [] };
   });
@@ -452,7 +468,7 @@ export async function matchCells(
   const [stationList, cellList, officialSites] = await Promise.all([
     include.includes("stations") ? loadStations(stationIds) : undefined,
     include.includes("cells") ? serializeMatchedCells(matchedCells, featuresByStation) : undefined,
-    include.includes("officialSites") ? findOfficialSitesForUnknownCells(observed, results, networks) : undefined,
+    include.includes("officialSites") ? findOfficialSitesForUnknownCells(req, observed, results, networks) : undefined,
   ]);
 
   const answer: CellMatchAnswer = { results };

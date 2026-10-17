@@ -1,5 +1,6 @@
 import { Delete02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { conventionsFor } from "@openbts/country-packs";
 import type { ReviewDecision, Submission, SubmissionUpdate } from "@openbts/shared/contract";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -19,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReviewSubmissionMutation, useSaveSubmissionMutation } from "@/features/admin/submissions/mutations";
-import { buildReviewFacts } from "@/features/admin/submissions/reviewNotices";
+import { buildReviewFacts, findReviewedLocationId } from "@/features/admin/submissions/reviewNotices";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { stationHistoryQueryOptions } from "@/features/station-details/station/history/api";
 import type { StationHistoryItem } from "@/features/station-details/station/history/types";
@@ -170,7 +171,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
   const reviewMutation = useReviewSubmissionMutation();
   const editedStationId = opened.station?.id ?? null;
   const shownStationId = station?.id ?? null;
-  const placeStations = useOwnPlaceStations(edit.session.live?.place?.locationId ?? null, editedStationId);
+  const placeStations = useOwnPlaceStations(findReviewedLocationId(edit.session), editedStationId);
   const { data: uploadedPhotos } = useQuery(submissionPhotosQueryOptions(submission.id));
   const { data: historyPages } = useInfiniteQuery({
     ...stationHistoryQueryOptions(shownStationId ?? NO_STATION_ID),
@@ -354,6 +355,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
     orphans: isPending ? listProposalOrphans(session.live, submission) : NO_ORPHANS,
     placeStations: placeStations ?? NO_STATIONS,
     operators: edit.lookups.operators,
+    partsCopiedToPartner: conventionsFor(edit.lookups.countryCode).sharedSite.copies,
     owners: edit.lookups.countryOwners,
     history: historyPages?.pages.flatMap((page) => page.data) ?? NO_HISTORY,
     sentAt: submission.createdAt,

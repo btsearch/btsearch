@@ -3,7 +3,7 @@ import { SI2PEMClient, type SI2PEMMeasureProperties, SI2PEM_WMS_LAYERS, escapeCq
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
-import { MNC_TO_ENTITY } from "../../../../features/pem/entities.js";
+import { mncToSi2pemName } from "../../../../features/pem/entities.js";
 import { toSI2PEMFileUrl, warsawDateTimeToISO } from "../../../../features/pem/si2pemValues.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -149,7 +149,7 @@ async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<P
   const { station_id } = req.params;
   const { lat, lng, operator: mnc } = req.query;
 
-  const entityName = MNC_TO_ENTITY[mnc];
+  const entityName = mncToSi2pemName(mnc);
   const reportRequests = [loadCachedReports(`pem:map:v2:${station_id}:${lat}:${lng}`, () => fetchWmsReports(station_id, lat, lng))];
   if (entityName) reportRequests.push(loadCachedReports(`pem:search:v2:${station_id}:${mnc}`, () => fetchInstallations(station_id, entityName)));
 

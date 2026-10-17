@@ -18,6 +18,8 @@ const schemaRoute = {
     "Updates a comment and returns it. You can edit the text of your own comment. " +
     "Moderators can edit any comment, and only they can set `status`. " +
     "A moderator is an administrator, or an editor whose grant covers the comment's station. " +
+    "While comment review is on, changing the text of your approved comment sets it back to `pending` until a moderator approves it again. " +
+    "A moderator's edit does not do that. " +
     "When a pending comment is approved, users who watch the station are notified. " +
     "This endpoint keeps working while comments are disabled.",
   params: commentParamsSchema,

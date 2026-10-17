@@ -8,8 +8,6 @@ export { RAT_ORDER };
 export const SOURCE_ID = "stations-source";
 export const POINT_LAYER_ID = "stations-layer";
 
-export const REGISTER_COUNTRY_CODE = "PL";
-
 export const POLAND_CENTER: [number, number] = [19.9, 52.0];
 export const POLAND_BOUNDS: [[number, number], [number, number]] = [
   [14.0, 48.9],
@@ -24,10 +22,10 @@ export const PICKER_LAYER_IDS = [PICKER_CIRCLE_LAYER_ID, PICKER_SYMBOL_LAYER_ID]
 
 export const PICKER_NEARBY_RADIUS_METERS = 100;
 
-export const PICKER_UKE_SOURCE_ID = "picker-uke-locations-source";
-export const PICKER_UKE_CIRCLE_LAYER_ID = "picker-uke-locations-circle";
-export const PICKER_UKE_SYMBOL_LAYER_ID = "picker-uke-locations-symbol";
-export const PICKER_UKE_LAYER_IDS = [PICKER_UKE_CIRCLE_LAYER_ID, PICKER_UKE_SYMBOL_LAYER_ID] as const;
+export const PICKER_REGISTER_SOURCE_ID = "picker-register-locations-source";
+export const PICKER_REGISTER_CIRCLE_LAYER_ID = "picker-register-locations-circle";
+export const PICKER_REGISTER_SYMBOL_LAYER_ID = "picker-register-locations-symbol";
+export const PICKER_REGISTER_LAYER_IDS = [PICKER_REGISTER_CIRCLE_LAYER_ID, PICKER_REGISTER_SYMBOL_LAYER_ID] as const;
 
 export const INTERNAL_AZIMUTHS_SOURCE_ID = "internal-azimuths-source";
 export const INTERNAL_AZIMUTHS_FILL_LAYER_ID = "internal-azimuths-fill-layer";
@@ -35,18 +33,18 @@ export const INTERNAL_AZIMUTHS_OUTLINE_SOURCE_ID = "internal-azimuths-outline-so
 export const INTERNAL_AZIMUTHS_OUTLINE_LAYER_ID = "internal-azimuths-outline-layer";
 export const INTERNAL_AZIMUTHS_LABEL_SOURCE_ID = "internal-azimuths-label-source";
 export const INTERNAL_AZIMUTHS_LABEL_LAYER_ID = "internal-azimuths-label-layer";
-export const UKE_AZIMUTHS_SOURCE_ID = "uke-azimuths-source";
-export const UKE_AZIMUTHS_FILL_LAYER_ID = "uke-azimuths-fill-layer";
-export const UKE_AZIMUTHS_OUTLINE_SOURCE_ID = "uke-azimuths-outline-source";
-export const UKE_AZIMUTHS_OUTLINE_LAYER_ID = "uke-azimuths-outline-layer";
-export const UKE_AZIMUTHS_LABEL_SOURCE_ID = "uke-azimuths-label-source";
-export const UKE_AZIMUTHS_LABEL_LAYER_ID = "uke-azimuths-label-layer";
+export const OFFICIAL_AZIMUTHS_SOURCE_ID = "official-azimuths-source";
+export const OFFICIAL_AZIMUTHS_FILL_LAYER_ID = "official-azimuths-fill-layer";
+export const OFFICIAL_AZIMUTHS_OUTLINE_SOURCE_ID = "official-azimuths-outline-source";
+export const OFFICIAL_AZIMUTHS_OUTLINE_LAYER_ID = "official-azimuths-outline-layer";
+export const OFFICIAL_AZIMUTHS_LABEL_SOURCE_ID = "official-azimuths-label-source";
+export const OFFICIAL_AZIMUTHS_LABEL_LAYER_ID = "official-azimuths-label-layer";
 
-export const RADIOLINES_SOURCE_ID = "radiolines-source";
-export const RADIOLINES_ENDPOINTS_SOURCE_ID = "radiolines-endpoints-source";
-export const RADIOLINES_LINE_LAYER_ID = "radiolines-layer";
-export const RADIOLINES_HITBOX_LAYER_ID = "radiolines-hitbox";
-export const RADIOLINES_ENDPOINT_LAYER_ID = "radiolines-endpoints";
+export const MICROWAVE_LINKS_SOURCE_ID = "radiolines-source";
+export const MICROWAVE_LINKS_ENDPOINTS_SOURCE_ID = "radiolines-endpoints-source";
+export const MICROWAVE_LINKS_LINE_LAYER_ID = "radiolines-layer";
+export const MICROWAVE_LINKS_HITBOX_LAYER_ID = "radiolines-hitbox";
+export const MICROWAVE_LINKS_ENDPOINT_LAYER_ID = "radiolines-endpoints";
 
 export const PLANNED_PEM_SOURCE_ID = "planned-pem-source";
 export const PLANNED_PEM_LAYER_ID = "planned-pem-layer";

@@ -5,13 +5,18 @@
   "empty": "No notifications yet",
   "emptyDescription": "Decisions on your submissions and changes to stations you watch will show up here.",
   "markAllRead": "Mark all as read",
+  "delete": "Delete notification",
+  "clearConfirm": {
+    "title": "Clear all notifications?",
+    "description": "All your notifications will be deleted, including unread ones. This can't be undone"
+  },
   "loadOlder": "Load older",
   "allLoaded": "That's all your notifications",
   "pushTitle": "Push notifications",
   "pushEnable": "Enable",
   "enabling": "Enabling...",
   "pushDescription": "Get notified about submission updates",
-  "ukeStationDeleted": "Station removed from UKE data",
+  "registerStationDeleted": "Station removed from the register",
   "types": {
     "submissionAccepted": "Submission approved",
     "submissionRejected": "Submission rejected",
@@ -20,7 +25,7 @@
     "stationCellsChanged": "Station cells changed",
     "stationPhotosAdded": "Station photos added",
     "stationCommentApproved": "New station comment",
-    "officialPermitsChanged": "UKE permits changed"
+    "officialPermitsChanged": "Station permits changed"
   },
   "facts": {
     "cellsAdded_one": "<n>{{count}}</n> added",
@@ -33,8 +38,8 @@
     "permitsAdded_other": "<n>{{count}}</n> new permits",
     "permitsDeleted_one": "<n>{{count}}</n> permit removed",
     "permitsDeleted_other": "<n>{{count}}</n> permits removed",
-    "ukeStationsAdded_one": "<n>{{count}}</n> new UKE station",
-    "ukeStationsAdded_other": "<n>{{count}}</n> new UKE stations",
+    "registerStationsAdded_one": "<n>{{count}}</n> new register station",
+    "registerStationsAdded_other": "<n>{{count}}</n> new register stations",
     "events_one": "<n>{{count}}</n> event",
     "events_other": "<n>{{count}}</n> events"
   },

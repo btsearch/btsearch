@@ -43,7 +43,7 @@ describe("GET /push-subscriptions/11111111-1111-4111-8111-111111111111", () => {
 
   it("preserves explicit disabled topics and enables only configured official updates", async () => {
     dbMock.enqueueFor("select", "push_subscriptions", [
-      { ...row, preferences: { ukeUpdates: true, submissionUpdates: false, newSubmission: false, stationWatches: false } },
+      { ...row, preferences: { officialDataUpdates: true, submissionUpdates: false, newSubmission: false, stationWatches: false } },
     ]);
     const response = await injectMutation(
       route,

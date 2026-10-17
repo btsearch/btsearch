@@ -1,6 +1,7 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { MessageFlags, SeparatorBuilder, TextDisplayBuilder } from "discord.js";
-import type { RedisClientType } from "redis";
+
+import { type ImportRunDataset, type ImportRunDetail, type ImportRunStep, getLatestImportRuns, getSourceShortNames } from "../api.js";
 
 const V2 = MessageFlags.IsComponentsV2 as const;
 
@@ -15,16 +16,44 @@ const STEP_EMOJI: Record<string, string> = {
 interface ImportStep {
   key: string;
   status: string;
-  startedAt?: string;
-  finishedAt?: string;
+  startedAt: string | null;
+  finishedAt: string | null;
 }
 
-interface ImportJobStatus {
-  state: string;
-  startedAt?: string;
-  finishedAt?: string;
-  steps: ImportStep[];
-  error?: string;
+function datasetStatus(run: ImportRunDetail, dataset: ImportRunDataset): string {
+  if (dataset.error !== null) return "error";
+  if (run.slices.some((slice) => slice.datasetId === dataset.datasetId && slice.outcome === "applied")) return "success";
+  const isReadingDatasets = run.steps.length === 0 && (run.status === "queued" || run.status === "running");
+  return isReadingDatasets ? "pending" : "skipped";
+}
+
+function afterStepStatus(step: ImportRunStep): string {
+  if (step.error !== null) return "error";
+  return step.finishedAt === null ? "running" : "success";
+}
+
+function importSteps(run: ImportRunDetail): ImportStep[] {
+  return [
+    ...run.datasets.map((dataset) => ({ key: dataset.datasetKey, status: datasetStatus(run, dataset), startedAt: null, finishedAt: null })),
+    ...run.steps.map((step) => ({ key: step.step, status: afterStepStatus(step), startedAt: step.startedAt, finishedAt: step.finishedAt })),
+  ];
+}
+
+function runState(run: ImportRunDetail): string {
+  if (run.status === "queued") return "idle";
+  if (run.status === "failed") return "error";
+  if (run.status === "done") return run.datasets.some((dataset) => dataset.error !== null) ? "error" : "success";
+  return run.status;
+}
+
+function runError(run: ImportRunDetail): string {
+  return [
+    run.error,
+    ...run.datasets.map((dataset) => dataset.error && `${dataset.datasetKey}: ${dataset.error}`),
+    ...run.steps.map((step) => step.error && `${step.step}: ${step.error}`),
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function stepDuration(step: ImportStep): string {
@@ -38,6 +67,7 @@ function getStateLabel(state: string): string {
   if (state === "running") return "Trwa";
   if (state === "success") return "Sukces";
   if (state === "error") return "Błąd";
+  if (state === "cancelled") return "Anulowano";
   return "Nieznany";
 }
 
@@ -48,11 +78,39 @@ function getStateIcon(state: string): string {
   return "🔲";
 }
 
-export async function handleImportStatusCommand(interaction: ChatInputCommandInteraction, redis: RedisClientType): Promise<void> {
+function runComponents(run: ImportRunDetail, sourceName: string): (TextDisplayBuilder | SeparatorBuilder)[] {
+  const state = runState(run);
+  const stateLabel = getStateLabel(state);
+  const stateIcon = getStateIcon(state);
+
+  const components = [];
+
+  const headerLines = [`### ${stateIcon} Import ${sourceName} - ${stateLabel}`];
+  if (run.startedAt) headerLines.push(`▶️ Rozpoczęto: <t:${Math.floor(new Date(run.startedAt).getTime() / 1000)}:R>`);
+  if (run.finishedAt) headerLines.push(`🏁 Zakończono: <t:${Math.floor(new Date(run.finishedAt).getTime() / 1000)}:R>`);
+  components.push(new TextDisplayBuilder().setContent(headerLines.join("\n")));
+
+  const activeSteps = importSteps(run).filter((s) => s.status !== "pending");
+  if (activeSteps.length > 0) {
+    components.push(new SeparatorBuilder());
+    const stepLines = activeSteps.map((s) => `${STEP_EMOJI[s.status] ?? "❓"} **${s.key}**${stepDuration(s)}`);
+    components.push(new TextDisplayBuilder().setContent(stepLines.join("\n")));
+  }
+
+  const error = runError(run);
+  if (error) {
+    components.push(new SeparatorBuilder());
+    components.push(new TextDisplayBuilder().setContent(`**Błąd**\n\`\`\`${error.slice(0, 500)}\`\`\``));
+  }
+
+  return components;
+}
+
+export async function handleImportStatusCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
-  const raw = await redis.get("uke:import:status");
-  if (!raw) {
+  const [runs, sourceNames] = await Promise.all([getLatestImportRuns(), getSourceShortNames()]);
+  if (runs.length === 0) {
     await interaction.editReply({
       flags: V2,
       components: [new TextDisplayBuilder().setContent("Żaden import nie został uruchomiony.")],
@@ -60,28 +118,10 @@ export async function handleImportStatusCommand(interaction: ChatInputCommandInt
     return;
   }
 
-  const status = JSON.parse(raw) as ImportJobStatus;
-  const stateLabel = getStateLabel(status.state);
-  const stateIcon = getStateIcon(status.state);
-
-  const components = [];
-
-  const headerLines = [`### ${stateIcon} UKE Import - ${stateLabel}`];
-  if (status.startedAt) headerLines.push(`▶️ Rozpoczęto: <t:${Math.floor(new Date(status.startedAt).getTime() / 1000)}:R>`);
-  if (status.finishedAt) headerLines.push(`🏁 Zakończono: <t:${Math.floor(new Date(status.finishedAt).getTime() / 1000)}:R>`);
-  components.push(new TextDisplayBuilder().setContent(headerLines.join("\n")));
-
-  const activeSteps = status.steps.filter((s) => s.status !== "pending");
-  if (activeSteps.length > 0) {
-    components.push(new SeparatorBuilder());
-    const stepLines = activeSteps.map((s) => `${STEP_EMOJI[s.status] ?? "❓"} **${s.key}**${stepDuration(s)}`);
-    components.push(new TextDisplayBuilder().setContent(stepLines.join("\n")));
-  }
-
-  if (status.error) {
-    components.push(new SeparatorBuilder());
-    components.push(new TextDisplayBuilder().setContent(`**Błąd**\n\`\`\`${status.error.slice(0, 500)}\`\`\``));
-  }
+  const components = runs.flatMap((run, index) => [
+    ...(index > 0 ? [new SeparatorBuilder()] : []),
+    ...runComponents(run, sourceNames.get(run.sourceKey) ?? run.sourceKey),
+  ]);
 
   await interaction.editReply({ flags: V2, components });
 }

@@ -169,7 +169,6 @@ async function loadLocationCellIds(tx: DbTx, locationId: number): Promise<number
 
 function markLocationWrite(state: ApplyState, locationId: number, stationId: number | null): void {
   state.touchedLocationIds.add(locationId);
-  state.stationOrLocationWritten = true;
   if (stationId !== null) state.affectedStationIds.add(stationId);
 }
 

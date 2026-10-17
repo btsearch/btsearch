@@ -1,13 +1,13 @@
 import { ArrowUpRight01Icon, Image01Icon, Link02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Cell } from "@openbts/shared/contract";
+import type { Cell, OfficialSite } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { type MouseEvent, type RefObject, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { type MapLookups, getOperatorLook } from "../data/mapLookups";
 import type { MapPlace, MapPointStation } from "../data/mapPoints";
-import { getCellTechnologyBands, getPermitBands, isUkeStationExpired } from "../utils";
+import { getCellTechnologyBands, getOfficialPermitBands, isOfficialSiteExpired } from "../utils";
 import {
   PopupAddToListButton,
   PopupBrandMark,
@@ -31,14 +31,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RanSharingLink } from "@/features/station-details/components/ranSharingLink";
 import { locationPhotoRecordsQueryOptions } from "@/features/station-details/station/api";
 import { StationStructureLine } from "@/features/station-details/station/components/panel/stationStructureLine";
-import { NETWORKS_ID_KIND, findHostStation, findStationIdentifier } from "@/features/station-details/station/utils/stations";
+import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
+import { findHostStation } from "@/features/station-details/station/utils/stations";
 import { getStructureOwnerBrand } from "@/features/station-details/station/utils/structure";
 import { getOperatorTintGradient } from "@/lib/cellular/operators";
 import { hasModifierKey } from "@/lib/dom/keyboard";
 import { cn } from "@/lib/utils";
-import type { StationSource, UkeStation } from "@/types/station";
+import type { StationSource } from "@/types/station";
 
 export type PopupStationEntry = MapPointStation & { cells: readonly Cell[] | null };
+
+const NO_PERMITS: NonNullable<OfficialSite["permits"]> = [];
 
 const HOSTED_BADGE_HOVER_DELAY_MS = 150;
 const HOSTED_BADGE_CLASS_NAME = cn(
@@ -200,7 +203,7 @@ type PopupStationRowProps = {
 function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, loadFailed, onOpenStationDetails }: PopupStationRowProps) {
   const { t } = useTranslation("main");
   const hostedBadgeRef = useRef<HTMLElement>(null);
-  const networksId = findStationIdentifier(station.identifiers, NETWORKS_ID_KIND);
+  const networksIdLabel = getNetworksIdLabel(station);
   const isHosted = station.hostStationId !== null;
 
   return (
@@ -212,7 +215,7 @@ function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, l
         <>
           <PopupOperatorName name={station.operatorName || t("unknownOperator")} />
           <PopupStationId id={station.siteId} />
-          {networksId ? <span className="font-mono text-[11px] text-foreground/70">N!{networksId}</span> : null}
+          {networksIdLabel ? <span className="font-mono text-[11px] text-foreground/70">{networksIdLabel}</span> : null}
           {isHosted ? (
             <PopupHostedStationBadge
               badgeRef={hostedBadgeRef}
@@ -247,34 +250,35 @@ function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, l
 }
 
 type PopupRegisterStationRowProps = {
-  station: UkeStation;
+  site: OfficialSite;
   lookups: MapLookups | undefined;
   showAddToList: boolean;
-  onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+  onOpenOfficialSiteDetails: (site: OfficialSite) => boolean | void;
 };
 
-function PopupRegisterStationRow({ station, lookups, showAddToList, onOpenUkeStationDetails }: PopupRegisterStationRowProps) {
+function PopupRegisterStationRow({ site, lookups, showAddToList, onOpenOfficialSiteDetails }: PopupRegisterStationRowProps) {
   const { t } = useTranslation(["main", "stationDetails"]);
-  const operatorLook = getOperatorLook(lookups, station.operator?.id);
+  const operatorLook = getOperatorLook(lookups, site.operatorId);
+  const permits = site.permits ?? NO_PERMITS;
 
   return (
     <PopupRow
       brand={operatorLook.brand}
       color={operatorLook.color}
-      onOpen={() => onOpenUkeStationDetails(station)}
+      onOpen={() => onOpenOfficialSiteDetails(site)}
       title={
         <>
-          <PopupOperatorName name={station.operator?.name || t("unknownOperator")} />
-          <PopupStationId id={station.station_id} />
-          {isUkeStationExpired(station) ? <PopupExpiredLabel /> : null}
+          <PopupOperatorName name={operatorLook.operator?.name || t("unknownOperator")} />
+          <PopupStationId id={site.siteId ?? ""} />
+          {isOfficialSiteExpired(site) ? <PopupExpiredLabel /> : null}
         </>
       }
       actionCount={showAddToList ? 1 : 0}
-      actions={showAddToList ? <PopupAddToListButton ukeStationId={station.id} /> : null}
+      actions={showAddToList ? <PopupAddToListButton officialSiteId={site.id} /> : null}
     >
       <TechnologySummary
-        bands={getPermitBands(station.permits)}
-        detail={t("stationDetails:permits.permitsCount", { count: station.permits.length })}
+        bands={getOfficialPermitBands(permits)}
+        detail={t("stationDetails:permits.permitsCount", { count: permits.length })}
         className="pl-0"
       />
     </PopupRow>
@@ -285,28 +289,28 @@ type PopupStationListProps = {
   isLoading: boolean;
   isEmpty: boolean;
   loadFailed: boolean;
-  isUkeSource: boolean;
-  ukeStations: readonly UkeStation[] | null;
+  isOfficialSource: boolean;
+  officialSites: readonly OfficialSite[] | null;
   stations: readonly PopupStationEntry[] | null;
   locationStations: readonly MapPointStation[] | null;
   lookups: MapLookups | undefined;
   showAddToList: boolean;
   onOpenStationDetails: (id: number) => boolean | void;
-  onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+  onOpenOfficialSiteDetails: (site: OfficialSite) => boolean | void;
 };
 
 function PopupStationList({
   isLoading,
   isEmpty,
   loadFailed,
-  isUkeSource,
-  ukeStations,
+  isOfficialSource,
+  officialSites,
   stations,
   locationStations,
   lookups,
   showAddToList,
   onOpenStationDetails,
-  onOpenUkeStationDetails,
+  onOpenOfficialSiteDetails,
 }: PopupStationListProps) {
   const { t } = useTranslation("main");
 
@@ -319,16 +323,18 @@ function PopupStationList({
     );
   }
   if (isEmpty) {
-    return <div className="px-3 py-4 text-center text-muted-foreground text-xs">{isUkeSource ? t("popup.noPermits") : t("popup.noStations")}</div>;
+    return (
+      <div className="px-3 py-4 text-center text-muted-foreground text-xs">{isOfficialSource ? t("popup.noPermits") : t("popup.noStations")}</div>
+    );
   }
-  if (isUkeSource && ukeStations) {
-    return ukeStations.map((station) => (
+  if (isOfficialSource && officialSites) {
+    return officialSites.map((site) => (
       <PopupRegisterStationRow
-        key={station.id}
-        station={station}
+        key={site.id}
+        site={site}
         lookups={lookups}
         showAddToList={showAddToList}
-        onOpenUkeStationDetails={onOpenUkeStationDetails}
+        onOpenOfficialSiteDetails={onOpenOfficialSiteDetails}
       />
     ));
   }
@@ -397,7 +403,7 @@ type PopupContentProps = {
   location: MapPlace;
   stations: readonly PopupStationEntry[] | null;
   locationStations: readonly MapPointStation[] | null;
-  ukeStations: readonly UkeStation[] | null;
+  officialSites: readonly OfficialSite[] | null;
   lookups: MapLookups | undefined;
   source: StationSource;
   showAddToList?: boolean;
@@ -406,14 +412,14 @@ type PopupContentProps = {
   onRetry?: () => void;
   onClose: () => void;
   onOpenStationDetails: (id: number) => boolean | void;
-  onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+  onOpenOfficialSiteDetails: (site: OfficialSite) => boolean | void;
 };
 
 export function PopupContent({
   location,
   stations,
   locationStations,
-  ukeStations,
+  officialSites,
   lookups,
   source,
   showAddToList = false,
@@ -422,19 +428,20 @@ export function PopupContent({
   onRetry,
   onClose,
   onOpenStationDetails,
-  onOpenUkeStationDetails,
+  onOpenOfficialSiteDetails,
 }: PopupContentProps) {
   const { t } = useTranslation("main");
 
-  const isUkeSource = source === "uke";
-  const items = isUkeSource ? ukeStations : stations;
+  const isOfficialSource = source === "official";
+  const items = isOfficialSource ? officialSites : stations;
   const isLoading = !items;
   const isEmpty = !isLoading && items.length === 0;
-  const shareUrl = `${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~L${location.id}${isUkeSource ? "~fu" : "~f"}`;
+  const shareUrl = `${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~L${location.id}${isOfficialSource ? "~fu" : "~f"}`;
   const city = location.city || t("common:labels.unknownLocation");
   const shareTitle = location.address ? `${city} - ${location.address}` : city;
   const structure = location.structure;
-  const showStructure = !isUkeSource && structure !== undefined && (structure.type !== null || structure.owner !== null || Boolean(structure.note));
+  const showStructure =
+    !isOfficialSource && structure !== undefined && (structure.type !== null || structure.owner !== null || Boolean(structure.note));
 
   return (
     <div className="w-72 text-sm">
@@ -453,7 +460,7 @@ export function PopupContent({
         }
         actions={
           <>
-            {isUkeSource ? null : <PopupPhotosButton locationId={location.id} />}
+            {isOfficialSource ? null : <PopupPhotosButton locationId={location.id} />}
             <PopupShareButton url={shareUrl} title={shareTitle} label={t("popup.shareLocation")} />
             <CloseButton size="xs" onClick={onClose} />
           </>
@@ -466,14 +473,14 @@ export function PopupContent({
           isLoading={isLoading && !loadFailed}
           isEmpty={isEmpty}
           loadFailed={loadFailed}
-          isUkeSource={isUkeSource}
-          ukeStations={ukeStations}
+          isOfficialSource={isOfficialSource}
+          officialSites={officialSites}
           stations={stations}
           locationStations={locationStations}
           lookups={lookups}
           showAddToList={showAddToList}
           onOpenStationDetails={onOpenStationDetails}
-          onOpenUkeStationDetails={onOpenUkeStationDetails}
+          onOpenOfficialSiteDetails={onOpenOfficialSiteDetails}
         />
       </div>
 

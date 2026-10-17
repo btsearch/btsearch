@@ -114,6 +114,7 @@ export type EditSession = {
   kind: EditKind;
   action: EditAction;
   countryCode: string | null;
+  hoistedTac: boolean;
   live: StationSnapshot | null;
   proposed: StationSnapshot | null;
   initial: StationSnapshot;

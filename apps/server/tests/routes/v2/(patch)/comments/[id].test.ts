@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(patch)/comments/[id].js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
 import { commentRow, commentView, commenterId } from "../../../../helpers/commentFixtures.js";
@@ -7,6 +8,11 @@ import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mu
 
 const request = { method: "PATCH" as const, url: "/comments/11111111-1111-4111-8111-111111111111", payload: { content: "A meaningful comment" } };
 const options = { session: userSession(commenterId) };
+const correctedText = "A corrected comment";
+
+function writtenCommentChanges() {
+  return dbMock.calls.find((call) => call.operation === "update" && call.table === "station_comments")?.values;
+}
 
 describe("PATCH /comments/:id", () => {
   it.each(["pending", "approved"])("lets a moderator approve a %s comment and notifies watchers only for a new approval", async (status) => {
@@ -73,6 +79,53 @@ describe("PATCH /comments/:id", () => {
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ data: { content: commentRow.content, status: "pending", author: { name: "Private Name" } } });
+  });
+
+  it("sends an approved comment back to review when its author changes the text", async () => {
+    getRuntimeSettings().commentQueueEnabled = true;
+    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    dbMock.query.stationComments.findFirst.mockResolvedValue({ ...commentRow, status: "approved" });
+    scriptAudit();
+    dbMock.enqueueFor("update", "station_comments", [{ ...commentRow, content: correctedText }]);
+    dbMock.enqueueFor("select", "station_comments", [{ ...commentView, content: correctedText }]);
+    dbMock.enqueueFor("select", "users", [{ role: "user" }]);
+    dbMock.enqueueFor("select", "role_grants", []);
+    const response = await injectMutation(route, { ...request, payload: { content: correctedText } }, options);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ data: { content: correctedText, status: "pending" } });
+    expect(writtenCommentChanges()).toMatchObject({ content: correctedText, status: "pending", updatedAt: expect.any(Date) });
+    expect(dbMock.calls.some((call) => call.table === "station_watches")).toBe(false);
+  });
+
+  it.each([
+    { reason: "review is off", isQueueEnabled: false, storedStatus: "approved", content: correctedText },
+    { reason: "the text is the same", isQueueEnabled: true, storedStatus: "approved", content: commentRow.content },
+    { reason: "the comment is still pending", isQueueEnabled: true, storedStatus: "pending", content: correctedText },
+  ])("leaves the status of an author's edit alone when $reason", async ({ isQueueEnabled, storedStatus, content }) => {
+    getRuntimeSettings().commentQueueEnabled = isQueueEnabled;
+    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    dbMock.query.stationComments.findFirst.mockResolvedValue({ ...commentRow, status: storedStatus });
+    scriptAudit();
+    dbMock.enqueueFor("update", "station_comments", [{ ...commentRow, content, status: storedStatus }]);
+    dbMock.enqueueFor("select", "station_comments", [{ ...commentView, content, status: storedStatus }]);
+    dbMock.enqueueFor("select", "users", [{ role: "user" }]);
+    dbMock.enqueueFor("select", "role_grants", []);
+    const response = await injectMutation(route, { ...request, payload: { content } }, options);
+    expect(response.statusCode).toBe(200);
+    expect(writtenCommentChanges()).toMatchObject({ content, status: undefined });
+  });
+
+  it("keeps a moderator's text edit approved while review is on", async () => {
+    getRuntimeSettings().commentQueueEnabled = true;
+    dbMock.query.stationComments.findFirst.mockResolvedValue({ ...commentRow, user_id: "other", status: "approved" });
+    scriptAudit();
+    dbMock.enqueueFor("update", "station_comments", [{ ...commentRow, content: correctedText, status: "approved" }]);
+    dbMock.enqueueFor("select", "station_comments", [{ ...commentView, content: correctedText, status: "approved" }]);
+    dbMock.enqueueFor("select", "users", [{ role: "admin" }]);
+    dbMock.enqueueFor("select", "role_grants", []);
+    const response = await injectMutation(route, { ...request, payload: { content: correctedText } }, { session: userSession(commenterId, "admin") });
+    expect(response.statusCode).toBe(200);
+    expect(writtenCommentChanges()).toMatchObject({ content: correctedText, status: undefined });
   });
 
   it("refuses an author assigning moderation status", async () => {

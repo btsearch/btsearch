@@ -152,7 +152,7 @@ function extractFeatureClickData(feature: GeoJSONFeature): FeatureClickData | nu
     locationId,
     city,
     address,
-    source: source === "uke" ? "uke" : "internal",
+    source: source === "official" ? "official" : "internal",
   };
 }
 

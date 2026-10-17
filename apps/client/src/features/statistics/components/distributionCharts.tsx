@@ -1,37 +1,26 @@
-import { useQuery } from "@tanstack/react-query";
 import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { StatsOperator, StatsSummary } from "../api";
-import { operatorColor, operatorDataKey } from "../lib/series";
+import type { DatabaseSummary, RegisterRatShare, RegisterSummary } from "../lib/chartData";
+import { type StatisticsOperator, operatorDataKey } from "../lib/series";
 import type { ChartErrorProps } from "./statChartCard";
 import { EvilPieChart, Label, Legend, Pie, Tooltip } from "@/components/evilcharts/charts/pie-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { ErrorState } from "@/components/ui/error-state";
-import { registerBandsQueryOptions } from "@/features/map/api";
-import { compareRatsByName, toRegisterRatComparator } from "@/features/shared/rat";
-import type { Band } from "@/types/station";
 
 const RAT_PALETTE = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
 type PieRow = { name: string; value: number };
-type DistributionChartsProps = { data?: StatsSummary; isLoading: boolean } & ChartErrorProps;
+type DistributionChartsProps<T> = { data?: T; isLoading: boolean } & ChartErrorProps;
 const EMPTY_PIE: { data: PieRow[]; config: ChartConfig } = { data: [], config: {} };
 
-function buildRatPieData(
-  rows: StatsSummary["by_rat"],
-  registerBands: readonly Pick<Band, "rat">[] | undefined,
-): { data: PieRow[]; config: ChartConfig } {
-  const compareRats = registerBands === undefined ? compareRatsByName : toRegisterRatComparator(registerBands);
-  const ratOrder = [...new Set([...(registerBands ?? []).map((band) => band.rat), ...rows.map((row) => row.rat)])].sort(compareRats);
-  const sortedRows = [...rows].sort((left, right) => compareRats(left.rat, right.rat));
-
+function buildRatPieData(rats: readonly RegisterRatShare[]): { data: PieRow[]; config: ChartConfig } {
   return {
-    data: sortedRows.map((row) => ({ name: row.rat, value: row.unique_stations })),
+    data: rats.map((rat) => ({ name: rat.rat, value: rat.sites })),
     config: Object.fromEntries(
-      sortedRows.map((row) => {
-        const color = RAT_PALETTE[ratOrder.indexOf(row.rat) % RAT_PALETTE.length];
-        return [row.rat, { label: row.rat, colors: { light: [color], dark: [color] } }];
+      rats.map((rat) => {
+        const color = RAT_PALETTE[rat.colorIndex % RAT_PALETTE.length];
+        return [rat.rat, { label: rat.label, colors: { light: [color], dark: [color] } }];
       }),
     ),
   };
@@ -46,17 +35,16 @@ function makeLabelFormatter(data: PieRow[], locale: string) {
   };
 }
 
-function buildOperatorPieData<T extends { operator: StatsOperator }>(
-  rows: T[],
+function buildOperatorPieData<T extends { operator: StatisticsOperator }>(
+  rows: readonly T[],
   getValue: (row: T) => number,
 ): { data: PieRow[]; config: ChartConfig } {
   return {
     data: rows.map((row) => ({ name: operatorDataKey(row.operator), value: getValue(row) })),
     config: Object.fromEntries(
       rows.map((row) => {
-        const key = operatorDataKey(row.operator);
-        const color = operatorColor(row.operator);
-        return [key, { label: row.operator.name, colors: { light: [color], dark: [color] } }];
+        const color = row.operator.color;
+        return [operatorDataKey(row.operator), { label: row.operator.name, colors: { light: [color], dark: [color] } }];
       }),
     ),
   };
@@ -81,16 +69,18 @@ function DistributionError({ onRetry, isRetrying }: Omit<ChartErrorProps, "isErr
   );
 }
 
-export const UkeDistributionCharts = memo(function UkeDistributionCharts({ data, isLoading, isError, onRetry, isRetrying }: DistributionChartsProps) {
+export const RegisterDistributionCharts = memo(function RegisterDistributionCharts({
+  data,
+  isLoading,
+  isError,
+  onRetry,
+  isRetrying,
+}: DistributionChartsProps<RegisterSummary>) {
   const { t, i18n } = useTranslation("statistics");
   const locale = i18n.language;
-  const { data: registerBands } = useQuery(registerBandsQueryOptions());
 
-  const ratPie = useMemo(() => (data?.by_rat.length ? buildRatPieData(data.by_rat, registerBands) : EMPTY_PIE), [data, registerBands]);
-  const operatorPie = useMemo(
-    () => (data?.by_operator.length ? buildOperatorPieData(data.by_operator, (row) => row.unique_stations) : EMPTY_PIE),
-    [data],
-  );
+  const ratPie = useMemo(() => (data?.rats.length ? buildRatPieData(data.rats) : EMPTY_PIE), [data]);
+  const operatorPie = useMemo(() => (data?.operators.length ? buildOperatorPieData(data.operators, (row) => row.sites) : EMPTY_PIE), [data]);
 
   const ratFormatter = useMemo(() => makeLabelFormatter(ratPie.data, locale), [ratPie.data, locale]);
   const operatorFormatter = useMemo(() => makeLabelFormatter(operatorPie.data, locale), [operatorPie.data, locale]);
@@ -129,14 +119,11 @@ export const InternalDistributionCharts = memo(function InternalDistributionChar
   isError,
   onRetry,
   isRetrying,
-}: DistributionChartsProps) {
+}: DistributionChartsProps<DatabaseSummary>) {
   const { t, i18n } = useTranslation("statistics");
   const locale = i18n.language;
 
-  const operatorPie = useMemo(
-    () => (data?.internal.by_operator.length ? buildOperatorPieData(data.internal.by_operator, (row) => row.stations) : EMPTY_PIE),
-    [data],
-  );
+  const operatorPie = useMemo(() => (data?.operators.length ? buildOperatorPieData(data.operators, (row) => row.stations) : EMPTY_PIE), [data]);
 
   const formatter = useMemo(() => makeLabelFormatter(operatorPie.data, locale), [operatorPie.data, locale]);
 

@@ -72,6 +72,9 @@ const RECORD_ID_NOTE =
   "The id of the changed row, a number or a UUID depending on the table. " +
   "`null` for entries that cover a set of rows, such as a station's sectors or photo selection, and for the settings";
 const ENTRY_STATION_NOTE = "The station the change belongs to, or `null` if it does not belong to one";
+const STORED_KEYS_NOTE =
+  "Its keys are the server's field names for the table. Most are the database column names, " +
+  "but some are camelCase, such as `brandId` for the column `brand_id`";
 const OPERATION_STATIONS_NOTE =
   "Only returned with `include=stations`, which only the list of operations takes. The stations in `stationIds` as they are now. " +
   "Stations that no longer exist and stations in countries you cannot access are left out, " +
@@ -119,8 +122,8 @@ export const auditEntrySchema = z.object({
   action: z.enum(AUDIT_OPS),
   recordId: z.string().nullable().describe(RECORD_ID_NOTE),
   stationId: idSchema.nullable().describe(ENTRY_STATION_NOTE),
-  oldValues: z.unknown().nullable().describe("The row before the change, as stored. Its keys are database column names"),
-  newValues: z.unknown().nullable().describe("The row after the change, as stored. Its keys are database column names"),
+  oldValues: z.unknown().nullable().describe(`The row before the change, as stored. ${STORED_KEYS_NOTE}`),
+  newValues: z.unknown().nullable().describe(`The row after the change, as stored. ${STORED_KEYS_NOTE}`),
   metadata: storedMetadataSchema,
   isRevertible: z.boolean().describe("Whether the entry can still be reverted"),
   revertReason: z.enum(AUDIT_REVERT_REASONS).nullable().describe("Why the entry cannot be reverted, or `null` if it can"),

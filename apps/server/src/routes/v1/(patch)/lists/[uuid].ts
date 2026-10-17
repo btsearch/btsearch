@@ -60,7 +60,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const sent = req.body.stations;
   const foreign = await findForeignStationIds([...stored, ...(sent?.internal ?? [])]);
   const isForeign = (id: number) => foreign.has(id);
-  const stations = sent ? { internal: [...sent.internal.filter((id) => !isForeign(id)), ...stored.filter(isForeign)], uke: sent.uke } : undefined;
+  const stations = sent
+    ? { internal: [...sent.internal.filter((id) => !isForeign(id)), ...stored.filter(isForeign)], official: sent.uke }
+    : undefined;
 
   const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "list.update" }, async (tx, audit) => {
     const [result] = await tx
@@ -77,8 +79,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });
   });
 
-  const { internal, uke } = getUserListMembership(updated);
-  return res.send({ data: { ...updated, stations: { internal: internal.filter((id) => !isForeign(id)), uke } } });
+  const { internal, official } = getUserListMembership(updated);
+  return res.send({ data: { ...updated, stations: { internal: internal.filter((id) => !isForeign(id)), uke: official } } });
 }
 
 const updateList: Route<RequestData, ResponseData> = {

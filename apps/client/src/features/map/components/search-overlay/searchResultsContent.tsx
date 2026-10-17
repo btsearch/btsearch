@@ -14,11 +14,12 @@ import {
   SignpostIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import type { OfficialSite } from "@openbts/shared/contract";
 import type { ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { type MapLookups, useMapLookups } from "../../data/mapLookups";
-import type { StationSearchHit, UkeSearchPermitStation } from "../../searchApi";
+import { type MapLookups, getOperatorLook, useMapLookups } from "../../data/mapLookups";
+import type { StationSearchHit } from "../../searchApi";
 import { getCellTechnologyBands } from "../../utils";
 import { type SearchResultGroup, type SearchResultOption, getSearchOptionId } from "./searchOptions";
 import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
@@ -29,13 +30,13 @@ import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { HighlightedText } from "@/features/shared/HighlightedText";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { NETWORKS_ID_KIND, findStationIdentifier } from "@/features/station-details/station/utils/stations";
+import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
 import { useGpsFormat } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import type { GeocodingKind } from "@/lib/geo/geocoding";
 import { cn } from "@/lib/utils";
 
-export type SearchFailureSource = "locations" | "stations" | "uke";
+export type SearchFailureSource = "locations" | "stations" | "official";
 
 export type SearchSurfaceState =
   | { kind: "loading" }
@@ -113,10 +114,14 @@ function getHitBrand(hit: StationSearchHit, lookups: MapLookups | undefined): Br
   return lookups === undefined ? undefined : getOperatorBrand(hit.operator, lookups.brands);
 }
 
-function getPermitStationBrand(station: UkeSearchPermitStation, lookups: MapLookups | undefined): BrandLook | null | undefined {
+function findMatchedPermitNumber(site: OfficialSite, normalizedQuery: string): string | undefined {
+  const permitNumbers = (site.permits ?? []).flatMap(({ number }) => (number === null ? [] : [number]));
+  return permitNumbers.find((number) => normalizeSearchText(number).includes(normalizedQuery));
+}
+
+function getOfficialSiteBrand(site: OfficialSite, lookups: MapLookups | undefined): BrandLook | null | undefined {
   if (lookups === undefined) return undefined;
-  if (station.operator === null) return null;
-  return lookups.operatorsById.get(station.operator.id)?.brand ?? null;
+  return getOperatorLook(lookups, site.operatorId).brand;
 }
 
 function OperatorName({ name, brand, labelClassName }: OperatorNameProps) {
@@ -332,7 +337,7 @@ export function SearchResults({
                       {group.options.map((option) => {
                         const hit = option.result;
                         const location = joinPresent([hit.location?.city, hit.location?.address]);
-                        const networksId = findStationIdentifier(hit.identifiers, NETWORKS_ID_KIND);
+                        const networksIdLabel = getNetworksIdLabel(hit);
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -349,10 +354,9 @@ export function SearchResults({
                                 brand={getHitBrand(hit, lookups)}
                                 query={normalizedQuery}
                               />
-                              {networksId ? (
+                              {networksIdLabel ? (
                                 <span className="shrink-0 font-mono text-[11px] text-foreground/70">
-                                  N!
-                                  <HighlightedText text={networksId} query={normalizedQuery} />
+                                  <HighlightedText text={networksIdLabel} query={normalizedQuery} />
                                 </span>
                               ) : null}
                             </div>
@@ -382,18 +386,15 @@ export function SearchResults({
                   </div>
                 );
 
-              case "permit":
+              case "official-site":
                 return (
                   <div key={group.kind} role="group" aria-labelledby={groupLabelId} className="border-b last:border-0">
                     <ResultGroupHeader id={groupLabelId} icon={AirportTowerIcon} label={t("searchResults.permits")} count={group.options.length} />
                     <div className="space-y-0.5 p-1">
                       {group.options.map((option) => {
-                        const permit = option.result;
-                        const location = joinPresent([permit.location?.city, permit.location?.address]);
-                        const matchedPermit =
-                          normalizedQuery === ""
-                            ? undefined
-                            : permit.permits.find((item) => normalizeSearchText(item.decision_number).includes(normalizedQuery));
+                        const site = option.result;
+                        const location = joinPresent([site.location?.city, site.location?.address]);
+                        const matchedPermitNumber = normalizedQuery === "" ? undefined : findMatchedPermitNumber(site, normalizedQuery);
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -405,14 +406,14 @@ export function SearchResults({
                           >
                             <div className="flex min-w-0 items-center gap-2">
                               <StationResultTitle
-                                siteId={permit.station_id}
-                                operatorName={permit.operator?.name}
-                                brand={getPermitStationBrand(permit, lookups)}
+                                siteId={site.siteId ?? ""}
+                                operatorName={getOperatorLook(lookups, site.operatorId).operator?.name}
+                                brand={getOfficialSiteBrand(site, lookups)}
                                 query={normalizedQuery}
                               />
-                              {matchedPermit ? (
+                              {matchedPermitNumber ? (
                                 <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
-                                  <HighlightedText text={matchedPermit.decision_number} query={normalizedQuery} />
+                                  <HighlightedText text={matchedPermitNumber} query={normalizedQuery} />
                                 </span>
                               ) : null}
                             </div>
@@ -428,15 +429,15 @@ export function SearchResults({
                   </div>
                 );
 
-              case "radioline":
+              case "microwave-link":
                 return (
                   <div key={group.kind} role="group" aria-labelledby={groupLabelId} className="border-b last:border-0">
                     <ResultGroupHeader id={groupLabelId} icon={Route02Icon} label={t("common:labels.radiolines")} count={group.options.length} />
                     <div className="space-y-0.5 p-1">
                       {group.options.map((option) => {
-                        const radioline = option.result;
-                        const txCity = radioline.tx.city?.trim() || null;
-                        const rxCity = radioline.rx.city?.trim() || null;
+                        const microwaveLink = option.result;
+                        const txCity = microwaveLink.tx.city?.trim() || null;
+                        const rxCity = microwaveLink.rx.city?.trim() || null;
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -447,13 +448,13 @@ export function SearchResults({
                             onSelect={onSelect}
                           >
                             <div className="flex min-w-0 items-center gap-2">
-                              {radioline.operator ? (
-                                <OperatorName name={radioline.operator.name} labelClassName="text-sm font-semibold group-hover:underline" />
+                              {microwaveLink.licensee ? (
+                                <OperatorName name={microwaveLink.licensee.name} labelClassName="text-sm font-semibold group-hover:underline" />
                               ) : (
                                 <span className="text-sm font-semibold text-muted-foreground">{t("unknownOperator")}</span>
                               )}
                               <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
-                                <HighlightedText text={radioline.permit_number} query={normalizedQuery} />
+                                <HighlightedText text={microwaveLink.permit.number ?? ""} query={normalizedQuery} />
                               </span>
                             </div>
                             <p className="mt-1 truncate text-[11px] text-muted-foreground">

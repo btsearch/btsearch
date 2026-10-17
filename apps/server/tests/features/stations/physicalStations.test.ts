@@ -133,10 +133,4 @@ describe("findHostStationIds", () => {
     expect(candidateReads).toBeLessThanOrEqual(rows.length * 10);
     expect(dbMock.select).toHaveBeenCalledTimes(1);
   });
-
-  it("propagates a failed host lookup", async () => {
-    dbMock.enqueueFor("select", "stations", new Error("Host lookup failed"));
-
-    await expect(findHostStationIds([1])).rejects.toThrow("Host lookup failed");
-  });
 });

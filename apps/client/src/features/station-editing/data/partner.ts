@@ -1,9 +1,7 @@
-import type { Operator } from "@openbts/shared/contract";
-import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
+import type { Operator, Sector, Station } from "@openbts/shared/contract";
 
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
-import { fetchApiData } from "@/lib/api";
-import { resolveSiblingMnoName } from "@/lib/cellular/stations";
+import { findStationIdentifier, listSharedNetworkIds } from "@/features/station-details/station/utils/stations";
+import { fetchV2Data } from "@/lib/api";
 
 type PartnerIdentifiers = {
   networksId: string | null;
@@ -11,44 +9,44 @@ type PartnerIdentifiers = {
   operatorName: string | null;
 };
 
-type PartnerIdentifierRow = {
-  networks_id: number | null;
-  networks_name: string | null;
-  mno_name: string | null;
-};
+type LinkedOperator = Pick<Operator, "id" | "countryCode" | "links">;
+type PartnerStation = Pick<Station, "identifiers"> & { sectors: Sector[] };
 
-type PartnerSector = {
-  id: number;
-  azimuth: number;
-};
+const PARTNER_STATION_INCLUDE = "sectors";
 
-type PlmnOperator = Pick<Operator, "primaryPlmn">;
+export function listPartnerOperators(operator: LinkedOperator | null, operators: readonly Operator[]): Operator[] {
+  if (operator === null) return [];
 
-export function findPartnerOperator(operator: PlmnOperator | null, operators: readonly Operator[]): Operator | null {
-  const partnerMnc = getNetworksSiblingMnc(toV1OperatorMnc(operator));
-  if (partnerMnc === null) return null;
-  return operators.find((candidate) => toV1OperatorMnc(candidate) === partnerMnc) ?? null;
+  const sharedNetworkIds = new Set(listSharedNetworkIds(operator));
+  return operators.filter(
+    (candidate) =>
+      candidate.id !== operator.id &&
+      candidate.countryCode === operator.countryCode &&
+      listSharedNetworkIds(candidate).some((networkId) => sharedNetworkIds.has(networkId)),
+  );
 }
 
-export function resolveOwnNameFromPartner(
-  operator: PlmnOperator | null,
-  siteId: string,
-  city: string | null,
-  partnerName: string | null,
-): string | null {
-  return resolveSiblingMnoName(toV1OperatorMnc(operator), siteId, city, partnerName);
+export function findPartnerOperator(operator: LinkedOperator | null, operators: readonly Operator[]): Operator | null {
+  return listPartnerOperators(operator, operators).at(0) ?? null;
+}
+
+async function fetchPartnerStation(stationId: number): Promise<PartnerStation | null> {
+  const siblings = await fetchV2Data<PartnerStation[]>(`stations/${stationId}/siblings?include=${PARTNER_STATION_INCLUDE}`);
+  return siblings.at(0) ?? null;
 }
 
 export async function fetchPartnerIdentifiers(stationId: number): Promise<PartnerIdentifiers> {
-  const row = await fetchApiData<PartnerIdentifierRow>(`stations/${stationId}/extra-identifiers/sibling`);
+  const partnerStation = await fetchPartnerStation(stationId);
+  const identifiers = partnerStation?.identifiers ?? [];
 
   return {
-    networksId: row.networks_id === null ? null : String(row.networks_id),
-    networksName: row.networks_name,
-    operatorName: row.mno_name,
+    networksId: findStationIdentifier(identifiers, "networksId"),
+    networksName: findStationIdentifier(identifiers, "networksName"),
+    operatorName: findStationIdentifier(identifiers, "operatorName"),
   };
 }
 
-export function fetchPartnerSectors(stationId: number): Promise<PartnerSector[]> {
-  return fetchApiData<PartnerSector[]>(`stations/${stationId}/sectors/sibling`);
+export async function fetchPartnerSectors(stationId: number): Promise<Sector[]> {
+  const partnerStation = await fetchPartnerStation(stationId);
+  return partnerStation?.sectors ?? [];
 }

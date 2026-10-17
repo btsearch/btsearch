@@ -41,7 +41,7 @@ describe("GET /audit-operations/:id", () => {
     expectError(await injectMutation(route, request), 403, "INSUFFICIENT_PERMISSIONS");
   });
 
-  it.each(["0", "-1", "1.5", "text"])("rejects invalid operation id %s", async (id) => {
-    expectError(await injectMutation(route, { ...request, url: `/audit-operations/${id}` }, options), 400, "VALIDATION_ERROR");
+  it("rejects invalid operation id 0", async () => {
+    expectError(await injectMutation(route, { ...request, url: "/audit-operations/0" }, options), 400, "VALIDATION_ERROR");
   });
 });

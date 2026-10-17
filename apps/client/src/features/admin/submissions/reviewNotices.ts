@@ -1,7 +1,8 @@
+import type { SharedSitePart } from "@openbts/country-packs";
 import type { Operator, StationHistoryItem, StructureOwner } from "@openbts/shared/contract";
 
 import type { PlaceStation } from "@/features/station-editing/components/location/placeStations";
-import { findPartnerOperator } from "@/features/station-editing/data/partner";
+import { listPartnerOperators } from "@/features/station-editing/data/partner";
 import { hasMarkerMoved, movesStationAlone } from "@/features/station-editing/model/changes";
 import type { ChangeItem, EditSession, PlaceField, ProposalOrphan, TextPart } from "@/features/station-editing/model/types";
 import { foldText } from "@/lib/foldText";
@@ -27,6 +28,7 @@ export type ReviewFacts = {
   newerHistory: StationHistoryItem[];
   sharedPlace: SharedPlaceEffect | null;
   partnerStation: PlaceStation | null;
+  hasSeveralPartnerStations: boolean;
   proposedOwner: ProposedOwner | null;
   orphanCellCount: number;
   orphanSectorCount: number;
@@ -38,6 +40,7 @@ type ReviewFactsInput = {
   orphans: readonly ProposalOrphan[];
   placeStations: readonly PlaceStation[];
   operators: readonly Operator[];
+  partsCopiedToPartner: readonly SharedSitePart[];
   owners: readonly StructureOwner[];
   history: readonly StationHistoryItem[];
   sentAt: string;
@@ -61,22 +64,26 @@ function toSharedField(change: ChangeItem): SharedPlaceField[] {
   return field === undefined ? [] : [{ field, label: change.label }];
 }
 
+export function findReviewedLocationId(session: EditSession): number | null {
+  const place = session.live === null ? session.draft.place : session.live.place;
+  return place?.locationId ?? null;
+}
+
 function findSharedPlaceEffect(session: EditSession, changes: readonly ChangeItem[], stationCount: number): SharedPlaceEffect | null {
-  if (stationCount === 0 || session.draft.place === null || movesStationAlone(session)) return null;
+  if (stationCount === 0 || session.live === null || session.draft.place === null || movesStationAlone(session)) return null;
 
   const fields = changes.flatMap(toSharedField);
   const movesWholePlace = hasMarkerMoved(session);
   return fields.length === 0 && !movesWholePlace ? null : { fields, movesWholePlace, stationCount };
 }
 
-function findPartnerStation(session: EditSession, operators: readonly Operator[], placeStations: readonly PlaceStation[]): PlaceStation | null {
-  if (movesStationAlone(session)) return null;
+function listPartnerStations(session: EditSession, operators: readonly Operator[], placeStations: readonly PlaceStation[]): PlaceStation[] {
+  if (movesStationAlone(session)) return [];
 
   const { operatorId } = session.draft.station;
   const operator = operators.find((candidate) => candidate.id === operatorId) ?? null;
-  const partner = findPartnerOperator(operator, operators);
-  if (partner === null) return null;
-  return placeStations.find((station) => station.operatorId === partner.id) ?? null;
+  const partnerIds = new Set(listPartnerOperators(operator, operators).map((partner) => partner.id));
+  return placeStations.filter((station) => station.operatorId !== null && partnerIds.has(station.operatorId));
 }
 
 function listNameWords(name: string): string[] {
@@ -112,14 +119,16 @@ function isLater(moment: string, reference: string): boolean {
 }
 
 export function buildReviewFacts(input: ReviewFactsInput): ReviewFacts {
-  const { session, changes, orphans, placeStations, operators, owners, history, sentAt, stationUpdatedAt } = input;
-  const changesAzimuths = changes.some((change) => change.group === "sectors");
+  const { session, changes, orphans, placeStations, operators, partsCopiedToPartner, owners, history, sentAt, stationUpdatedAt } = input;
+  const copiesAzimuths = partsCopiedToPartner.includes("sectors") && changes.some((change) => change.group === "sectors");
+  const partnerStations = partsCopiedToPartner.length === 0 ? [] : listPartnerStations(session, operators, placeStations);
 
   return {
     isStationNewer: stationUpdatedAt !== null && isLater(stationUpdatedAt, sentAt),
     newerHistory: history.filter((item) => isLater(item.createdAt, sentAt)),
     sharedPlace: findSharedPlaceEffect(session, changes, placeStations.length),
-    partnerStation: changesAzimuths ? findPartnerStation(session, operators, placeStations) : null,
+    partnerStation: copiesAzimuths && partnerStations.length === 1 ? partnerStations[0] : null,
+    hasSeveralPartnerStations: session.action !== "delete" && partnerStations.length > 1,
     proposedOwner: findProposedOwner(session, owners),
     orphanCellCount: orphans.filter((orphan) => orphan.kind === "cell").length,
     orphanSectorCount: orphans.filter((orphan) => orphan.kind === "sector").length,

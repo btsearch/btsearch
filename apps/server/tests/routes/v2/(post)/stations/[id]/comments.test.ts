@@ -68,17 +68,6 @@ describe("POST /stations/:id/comments", () => {
     expectError(response, 401, "UNAUTHORIZED");
   });
 
-  it("rejects a non-multipart comment before checking its station", async () => {
-    getRuntimeSettings().enableStationComments = true;
-    const response = await injectMutation(
-      route,
-      { method: "POST", url: "/stations/12/comments", payload: { content: "Text" } },
-      { session: userSession(commenterId) },
-    );
-    expectError(response, 400, "BAD_REQUEST", "A comment must be sent as multipart/form-data");
-    expect(dbMock.calls).toEqual([]);
-  });
-
   it.each([false, true])("creates a trimmed comment with review queue enabled=%s", async (queueEnabled) => {
     getRuntimeSettings().enableStationComments = true;
     getRuntimeSettings().commentQueueEnabled = queueEnabled;

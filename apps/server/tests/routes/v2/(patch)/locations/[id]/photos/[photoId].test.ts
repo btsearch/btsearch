@@ -104,10 +104,10 @@ describe("PATCH /locations/:id/photos/:photoId", () => {
     expect(dbMock.calls).toEqual([]);
   });
 
-  it.each(["not-a-uuid", "0"])("rejects invalid photo id %s", async (id) => {
+  it("rejects a photo id that is not a uuid", async () => {
     const app = await createRouteHarness(route);
 
-    expect((await app.inject({ method: "PATCH", url: `/locations/2/photos/${id}`, payload: { note: "new" } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PATCH", url: "/locations/2/photos/not-a-uuid", payload: { note: "new" } })).statusCode).toBe(400);
     expect(dbMock.calls).toEqual([]);
   });
 });

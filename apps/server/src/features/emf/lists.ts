@@ -1,16 +1,16 @@
+import { countryCodesWith } from "@openbts/country-packs";
 import { operators, regions } from "@openbts/drizzle";
 import { EMF_OFFSET_LIMIT } from "@openbts/shared/contract";
 import type { EmfInclude, Operator, Paging, Region } from "@openbts/shared/contract";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, inArray } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { encodeCursor, resolveOffset } from "../../lib/cursor.js";
 import { loadOperators } from "../operators/details.js";
-import { MNC_TO_ENTITY, fetchOperatorsMap } from "../pem/entities.js";
+import { fetchOperatorsMap, mncToSi2pemName } from "../pem/entities.js";
 import { attachInternalStationIds } from "../pem/internalStations.js";
 import { VOIVODESHIP_TO_TERYT_PREFIX, fetchRegionsMap } from "../pem/voivodeships.js";
 import { toRegion } from "../regions/serialize.js";
-import { EMF_COUNTRY_CODE } from "./si2pem.js";
 
 export type ListWindow = { offset: number; limit: number };
 export type SiteRow = {
@@ -58,16 +58,19 @@ async function fetchOperatorMncs(operatorIds: readonly number[] | undefined): Pr
 async function fetchVoivodeshipNames(regionIds: readonly number[] | undefined): Promise<string[] | null> {
   if (regionIds === undefined) return null;
 
+  const emfCountryCodes = countryCodesWith("emf");
+  if (emfCountryCodes.length === 0) return [];
+
   const rows = await db
     .select({ name: regions.name })
     .from(regions)
-    .where(and(inArray(regions.id, [...regionIds]), eq(regions.countryCode, EMF_COUNTRY_CODE)));
+    .where(and(inArray(regions.id, [...regionIds]), inArray(regions.countryCode, emfCountryCodes)));
   return rows.map((row) => row.name).filter((name) => Object.hasOwn(VOIVODESHIP_TO_TERYT_PREFIX, name));
 }
 
 export async function registerFilters(query: { operatorIds?: number[]; regionIds?: number[] }): Promise<RegisterFilter[]> {
   const [mncs, voivodeships] = await Promise.all([fetchOperatorMncs(query.operatorIds), fetchVoivodeshipNames(query.regionIds)]);
-  const entityNames: (string | undefined)[] = mncs === null ? [undefined] : [...new Set(mncs.flatMap((mnc) => MNC_TO_ENTITY[mnc] ?? []))];
+  const entityNames: (string | undefined)[] = mncs === null ? [undefined] : [...new Set(mncs.flatMap((mnc) => mncToSi2pemName(mnc) ?? []))];
   const voivodeshipNames: (string | undefined)[] = voivodeships ?? [undefined];
   return entityNames.flatMap((entityName) => voivodeshipNames.map((voivodeship) => ({ entityName, voivodeship })));
 }

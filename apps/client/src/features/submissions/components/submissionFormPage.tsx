@@ -1,3 +1,4 @@
+import type { OfficialSite } from "@openbts/shared/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,7 +29,6 @@ import { REGISTER_PREFILL_RULES, listRegisterStationActions } from "@/features/s
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
-import type { UkeStation } from "@/types/station";
 
 type SubmissionFormPageProps = {
   seed: SubmissionSeed;
@@ -113,8 +113,8 @@ export function SubmissionFormPage({ seed, controls, focusesModeSwitch = false, 
       ? null
       : { action: isDelete ? "delete" : "update", onActionChange: (action: StationAction) => edit.dispatch({ type: "setAction", action }) };
 
-  function pickRegisterStation(registerStation: UkeStation) {
-    for (const action of listRegisterStationActions(registerStation, lookups, REGISTER_PREFILL_RULES.form)) edit.dispatch(action);
+  function pickRegisterStation(registerSite: OfficialSite) {
+    for (const action of listRegisterStationActions(registerSite, lookups, REGISTER_PREFILL_RULES.form)) edit.dispatch(action);
   }
 
   function changeNote(note: string) {

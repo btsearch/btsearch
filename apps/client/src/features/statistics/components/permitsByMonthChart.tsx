@@ -1,13 +1,13 @@
 import { AirportTowerIcon, Calendar03Icon, Download04Icon, FileAttachmentIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { useRegisterBandComparator } from "../lib/bandOrder";
-import { permitSnapshotQueryOptions } from "../queries";
-import { PermitSnapshotBandChart, type SnapshotBand, type SnapshotMetric, buildSnapshotBands } from "./permitSnapshotBandChart";
+import type { SnapshotBand } from "../lib/chartData";
+import { permitSnapshotQueryOptions, useRegisterSourceName } from "../queries";
+import { PermitSnapshotBandChart, type SnapshotMetric } from "./permitSnapshotBandChart";
 import { PermitSnapshotImage, exportPermitSnapshotImage } from "./permitSnapshotImage";
 import type { ChartErrorProps } from "./statChartCard";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
+const NO_BANDS: SnapshotBand[] = [];
+const REGISTER_FILE_NAME = "register";
 const SNAPSHOT_GRID_CLASS = "grid grid-cols-[repeat(auto-fill,minmax(min(100%,420px),1fr))] divide-x divide-y divide-border border-t border-border";
 
 const SNAPSHOT_METRICS: { key: SnapshotMetric; icon: typeof FileAttachmentIcon }[] = [
@@ -125,7 +127,7 @@ function SnapshotComparisonGrid({
   return (
     <div className={SNAPSHOT_GRID_CLASS}>
       {bands.map((band) => (
-        <PermitSnapshotBandChart key={band.id} band={band} metric={metric} />
+        <PermitSnapshotBandChart key={band.key} band={band} metric={metric} />
       ))}
     </div>
   );
@@ -142,15 +144,17 @@ export function PermitsByMonthChart() {
   const [isExporting, setIsExporting] = useState(false);
   const exportImageRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(permitSnapshotQueryOptions(month));
-  const compareBands = useRegisterBandComparator();
-  const bands = useMemo(() => buildSnapshotBands(data?.rows, compareBands), [data?.rows, compareBands]);
+  const sourceName = useRegisterSourceName();
+  const bands = data?.bands ?? NO_BANDS;
 
-  const description = data?.snapshot_date
+  const title = sourceName === null ? t("permitsByMonth.registerTitle") : t("permitsByMonth.title", { source: sourceName });
+  const monthPrompt = sourceName === null ? t("permitsByMonth.registerDescription") : t("permitsByMonth.description", { source: sourceName });
+  const description = data?.snapshotOn
     ? t("permitsByMonth.snapshotDate", {
-        date: data.snapshot_date.slice(0, 10),
-        previousDate: data.previous_snapshot_date?.slice(0, 10) ?? t("permitsByMonth.noPreviousSnapshot"),
+        date: data.snapshotOn,
+        previousDate: data.previousSnapshotOn ?? t("permitsByMonth.noPreviousSnapshot"),
       })
-    : t("permitsByMonth.description");
+    : monthPrompt;
 
   async function handleExport() {
     if (isExporting || isLoading || bands.length === 0) return;
@@ -160,7 +164,7 @@ export function PermitsByMonthChart() {
       await waitForExportLayout();
       const exportNode = exportImageRef.current;
       if (exportNode === null) throw new Error("The statistics export layout did not mount");
-      await exportPermitSnapshotImage(exportNode, `btsearch-uke-${month}-${metric}.png`);
+      await exportPermitSnapshotImage(exportNode, `btsearch-${sourceName?.toLowerCase() ?? REGISTER_FILE_NAME}-${month}-${metric}.png`);
     } catch {
       toast.error(t("permitsByMonth.export.error"));
     } finally {
@@ -172,7 +176,7 @@ export function PermitsByMonthChart() {
     <div className="relative border border-border">
       <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-0.5">
-          <h3 className="text-sm font-medium leading-none">{t("permitsByMonth.title")}</h3>
+          <h3 className="text-sm font-medium leading-none">{title}</h3>
           <p className="text-muted-foreground text-xs">{description}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -199,7 +203,9 @@ export function PermitsByMonthChart() {
         onRetry={() => refetch()}
         isRetrying={isFetching}
       />
-      {isExporting ? <PermitSnapshotImage ref={exportImageRef} bands={bands} description={description} metric={metric} month={month} /> : null}
+      {isExporting ? (
+        <PermitSnapshotImage ref={exportImageRef} bands={bands} description={description} metric={metric} month={month} sourceName={sourceName} />
+      ) : null}
     </div>
   );
 }

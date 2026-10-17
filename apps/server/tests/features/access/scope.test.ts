@@ -4,15 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import {
   type ScopeRefs,
   assertRouteScope,
-  defineScope,
   findLocationIdsAt,
-  locationParamScope,
   locationRefs,
   requestCovers,
   requestOverlaps,
   requiresScope,
   resolveScopeTargets,
-  stationParamScope,
 } from "../../../src/features/access/scope.js";
 import { dbMock, userSession } from "../../helpers/boundaries.js";
 
@@ -53,22 +50,6 @@ describe("requiresScope", () => {
   });
 });
 
-describe("defineScope", () => {
-  it("passes the validated route request to a typed scope resolver", async () => {
-    const resolver = defineScope<{ Params: { id: number } }>((req) => ({ stationIds: [req.params.id] }));
-    expect(await resolver({ params: { id: 9 } } as unknown as FastifyRequest)).toEqual({ stationIds: [9] });
-  });
-});
-
-describe("stationParamScope", () => {
-  it("binds the declared station parameter", async () =>
-    expect(await stationParamScope({ params: { station_id: 9 } } as unknown as FastifyRequest)).toEqual({ stationIds: [9] }));
-});
-describe("locationParamScope", () => {
-  it("binds the declared location parameter", async () =>
-    expect(await locationParamScope({ params: { location_id: 8 } } as unknown as FastifyRequest)).toEqual({ locationIds: [8] }));
-});
-
 describe("locationRefs", () => {
   it.each([
     { proposed: undefined, current: undefined, expected: {} },
@@ -96,15 +77,6 @@ describe("findLocationIdsAt", () => {
   it("skips coordinate queries for an empty collection", async () => {
     expect(await findLocationIdsAt([])).toEqual([]);
     expect(dbMock.select).not.toHaveBeenCalled();
-  });
-  it("returns every existing location at the supplied coordinates", async () => {
-    dbMock.enqueueFor("select", "locations", [{ id: 1 }, { id: 2 }]);
-    expect(
-      await findLocationIdsAt([
-        { longitude: 0, latitude: -10 },
-        { longitude: 20, latitude: 52 },
-      ]),
-    ).toEqual([1, 2]);
   });
 });
 

@@ -11,7 +11,7 @@ import {
 } from "./api";
 import { invalidateAuditOperationQueries } from "@/features/admin/audit-operations/queries";
 import { userAdminKeys } from "@/features/admin/users/api/queryKeys";
-import { stationCommentKeys } from "@/features/station-details/station/comments/api";
+import { stationCommentKeys, storeUpdatedComment } from "@/features/station-details/station/comments/api";
 import { userProfileQueryPrefix } from "@/features/user-profile/queries";
 
 type StationCommentsAnswer = Comment[] | null;
@@ -72,9 +72,7 @@ export function storeChangedComment(queryClient: QueryClient, changed: Comment):
     if (!page.statuses.includes(changed.status)) return dropPageComment(page, changed.id);
     return { ...page, comments: replaceListedComment(page.comments, changed) };
   });
-  queryClient.setQueriesData<StationCommentsAnswer>({ queryKey: stationCommentKeys.station(changed.stationId) }, (listed) =>
-    listed ? replaceListedComment(listed, changed) : listed,
-  );
+  storeUpdatedComment(queryClient, changed);
 }
 
 export function storeDeletedComment(queryClient: QueryClient, deleted: Pick<Comment, "id" | "stationId">): void {

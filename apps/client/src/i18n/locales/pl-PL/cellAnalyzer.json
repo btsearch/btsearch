@@ -56,10 +56,10 @@
     "notFound": "Nie znaleziono",
     "notAnalyzed": "Nieprzeanalizowana"
   },
-  "ukeMatch": {
-    "hint": "Prawdopodobna stacja z pozwoleń UKE, dopasowana po eNBIDzie",
-    "candidates": "Możliwe stacje UKE",
-    "moreCandidates": "Pokaż pozostałe możliwe stacje UKE"
+  "registerMatch": {
+    "hint": "Prawdopodobna stacja z pozwoleń {{source}}, dopasowana po eNBIDzie",
+    "candidates": "Możliwe stacje {{source}}",
+    "moreCandidates": "Pokaż pozostałe możliwe stacje {{source}}"
   },
   "errors": {
     "noValidRows": "Plik nie zawiera prawidłowych danych o komórkach",

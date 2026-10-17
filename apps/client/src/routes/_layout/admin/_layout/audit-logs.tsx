@@ -414,7 +414,7 @@ function AuditOperationTarget({ operation, targetLabel, className }: { operation
       <Link
         to="/admin/stations/$id"
         params={{ id: String(stationId) }}
-        search={{ uke: undefined }}
+        search={{ officialSite: undefined }}
         className={cn(
           "pointer-events-auto rounded-sm text-xs font-mono text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           className,

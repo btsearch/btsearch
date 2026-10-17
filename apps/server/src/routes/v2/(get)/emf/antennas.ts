@@ -17,7 +17,8 @@ const schemaRoute = {
   summary: "Get the antennas from a site's EMF report",
   description:
     "Returns the antennas listed in one laboratory report of a site, with the model, height and azimuth of each antenna and the frequency, " +
-    "power and tilt of each of its bands. SI2PEM is the only register connected so far, so the data currently covers Poland.\n\n" +
+    "power and tilt of each of its bands. SI2PEM is the only register connected so far. " +
+    "`capabilities.emf` in `GET /countries` tells you which countries the data covers.\n\n" +
     "Identify the site with exactly one of `stationId`, `officialSiteId`, or `siteId` together with `latitude` and `longitude`. " +
     "The site's newest laboratory report is read unless you pick another one with `reportUrl`. " +
     "`report` is `null` when the site has no laboratory report or the station has no location.\n\n" +
@@ -32,8 +33,8 @@ const schemaRoute = {
 };
 const errorReasons = {
   404:
-    "The station, official site or operator does not exist, the station is not in Poland, or `reportUrl` is not one of the site's " +
-    "laboratory reports. Also returned when you cannot access Poland, the country this data covers.",
+    "The station, official site or operator does not exist, the station is in a country where `capabilities.emf` is `false`, " +
+    "or `reportUrl` is not one of the site's laboratory reports. Also returned when you cannot access any of the countries this data covers.",
   429:
     "You can have up to 15 reports read every 5 minutes. Reports that are already cached do not count, and editors and administrators " +
     "have no limit unless they use an API key. The general rate limits apply as well.",

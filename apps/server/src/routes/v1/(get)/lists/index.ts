@@ -1,4 +1,4 @@
-import { operators, stations, ukeStations, userLists, users } from "@openbts/drizzle";
+import { officialSites, operators, stations, userLists, users } from "@openbts/drizzle";
 import { and, count, desc, eq, ilike, inArray } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -9,6 +9,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import { hasStaffPermission } from "../../../../features/access/staff.js";
 import { findForeignStationIds } from "../../../../features/countries/legacy.js";
 import { MAX_USER_LISTS } from "../../../../features/lists/limits.js";
+import { getUserListMembership } from "../../../../features/lists/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
@@ -62,16 +63,20 @@ async function selectInternalStationOperators(ids: number[]): Promise<StationOpe
     .where(inArray(stations.id, ids));
 }
 
-async function selectUkeStationOperators(ids: number[]): Promise<StationOperator[]> {
+async function selectOfficialSiteOperators(ids: number[]): Promise<StationOperator[]> {
   if (ids.length === 0) return [];
   return db
-    .select({ id: ukeStations.id, name: operators.name, mnc: operators.mnc })
-    .from(ukeStations)
-    .innerJoin(operators, eq(ukeStations.operator_id, operators.id))
-    .where(inArray(ukeStations.id, ids));
+    .select({ id: officialSites.id, name: operators.name, mnc: operators.mnc })
+    .from(officialSites)
+    .innerJoin(operators, eq(officialSites.operator_id, operators.id))
+    .where(inArray(officialSites.id, ids));
 }
 
-function countListOperators(stationIds: ListStations, internal: Map<number, StationOperator>, uke: Map<number, StationOperator>): ListOperator[] {
+function countListOperators(
+  stationIds: ListStations,
+  internal: Map<number, StationOperator>,
+  official: Map<number, StationOperator>,
+): ListOperator[] {
   const counts = new Map<string, ListOperator>();
   const add = (operator: StationOperator | undefined) => {
     if (!operator) return;
@@ -81,7 +86,7 @@ function countListOperators(stationIds: ListStations, internal: Map<number, Stat
   };
 
   for (const id of stationIds.internal) add(internal.get(id));
-  for (const id of stationIds.uke) add(uke.get(id));
+  for (const id of stationIds.uke) add(official.get(id));
   return [...counts.values()].sort((a, b) => b.count - a.count);
 }
 
@@ -126,19 +131,19 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   ]);
 
   const totalCount = countResult[0]?.count ?? 0;
-  const storedStations = rows.map((row) => (row.stations as ListStations) ?? { internal: [], uke: [] });
-  const foreign = await findForeignStationIds(storedStations.flatMap((entry) => entry.internal));
-  const listStations = storedStations.map(({ internal, uke }) => ({ internal: internal.filter((id) => !foreign.has(id)), uke }));
-  const [internalOperators, ukeOperators] = await Promise.all([
+  const memberships = rows.map(getUserListMembership);
+  const foreign = await findForeignStationIds(memberships.flatMap((entry) => entry.internal));
+  const listStations = memberships.map(({ internal, official }) => ({ internal: internal.filter((id) => !foreign.has(id)), uke: official }));
+  const [internalOperators, officialSiteOperators] = await Promise.all([
     selectInternalStationOperators([...new Set(listStations.flatMap((entry) => entry.internal))]),
-    selectUkeStationOperators([...new Set(listStations.flatMap((entry) => entry.uke))]),
+    selectOfficialSiteOperators([...new Set(listStations.flatMap((entry) => entry.uke))]),
   ]);
   const internalOperatorById = new Map(internalOperators.map((operator) => [operator.id, operator]));
-  const ukeOperatorById = new Map(ukeOperators.map((operator) => [operator.id, operator]));
+  const officialSiteOperatorById = new Map(officialSiteOperators.map((operator) => [operator.id, operator]));
 
   const data = rows.map((row, index) => {
     const stationIds = listStations[index] ?? { internal: [], uke: [] };
-    const radiolines = (row.radiolines as number[]) ?? [];
+    const microwaveLinks = (row.radiolines as number[]) ?? [];
     return {
       id: row.id,
       uuid: row.uuid,
@@ -147,10 +152,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       is_public: row.is_public,
       notificationsEnabled: row.notificationsEnabled,
       stations: stationIds,
-      radiolines,
+      radiolines: microwaveLinks,
       stationCount: stationIds.internal.length + stationIds.uke.length,
-      radiolineCount: radiolines.length,
-      operators: countListOperators(stationIds, internalOperatorById, ukeOperatorById),
+      radiolineCount: microwaveLinks.length,
+      operators: countListOperators(stationIds, internalOperatorById, officialSiteOperatorById),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       createdBy: {

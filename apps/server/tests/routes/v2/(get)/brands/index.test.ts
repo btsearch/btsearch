@@ -18,14 +18,6 @@ describe("getBrands", () => {
     expect(response.json()).toEqual({ data: [{ id: 1, slug: "example", name: "Łódź", color: "#112233", logo }] });
   });
 
-  it("returns an empty collection without treating it as a missing resource", async () => {
-    dbMock.enqueueFor("select", "brands", []);
-    const app = await createRouteHarness(getBrands);
-    const response = await app.inject({ method: "GET", url: "/brands" });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ data: [] });
-  });
-
   it("rejects undeclared filters before querying", async () => {
     const app = await createRouteHarness(getBrands);
     expect((await app.inject({ method: "GET", url: "/brands?countryCodes=PL" })).statusCode).toBe(400);

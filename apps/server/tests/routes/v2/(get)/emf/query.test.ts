@@ -22,8 +22,6 @@ describe("EMF site references", () => {
   it.each([
     {},
     { stationId: "1", officialSiteId: "2" },
-    { stationId: "1", siteId: "A1", latitude: "52", longitude: "21" },
-    { officialSiteId: "1", siteId: "A1", latitude: "52", longitude: "21" },
     { stationId: "1", latitude: "52", longitude: "21" },
     { officialSiteId: "1", operatorId: "2" },
     { siteId: "A1" },

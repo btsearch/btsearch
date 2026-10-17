@@ -2,14 +2,15 @@ import { notifications } from "@openbts/drizzle";
 import { type SQL, and, desc, eq, isNull } from "drizzle-orm";
 
 import db from "../../database/psql.js";
+import type { DbTx } from "../../types/global.js";
 
 type StationNotificationMetadata = Record<string, unknown>;
-type StationNotificationType = "station_cells_changed" | "station_photos_added" | "station_comment_approved" | "station_uke_permit_added";
+type StationNotificationType = "station_cells_changed" | "station_photos_added" | "station_comment_approved" | "station_official_permit_added";
 
 type CoalesceStationNotificationParams = {
   userId: string;
   stationId?: number;
-  ukeStationId?: number;
+  officialSiteId?: number;
   detached?: boolean;
   type: StationNotificationType;
   title: string;
@@ -21,6 +22,8 @@ type CoalesceStationNotificationResult = {
   id: string;
   isNew: boolean;
 };
+
+type NotificationWriter = Pick<DbTx, "insert" | "select" | "update">;
 
 const COALESCE_RETRIES = 1;
 
@@ -44,14 +47,14 @@ function mergeMetadata(
     return merged;
   }
 
-  if (type === "station_uke_permit_added") {
+  if (type === "station_official_permit_added") {
     // legacy key
     const legacyPermitsUpdated = numericMetadataValue(current ?? {}, "permits_updated");
     delete merged.permits_updated;
     merged.permits_added = numericMetadataValue(current ?? {}, "permits_added") + numericMetadataValue(incoming ?? {}, "permits_added");
     merged.permits_deleted = numericMetadataValue(current ?? {}, "permits_deleted") + numericMetadataValue(incoming ?? {}, "permits_deleted");
-    merged.uke_stations_added =
-      numericMetadataValue(current ?? {}, "uke_stations_added") + numericMetadataValue(incoming ?? {}, "uke_stations_added");
+    merged.official_sites_added =
+      numericMetadataValue(current ?? {}, "official_sites_added") + numericMetadataValue(incoming ?? {}, "official_sites_added");
     merged.count =
       Math.max(0, numericMetadataValue(current ?? {}, "count") - legacyPermitsUpdated) + Math.max(1, numericMetadataValue(incoming ?? {}, "count"));
     return merged;
@@ -62,19 +65,20 @@ function mergeMetadata(
 }
 
 async function insertOrCoalesce(
+  writer: NotificationWriter,
   params: CoalesceStationNotificationParams,
   targetCondition: SQL,
   retries: number,
 ): Promise<CoalesceStationNotificationResult> {
-  const { userId, stationId, ukeStationId, type, title, metadata, actionUrl } = params;
+  const { userId, stationId, officialSiteId, type, title, metadata, actionUrl } = params;
   const now = new Date();
 
-  const [inserted] = await db
+  const [inserted] = await writer
     .insert(notifications)
     .values({
       userId,
       stationId: stationId ?? null,
-      ukeStationId: ukeStationId ?? null,
+      officialSiteId: officialSiteId ?? null,
       type,
       title,
       metadata: metadata ?? null,
@@ -86,7 +90,7 @@ async function insertOrCoalesce(
 
   if (inserted) return { id: inserted.id, isNew: true };
 
-  const [existing] = await db
+  const [existing] = await writer
     .select({ id: notifications.id, metadata: notifications.metadata })
     .from(notifications)
     .where(and(eq(notifications.userId, userId), targetCondition, eq(notifications.type, type), isNull(notifications.readAt)))
@@ -94,7 +98,7 @@ async function insertOrCoalesce(
     .limit(1);
 
   if (existing) {
-    const [updated] = await db
+    const [updated] = await writer
       .update(notifications)
       .set({
         metadata: mergeMetadata(existing.metadata, metadata, type),
@@ -109,26 +113,29 @@ async function insertOrCoalesce(
     if (updated) return { id: updated.id, isNew: false };
   }
 
-  if (retries > 0) return insertOrCoalesce(params, targetCondition, retries - 1);
+  if (retries > 0) return insertOrCoalesce(writer, params, targetCondition, retries - 1);
   throw new Error("Failed to create station notification");
 }
 
-function stationTargetCondition({ stationId, ukeStationId }: CoalesceStationNotificationParams): SQL {
+function stationTargetCondition({ stationId, officialSiteId }: CoalesceStationNotificationParams): SQL {
   if (stationId !== undefined) return eq(notifications.stationId, stationId);
-  if (ukeStationId !== undefined) return eq(notifications.ukeStationId, ukeStationId);
+  if (officialSiteId !== undefined) return eq(notifications.officialSiteId, officialSiteId);
   throw new Error("Station notification requires a station id");
 }
 
-export async function coalesceOrCreateStationNotification(params: CoalesceStationNotificationParams): Promise<CoalesceStationNotificationResult> {
+export async function coalesceOrCreateStationNotification(
+  params: CoalesceStationNotificationParams,
+  writer: NotificationWriter = db,
+): Promise<CoalesceStationNotificationResult> {
   const { userId, detached, type, title, metadata, actionUrl } = params;
 
   if (detached) {
-    const [inserted] = await db
+    const [inserted] = await writer
       .insert(notifications)
       .values({
         userId,
         stationId: null,
-        ukeStationId: null,
+        officialSiteId: null,
         type,
         title,
         metadata: metadata ?? null,
@@ -141,5 +148,5 @@ export async function coalesceOrCreateStationNotification(params: CoalesceStatio
     return { id: inserted.id, isNew: true };
   }
 
-  return insertOrCoalesce(params, stationTargetCondition(params), COALESCE_RETRIES);
+  return insertOrCoalesce(writer, params, stationTargetCondition(params), COALESCE_RETRIES);
 }

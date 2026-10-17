@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import route from "../../../../../src/routes/v2/(post)/cells/match.js";
 import { dbMock, setCountryFeatures } from "../../../../helpers/boundaries.js";
+import { operatorRow, primaryPlmn } from "../../../../helpers/operatorFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const plmn = "26001";
@@ -14,10 +15,30 @@ const observed: ObservedCell[] = [
   { rat: "nr", plmn, gnbid: 200, clid: 2 },
 ];
 
-function network(partners: { operatorId: number; ventureId: number }[] = []) {
+const sharedNetworkPlmn = "26034";
+
+function network(partners: { operatorId: number; ventureId: number }[] = [], { code = plmn, countryCode = "PL" } = {}) {
+  const ventureIds = partners.filter((partner) => partner.operatorId === 1).map((partner) => partner.ventureId);
   dbMock.enqueueFor("select", "countries", []);
-  dbMock.enqueueFor("select", "plmns", [{ code: plmn, operatorId: 1, legacyMnc: 1, countryCode: "PL" }]);
+  dbMock.enqueueFor("select", "plmns", [{ code, operatorId: 1, countryCode }]);
   dbMock.enqueueFor("select", "operator_links", partners);
+  dbMock.enqueueFor(
+    "select",
+    "operators",
+    [operatorRow(1, null, countryCode)],
+    ventureIds.map((ventureId) => operatorRow(ventureId, null, countryCode)),
+  );
+  dbMock.enqueueFor(
+    "select",
+    "plmns",
+    [primaryPlmn(1, code)],
+    ventureIds.map((ventureId) => primaryPlmn(ventureId, sharedNetworkPlmn)),
+  );
+  dbMock.enqueueFor(
+    "select",
+    "operator_links",
+    ventureIds.map((ventureId) => ({ operatorId: 1, kind: "jv_member", relatedOperatorId: ventureId })),
+  );
 }
 
 function stored(rat: string, id = 10, operatorId = 1) {
@@ -90,7 +111,7 @@ describe("POST /cells/match", () => {
 
   it("treats a network in a hidden country as unknown", async () => {
     dbMock.enqueueFor("select", "countries", [{ code: "DE" }]);
-    dbMock.enqueueFor("select", "plmns", [{ code: plmn, operatorId: 1, legacyMnc: 1, countryCode: "DE" }]);
+    dbMock.enqueueFor("select", "plmns", [{ code: plmn, operatorId: 1, countryCode: "DE" }]);
     const app = await createRouteHarness(route);
     const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[0]] } });
 
@@ -125,6 +146,32 @@ describe("POST /cells/match", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.results[0]).toMatchObject({ match: "station", stationId: 20, cellId: null, reason: null });
+  });
+
+  it.each([
+    { name: "a member of the shared network", code: "26002", countryCode: "PL", partners: [{ operatorId: 1, ventureId: 5 }], isFound: true },
+    { name: "an operator outside the shared network", code: "26001", countryCode: "PL", partners: [], isFound: false },
+    { name: "a member in a country without the rule", code: "26201", countryCode: "DE", partners: [{ operatorId: 1, ventureId: 5 }], isFound: false },
+  ])("applies the country's first-digit rule to an LTE station's eNB id: $name", async ({ code, countryCode, partners, isFound }) => {
+    network(partners, { code, countryCode });
+    const row = stored("lte");
+    dbMock.enqueueFor("select", "cells", [], [{ ...row, lte: { ...row.lte, enbid: 145678, clid: 8 } }]);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({
+      method: "POST",
+      url: "/cells/match",
+      payload: { cells: [{ rat: "lte", plmn: code, enbid: 345678, clid: 2 }] },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject(
+      isFound ? { match: "station", stationId: 20, cellId: null, reason: null } : { match: "none", stationId: null, reason: "cellUnknown" },
+    );
+    const lookup = dbMock.calls.filter((call) => call.table === "cells")[1]?.clauses.where?.[0];
+    const { params } = new PgDialect().sqlToQuery(lookup as Parameters<PgDialect["sqlToQuery"]>[0]);
+    const enbids = [145678, 245678, 345678, 445678, 545678, 645678, 745678, 845678, 945678];
+    expect(params.filter((param) => enbids.includes(param as number))).toEqual(isFound ? enbids : [345678]);
+    expect(dbMock.pendingResults()).toBe(0);
   });
 
   it.each([

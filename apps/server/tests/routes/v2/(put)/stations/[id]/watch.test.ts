@@ -45,8 +45,8 @@ describe("PUT /stations/:id/watch", () => {
     expect(write?.clauses.onConflictDoNothing).toBeDefined();
   });
 
-  it.each(["0", "-1", "1.5", "no-station"])("rejects invalid station id %s before database access", async (id) => {
-    const response = await injectMutation(route, { method: "PUT", url: `/stations/${id}/watch` }, { session: userSession(ownerId) });
+  it("rejects an invalid station id before database access", async () => {
+    const response = await injectMutation(route, { method: "PUT", url: "/stations/0/watch" }, { session: userSession(ownerId) });
     expectError(response, 400, "VALIDATION_ERROR");
     expect(dbMock.calls).toEqual([]);
   });

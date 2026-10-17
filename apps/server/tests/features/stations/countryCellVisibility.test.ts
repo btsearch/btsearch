@@ -48,12 +48,6 @@ describe("toCell", () => {
     expect(umts.umts?.psc).toBe(0);
   });
 
-  it("returns existing codes again after a country re-enables them", () => {
-    const rows = cellRows("GSM");
-    expect(toCell(rows, undefined, false, featureCases[0])).toMatchObject({ bsic: null });
-    expect(toCell(rows, undefined, false, featureCases[3])).toMatchObject({ bsic: 0 });
-  });
-
   it("omits a cell without its RAT details", () => {
     expect(toCell({ ...cellRows("GSM"), gsm: null }, undefined, false, featureCases[3])).toBeNull();
   });

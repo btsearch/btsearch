@@ -1,2 +1,0 @@
-ALTER TABLE "uke"."uke_radiolines" ADD COLUMN "specs_date" timestamp with time zone;--> statement-breakpoint
-UPDATE "uke"."uke_radiolines" SET "specs_date" = (SELECT max("updatedAt") FROM "uke"."uke_radiolines");

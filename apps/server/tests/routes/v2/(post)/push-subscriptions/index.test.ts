@@ -38,18 +38,6 @@ describe("POST /push-subscriptions", () => {
     });
   });
 
-  it("preserves explicit disabled topics and enables only configured official updates", async () => {
-    dbMock.enqueueFor("insert", "push_subscriptions", [
-      { ...row, preferences: { ukeUpdates: true, submissionUpdates: false, newSubmission: false, stationWatches: false } },
-    ]);
-    dbMock.enqueueFor("delete", "push_subscriptions", []);
-    const response = await injectMutation(route, { method: "POST", url: "/push-subscriptions", payload }, { session: userSession(ownerId, "user") });
-    expect(response.statusCode).toBe(201);
-    expect(response.json()).toMatchObject({
-      data: { topics: { officialDataUpdates: true, submissionUpdates: false, newSubmissions: false, stationWatches: false } },
-    });
-  });
-
   it("reports a failed insert", async () => {
     dbMock.enqueueFor("insert", "push_subscriptions", []);
     const response = await injectMutation(route, { method: "POST", url: "/push-subscriptions", payload }, { session: userSession(ownerId, "user") });

@@ -1,5 +1,6 @@
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { OfficialSource } from "@openbts/shared/contract";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -12,10 +13,11 @@ import { findDraftOperator } from "../../model/snapshots";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useSiteSources } from "@/features/official/queries";
+import { OfficialSourceLogo } from "@/features/station-details/components/officialSourceLogo";
 import { SI2PEMLogo } from "@/features/station-details/components/si2pemLogo";
-import { UKELogo } from "@/features/station-details/components/ukeLogo";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { getOperatorShortLabel, toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { getOperatorShortLabel } from "@/features/station-details/station/utils/stations";
 
 type FetchAzimuthsMenuProps = {
   edit: StationDraftApi;
@@ -32,27 +34,29 @@ type SourceItemProps = {
 
 type SourceRequest = {
   source: AzimuthSource;
+  official: OfficialSource | null;
   siteId: string;
   latitude: number | null;
   longitude: number | null;
-  operatorMnc: number | null;
+  operatorId: number | null;
   stationId: number | null;
 };
 
+const NO_SOURCES: readonly OfficialSource[] = [];
 const NOT_FOUND_KEYS: Record<AzimuthSource, string> = {
   emf: "submissions:azimuthFetch.si2pem.notFound",
-  register: "submissions:ukeSectors.notFound",
+  register: "submissions:azimuthFetch.register.notFound",
   partner: "submissions:siblingSectors.notFound",
 };
 const FAILED_KEYS: Record<AzimuthSource, string> = {
   emf: "submissions:azimuthFetch.si2pem.fetchFailed",
-  register: "submissions:azimuthFetch.uke.fetchFailed",
+  register: "submissions:azimuthFetch.register.fetchFailed",
   partner: "submissions:siblingSectors.fetchFailed",
 };
 
-function fetchAzimuths({ source, siteId, latitude, longitude, operatorMnc, stationId }: SourceRequest): Promise<FetchedAzimuths | null> {
+function fetchAzimuths({ source, official, siteId, latitude, longitude, operatorId, stationId }: SourceRequest): Promise<FetchedAzimuths | null> {
   if (source === "emf" && latitude !== null && longitude !== null) return fetchEmfAzimuths({ siteId, latitude, longitude });
-  if (source === "register" && operatorMnc !== null) return fetchRegisterAzimuths(siteId, operatorMnc);
+  if (source === "register" && official !== null && operatorId !== null) return fetchRegisterAzimuths({ siteId, operatorId, source: official });
   if (source === "partner" && stationId !== null) return fetchPartnerAzimuths(stationId);
   return Promise.resolve(null);
 }
@@ -73,31 +77,35 @@ export function FetchAzimuthsMenu({ edit, stationId, onFetched }: FetchAzimuthsM
   const { t } = useTranslation(["stations", "submissions"]);
   const [isFetching, setIsFetching] = useState(false);
   const { session, lookups } = edit;
+  const { countryCode } = lookups;
+  const siteSources = useSiteSources(countryCode);
   const { station, place } = session.draft;
   const siteId = normalizeText(station.siteId);
   const latitude = place?.latitude ?? null;
   const longitude = place?.longitude ?? null;
   const operator = findDraftOperator(session.draft, lookups.operatorsById);
-  const operatorMnc = toV1OperatorMnc(operator);
+  const operatorId = operator?.id ?? null;
+  const isOfficialCountry = countryCode !== null && lookups.countriesByCode.get(countryCode)?.capabilities.official === true;
+  const registerSources = siteId !== "" && operatorId !== null && isOfficialCountry ? siteSources : NO_SOURCES;
   const partner = findPartnerOperator(operator, lookups.operators);
   const partnerName = getOperatorShortLabel(partner);
   const isNewInEditor = session.kind === "editor" && session.live === null;
   const hasEmf = siteId !== "" && latitude !== null && longitude !== null && !isNewInEditor;
-  const hasRegister = siteId !== "" && operatorMnc !== null;
   const hasPartner = stationId !== null && partner !== null;
 
-  function fetchFrom(source: AzimuthSource) {
+  function fetchFrom(source: AzimuthSource, official: OfficialSource | null = null) {
+    const texts = { source: official?.shortName };
     setIsFetching(true);
-    void fetchAzimuths({ source, siteId, latitude, longitude, operatorMnc, stationId })
+    void fetchAzimuths({ source, official, siteId, latitude, longitude, operatorId, stationId })
       .then((fetched) => {
-        if (fetched === null || fetched.degrees.length === 0) toast.info(t(NOT_FOUND_KEYS[source]));
+        if (fetched === null || fetched.degrees.length === 0) toast.info(t(NOT_FOUND_KEYS[source], texts));
         else onFetched(fetched, partnerName);
       })
-      .catch(() => toast.error(t(FAILED_KEYS[source])))
+      .catch(() => toast.error(t(FAILED_KEYS[source], texts)))
       .finally(() => setIsFetching(false));
   }
 
-  if (!hasEmf && !hasRegister && !hasPartner) return null;
+  if (!hasEmf && registerSources.length === 0 && !hasPartner) return null;
 
   return (
     <DropdownMenu>
@@ -125,14 +133,15 @@ export function FetchAzimuthsMenu({ edit, stationId, onFetched }: FetchAzimuthsM
             onPick={() => fetchFrom("emf")}
           />
         ) : null}
-        {hasRegister ? (
+        {registerSources.map((registerSource) => (
           <SourceItem
-            lead={<UKELogo className="size-auto h-3.5 w-7" />}
-            title="UKE"
+            key={registerSource.key}
+            lead={<OfficialSourceLogo source={registerSource} className="size-auto h-3.5 w-7" />}
+            title={registerSource.shortName}
             hint={t("edit.azimuths.sources.registerHint")}
-            onPick={() => fetchFrom("register")}
+            onPick={() => fetchFrom("register", registerSource)}
           />
-        ) : null}
+        ))}
         {hasPartner ? (
           <SourceItem
             lead={<BrandMark brand={getOperatorBrand(partner, lookups.brands)} size={16} />}

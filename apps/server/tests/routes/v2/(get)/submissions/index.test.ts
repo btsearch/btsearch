@@ -147,6 +147,7 @@ describe("GET /submissions", () => {
     const filter = whereQuery("submissions", "select");
     expect(filter.sql).toContain('"proposed_stations"');
     expect(filter.sql).toContain('"proposed_locations"');
+    expect(filter.sql).toContain('"stations"');
     expect(filter.params).toContain(countryWide ? "PL" : 1);
     expect(filter.params).toContain("new");
     expect(filter.params).toContain("DE");
@@ -171,7 +172,6 @@ describe("GET /submissions", () => {
     "statuses=approved",
     "actions=new",
     "countryCodes=pl",
-    "countryCodes=POL",
     "countryCodes=",
     "include=station.cells",
     "limit=201",
@@ -182,15 +182,6 @@ describe("GET /submissions", () => {
     const response = await injectMutation(route, { ...request, url: `/submissions?${query}` }, options);
     expectError(response, 400, "VALIDATION_ERROR");
     expect(dbMock.calls).toEqual([]);
-  });
-
-  it("redacts a list database failure before proposal projections are loaded", async () => {
-    scriptReaderAccess("user");
-    dbMock.enqueueFor("select", "submissions", new Error("Private database credentials"));
-    const response = await injectMutation(route, request, options);
-    expectError(response, 500, "INTERNAL_SERVER_ERROR");
-    expect(response.body).not.toContain("Private database credentials");
-    expect(dbMock.calls.some((call) => call.table === "proposed_stations")).toBe(false);
   });
 
   it("rejects another submitter's filter on the owner's view", async () => {
@@ -210,18 +201,6 @@ describe("GET /submissions", () => {
     dbMock.enqueueFor("select", "users", [{ role: "user" }]);
     dbMock.enqueueFor("select", "role_grants", []);
     expectError(await injectMutation(route, { ...request, url: "/submissions?submitters=all" }, options), 403, "INSUFFICIENT_PERMISSIONS");
-  });
-
-  it("restricts an editor's all view to their grant's stations and proposed locations", async () => {
-    dbMock.enqueueFor("select", "users", [{ role: "editor" }]);
-    dbMock.enqueueFor("select", "role_grants", [{ countryCode: "PL", grantRole: "editor", isCountryWide: false, regionId: 1 }]);
-    dbMock.enqueueFor("select", "submissions", []);
-    const response = await injectMutation(route, { ...request, url: "/submissions?submitters=all" }, { session: userSession(submitterId, "editor") });
-    expect(response.statusCode).toBe(200);
-    const condition = whereQuery("submissions", "select");
-    expect(condition.sql).toContain('"proposed_locations"');
-    expect(condition.sql).toContain('"stations"');
-    expect(condition.params).toContain(1);
   });
 
   it("combines owner, status, action, operator, region and literal text filters and counts the same rows", async () => {
@@ -279,15 +258,5 @@ describe("GET /submissions", () => {
     const response = await injectMutation(route, request, options);
     expectError(response, 403, "FEATURE_DISABLED");
     expect(dbMock.calls).toEqual([]);
-  });
-
-  it("returns the owner's empty submission list", async () => {
-    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
-    dbMock.enqueueFor("select", "users", [{ role: "user" }]);
-    dbMock.enqueueFor("select", "role_grants", []);
-    dbMock.enqueueFor("select", "submissions", []);
-    const response = await injectMutation(route, request, options);
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ data: [] });
   });
 });

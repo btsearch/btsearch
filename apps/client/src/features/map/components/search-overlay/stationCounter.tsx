@@ -13,9 +13,9 @@ import type { StationSource } from "@/types/station";
 type StationCounterProps = {
   locationCount: number;
   totalCount: number;
-  radioLineCount: number;
-  radioLineTotalCount: number;
-  isRadioLinesFetching: boolean;
+  microwaveLinkCount: number;
+  microwaveLinkTotalCount: number;
+  isMicrowaveLinksFetching: boolean;
   showStations: boolean;
   zoom?: number;
   source: StationSource;
@@ -27,23 +27,23 @@ const SOURCE_CELL_CLASS = "px-2 py-1.5 flex items-center gap-1.5";
 const SOURCE_LABEL_CLASS = "text-[8px] uppercase font-bold leading-none whitespace-nowrap";
 const SOURCE_SURFACE_CLASS: Record<StationSource, string> = {
   internal: "bg-emerald-500/10",
-  uke: "bg-violet-500/10",
+  official: "bg-violet-500/10",
 };
 const SOURCE_SWITCH_CLASS: Record<StationSource, string> = {
   internal: "cursor-pointer transition-colors hover:bg-emerald-500/20",
-  uke: "cursor-pointer transition-colors hover:bg-violet-500/20",
+  official: "cursor-pointer transition-colors hover:bg-violet-500/20",
 };
 const SOURCE_TEXT_CLASS: Record<StationSource, string> = {
   internal: "text-emerald-700 dark:text-emerald-400",
-  uke: "text-violet-600 dark:text-violet-400",
+  official: "text-violet-600 dark:text-violet-400",
 };
 
 export function StationCounter({
   locationCount,
   totalCount,
-  radioLineCount,
-  radioLineTotalCount,
-  isRadioLinesFetching,
+  microwaveLinkCount,
+  microwaveLinkTotalCount,
+  isMicrowaveLinksFetching,
   showStations,
   zoom,
   source,
@@ -53,16 +53,16 @@ export function StationCounter({
   const { t } = useTranslation("main");
   const { t: tCommon } = useTranslation("common");
   const hasMoreLocations = totalCount > locationCount;
-  const hasMoreRadioLines = radioLineTotalCount > radioLineCount;
-  const showRadioLines = radioLineCount > 0 || isRadioLinesFetching;
-  const { isRegisterOnScreen } = mapCountries;
+  const hasMoreMicrowaveLinks = microwaveLinkTotalCount > microwaveLinkCount;
+  const showMicrowaveLinks = microwaveLinkCount > 0 || isMicrowaveLinksFetching;
+  const hasSourceSwitch = mapCountries.capabilities.official;
 
-  const { data: statistics } = useQuery({ ...countryStatisticsQueryOptions(), enabled: isRegisterOnScreen });
+  const { data: statistics } = useQuery({ ...countryStatisticsQueryOptions(), enabled: hasSourceSwitch });
   const dataDates = readMapDataDates(statistics, mapCountries.onScreen);
 
   const sourceItems: { label: string; date: string | null; value: StationSource }[] = [
     { label: t("stats.internalData"), date: dataDates.database, value: "internal" },
-    { label: tCommon("labels.ukePermits"), date: dataDates.register, value: "uke" },
+    { label: tCommon("labels.permitRegister"), date: dataDates.register, value: "official" },
   ];
 
   const sourceLabelClass = cn(SOURCE_LABEL_CLASS, SOURCE_TEXT_CLASS[source]);
@@ -73,7 +73,7 @@ export function StationCounter({
   );
 
   function handleSourceSwitch() {
-    onSourceChange(source === "internal" ? "uke" : "internal");
+    onSourceChange(source === "internal" ? "official" : "internal");
   }
 
   return (
@@ -96,30 +96,30 @@ export function StationCounter({
           <TooltipContent side="bottom">{t("overlay.moreStations", { total: totalCount, shown: locationCount })}</TooltipContent>
         </Tooltip>
       ) : null}
-      {showRadioLines ? (
+      {showMicrowaveLinks ? (
         <Tooltip>
           <TooltipTrigger
-            className={cn("px-2 py-1.5 flex items-center gap-2 border-r border-border/50", hasMoreRadioLines && "cursor-help")}
-            disabled={!hasMoreRadioLines}
+            className={cn("px-2 py-1.5 flex items-center gap-2 border-r border-border/50", hasMoreMicrowaveLinks && "cursor-help")}
+            disabled={!hasMoreMicrowaveLinks}
           >
             <div className="flex items-baseline gap-1">
-              <span className={cn("text-sm font-bold tabular-nums leading-none tracking-tight", hasMoreRadioLines && "text-amber-500")}>
-                {radioLineCount.toLocaleString(i18n.language)}
+              <span className={cn("text-sm font-bold tabular-nums leading-none tracking-tight", hasMoreMicrowaveLinks && "text-amber-500")}>
+                {microwaveLinkCount.toLocaleString(i18n.language)}
               </span>
               <span className="text-[9px] font-bold text-muted-foreground leading-none uppercase tracking-wider">
-                {t("overlay.radiolinesCount", { count: radioLineCount })}
+                {t("overlay.radiolinesCount", { count: microwaveLinkCount })}
               </span>
             </div>
           </TooltipTrigger>
           <TooltipContent side="bottom">
             {t("overlay.moreRadiolines", {
-              total: radioLineTotalCount,
-              shown: radioLineCount,
+              total: microwaveLinkTotalCount,
+              shown: microwaveLinkCount,
             })}
           </TooltipContent>
         </Tooltip>
       ) : null}
-      {isRegisterOnScreen ? (
+      {hasSourceSwitch ? (
         <Tooltip>
           <TooltipTrigger
             type="button"

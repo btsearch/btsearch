@@ -3,7 +3,7 @@ import { SI2PEMClient, isSI2PEMError } from "si2pem-reader";
 import z from "zod";
 
 import { ErrorResponse } from "../../../../errors.js";
-import { ENTITY_TO_MNC, MNC_TO_ENTITY, fetchOperatorsMap } from "../../../../features/pem/entities.js";
+import { fetchOperatorsMap, mncToSi2pemName, si2pemNameToMnc } from "../../../../features/pem/entities.js";
 import { attachInternalStationIds } from "../../../../features/pem/internalStations.js";
 import { si2pemDateToCalendarDate, toSI2PEMFileUrl, warsawDateTimeToISO } from "../../../../features/pem/si2pemValues.js";
 import { VOIVODESHIP_TO_TERYT_PREFIX, fetchRegion, fetchRegionsMap, getVoivodeshipByTeryt } from "../../../../features/pem/voivodeships.js";
@@ -80,7 +80,7 @@ const schemaRoute = {
     operator: z.coerce
       .number()
       .int()
-      .refine((mnc) => mnc in MNC_TO_ENTITY, { message: "Unsupported operator" })
+      .refine((mnc) => mncToSi2pemName(mnc) !== undefined, { message: "Unsupported operator" })
       .optional(),
     region: z.coerce.number().int().positive().optional(),
   }),
@@ -100,7 +100,7 @@ const EMPTY_RESULT: ResBody = { totalCount: 0, data: [] };
 
 function getInstallationMnc(record: SI2PEMInstallation): number | null {
   const { operator, installation_operator_name } = record.base_station;
-  return ENTITY_TO_MNC[record.entity ?? ""] ?? ENTITY_TO_MNC[installation_operator_name ?? ""] ?? ENTITY_TO_MNC[operator ?? ""] ?? null;
+  return si2pemNameToMnc(record.entity) ?? si2pemNameToMnc(installation_operator_name) ?? si2pemNameToMnc(operator) ?? null;
 }
 
 function getInstallationCity(record: SI2PEMInstallation): string {
@@ -119,7 +119,7 @@ async function fetchInstallationsPage({ page, limit, stationId, mnc, voivodeship
   try {
     json = await si2pem.listInstallations({
       baseStation: stationId ?? "",
-      entity: mnc === undefined ? undefined : MNC_TO_ENTITY[mnc],
+      entity: mnc === undefined ? undefined : mncToSi2pemName(mnc),
       voivodeship,
       page,
       pageSize: limit,

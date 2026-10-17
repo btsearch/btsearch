@@ -41,21 +41,6 @@ describe("PATCH /push-subscriptions/11111111-1111-4111-8111-111111111111", () =>
     });
   });
 
-  it("preserves explicit disabled topics and enables only configured official updates", async () => {
-    dbMock.enqueueFor("update", "push_subscriptions", [
-      { ...row, preferences: { ukeUpdates: true, submissionUpdates: false, newSubmission: false, stationWatches: false } },
-    ]);
-    const response = await injectMutation(
-      route,
-      { method: "PATCH", url: "/push-subscriptions/11111111-1111-4111-8111-111111111111", payload },
-      { session: userSession(ownerId, "user") },
-    );
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      data: { topics: { officialDataUpdates: true, submissionUpdates: false, newSubmissions: false, stationWatches: false } },
-    });
-  });
-
   it("hides missing or foreign subscriptions", async () => {
     dbMock.enqueueFor("update", "push_subscriptions", []);
     const response = await injectMutation(

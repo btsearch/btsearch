@@ -8,6 +8,9 @@ import { z } from "zod/v4";
 import { ErrorResponse } from "../../../../errors.js";
 import { runAuditedOperation, standaloneAuditContext } from "../../../../features/audit/index.js";
 import { toCountry } from "../../../../features/countries/serialize.js";
+import { forgetCountryVisibility } from "../../../../features/countries/visibility.js";
+import { loadSourceCapabilities } from "../../../../features/official/capabilities.js";
+import { loadOfficialVisibility } from "../../../../features/official/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -51,8 +54,9 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       await audit.log({ entity: "countries", op: "create", recordId: code, new: created });
       return created;
     });
+    await forgetCountryVisibility();
 
-    return res.status(201).send({ data: toCountry(country) });
+    return res.status(201).send({ data: toCountry(country, await loadSourceCapabilities(await loadOfficialVisibility(req))) });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_CREATE", { cause: error });

@@ -1,24 +1,17 @@
-import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
-import type { Station, UkePermit, UkeStation } from "@/types/station";
+import type { OfficialPermit, OfficialPermitInclude } from "@openbts/shared/contract";
 
-export const fetchStation = (id: number) => fetchApiData<Station>(`stations/${id}`);
+import { type OfficialPermitListParams, fetchOfficialPermits } from "@/features/official/api";
+import { fetchAllPages } from "@/lib/api";
 
-export const fetchUkeStation = (id: number) => fetchApiData<UkeStation>(`uke/stations/${id}`);
-export const fetchStationPermits = (stationId: number) =>
-  fetchApiData<UkePermit[]>(`stations/${stationId}/permits`, { allowedErrors: [404] }).then((permits) => permits ?? []);
-export const fetchUkePermit = (id: string) => fetchApiData<UkePermit[]>(`uke/permits?station_id=${id}`);
+const PERMITS_PER_PAGE = 200;
+const STATION_PERMIT_INCLUDE: OfficialPermitInclude[] = ["sectors", "officialSite", "officialSite.location"];
 
-export async function fetchIsUkeStationWatched(ukeStationId: number): Promise<boolean> {
-  const status = await fetchApiData<{ watched: boolean }>(`uke/stations/${ukeStationId}/watch`);
-  return status.watched;
+export function fetchAllOfficialPermits(query: OfficialPermitListParams, signal?: AbortSignal): Promise<OfficialPermit[]> {
+  return fetchAllPages((cursor) => fetchOfficialPermits({ ...query, limit: PERMITS_PER_PAGE, cursor }, signal));
 }
 
-export async function watchUkeStation(ukeStationId: number): Promise<void> {
-  await fetchJson(`${API_BASE}/uke/stations/${ukeStationId}/watch`, { method: "POST" });
-}
-
-export async function unwatchUkeStation(ukeStationId: number): Promise<void> {
-  await fetchJson(`${API_BASE}/uke/stations/${ukeStationId}/watch`, { method: "DELETE" });
+export function fetchStationPermits(stationId: number, signal?: AbortSignal): Promise<OfficialPermit[]> {
+  return fetchAllOfficialPermits({ stationIds: [stationId], include: STATION_PERMIT_INCLUDE }, signal);
 }
 
 export async function fetchElevation(latitude: number, longitude: number): Promise<number> {

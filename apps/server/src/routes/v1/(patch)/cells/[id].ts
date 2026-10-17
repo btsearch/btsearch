@@ -79,7 +79,6 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         cell.rat === "LTE" ? ({ ...cell.lte, ...lteDetails } as Record<string, unknown>) : (req.body.details as Record<string, unknown>);
       const operatorId = await getOperatorIdForStation(cell.station_id);
       if (operatorId) await checkCellDuplicate({ rat: cell.rat, details: identityDetails, excludeCellId: id }, operatorId);
-      // await checkLTEClidConsistency(cell.station_id, [{ rat: cell.rat, details: identityDetails, excludeCellId: id }]);
     }
 
     assertCellUpdateSetsNoNsaFields(cell, req.body);

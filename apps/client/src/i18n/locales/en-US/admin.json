@@ -12,16 +12,16 @@
     "noCommentsToModerate": "No comments to moderate",
     "openImportPage": "Open import page",
     "importSteps": {
-      "permits": "Permits",
-      "radiolines": "Microwave links",
-      "device_registry": "Device registry",
-      "prune_deleted_entries": "Prune deleted",
-      "prune_associations": "Prune associations",
-      "cleanup_orphaned_uke_entities": "Cleanup orphaned",
-      "associate": "Associate",
-      "cleanup": "Cleanup",
-      "snapshot": "Snapshot",
-      "refresh_statistics": "Refresh statistics"
+      "unlistedPermits": "Archive unlisted permits",
+      "siteNotifications": "Register station notifications",
+      "links": "Associate permits",
+      "stationNotifications": "Station notifications",
+      "orphans": "Remove orphaned stations",
+      "statistics": "Refresh statistics",
+      "push": "Push notifications",
+      "kmz": "KMZ export",
+      "publish": "Send summary",
+      "prune": "Prune old imports"
     },
     "area": "Your area: {{area}}",
     "noArea": "You have no area assigned",
@@ -162,7 +162,7 @@
     },
     "features": {
       "submissions": {
-        "description": "Sending, browsing and reviewing submissions. Each country opens them separately on its own page",
+        "description": "Sending, browsing and reviewing submissions. They also have to be turned on for each country",
         "confirm": {
           "title": "Disable submissions?",
           "description": "Nobody will be able to send or review a submission, editors included. Pending submissions stay in the database",
@@ -182,7 +182,7 @@
         "note": "Moderating and deleting comments works even while comments are disabled"
       },
       "commentReview": {
-        "description": "New comments wait for approval, unless a moderator writes them",
+        "description": "New and edited comments wait for approval, unless a moderator writes or edits them",
         "waiting": "Starts working once comments are enabled"
       }
     },
@@ -563,17 +563,17 @@
       "public": "Public",
       "private": "Private"
     },
-    "stationsPlusOfficial": "{{stations}} + {{officialSites, number}} UKE",
+    "stationsPlusOfficial": "{{stations}} + {{officialSites, number}} register",
     "stationsTip": {
       "database_one": "{{count, number}} station from the database",
       "database_other": "{{count, number}} stations from the database",
-      "official_one": "{{count, number}} station from the UKE register",
-      "official_other": "{{count, number}} stations from the UKE register",
+      "official_one": "{{count, number}} station from the register",
+      "official_other": "{{count, number}} stations from the register",
       "both": "{{database}} and {{official}}"
     },
     "contents": {
-      "officialSites_one": "{{count, number}} UKE station",
-      "officialSites_other": "{{count, number}} UKE stations"
+      "officialSites_one": "{{count, number}} register station",
+      "officialSites_other": "{{count, number}} register stations"
     },
     "menu": {
       "openOnMap": "Open on the map",
@@ -598,55 +598,122 @@
       "searchPlaceholder": "Search by city, address or station ID..."
     }
   },
-  "ukeImport": {
-    "subtitle": "Import data from UKE (Urząd Komunikacji Elektronicznej)",
-    "hourlySchedule": "Automatic imports run every hour",
-    "sources": {
-      "label": "Sources",
-      "importPermits": "Permits",
-      "importRadiolines": "Microwave links",
-      "importDeviceRegistry": "Device registry"
+  "officialImport": {
+    "subtitle": "Permits and microwave links from official registers",
+    "schedule": {
+      "every_one": "Automatic imports check for new releases every hour",
+      "every_other": "Automatic imports check for new releases every {{count}} hours",
+      "range": "Automatic imports check for new releases every {{min}} to {{max}} hours",
+      "off": "Automatic imports are switched off"
+    },
+    "datasets": {
+      "permits": "Permits",
+      "deviceRegistry": "Device registry",
+      "microwaveLinks": "Microwave links"
     },
     "startImport": "Start import",
     "startFailed": "Could not start the import. Try again",
     "alreadyRunning": "Import is already in progress",
+    "cancel": "Cancel import",
     "status": {
-      "idle": "Idle",
+      "queued": "Queued",
       "running": "Running",
       "success": "Completed",
       "completedWithErrors": "Completed with errors",
-      "error": "Errored out"
+      "held": "Partly held",
+      "error": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "kind": {
+      "replay": "Replay",
+      "remap": "Remap",
+      "relink": "Relink"
     },
     "steps": {
-      "permits": "Import permits",
-      "radiolines": "Import microwave links",
-      "device_registry": "Import device registry",
-      "prune_deleted_entries": "Prune old deleted entries",
-      "prune_associations": "Prune station-permit associations",
-      "cleanup_orphaned_uke_entities": "Clean up orphaned UKE stations and locations",
-      "associate": "Associate stations with permits",
-      "cleanup": "Cleanup temporary files",
-      "snapshot": "Create database snapshot",
-      "refresh_statistics": "Refresh statistics"
+      "unlistedPermits": "Archive permits no longer listed",
+      "siteNotifications": "Notify watchers of register stations",
+      "links": "Associate stations with permits",
+      "stationNotifications": "Notify watchers of stations",
+      "orphans": "Clean up orphaned register stations and locations",
+      "statistics": "Refresh statistics",
+      "push": "Send push notifications",
+      "kmz": "Export KMZ files",
+      "publish": "Send the import summary",
+      "prune": "Prune old imports"
     },
     "stepStatus": {
       "pending": "Pending",
       "running": "Running",
       "success": "Done",
+      "unchanged": "Unchanged",
+      "held": "Held",
       "skipped": "Skipped",
+      "stopped": "Not finished",
       "error": "Error"
     },
     "failure": {
-      "dashboard": "The UKE import needs attention",
+      "dashboard": "The register import needs attention",
       "job": "The import failed"
     },
+    "queuedAt": "Queued at",
     "startedAt": "Started at",
     "finishedAt": "Finished at",
     "duration": "Duration",
     "trigger": {
       "label": "Run type",
       "manual": "Manual",
-      "scheduled": "Automatic"
+      "scheduled": "Automatic",
+      "cli": "Command line"
+    },
+    "slices": "Slices",
+    "sliceOutcome": {
+      "applied": "Applied",
+      "unchanged": "Unchanged",
+      "held": "Held"
+    },
+    "changes": {
+      "label": "Changes",
+      "other": "Other changes",
+      "siteAdded": "Register stations added",
+      "siteMoved": "Register stations moved",
+      "siteRemapped": "Register stations moved to another operator",
+      "permitAdded": "Permits added",
+      "permitListed": "Permits added to a listing",
+      "permitUnlisted": "Permits removed from a listing",
+      "permitArchived": "Permits archived",
+      "stationLinked": "Stations linked to permits",
+      "stationUnlinked": "Stations unlinked from permits",
+      "microwaveLinkAdded": "Microwave links added",
+      "microwaveLinkRenewed": "Microwave links renewed",
+      "microwaveLinkArchived": "Microwave links archived"
+    },
+    "skippedRecords": "Skipped records",
+    "skipReasons": {
+      "badCoordinates": "Invalid coordinates",
+      "missingSiteId": "No station ID",
+      "missingLicensee": "No licensee name",
+      "unknownLabel": "Unrecognized band",
+      "unknownDecisionType": "Unrecognized decision type",
+      "unknownRegion": "Region not found",
+      "unmappedLicensee": "Licensee without an operator",
+      "siteIdTooLong": "Station ID too long",
+      "decisionNumberTooLong": "Decision number too long",
+      "badLabel": "Invalid band",
+      "duplicateLink": "Duplicate microwave link"
+    },
+    "held": {
+      "slice": "{{slice}} is held - records in the release: {{releaseRecordCount, number}}, stored: {{storedRecordCount, number}}",
+      "dataset": "Held - records in the release: {{releaseRecordCount, number}}, stored: {{storedRecordCount, number}}",
+      "apply": "Apply anyway",
+      "confirmTitle": "Apply the held release?",
+      "confirmDescription": "A new import of this dataset will apply the release although it has far fewer records than are stored. Records missing from it will be removed"
+    },
+    "dryRun": {
+      "label": "Dry run",
+      "reportGone": "The report of this dry run is no longer available",
+      "stationNamesWritten": "Station names written",
+      "stationNamesSkipped": "Station names skipped",
+      "licenseeNamesCorrected": "Licensee names corrected"
     },
     "latest": {
       "title": "Latest import",
@@ -656,11 +723,10 @@
     },
     "history": {
       "title": "Previous imports",
-      "description": "Runs from the last 7 days",
-      "empty": "No previous imports in the last 7 days",
+      "description": "Earlier runs, newest first",
+      "empty": "No previous imports",
       "loading": "Loading previous imports...",
-      "loadError": "Could not load previous imports",
-      "showMore": "Show {{count}} more"
+      "loadError": "Could not load previous imports"
     }
   },
   "auditLogs": {
@@ -716,7 +782,10 @@
       "user": "Users",
       "list": "User lists",
       "settings": "Settings",
-      "uke": "UKE import",
+      "official": "Register import",
+      "official_source": "Register sources",
+      "official_dataset": "Register datasets",
+      "licensee": "Licensees",
       "analyzer": "Analyzer",
       "system": "System",
       "revert": "Reverts",
@@ -804,8 +873,17 @@
       "settings": {
         "update": "Settings updated"
       },
-      "uke": {
-        "import": "UKE import"
+      "official": {
+        "import": "Register import"
+      },
+      "official_source": {
+        "update": "Register source updated"
+      },
+      "official_dataset": {
+        "update": "Register dataset updated"
+      },
+      "licensee": {
+        "update": "Licensee updated"
       },
       "system": {
         "inactive_cleanup": "Inactive stations cleanup",
@@ -840,6 +918,9 @@
       "users": "Users",
       "user_lists": "User lists",
       "settings": "Settings",
+      "official_sources": "Register sources",
+      "official_datasets": "Register datasets",
+      "licensees": "Licensees",
       "structure_owners": "Structure owners"
     },
     "ops": {
@@ -890,6 +971,12 @@
       "user_lists_other": "{{count, number}} user lists",
       "settings_one": "{{count, number}} setting",
       "settings_other": "{{count, number}} settings",
+      "official_sources_one": "{{count, number}} register source",
+      "official_sources_other": "{{count, number}} register sources",
+      "official_datasets_one": "{{count, number}} register dataset",
+      "official_datasets_other": "{{count, number}} register datasets",
+      "licensees_one": "{{count, number}} licensee",
+      "licensees_other": "{{count, number}} licensees",
       "other": "{{count, number}} x {{entity}}",
       "structure_owners_one": "{{count, number}} structure owner",
       "structure_owners_other": "{{count, number}} structure owners"
@@ -956,7 +1043,7 @@
       },
       "brand": {
         "slugTaken": "A brand with this slug already exists",
-        "inUse": "Operators, microwave link operators or structure owners still use this brand",
+        "inUse": "Operators, licensees or structure owners still use this brand",
         "notFound": "This brand no longer exists",
         "slugFormat": "A slug is lowercase letters and digits, with single hyphens between words",
         "colorFormat": "A color is written as #RRGGBB"

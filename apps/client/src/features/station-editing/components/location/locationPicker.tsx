@@ -1,6 +1,6 @@
 import { Location01Icon, LocationCheck01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Region } from "@openbts/shared/contract";
+import type { OfficialSite, Region } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,13 +17,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { useCountrySourceName } from "@/features/official/queries";
+import { hasOfficialData } from "@/features/official/sources";
 import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { PICKER_FIELD_CLASS, PICKER_NOTE_CLASS } from "@/features/shared/location/fieldClasses";
-import { regionsQueryOptions } from "@/features/shared/lookups";
+import { countriesQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { type GeocodedPlace, type GeocodingSource, type PlacePoint, placeAtQueryOptions } from "@/lib/geo/geocoding";
 import { cn } from "@/lib/utils";
-import type { UkeStation } from "@/types/station";
 
 export type LocationPickerValue = {
   latitude: number | null;
@@ -62,7 +63,7 @@ type LocationPickerProps = {
   onPlaceDetect?: (location: PickerLocation) => void;
   onAddressFill?: (fill: AddressFill) => void;
   onAddressAdopt?: (location: PickerLocation) => void;
-  onRegisterStationPick?: (station: UkeStation) => void;
+  onRegisterStationPick?: (site: OfficialSite) => void;
   matchMode?: PickerMatchMode;
   ownLocationId?: number | null;
   knownLocationId?: number | null;
@@ -97,7 +98,6 @@ export { PICKER_FIELD_CLASS, PICKER_NOTE_CLASS } from "@/features/shared/locatio
 
 const NO_REGIONS: Region[] = [];
 const NO_DIFFERENCES: MatchDifferences = { region: false, city: false, address: false };
-const MUNICIPALITY_PREFIX = /^gmina\s+/i;
 const EMPTY_VALUE = "-";
 const STRIP_CLASS = "min-h-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-lg border bg-muted/50 px-3 py-1.5";
 
@@ -147,7 +147,7 @@ function toAddressFill(place: GeocodedPlace, regions: readonly Region[]): Addres
   const { street, houseNumber, city, municipality, region, countryCode } = place.address;
   const streetName = street ?? (houseNumber ? city : null);
   const address = [streetName, houseNumber].filter(Boolean).join(" ") || place.name;
-  const locality = city ?? municipality?.replace(MUNICIPALITY_PREFIX, "");
+  const locality = city ?? municipality;
   const matchedRegion = findRegionByName(regions, region, countryCode);
   const fill: AddressFill = {};
 
@@ -216,6 +216,9 @@ export function LocationPicker({
   const [matchedLocation, setMatchedLocation] = useState<PickerLocation | null>(null);
   const [attribution, setAttribution] = useState<GeocodingSource | null>(null);
   const { data: regions = NO_REGIONS } = useQuery(regionsQueryOptions());
+  const { data: countries } = useQuery(countriesQueryOptions());
+  const registerCountryCode = countryCode ?? null;
+  const registerSourceName = useCountrySourceName(registerCountryCode);
   const coordinatesRef = useRef({ latitude: value.latitude, longitude: value.longitude });
   const addressFill = useMutation({
     mutationFn: (target: PlacePoint) => queryClient.fetchQuery(placeAtQueryOptions(target, i18n.language)),
@@ -226,7 +229,7 @@ export function LocationPicker({
   }, [value.latitude, value.longitude]);
 
   const point = toPlacePoint(value.latitude, value.longitude);
-  const hasRegisterToggle = onRegisterStationPick !== undefined && !isDisabled;
+  const hasRegisterToggle = onRegisterStationPick !== undefined && !isDisabled && hasOfficialData(countries, registerCountryCode);
   const hasOtherPlace = matchMode !== undefined && matchedLocation !== null && matchedLocation.id !== ownLocationId;
   const existingMatch = hasOtherPlace ? matchedLocation : null;
   const differences = findMatchDifferences(value, existingMatch);
@@ -298,7 +301,11 @@ export function LocationPicker({
   const registerToggle = hasRegisterToggle ? (
     <label htmlFor={registerToggleId} className="flex items-center gap-1.5 cursor-pointer">
       <Checkbox id={registerToggleId} checked={showsRegister} onCheckedChange={(checked) => setShowsRegister(checked === true)} />
-      <span className="text-xs text-muted-foreground select-none">{t("locationPicker.showUkeLocations")}</span>
+      <span className="text-xs text-muted-foreground select-none">
+        {registerSourceName === null
+          ? t("locationPicker.showRegisterLocations")
+          : t("locationPicker.showSourceLocations", { source: registerSourceName })}
+      </span>
     </label>
   ) : undefined;
 
@@ -314,12 +321,13 @@ export function LocationPicker({
           knownLocationId={knownLocationId}
           azimuthStationId={azimuthStationId}
           showsRegister={hasRegisterToggle && showsRegister}
+          registerCountryCode={registerCountryCode}
           isDisabled={isDisabled}
           onPointSet={onChange}
           onPlacePick={pickPlace}
           onPlaceDetect={(location) => onPlaceDetect?.(location)}
           onMatchChange={setMatchedLocation}
-          onRegisterStationPick={(station) => onRegisterStationPick?.(station)}
+          onRegisterStationPick={(site) => onRegisterStationPick?.(site)}
         />
       </div>
 

@@ -182,8 +182,8 @@ export function PopupBrandMark({ brand, color }: PopupBrandMarkProps) {
   return <BrandMark brand={{ color, logo: brand?.logo ?? null }} size={POPUP_MARK_SIZE} />;
 }
 
-type PopupRowFrameProps = {
-  mark: ReactNode;
+type PopupRowProps = {
+  brand: BrandLook | null;
   color: string;
   title: ReactNode;
   actions?: ReactNode;
@@ -193,12 +193,12 @@ type PopupRowFrameProps = {
   children?: ReactNode;
 };
 
-export function PopupRowFrame({ mark, color, title, actions, actionCount = 0, onOpen, className, children }: PopupRowFrameProps) {
+export function PopupRow({ brand, color, title, actions, actionCount = 0, onOpen, className, children }: PopupRowProps) {
   const style = { backgroundImage: getOperatorTintGradient(color) };
   const body = (
     <>
       <span className="flex h-4 min-w-4 shrink-0 items-center justify-center" aria-hidden="true">
-        {mark}
+        <PopupBrandMark brand={brand} color={color} />
       </span>
       <div className="min-w-0 flex-1">
         <div className={cn("flex min-h-4 flex-wrap items-center gap-x-1.5 gap-y-0.5", TITLE_RESERVE_CLASS_NAMES[actionCount])}>{title}</div>
@@ -229,10 +229,4 @@ export function PopupRowFrame({ mark, color, title, actions, actionCount = 0, on
       {actions ? <div className="absolute top-1 right-1.5 flex items-center">{actions}</div> : null}
     </div>
   );
-}
-
-type PopupRowProps = Omit<PopupRowFrameProps, "mark"> & { brand: BrandLook | null };
-
-export function PopupRow({ brand, color, ...frameProps }: PopupRowProps) {
-  return <PopupRowFrame mark={<PopupBrandMark brand={brand} color={color} />} color={color} {...frameProps} />;
 }

@@ -1,24 +1,24 @@
-import { notifications, operators, pushSubscriptions, stations, ukeStations, users } from "@openbts/drizzle";
+import { notifications, officialSites, operators, pushSubscriptions, stations, users } from "@openbts/drizzle";
 import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import webpush from "web-push";
 
 import db from "../../database/psql.js";
 import { getLabels, t } from "../../i18n/index.js";
+import { unique } from "../../lib/collections.js";
 import type { DbTx } from "../../types/global.js";
 import { logger } from "../../utils/logger.js";
 import { coversTarget, loadStaffAccess } from "../access/access.js";
 import { resolveScopeTargets } from "../access/scope.js";
 import { type StationLabel, stationLabelMetadata } from "../submissions/stationLabels.js";
 import { coalesceOrCreateStationNotification } from "./coalesceOrCreateStationNotification.js";
-import { getStationWatchers } from "./getStationWatchers.js";
-import { getUkeStationWatchers } from "./getUkeStationWatchers.js";
 import { NON_PUBLIC_PUSH_ADDRESS, resolvePublicPushEndpoint, sendPushRequest } from "./publicPushEndpoint.js";
+import { getOfficialSitesWatchers, getStationWatchers, getStationsWatchers } from "./watchers.js";
 
 const { VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env;
 
 if (VAPID_SUBJECT && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-export type StationNotificationType = "station_cells_changed" | "station_photos_added" | "station_comment_approved" | "station_uke_permit_added";
+export type StationNotificationType = "station_cells_changed" | "station_photos_added" | "station_comment_approved" | "station_official_permit_added";
 export type NotificationType =
   | "submission_approved"
   | "submission_rejected"
@@ -30,7 +30,7 @@ const STATION_NOTIFICATION_TYPES: StationNotificationType[] = [
   "station_cells_changed",
   "station_photos_added",
   "station_comment_approved",
-  "station_uke_permit_added",
+  "station_official_permit_added",
 ];
 const SUBMISSION_UPDATE_NOTIFICATION_TYPES = new Set<NotificationType>([
   "submission_approved",
@@ -48,7 +48,7 @@ const NOTIFICATION_TYPE_KEY: Record<
   | "stationCellsChanged"
   | "stationPhotosAdded"
   | "stationCommentApproved"
-  | "stationUkePermitAdded"
+  | "stationOfficialPermitAdded"
 > = {
   submission_approved: "submissionApproved",
   submission_rejected: "submissionRejected",
@@ -57,7 +57,7 @@ const NOTIFICATION_TYPE_KEY: Record<
   station_cells_changed: "stationCellsChanged",
   station_photos_added: "stationPhotosAdded",
   station_comment_approved: "stationCommentApproved",
-  station_uke_permit_added: "stationUkePermitAdded",
+  station_official_permit_added: "stationOfficialPermitAdded",
 };
 
 export function notificationTitle(type: NotificationType, locale: string | null | undefined): string {
@@ -193,8 +193,8 @@ function buildPushBody(baseBody: string, metadata: Record<string, unknown> | und
     updated,
     permits_added,
     permits_deleted,
-    uke_stations_added,
-    uke_station_deleted,
+    official_sites_added,
+    official_site_deleted,
     count,
   } = metadata ?? {};
   if (typeof submitter_name === "string") lines.push(`${labels.submittedBy} ${submitter_name}`);
@@ -209,13 +209,22 @@ function buildPushBody(baseBody: string, metadata: Record<string, unknown> | und
   if (typeof updated === "number" && updated > 0) lines.push(`${labels.cellsUpdated}: ${updated}`);
   if (typeof permits_added === "number" && permits_added > 0) lines.push(`${labels.permitsAdded}: ${permits_added}`);
   if (typeof permits_deleted === "number" && permits_deleted > 0) lines.push(`${labels.permitsDeleted}: ${permits_deleted}`);
-  if (typeof uke_stations_added === "number" && uke_stations_added > 0) lines.push(`${labels.ukeStationsAdded}: ${uke_stations_added}`);
-  if (uke_station_deleted === true) lines.push(labels.ukeStationDeleted);
+  if (typeof official_sites_added === "number" && official_sites_added > 0) lines.push(`${labels.officialSitesAdded}: ${official_sites_added}`);
+  if (official_site_deleted === true) lines.push(labels.officialSiteDeleted);
   if (typeof count === "number" && count > 1) lines.push(`${labels.count}: ${count}`);
   return lines.join("\n");
 }
 
 type StationOperator = { operatorName: string; operatorMnc: number | null };
+type StationWatchNotification = {
+  stationId: number;
+  stationStringId?: string | null;
+  type: StationNotificationType;
+  metadata?: Record<string, unknown>;
+  actionUrl?: string;
+};
+type OfficialSiteWatchNotification = Omit<StationWatchNotification, "stationId"> & { officialSiteId: number; siteDeleted?: boolean };
+type LocaleByUser = ReadonlyMap<string, string | null>;
 
 async function getStationOperator(stationId: number): Promise<StationOperator | undefined> {
   const [station] = await db
@@ -227,37 +236,56 @@ async function getStationOperator(stationId: number): Promise<StationOperator | 
   return station;
 }
 
-async function getUkeStationOperator(ukeStationId: number): Promise<StationOperator | undefined> {
-  const [station] = await db
-    .select({ operatorName: operators.name, operatorMnc: operators.mnc })
-    .from(ukeStations)
-    .innerJoin(operators, eq(ukeStations.operator_id, operators.id))
-    .where(eq(ukeStations.id, ukeStationId))
-    .limit(1);
-  return station;
+async function getStationOperators(stationIds: readonly number[], reader: Pick<DbTx, "select">): Promise<Map<number, StationOperator>> {
+  const operated = await reader
+    .select({ stationId: stations.id, operatorName: operators.name, operatorMnc: operators.mnc })
+    .from(stations)
+    .innerJoin(operators, eq(stations.operator_id, operators.id))
+    .where(inArray(stations.id, [...stationIds]));
+  return new Map(operated.map(({ stationId, ...operator }) => [stationId, operator]));
 }
 
-async function notifyWatchers(params: {
-  watcherIds: string[];
-  stationId?: number;
-  ukeStationId?: number;
-  stationOperator: StationOperator | undefined;
-  stationStringId?: string | null;
-  type: StationNotificationType;
-  metadata?: Record<string, unknown>;
-  actionUrl?: string;
-  detached?: boolean;
-}): Promise<void> {
-  const localeRows = await db.select({ id: users.id, locale: users.locale }).from(users).where(inArray(users.id, params.watcherIds));
-  const localeByUser = new Map(localeRows.map((u) => [u.id, u.locale]));
+async function getOfficialSiteOperators(siteIds: readonly number[], reader: Pick<DbTx, "select">): Promise<Map<number, StationOperator>> {
+  const operated = await reader
+    .select({ siteId: officialSites.id, operatorName: operators.name, operatorMnc: operators.mnc })
+    .from(officialSites)
+    .innerJoin(operators, eq(officialSites.operator_id, operators.id))
+    .where(inArray(officialSites.id, [...siteIds]));
+  return new Map(operated.map(({ siteId, ...operator }) => [siteId, operator]));
+}
 
-  await Promise.allSettled(
-    params.watcherIds.map(async (userId) => {
-      const strings = t(NOTIFICATION_TYPE_KEY[params.type], localeByUser.get(userId));
-      await coalesceOrCreateStationNotification({
+async function getLocaleByUser(userIds: readonly string[], reader: Pick<DbTx, "select">): Promise<LocaleByUser> {
+  const localeRows = await reader
+    .select({ id: users.id, locale: users.locale })
+    .from(users)
+    .where(inArray(users.id, [...userIds]));
+  return new Map(localeRows.map((u) => [u.id, u.locale]));
+}
+
+async function notifyWatchers(
+  params: {
+    watcherIds: string[];
+    localeByUser: LocaleByUser;
+    stationId?: number;
+    officialSiteId?: number;
+    stationOperator: StationOperator | undefined;
+    stationStringId?: string | null;
+    type: StationNotificationType;
+    metadata?: Record<string, unknown>;
+    actionUrl?: string;
+    detached?: boolean;
+  },
+  tx?: DbTx,
+): Promise<void> {
+  const executor = tx ?? db;
+
+  async function notifyWatcher(userId: string): Promise<void> {
+    const strings = t(NOTIFICATION_TYPE_KEY[params.type], params.localeByUser.get(userId));
+    await coalesceOrCreateStationNotification(
+      {
         userId,
         stationId: params.stationId,
-        ukeStationId: params.ukeStationId,
+        officialSiteId: params.officialSiteId,
         detached: params.detached,
         type: params.type,
         title: strings.title,
@@ -266,40 +294,68 @@ async function notifyWatchers(params: {
           ...params.metadata,
         },
         actionUrl: params.actionUrl,
-      });
-    }),
-  );
+      },
+      executor,
+    );
+  }
+
+  if (tx === undefined) {
+    await Promise.allSettled(params.watcherIds.map(notifyWatcher));
+    return;
+  }
+  // eslint-disable-next-line no-await-in-loop
+  for (const userId of params.watcherIds) await notifyWatcher(userId);
 }
 
-export async function notifyStationWatchers(params: {
-  stationId: number;
-  stationStringId?: string | null;
-  type: StationNotificationType;
-  metadata?: Record<string, unknown>;
-  actionUrl?: string;
-}): Promise<void> {
+export async function notifyStationWatchers(params: StationWatchNotification): Promise<void> {
   const [watcherIds, stationOperator] = await Promise.all([getStationWatchers(params.stationId), getStationOperator(params.stationId)]);
   if (watcherIds.length === 0) return;
-  await notifyWatchers({ ...params, watcherIds, stationOperator });
+  const localeByUser = await getLocaleByUser(watcherIds, db);
+  await notifyWatchers({ ...params, watcherIds, localeByUser, stationOperator });
 }
 
-export async function notifyUkeStationWatchers(params: {
-  ukeStationId: number;
-  stationStringId?: string | null;
-  type: StationNotificationType;
-  metadata?: Record<string, unknown>;
-  actionUrl?: string;
-  stationDeleted?: boolean;
-}): Promise<void> {
-  const [watcherIds, stationOperator] = await Promise.all([getUkeStationWatchers(params.ukeStationId), getUkeStationOperator(params.ukeStationId)]);
-  if (watcherIds.length === 0) return;
-  await notifyWatchers({
-    ...params,
-    ukeStationId: params.stationDeleted ? undefined : params.ukeStationId,
-    detached: params.stationDeleted,
-    watcherIds,
-    stationOperator,
-  });
+export async function notifyStationsWatchers(notifications: readonly StationWatchNotification[], tx: DbTx): Promise<void> {
+  if (notifications.length === 0) return;
+
+  const stationIds = notifications.map((notification) => notification.stationId);
+  const [watchers, stationOperators] = await Promise.all([getStationsWatchers(stationIds, tx), getStationOperators(stationIds, tx)]);
+  if (watchers.size === 0) return;
+
+  const localeByUser = await getLocaleByUser(unique([...watchers.values()].flat()), tx);
+  for (const params of notifications) {
+    const watcherIds = watchers.get(params.stationId) ?? [];
+    if (watcherIds.length === 0) continue;
+
+    // eslint-disable-next-line no-await-in-loop
+    await notifyWatchers({ ...params, watcherIds, localeByUser, stationOperator: stationOperators.get(params.stationId) }, tx);
+  }
+}
+
+export async function notifyOfficialSitesWatchers(notifications: readonly OfficialSiteWatchNotification[], tx: DbTx): Promise<void> {
+  if (notifications.length === 0) return;
+
+  const siteIds = notifications.map((notification) => notification.officialSiteId);
+  const [watchers, siteOperators] = await Promise.all([getOfficialSitesWatchers(siteIds, tx), getOfficialSiteOperators(siteIds, tx)]);
+  if (watchers.size === 0) return;
+
+  const localeByUser = await getLocaleByUser(unique([...watchers.values()].flat()), tx);
+  for (const params of notifications) {
+    const watcherIds = watchers.get(params.officialSiteId) ?? [];
+    if (watcherIds.length === 0) continue;
+
+    // eslint-disable-next-line no-await-in-loop
+    await notifyWatchers(
+      {
+        ...params,
+        officialSiteId: params.siteDeleted ? undefined : params.officialSiteId,
+        detached: params.siteDeleted,
+        watcherIds,
+        localeByUser,
+        stationOperator: siteOperators.get(params.officialSiteId),
+      },
+      tx,
+    );
+  }
 }
 
 export async function deliverQueuedStationWatchNotifications(limit = 100): Promise<number> {
@@ -451,7 +507,7 @@ export async function deliverQueuedSubmissionApprovalNotifications(limit = 100):
   return queuedByUser.size;
 }
 
-export async function notifyUkeUpdate(): Promise<void> {
+export async function notifyOfficialDataUpdate(sourceName: string): Promise<void> {
   const subs = await db
     .select({
       endpoint: pushSubscriptions.endpoint,
@@ -461,13 +517,17 @@ export async function notifyUkeUpdate(): Promise<void> {
     })
     .from(pushSubscriptions)
     .innerJoin(users, eq(pushSubscriptions.userId, users.id))
-    .where(sql`(${pushSubscriptions.preferences}->>'ukeUpdates')::boolean = true`);
+    .where(sql`(${pushSubscriptions.preferences}->>'officialDataUpdates')::boolean = true`);
   if (subs.length === 0) return;
 
   await Promise.allSettled(
     subs.map((sub) => {
-      const strings = t("ukeUpdate", sub.locale);
-      const payload = JSON.stringify({ title: strings.title, body: strings.body, actionUrl: "/" });
+      const strings = t("officialDataUpdate", sub.locale);
+      const payload = JSON.stringify({
+        title: strings.title.replace("{source}", sourceName),
+        body: strings.body.replace("{source}", sourceName),
+        actionUrl: "/",
+      });
       return deliverPush([sub], payload);
     }),
   );

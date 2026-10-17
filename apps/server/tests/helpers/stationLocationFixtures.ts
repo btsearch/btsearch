@@ -36,7 +36,7 @@ export function movePlacedStation(mode: "station" | "location") {
   const movedLocation = { ...location, id: mode === "station" ? 3 : 2, latitude: 52.1, longitude: 21.1 };
   const saved = { ...current, location_id: movedLocation.id, location: movedLocation };
   dbMock.enqueueFor("select", "regions", [{ id: 1 }]);
-  dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
+  dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }], [{ regionId: 1 }]);
   dbMock.query.locations.findFirst.mockResolvedValue(undefined);
   auditWrite(mode === "station" ? 2 : 1);
   if (mode === "station") {

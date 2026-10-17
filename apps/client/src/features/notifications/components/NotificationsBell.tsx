@@ -1,4 +1,4 @@
-import { ArrowDown01Icon, Notification01Icon, Notification02Icon, TickDouble02Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, Delete02Icon, Notification01Icon, Notification02Icon, TickDouble02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useIsFetching } from "@tanstack/react-query";
 import { type RefObject, Suspense, lazy, useState } from "react";
@@ -12,6 +12,7 @@ import { InlineError } from "@/components/ui/error-state";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDialog } from "@/features/settings/components/confirmDialog";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
@@ -103,8 +104,22 @@ export function NotificationsBell({ className, side = "bottom", anchor }: Notifi
   const { data: session } = authClient.useSession();
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(NOTIFICATIONS_PAGE_SIZE);
-  const { notifications, unreadCount, hasMore, reachedEnd, nextLimit, isLoading, isLoadingMore, isLoadingError, refetch, markAllRead, markRead } =
-    useNotifications(limit);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    reachedEnd,
+    nextLimit,
+    isLoading,
+    isLoadingMore,
+    isLoadingError,
+    refetch,
+    markAllRead,
+    markRead,
+    deleteAll,
+    deleteOne,
+  } = useNotifications(limit);
   const { subscription, permission, isSubscribing, subscribe, isAvailable: isPushAvailable } = usePushSubscription();
 
   if (!session?.user) return null;
@@ -117,87 +132,115 @@ export function NotificationsBell({ className, side = "bottom", anchor }: Notifi
     if (!isOpen) setLimit(NOTIFICATIONS_PAGE_SIZE);
   };
 
+  const askToClearAll = () => {
+    setOpen(false);
+    setIsClearConfirmOpen(true);
+  };
+
+  const clearAll = () => {
+    setIsClearConfirmOpen(false);
+    deleteAll();
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen} onOpenChangeComplete={resetLimitWhenClosed}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("relative cursor-pointer", className)}
-            aria-label={hasUnread ? t("triggerUnread", { count: unreadCount }) : t("title")}
-            onPointerEnter={preloadNotificationList}
-            onFocus={preloadNotificationList}
-          />
-        }
-      >
-        <HugeiconsIcon icon={Notification01Icon} size={18} />
-        {hasUnread ? (
-          <span
-            aria-hidden="true"
-            className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white"
-          >
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        ) : null}
-      </PopoverTrigger>
-      <PopoverContent
-        side={side}
-        align={anchor ? "center" : "end"}
-        sideOffset={anchor ? 8 : 4}
-        anchor={anchor}
-        collisionPadding={8}
-        className="max-h-[min(37.5rem,var(--available-height))] w-96 max-w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0"
-      >
-        <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-1.5 pl-3">
-          <PopoverTitle className="text-sm font-semibold">{t("title")}</PopoverTitle>
+    <>
+      <Popover open={open} onOpenChange={setOpen} onOpenChangeComplete={resetLimitWhenClosed}>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("relative cursor-pointer", className)}
+              aria-label={hasUnread ? t("triggerUnread", { count: unreadCount }) : t("title")}
+              onPointerEnter={preloadNotificationList}
+              onFocus={preloadNotificationList}
+            />
+          }
+        >
+          <HugeiconsIcon icon={Notification01Icon} size={18} />
           {hasUnread ? (
-            <>
-              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/15 px-1.5 text-[11px] font-bold text-primary tabular-nums">
-                {unreadCount}
-              </span>
-              <Button type="button" variant="ghost" size="sm" className="ml-auto cursor-pointer text-muted-foreground" onClick={markAllRead}>
-                <HugeiconsIcon icon={TickDouble02Icon} data-icon="inline-start" />
-                {t("markAllRead")}
-              </Button>
-            </>
+            <span
+              aria-hidden="true"
+              className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white"
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
           ) : null}
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 scrollbar-thin">
-          {showPushPrompt ? <PushPrompt isSubscribing={isSubscribing} onEnable={() => void subscribe()} /> : null}
-          {isLoadingError ? (
-            <NotificationsLoadError onRetry={() => refetch()} />
-          ) : isLoading ? (
-            <NotificationsSkeleton />
-          ) : notifications.length === 0 ? (
-            <NotificationsEmpty />
-          ) : (
-            <>
-              <Suspense fallback={<NotificationsSkeleton />}>
-                <NotificationList notifications={notifications} onRead={markRead} onNavigate={() => setOpen(false)} />
-              </Suspense>
-              {hasMore ? (
-                <div className="-mx-1 mt-0.5 border-t px-1 pt-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full cursor-pointer text-muted-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
-                    disabled={isLoadingMore}
-                    focusableWhenDisabled
-                    onClick={() => setLimit(nextLimit)}
-                  >
-                    {isLoadingMore ? <Spinner className="size-3.5" /> : null}
-                    {t("loadOlder")}
-                    {isLoadingMore ? null : <HugeiconsIcon icon={ArrowDown01Icon} data-icon="inline-end" />}
-                  </Button>
-                </div>
-              ) : showAllLoaded ? (
-                <p className="py-2.5 text-center text-xs text-muted-foreground">{t("allLoaded")}</p>
-              ) : null}
-            </>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverTrigger>
+        <PopoverContent
+          side={side}
+          align={anchor ? "center" : "end"}
+          sideOffset={anchor ? 8 : 4}
+          anchor={anchor}
+          collisionPadding={8}
+          className="max-h-[min(37.5rem,var(--available-height))] w-96 max-w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0"
+        >
+          <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-1.5 pl-3">
+            <PopoverTitle className="text-sm font-semibold">{t("title")}</PopoverTitle>
+            {hasUnread ? (
+              <>
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/15 px-1.5 text-[11px] font-bold text-primary tabular-nums">
+                  {unreadCount}
+                </span>
+                <Button type="button" variant="ghost" size="sm" className="ml-auto cursor-pointer text-muted-foreground" onClick={markAllRead}>
+                  <HugeiconsIcon icon={TickDouble02Icon} data-icon="inline-start" />
+                  {t("markAllRead")}
+                </Button>
+              </>
+            ) : null}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 scrollbar-thin">
+            {showPushPrompt ? <PushPrompt isSubscribing={isSubscribing} onEnable={() => void subscribe()} /> : null}
+            {isLoadingError ? (
+              <NotificationsLoadError onRetry={() => refetch()} />
+            ) : isLoading ? (
+              <NotificationsSkeleton />
+            ) : notifications.length === 0 ? (
+              <NotificationsEmpty />
+            ) : (
+              <>
+                <Suspense fallback={<NotificationsSkeleton />}>
+                  <NotificationList notifications={notifications} onRead={markRead} onDelete={deleteOne} onNavigate={() => setOpen(false)} />
+                </Suspense>
+                {hasMore ? (
+                  <div className="-mx-1 mt-0.5 border-t px-1 pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full cursor-pointer text-muted-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+                      disabled={isLoadingMore}
+                      focusableWhenDisabled
+                      onClick={() => setLimit(nextLimit)}
+                    >
+                      {isLoadingMore ? <Spinner className="size-3.5" /> : null}
+                      {t("loadOlder")}
+                      {isLoadingMore ? null : <HugeiconsIcon icon={ArrowDown01Icon} data-icon="inline-end" />}
+                    </Button>
+                  </div>
+                ) : showAllLoaded ? (
+                  <p className="py-2.5 text-center text-xs text-muted-foreground">{t("allLoaded")}</p>
+                ) : null}
+              </>
+            )}
+          </div>
+          {notifications.length > 0 ? (
+            <div className="flex h-9 shrink-0 items-center justify-end border-t pr-1.5">
+              <Button type="button" variant="ghost" size="sm" className="cursor-pointer text-muted-foreground" onClick={askToClearAll}>
+                <HugeiconsIcon icon={Delete02Icon} data-icon="inline-start" />
+                {t("common:actions.clearAll")}
+              </Button>
+            </div>
+          ) : null}
+        </PopoverContent>
+      </Popover>
+      <ConfirmDialog
+        open={isClearConfirmOpen}
+        onOpenChange={setIsClearConfirmOpen}
+        title={t("clearConfirm.title")}
+        description={t("clearConfirm.description")}
+        confirmLabel={t("common:actions.clearAll")}
+        onConfirm={clearAll}
+      />
+    </>
   );
 }

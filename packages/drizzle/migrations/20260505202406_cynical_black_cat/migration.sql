@@ -1,1 +1,0 @@
-ALTER TABLE "submissions"."proposed_cells" ALTER COLUMN "is_confirmed" SET NOT NULL;

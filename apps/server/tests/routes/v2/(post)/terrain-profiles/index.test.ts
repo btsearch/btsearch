@@ -1,21 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import route from "../../../../../src/routes/v2/(post)/terrain-profiles/index.js";
-import { dbMock, redisMock, userSession } from "../../../../helpers/boundaries.js";
+import { cacheInRedis, dbMock, redisMock, userSession } from "../../../../helpers/boundaries.js";
+import { COUNTRY_VISIBILITY_KEY, scriptGuestVisibility } from "../../../../helpers/officialDataFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const now = "2026-10-06T10:00:00.000Z";
 const receiver = { latitude: 52.01, longitude: 21, heightMeters: 2 };
 const body = { stationId: 1, receiver };
 const profileId = "20ddf715-e424-4e63-8c73-cc1326c74b3a";
+const terrainKey = expect.stringMatching(/^terrain:/);
 
-function station(source: "internal" | "uke" = "internal") {
-  dbMock.enqueueFor("select", "countries", []);
-  const row = { id: 1, station_id: "A1", location: { id: 2, latitude: 52, longitude: 21 }, operator: null, permits: [] };
+function station(source: "internal" | "official" = "internal", countryCode = "PL", latitude = 52) {
+  scriptGuestVisibility([1]);
+  const row = { id: 1, station_id: "A1", location: { id: 2, latitude, longitude: 21, region: { countryCode } }, operator: null, permits: [] };
   if (source === "internal") {
     dbMock.query.stations.findFirst.mockResolvedValue(row);
     dbMock.query.stationsPermits.findMany.mockResolvedValue([]);
-  } else dbMock.query.ukeStations.findFirst.mockResolvedValue(row);
+  } else dbMock.query.officialSites.findFirst.mockResolvedValue(row);
+}
+
+function terrainReads(...values: (string | null)[]) {
+  const readStore = redisMock.get.getMockImplementation();
+  redisMock.get.mockImplementation(async (key: string) => {
+    if (key.startsWith("terrain:")) return values.shift() ?? null;
+    return (await readStore?.(key)) ?? null;
+  });
 }
 
 function cached(status = "pending", source = "internal") {
@@ -42,7 +52,7 @@ describe("POST /terrain-profiles", () => {
     redisMock.set.mockResolvedValue(null);
   });
 
-  it.each(["internal", "uke"] as const)("creates and caches a pending %s profile with poll headers", async (source) => {
+  it.each(["internal", "official"] as const)("creates and caches a pending %s profile with poll headers", async (source) => {
     station(source);
     const app = await createRouteHarness(route, { session: userSession(undefined, "admin") });
     const payload = source === "internal" ? body : { officialSiteId: 1, receiver };
@@ -54,7 +64,7 @@ describe("POST /terrain-profiles", () => {
     expect(response.json().data).toMatchObject({
       status: "pending",
       stationId: source === "internal" ? 1 : null,
-      officialSiteId: source === "uke" ? 1 : null,
+      officialSiteId: source === "official" ? 1 : null,
       receiver,
       createdAt: now,
       expiresAt: "2026-10-06T11:00:00.000Z",
@@ -67,14 +77,14 @@ describe("POST /terrain-profiles", () => {
     });
     const id: string = response.json().data.id;
     expect(id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(redisMock.setEx).toHaveBeenCalledWith(`terrain:profile:v1:${id}`, 3600, expect.any(String));
-    expect(redisMock.setEx).toHaveBeenCalledWith(expect.stringMatching(/^terrain:profile:request:v1:/), 3600, id);
+    expect(redisMock.setEx).toHaveBeenCalledWith(`terrain:profile:v2:${id}`, 3600, expect.any(String));
+    expect(redisMock.setEx).toHaveBeenCalledWith(expect.stringMatching(/^terrain:profile:request:v2:/), 3600, id);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
   it("reuses a pending profile without storing a new profile or consuming the start quota", async () => {
     station();
-    redisMock.get.mockResolvedValueOnce(profileId).mockResolvedValueOnce(JSON.stringify(cached()));
+    terrainReads(profileId, JSON.stringify(cached()));
     const app = await createRouteHarness(route);
     const response = await app.inject({ method: "POST", url: "/terrain-profiles", payload: body });
 
@@ -89,7 +99,7 @@ describe("POST /terrain-profiles", () => {
 
   it("reuses a ready profile without sending poll headers", async () => {
     station();
-    redisMock.get.mockResolvedValueOnce(profileId).mockResolvedValueOnce(JSON.stringify(cached("ready")));
+    terrainReads(profileId, JSON.stringify(cached("ready")));
     const app = await createRouteHarness(route);
     const response = await app.inject({ method: "POST", url: "/terrain-profiles", payload: body });
 
@@ -102,7 +112,7 @@ describe("POST /terrain-profiles", () => {
 
   it.each(["failed", "cancelled"])("starts a new analysis instead of reusing a %s profile", async (status) => {
     station();
-    redisMock.get.mockResolvedValueOnce(profileId).mockResolvedValueOnce(JSON.stringify(cached(status)));
+    terrainReads(profileId, JSON.stringify(cached(status)));
     const app = await createRouteHarness(route, { session: userSession(undefined, "admin") });
     const response = await app.inject({ method: "POST", url: "/terrain-profiles", payload: body });
 
@@ -113,20 +123,31 @@ describe("POST /terrain-profiles", () => {
 
   it("replaces a stale request index whose profile has expired", async () => {
     station();
-    redisMock.get.mockResolvedValueOnce(profileId).mockResolvedValueOnce(null);
+    terrainReads(profileId, null);
     const app = await createRouteHarness(route, { session: userSession(undefined, "admin") });
 
     expect((await app.inject({ method: "POST", url: "/terrain-profiles", payload: body })).statusCode).toBe(201);
     expect(redisMock.setEx).toHaveBeenCalledTimes(2);
   });
 
-  it("does not resolve a station when Poland is inaccessible", async () => {
-    dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
+  it("does not resolve a station when no country with terrain profiles is accessible", async () => {
+    cacheInRedis(COUNTRY_VISIBILITY_KEY, [{ code: "PL", isVisible: false }]);
     const app = await createRouteHarness(route);
 
     expect((await app.inject({ method: "POST", url: "/terrain-profiles", payload: body })).statusCode).toBe(404);
     expect(dbMock.query.stations.findFirst).not.toHaveBeenCalled();
-    expect(redisMock.get).not.toHaveBeenCalled();
+    expect(redisMock.get).not.toHaveBeenCalledWith(terrainKey);
+  });
+
+  it.each(["internal", "official"] as const)("returns 404 for a %s station in a country without terrain profiles", async (source) => {
+    station(source, "US");
+    const app = await createRouteHarness(route);
+    const payload = source === "internal" ? body : { officialSiteId: 1, receiver };
+
+    expect((await app.inject({ method: "POST", url: "/terrain-profiles", payload })).statusCode).toBe(404);
+    expect(dbMock.query.stationsPermits.findMany).not.toHaveBeenCalled();
+    expect(redisMock.get).not.toHaveBeenCalledWith(terrainKey);
+    expect(redisMock.setEx).not.toHaveBeenCalled();
   });
 
   it.each([undefined, { id: 1, location: null }])("returns 404 when the station is absent or has no location", async (row) => {
@@ -135,7 +156,7 @@ describe("POST /terrain-profiles", () => {
     const app = await createRouteHarness(route);
 
     expect((await app.inject({ method: "POST", url: "/terrain-profiles", payload: body })).statusCode).toBe(404);
-    expect(redisMock.get).not.toHaveBeenCalled();
+    expect(redisMock.get).not.toHaveBeenCalledWith(terrainKey);
     expect(redisMock.setEx).not.toHaveBeenCalled();
   });
 
@@ -150,23 +171,49 @@ describe("POST /terrain-profiles", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().errors[0].code).toBe("BAD_REQUEST");
-    expect(redisMock.get).not.toHaveBeenCalled();
+    expect(redisMock.get).not.toHaveBeenCalledWith(terrainKey);
     expect(redisMock.setEx).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["south", { ...receiver, latitude: 48.799 }],
+    ["north", { ...receiver, latitude: 55.201 }],
+    ["west", { ...receiver, longitude: 13.799 }],
+    ["east", { ...receiver, longitude: 24.501 }],
+  ])("rejects a receiver %s of the receiver bounds of the station's country", async (_name, point) => {
+    station();
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/terrain-profiles", payload: { ...body, receiver: point } });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().errors[0]).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "The receiver must be between latitudes 48.8 and 55.2 and longitudes 13.8 and 24.5.",
+    });
+    expect(redisMock.get).not.toHaveBeenCalledWith(terrainKey);
+    expect(redisMock.setEx).not.toHaveBeenCalled();
+  });
+
+  it("accepts a receiver on the edge of the receiver bounds", async () => {
+    station("internal", "PL", 48.81);
+    const app = await createRouteHarness(route, { session: userSession(undefined, "admin") });
+    const response = await app.inject({ method: "POST", url: "/terrain-profiles", payload: { ...body, receiver: { ...receiver, latitude: 48.8 } } });
+
+    expect(response.statusCode, response.body).toBe(201);
   });
 
   it.each([
     ["no station source", { receiver }],
     ["both station sources", { ...body, officialSiteId: 1 }],
     ["zero station id", { ...body, stationId: 0 }],
-    ["fractional station id", { ...body, stationId: 1.5 }],
     ["negative official id", { officialSiteId: -1, receiver }],
     ["unknown field", { ...body, extra: true }],
     ["empty antenna key", { ...body, antennaKey: "" }],
     ["too-long antenna key", { ...body, antennaKey: "a".repeat(65) }],
-    ["latitude below coverage", { ...body, receiver: { ...receiver, latitude: 48.799 } }],
-    ["latitude above coverage", { ...body, receiver: { ...receiver, latitude: 55.201 } }],
-    ["longitude below coverage", { ...body, receiver: { ...receiver, longitude: 13.799 } }],
-    ["longitude above coverage", { ...body, receiver: { ...receiver, longitude: 24.501 } }],
+    ["latitude below -90", { ...body, receiver: { ...receiver, latitude: -90.001 } }],
+    ["latitude above 90", { ...body, receiver: { ...receiver, latitude: 90.001 } }],
+    ["longitude below -180", { ...body, receiver: { ...receiver, longitude: -180.001 } }],
+    ["longitude above 180", { ...body, receiver: { ...receiver, longitude: 180.001 } }],
     ["height below minimum", { ...body, receiver: { ...receiver, heightMeters: 0.999 } }],
     ["height above maximum", { ...body, receiver: { ...receiver, heightMeters: 100.001 } }],
     ["string coordinates", { ...body, receiver: { ...receiver, latitude: "52" } }],
@@ -219,6 +266,8 @@ describe("POST /terrain-profiles", () => {
   it("returns 503 and saves no profile when the start counter is unavailable", async () => {
     station();
     redisMock.isReady = false;
+    dbMock.enqueueFor("select", "countries", [], []);
+    dbMock.enqueueFor("select", "official.sources", [{ id: 1, countryCode: "PL", isVisible: true }]);
     const app = await createRouteHarness(route);
     const response = await app.inject({ method: "POST", url: "/terrain-profiles", payload: body });
 

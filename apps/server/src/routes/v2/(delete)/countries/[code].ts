@@ -8,6 +8,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { runAuditedOperation, standaloneAuditContext } from "../../../../features/audit/index.js";
 import { countryBandDeleteEntries } from "../../../../features/bands/remove.js";
+import { forgetCountryVisibility } from "../../../../features/countries/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -44,6 +45,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
       await tx.delete(countries).where(eq(countries.code, code));
       await audit.logMany([...countryBandDeleteEntries(plans), { entity: "countries", op: "delete", recordId: code, old: country }]);
     });
+    await forgetCountryVisibility();
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });

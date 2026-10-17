@@ -16,7 +16,8 @@ x-server-common: &server-common
     - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://client}
     - OG_RENDERER_URL=${OG_RENDERER_URL:-http://og-renderer:3040}
     - WORKERS=1
-    - UKE_AUTO_IMPORT=${UKE_AUTO_IMPORT:-true}
+    # Scheduling of official-data imports
+    - OFFICIAL_AUTO_IMPORT=${OFFICIAL_AUTO_IMPORT:-true}
     # Resend (email)
     - RESEND_API_KEY=${RESEND_API_KEY}
     - RESEND_FROM=${RESEND_FROM:-noreply@openbts.sakilabs.com}
@@ -114,7 +115,7 @@ services:
 
   og-renderer:
     image: btsearch-server:${COMMIT_SHA}
-    command: ["bun", "--bun", "/app/apps/server/dist/og-renderer.js"]
+    command: ["node", "/app/apps/server/dist/og-renderer.js"]
     expose:
       - "3040"
     environment:
@@ -122,6 +123,8 @@ services:
       - OG_RENDERER_PORT=3040
       - BASE_URL=${BASE_URL:?BASE_URL is required}
       - APP_NAME=${APP_NAME:-OpenBTS}
+    volumes:
+      - uploads-volume:/app/uploads:ro
     networks:
       - internal
     healthcheck:
@@ -148,6 +151,53 @@ services:
         limits:
           cpus: "1.0"
           memory: 512M
+      placement:
+        constraints:
+          - node.role == manager
+
+  importer:
+    image: btsearch-server:${COMMIT_SHA}
+    command: ["node", "/app/apps/server/dist/importer.js"]
+    environment:
+      # Database, connected directly: an import holds long transactions, which must not go through PgBouncer
+      - DATABASE_URL=${IMPORTER_DATABASE_URL:?IMPORTER_DATABASE_URL is required}
+      - REDIS_URL=redis://default:${REDIS_PASSWORD}@redis:6379
+      - BASE_URL=${BASE_URL:?BASE_URL is required}
+      - APP_NAME=${APP_NAME:-OpenBTS}
+      # AXIOM HQ logging
+      - AXIOM_TOKEN=${AXIOM_TOKEN}
+      - AXIOM_DATASET=${AXIOM_DATASET:-openbts}
+      # VAPID push notifications, the same values as the server's:
+      - VAPID_SUBJECT=${VAPID_SUBJECT}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - KMZ_OUTPUT_DIR=/app/kmz
+      # Archive of downloaded files
+      - OFFICIAL_ARCHIVE_DIR=/app/official-archive
+    volumes:
+      - official-archive-volume:/app/official-archive
+      - type: bind
+        source: /opt/btsearch/kmz
+        target: /app/kmz
+    networks:
+      - internal
+    stop_grace_period: 10m
+    deploy:
+      replicas: ${IMPORTER_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: pause
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: 4G
       placement:
         constraints:
           - node.role == manager
@@ -273,6 +323,7 @@ volumes:
   disposable-email-blocklist-volume:
     external: true
     name: btsearch_disposable-email-blocklist-volume
+  official-archive-volume:
   postgres-volume:
     external: true
     name: btsearch_postgres-volume

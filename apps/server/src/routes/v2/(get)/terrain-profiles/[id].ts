@@ -3,7 +3,7 @@ import type { TerrainProfile, TerrainProfileQuery } from "@openbts/shared/contra
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import { assertEmfCountryVisible } from "../../../../features/emf/site.js";
+import { assertCapabilityVisible } from "../../../../features/countries/visibility.js";
 import { TERRAIN_PROFILE_POLL_SECONDS, getTerrainProfile, toTerrainProfile } from "../../../../features/terrainProfile/profiles.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -27,7 +27,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  404: "The profile does not exist or has expired. Also returned when you cannot access Poland, the country this data covers.",
+  404: "The profile does not exist or has expired. Also returned when you cannot access any country that has terrain profiles.",
   429:
     "You can make up to 120 requests per minute to this path, and reading and cancelling profiles count together. " +
     "The weekly quota of your API key applies as well.",
@@ -36,7 +36,7 @@ const errorReasons = {
 type RequestData = { Params: z.infer<typeof terrainProfileParamsSchema>; Querystring: TerrainProfileQuery };
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<TerrainProfile>>) {
-  await assertEmfCountryVisible(req);
+  await assertCapabilityVisible(req, "terrainProfiles");
 
   const profile = await getTerrainProfile(req.params.id);
 
@@ -50,7 +50,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const getTerrainProfileRoute: Route<RequestData, TerrainProfile> = {
   url: "/terrain-profiles/:id",
   method: "GET",
-  config: { allowGuestAccess: true, permissions: ["read:stations", "read:uke_permits"], errorReasons },
+  config: { allowGuestAccess: true, permissions: ["read:stations", "read:official_permits"], errorReasons },
   schema: schemaRoute,
   handler,
 };

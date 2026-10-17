@@ -50,43 +50,40 @@ describe("PATCH /settings", () => {
     expect(redisMock.multi).not.toHaveBeenCalled();
   });
 
-  it.each(["/api/v1/analyzer", "/api/v1/analyzer/apply", "/api/v1/settings", "/api/v1/submissions/batch"])(
-    "removes a stored rule for the removed route %s when settings are saved",
-    async (removed) => {
-      Object.assign(getRuntimeSettings(), {
-        allowedUnauthenticatedRoutes: ["/api/v1/auth", removed],
-        disabledRoutes: ["/api/v2/stations", removed],
-      });
-      const before = structuredClone(getRuntimeSettings());
-      scriptAudit();
-      const response = await injectMutation(
-        route,
-        { ...request, payload: { access: { openRoutes: before.allowedUnauthenticatedRoutes, disabledRoutes: before.disabledRoutes } } },
-        options,
-      );
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toMatchObject({
-        data: { access: { openRoutes: ["/api/v1/auth"], disabledRoutes: ["/api/v2/stations"] } },
-      });
-      expect(getRuntimeSettings()).toMatchObject({
-        allowedUnauthenticatedRoutes: ["/api/v1/auth"],
-        disabledRoutes: ["/api/v2/stations"],
-      });
-      expect(redisMock.multi).toHaveBeenCalledOnce();
-      expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            entity: "settings",
-            old_values: before,
-            new_values: expect.objectContaining({
-              allowedUnauthenticatedRoutes: ["/api/v1/auth"],
-              disabledRoutes: ["/api/v2/stations"],
-            }),
+  it("removes a stored rule for a removed route when settings are saved", async () => {
+    Object.assign(getRuntimeSettings(), {
+      allowedUnauthenticatedRoutes: ["/api/v1/auth", "/api/v1/analyzer"],
+      disabledRoutes: ["/api/v2/stations", "/api/v1/analyzer"],
+    });
+    const before = structuredClone(getRuntimeSettings());
+    scriptAudit();
+    const response = await injectMutation(
+      route,
+      { ...request, payload: { access: { openRoutes: before.allowedUnauthenticatedRoutes, disabledRoutes: before.disabledRoutes } } },
+      options,
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: { access: { openRoutes: ["/api/v1/auth"], disabledRoutes: ["/api/v2/stations"] } },
+    });
+    expect(getRuntimeSettings()).toMatchObject({
+      allowedUnauthenticatedRoutes: ["/api/v1/auth"],
+      disabledRoutes: ["/api/v2/stations"],
+    });
+    expect(redisMock.multi).toHaveBeenCalledOnce();
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entity: "settings",
+          old_values: before,
+          new_values: expect.objectContaining({
+            allowedUnauthenticatedRoutes: ["/api/v1/auth"],
+            disabledRoutes: ["/api/v2/stations"],
           }),
-        ]),
-      );
-    },
-  );
+        }),
+      ]),
+    );
+  });
 
   it("audits stale rule cleanup even when the supplied feature setting is unchanged", async () => {
     Object.assign(getRuntimeSettings(), {

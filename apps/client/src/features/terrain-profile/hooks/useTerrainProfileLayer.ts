@@ -1,4 +1,4 @@
-import { destinationPoint } from "@openbts/shared/radiolinesUtils";
+import { destinationPoint } from "@openbts/shared/geo";
 import { ANTENNA_AZIMUTH_TOLERANCE_DEG } from "@openbts/shared/terrainProfile";
 import type { GeoJSONSource, LayerSpecification, MapLayerMouseEvent, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
 import { useCallback, useEffect, useRef } from "react";

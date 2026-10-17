@@ -21,6 +21,30 @@
       }
     ]
   },
+  "overrides": [
+    {
+      "files": [
+        "packages/country-packs/index.ts",
+        "packages/country-packs/core/capabilities.ts",
+        "packages/country-packs/core/conventions.ts",
+        "packages/country-packs/core/registry.ts",
+        "packages/country-packs/*/index.ts",
+        "packages/country-packs/*/operators.ts",
+        "packages/country-packs/*/emf.ts",
+        "packages/country-packs/*/earfcn.ts",
+        "packages/country-packs/*/conventions/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": ["drizzle-orm", "@openbts/drizzle", "xlsx", "cheerio"],
+            "patterns": ["node:*", "node:*/**", "drizzle-orm/**", "@openbts/drizzle/**", "xlsx/**", "cheerio/**"]
+          }
+        ]
+      }
+    }
+  ],
   "options": {
     "typeAware": true
   },

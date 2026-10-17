@@ -101,6 +101,7 @@ type MapContextValue = {
   isLoaded: boolean;
   mapStyle: MapStyle;
   setMapStyle: (style: MapStyle) => void;
+  setAttributionTexts: (texts: readonly string[]) => void;
 };
 
 const MapContext = createContext<MapContextValue | null>(null);
@@ -396,6 +397,13 @@ const DEFAULT_ATTRIBUTION_CONTROL_OPTIONS = {
   compact: true,
   customAttribution: '&copy; <a href="https://btsearch.pl">BTSearch</a>',
 };
+const NO_ATTRIBUTION_TEXTS: readonly string[] = [];
+
+function toAttributionHtml(text: string): string {
+  const element = document.createElement("span");
+  element.textContent = text;
+  return element.innerHTML;
+}
 
 const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
   {
@@ -468,6 +476,8 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
 
   const initialStyleRef = useRef({ dark: mapStyles.dark, light: mapStyles.light });
   const initialAttributionControlRef = useRef(attributionControl);
+  const attributionControlRef = useRef<AttributionControl | null>(null);
+  const [attributionTexts, setAttributionTexts] = useState(NO_ATTRIBUTION_TEXTS);
 
   const handleSetMapStyle = useCallback((style: MapStyle) => {
     setMapStyle(style);
@@ -567,7 +577,10 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
     };
     const loadHandler = () => {
       const attributionControlOptions = initialAttributionControlRef.current;
-      if (attributionControlOptions !== false) map.addControl(new AttributionControl(attributionControlOptions));
+      if (attributionControlOptions !== false) {
+        attributionControlRef.current = new AttributionControl(attributionControlOptions);
+        map.addControl(attributionControlRef.current);
+      }
       dispatchMap({ type: "SET_LOADED" });
     };
     const handleMove = () => {
@@ -622,6 +635,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
       map.off("move", handleMove);
       map.off("webglcontextlost", handleContextLost);
       map.off("webglcontextrestored", handleContextRestored);
+      attributionControlRef.current = null;
       map.remove();
       dispatchMap({ type: "TEARDOWN" });
     };
@@ -680,12 +694,23 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
     }
   }, [mapInstance, effectiveTheme, mapStyles, clearStyleTimeout]);
 
+  useEffect(() => {
+    const control = attributionControlRef.current;
+    const options = initialAttributionControlRef.current;
+    if (!isLoaded || control === null || options === false) return;
+
+    const baseAttributions = [options.customAttribution ?? []].flat();
+    control.options = { ...options, customAttribution: [...baseAttributions, ...attributionTexts.map(toAttributionHtml)] };
+    control._updateAttributions();
+  }, [isLoaded, attributionTexts]);
+
   const contextValue = useMemo(
     () => ({
       map: mapInstance,
       isLoaded: isLoaded && isStyleLoaded,
       mapStyle,
       setMapStyle: handleSetMapStyle,
+      setAttributionTexts,
     }),
     [mapInstance, isLoaded, isStyleLoaded, mapStyle, handleSetMapStyle],
   );
@@ -1499,6 +1524,17 @@ function MapStyleSwitcher({ position = "bottom-left", className }: MapStyleSwitc
   );
 }
 
+function MapAttribution({ texts }: { texts: readonly string[] }) {
+  const { setAttributionTexts } = useMap();
+
+  useEffect(() => {
+    setAttributionTexts(texts);
+    return () => setAttributionTexts(NO_ATTRIBUTION_TEXTS);
+  }, [setAttributionTexts, texts]);
+
+  return null;
+}
+
 type MapPopupProps = {
   /** Longitude coordinate for popup position */
   longitude: number;
@@ -2045,6 +2081,7 @@ export {
   MapPopup,
   MapControls,
   MapStyleSwitcher,
+  MapAttribution,
   MapRoute,
   MapClusterLayer,
 };

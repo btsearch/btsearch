@@ -19,9 +19,8 @@ import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { REGISTER_COUNTRY_CODE } from "@/features/map/constants";
 import { ClearFiltersButton, MobileFilterRailInline } from "@/features/shared/filterPanel";
-import { brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { OperatorBrandCatalogContext } from "@/features/shared/operatorBrandCatalog";
 import { type MeasurementTab, fetchFilingRows, fetchMeasurementTabRows } from "@/features/si2pem/api";
 import { InstallationsDataTable } from "@/features/si2pem/components/installationsDataTable";
@@ -59,6 +58,25 @@ function getLookupStateLabel(t: TFunction, isLoading: boolean, hasError: boolean
   if (isLoading) return t("common:actions.loading");
   if (hasError) return t("common:error.loadTitle");
   return null;
+}
+
+function usePemRegions() {
+  const regionsQuery = useQuery(regionsQueryOptions());
+  const countriesQuery = useQuery(countriesQueryOptions());
+  const pemCountryCodes = new Set(countriesQuery.data?.filter((country) => country.capabilities.emf).map((country) => country.code));
+
+  function retry() {
+    if (regionsQuery.isLoadingError) void regionsQuery.refetch();
+    if (countriesQuery.isLoadingError) void countriesQuery.refetch();
+  }
+
+  return {
+    regions: (regionsQuery.data ?? []).filter((region) => pemCountryCodes.has(region.countryCode)),
+    isLoading: regionsQuery.isLoading || countriesQuery.isLoading,
+    isFetching: regionsQuery.isFetching || countriesQuery.isFetching,
+    hasError: regionsQuery.isLoadingError || countriesQuery.isLoadingError,
+    retry,
+  };
 }
 
 type MobileLookupOptionsProps = {
@@ -306,12 +324,12 @@ function PEMMeasurementsPage() {
     [allOperators, brands, viewerReady],
   );
   const {
-    data: allRegions = [],
+    regions: pemRegions,
     isLoading: areRegionsLoading,
     isFetching: areRegionsFetching,
-    isLoadingError: regionsError,
-    refetch: refetchRegions,
-  } = useQuery(regionsQueryOptions());
+    hasError: regionsError,
+    retry: retryRegions,
+  } = usePemRegions();
 
   const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions, isPageSizeMeasured } = useTablePagination({
     rowHeight: isMobile ? PEM_MOBILE_ROW_HEIGHT : DATA_TABLE_ROW_HEIGHT,
@@ -393,7 +411,6 @@ function PEMMeasurementsPage() {
   const filingRows = filingsQuery.data?.rows ?? [];
   const activeFilterCount = [siteIdInput.trim() !== "", operatorFilter !== null, regionFilter !== null].filter(Boolean).length;
   const pemOperators = viewerReady ? allOperators.filter(isPEMOperator) : [];
-  const pemRegions = allRegions.filter((region) => region.countryCode === REGISTER_COUNTRY_CODE);
   const selectedOperator = pemOperators.find((operator) => operator.id === operatorFilter);
   const selectedRegion = pemRegions.find((region) => region.id === regionFilter);
   const operatorPlaceholder = getLookupStateLabel(tCommon, areOperatorsLoading, operatorsError) ?? tCommon("labels.allOperators");
@@ -438,7 +455,7 @@ function PEMMeasurementsPage() {
       onRegionChange={handleRegionChange}
       onClear={clearFilters}
       onRetryOperators={() => void refetchOperators()}
-      onRetryRegions={() => void refetchRegions()}
+      onRetryRegions={retryRegions}
     />
   ) : null;
 
@@ -571,7 +588,7 @@ function PEMMeasurementsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {regionsError ? (
-                    <InlineError size="sm" onRetry={() => refetchRegions()} isRetrying={areRegionsFetching} />
+                    <InlineError size="sm" onRetry={retryRegions} isRetrying={areRegionsFetching} />
                   ) : (
                     <>
                       <SelectItem value={ALL_FILTER_VALUE}>{tCommon("labels.allRegions")}</SelectItem>

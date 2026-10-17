@@ -2,8 +2,7 @@ import { getOperatorColor, getOperatorColorByName, resolveOperatorMnc } from "@o
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
-import type { StatsOperator } from "../../features/stats/schemas.ts";
-import type { DatabaseMonthlyStats } from "./data.ts";
+import type { DatabaseMonthlyStats, StatsOperator } from "./data.ts";
 import {
   type Formatters,
   LOCALES,

@@ -256,10 +256,24 @@ export function existingContentDraft(): DraftFixture {
 export function scriptContentDraftCreate(fixture: DraftFixture): void {
   dbMock.enqueueFor("select", "stations", [{ station: liveDraftStation, countryCode: null }]);
   const structure = fixture.input.location?.structure;
+  const setsAddress = Boolean(fixture.input.location?.address);
+  const namesPlace = fixture.input.location?.latitude !== undefined || fixture.input.location?.regionId !== undefined;
+  const namedRegionId = fixture.input.location?.regionId;
   if (fixture.input.location?.regionId === undefined && (typeof structure?.ownerId === "number" || structure?.ownerName !== undefined))
     dbMock.enqueueFor("select", "stations", [{ regionId: 1 }]);
-  if (fixture.input.station?.operatorId !== undefined) dbMock.enqueueFor("select", "operators", [{ id: fixture.input.station.operatorId }]);
+  if (namedRegionId !== undefined) {
+    if (fixture.input.location?.latitude === undefined) {
+      dbMock.enqueueFor("select", "stations", [{ stationId: 1, region_id: 1, latitude: 52, longitude: 21 }]);
+    }
+    dbMock.enqueueFor("execute", undefined, [{ regionId: namedRegionId }]);
+  }
+  if (setsAddress) dbMock.enqueueFor("select", "stations", [{ locationCountry: "PL", operatorCountry: "PL" }]);
+  if (fixture.input.station?.operatorId !== undefined) {
+    dbMock.enqueueFor("select", "operators", [{ id: fixture.input.station.operatorId }]);
+    if (setsAddress) dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }]);
+  }
   if (fixture.input.location?.regionId !== undefined) dbMock.enqueueFor("select", "regions", [{ id: fixture.input.location.regionId }]);
+  if (setsAddress && namesPlace) dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
   if (fixture.input.location?.structure?.ownerName !== undefined) {
     dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "structure_owners", []);
@@ -354,7 +368,13 @@ export function existingDraftFixture(
 
 export function scriptExistingDraftCreate(fixture: DraftFixture, targets: ReturnType<typeof storedCell>[]): void {
   const station = stationRow({ operator_id: 7, sectors: [], location: null });
-  dbMock.enqueueFor("select", "stations", [{ station, countryCode: null }], [{ regionId: 1, countryCode: "PL" }]);
+  dbMock.enqueueFor(
+    "select",
+    "stations",
+    [{ station, countryCode: null }],
+    [{ locationCountry: "PL", operatorCountry: "PL" }],
+    [{ regionId: 1, countryCode: "PL" }],
+  );
   dbMock.enqueueFor("select", "cells", targets);
   dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
   dbMock.enqueueFor("select", "countries", []);
@@ -362,7 +382,6 @@ export function scriptExistingDraftCreate(fixture: DraftFixture, targets: Return
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
   dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
   dbMock.query.cells.findMany.mockResolvedValue(targets.map(({ cell }) => cell));
-  dbMock.enqueueFor("select", "stations", [{ locationCountry: "PL", operatorCountry: "PL" }]);
   if (fixture.cells.some(({ cell }) => cell.operation !== "delete")) {
     scriptBandPlan();
     for (const radio of fixture.radios) {
@@ -404,8 +423,15 @@ export function scriptExistingDraftCreate(fixture: DraftFixture, targets: Return
 }
 
 export function scriptDraftTranslation(fixture: DraftFixture): void {
-  dbMock.enqueueFor("select", "operators", [{ id: 7 }]);
-  if (fixture.input.location?.regionId !== undefined) dbMock.enqueueFor("select", "regions", [{ id: 1 }]);
+  dbMock.enqueueFor("select", "operators", [{ id: 7, countryCode: "PL" }]);
+  if (fixture.input.location?.regionId !== undefined) {
+    dbMock.enqueueFor("select", "regions", [{ id: 1, countryCode: "PL" }]);
+    if (fixture.input.location.latitude !== undefined) dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
+  }
+  if (fixture.input.location?.address || fixture.input.cells?.length) {
+    dbMock.enqueueFor("select", "operators", [{ id: 7, countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "regions", [{ id: 1, countryCode: "PL" }]);
+  }
   dbMock.enqueueFor(
     "select",
     "bands",
@@ -474,8 +500,6 @@ export function scriptDraftBatchCreate(fixtures: DraftFixture[]): void {
   dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
   scriptDraftGeography();
   for (const fixture of fixtures) {
-    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
-    dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }]);
     scriptBandPlan();
     for (const radio of fixture.radios) if (radio.identityTable !== null) dbMock.enqueueFor("select", radio.identityTable, []);
   }
@@ -564,6 +588,14 @@ export function scriptDraftUpdate(
     dbMock.enqueueFor("select", "structure_owners", [{ countryCode: "PL" }]);
   }
   if (options.retainedOwnerRegions) dbMock.enqueueFor("select", "regions", options.retainedOwnerRegions);
+  if (body.location?.regionId !== undefined && body.location.latitude !== undefined) {
+    dbMock.enqueueFor("execute", undefined, [{ regionId: body.location.regionId }]);
+  }
+  if (body.location?.address || body.cells?.length) {
+    const countryCode = options.countryCode === undefined ? "PL" : options.countryCode;
+    dbMock.enqueueFor("select", "regions", [{ countryCode }]);
+    dbMock.enqueueFor("select", "operators", [{ countryCode }]);
+  }
   if (body.location !== undefined) {
     scriptDraftGeography({ placement: body.station !== undefined });
   } else if (body.station !== undefined) {
@@ -576,13 +608,7 @@ export function scriptDraftUpdate(
     dbMock.query.proposedSectors.findMany.mockResolvedValue(previous.sectors);
     dbMock.query.proposedCells.findMany.mockResolvedValue(previous.cells.map(({ cell }) => cell));
   }
-  if (body.cells?.length) {
-    if (body.location === undefined) dbMock.query.proposedLocations.findFirst.mockResolvedValue(previous.snapshot.proposedLocation);
-    if (body.station === undefined) dbMock.query.proposedStations.findFirst.mockResolvedValue(previous.snapshot.proposedStation);
-    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
-    dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }]);
-    scriptBandPlan();
-  }
+  if (body.cells?.length) scriptBandPlan();
   scriptAudit();
   dbMock.enqueueFor("select", "submissions", [{ status: previous.row.status, updatedAt: previous.row.updatedAt }]);
   dbMock.enqueueFor("update", "submissions", []);

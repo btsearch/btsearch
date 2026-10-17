@@ -6,9 +6,9 @@ import { z } from "zod/v4";
 import { ErrorResponse } from "../../../../errors.js";
 import { actorIdFromRequest } from "../../../../features/access/access.js";
 import { hasStaffPermission } from "../../../../features/access/staff.js";
-import { loadHiddenCountryCodes } from "../../../../features/countries/visibility.js";
 import { toLists } from "../../../../features/lists/serialize.js";
 import { assertListsEnabled, findListForViewer } from "../../../../features/lists/visibility.js";
+import { loadOfficialVisibility } from "../../../../features/official/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -19,7 +19,8 @@ const schemaRoute = {
     "A private list is only returned to its owner and to administrators. " +
     "Asking for `include=owner` on someone else's list also needs an administrator. " +
     "`notificationsEnabled` is `null` unless the list is yours. " +
-    "Stations in countries you cannot access are left out of `itemCounts.stations` and `items.stationIds`.",
+    "Stations in countries you cannot access are left out of `itemCounts` and `items`, " +
+    "and so are official sites and microwave links of sources that are hidden from you.",
   params: listParamsSchema,
   querystring: listQuerySchema,
   response: {
@@ -39,11 +40,11 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const viewerId = actorIdFromRequest(req);
   const { include } = req.query;
 
-  const row = await findListForViewer(req, req.params.id, viewerId);
+  const [row, visibility] = await Promise.all([findListForViewer(req, req.params.id, viewerId), loadOfficialVisibility(req)]);
   const namesOwner = include?.includes("owner") && row.created_by !== viewerId;
   if (namesOwner && !(await hasStaffPermission(req, { user_lists: ["read_all"] }))) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
 
-  const [list] = await toLists([row], viewerId, await loadHiddenCountryCodes(req), include);
+  const [list] = await toLists([row], viewerId, visibility, include);
   if (!list) throw new ErrorResponse("NOT_FOUND");
 
   return res.send({ data: list });

@@ -1,7 +1,10 @@
+import { OFFICIAL_SITE_INCLUDES, type OfficialSite } from "@openbts/shared/contract";
 import { type QueryClient, queryOptions, skipToken } from "@tanstack/react-query";
 
 import { auditOperationKeys } from "@/features/admin/audit-operations/queries";
-import { fetchUkePermitsByStationId, hasMapLocationsSource } from "@/features/map/api";
+import { hasMapLocationsSource } from "@/features/map/api";
+import { fetchOfficialSites } from "@/features/official/api";
+import { officialKeys } from "@/features/official/queries";
 import { editingKeys } from "@/features/station-editing/data/keys";
 
 export type StationUpdateImpact = {
@@ -24,7 +27,8 @@ type InvalidateStationUpdateQueriesOptions = {
   invalidateAllStationHistories?: boolean;
 };
 
-const REGISTER_PERMITS_STALE_TIME = 1000 * 60 * 5;
+const REGISTER_SITE_STALE_TIME = 1000 * 60 * 5;
+const FIRST_SITE_ONLY = 1;
 
 export function createConservativeStationImpact(stationId: number | null): StationUpdateImpact {
   return {
@@ -42,11 +46,16 @@ export function createConservativeStationImpact(stationId: number | null): Stati
   };
 }
 
-export function registerStationPermitsQueryOptions(registerStationId: string | undefined) {
+async function fetchRegisterSite(siteId: string, signal: AbortSignal): Promise<OfficialSite | null> {
+  const page = await fetchOfficialSites({ siteIds: [siteId], include: [...OFFICIAL_SITE_INCLUDES], limit: FIRST_SITE_ONLY }, signal);
+  return page.data.at(0) ?? null;
+}
+
+export function registerSiteQueryOptions(siteId: string | undefined) {
   return queryOptions({
-    queryKey: ["uke-permits-preload", registerStationId] as const,
-    queryFn: registerStationId === undefined ? skipToken : () => fetchUkePermitsByStationId(registerStationId),
-    staleTime: REGISTER_PERMITS_STALE_TIME,
+    queryKey: [...officialKeys.all, "register-prefill", siteId] as const,
+    queryFn: siteId === undefined ? skipToken : ({ signal }) => fetchRegisterSite(siteId, signal),
+    staleTime: REGISTER_SITE_STALE_TIME,
   });
 }
 
@@ -218,11 +227,11 @@ export function invalidateStationUpdateQueriesBatch(
   if (stationMetadataChanged || cellsChanged) {
     invalidations.push(
       queryClient.invalidateQueries({ queryKey: ["stats", "summary"] }),
-      queryClient.invalidateQueries({ queryKey: ["stats", "permits"] }),
+      queryClient.invalidateQueries({ queryKey: ["stats", "bands"] }),
     );
   }
 
-  if (stationLocationOrCellsChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["stats", "voivodeships"] }));
+  if (stationLocationOrCellsChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["stats", "regions"] }));
 
   if (cellsChanged || sectorsChanged || extraIdsChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["stats", "completeness"] }));
 

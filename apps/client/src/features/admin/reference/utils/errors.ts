@@ -46,7 +46,7 @@ const BAND_MESSAGES: readonly MessageKey[] = [
 
 const BRAND_MESSAGES: readonly MessageKey[] = [
   ["A brand with this slug already exists", "admin:reference.errors.brand.slugTaken"],
-  ["Cannot delete a brand that operators or structure owners still use", "admin:reference.errors.brand.inUse"],
+  ["Cannot delete a brand that operators, licensees or structure owners still use", "admin:reference.errors.brand.inUse"],
   ["Brand not found", "admin:reference.errors.brand.notFound"],
   ["Must be lower-case letters and digits, with single hyphens between words", "admin:reference.errors.brand.slugFormat"],
   ["Must be a color written as #RRGGBB", "admin:reference.errors.brand.colorFormat"],

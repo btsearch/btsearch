@@ -8,14 +8,15 @@ import {
   customType,
   date,
   doublePrecision,
+  foreignKey,
   geometry,
   index,
   integer,
-  jsonb,
   pgEnum,
   pgSchema,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -23,18 +24,18 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-export const UKEPermissionType = pgEnum("uke_permission_type", ["zmP", "P"]);
+export const OfficialDecisionType = pgEnum("official_decision_type", ["permit_change", "permit"]);
 export const DuplexType = pgEnum("duplex", ["FDD", "TDD", "SDL"]);
 export const ratEnum = pgEnum("rat", ["GSM", "CDMA", "UMTS", "LTE", "NR", "IOT"]);
 export const BandVariant = pgEnum("band_variant", ["commercial", "railway"]);
 export const StationStatus = pgEnum("station_status", ["published", "inactive", "pending"]);
-export const PermitsSource = pgEnum("permits_source", ["permits", "device_registry"]);
 export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
 export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL"]);
 export const UplinkType = pgEnum("uplink_type", ["fiber", "microwave", "satellite"]);
 export const ContributionMode = pgEnum("contribution_mode", ["closed", "open"]);
 export const PlmnRole = pgEnum("plmn_role", ["primary", "secondary"]);
 export const OperatorLinkKind = pgEnum("operator_link_kind", ["jv_member"]);
+export const OfficialLayer = pgEnum("official_layer", ["sites", "microwave_links"]);
 export const StructureType = pgEnum("structure_type", [
   "lattice_tower",
   "tubular_tower",
@@ -53,7 +54,7 @@ export const StructureType = pgEnum("structure_type", [
   "indoor",
   "other",
 ]);
-export const UkeSchema = pgSchema("uke");
+export const OfficialSchema = pgSchema("official");
 export const StatisticsSchema = pgSchema("statistics");
 
 const multiPolygon = customType<{ data: string }>({ dataType: () => "geometry(MultiPolygon, 4326)" });
@@ -291,12 +292,12 @@ export const locations = pgTable(
 );
 
 /**
- * Locations table for UKE stations (GPS coordinates)
+ * Locations table for official sites (GPS coordinates)
  * @example
  * { id: 1, region_id: 1, city: "Warsaw", address: "ul. Marszałkowska 1", longitude: 52.2297, latitude: 21.0122 }
  */
-export const ukeLocations = UkeSchema.table(
-  "uke_locations",
+export const officialLocations = OfficialSchema.table(
+  "locations",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     region_id: integer("region_id")
@@ -308,19 +309,29 @@ export const ukeLocations = UkeSchema.table(
     latitude: doublePrecision("latitude").notNull(),
     point: geometry("point", { type: "point", mode: "xy", srid: 4326 })
       .notNull()
-      .generatedAlwaysAs((): SQL => sql`ST_SetSRID(ST_MakePoint(${ukeLocations.longitude}, ${ukeLocations.latitude}), 4326)`),
+      .generatedAlwaysAs((): SQL => sql`ST_SetSRID(ST_MakePoint(${officialLocations.longitude}, ${officialLocations.latitude}), 4326)`),
+    source_id: integer("source_id")
+      .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" })
+      .notNull(),
+    source_ref: varchar("source_ref", { length: 128 }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("uke_locations_latitude_range", sql`${t.latitude} BETWEEN -90 AND 90`),
-    check("uke_locations_longitude_range", sql`${t.longitude} BETWEEN -180 AND 180`),
-    index("uke_locations_region_id_idx").on(t.region_id),
-    index("uke_locations_point_gist").using("gist", t.point),
-    index("uke_locations_created_at_idx").on(t.createdAt),
-    index("uke_locations_updated_at_idx").on(t.updatedAt),
-    index("uke_locations_last_touch_idx").using("btree", sql`GREATEST(${t.createdAt}, ${t.updatedAt})`),
-    unique("uke_locations_lonlat_unique").on(t.longitude, t.latitude),
+    check("locations_latitude_range", sql`${t.latitude} BETWEEN -90 AND 90`),
+    check("locations_longitude_range", sql`${t.longitude} BETWEEN -180 AND 180`),
+    index("locations_region_id_idx").on(t.region_id),
+    index("locations_point_gist").using("gist", t.point),
+    index("locations_created_at_idx").on(t.createdAt),
+    index("locations_updated_at_idx").on(t.updatedAt),
+    index("locations_last_touch_idx").using("btree", sql`GREATEST(${t.createdAt}, ${t.updatedAt})`),
+    uniqueIndex("locations_source_lonlat_unique")
+      .on(t.source_id, t.longitude, t.latitude)
+      .where(sql`${t.source_ref} IS NULL`),
+    uniqueIndex("locations_source_source_ref_unique")
+      .on(t.source_id, t.source_ref)
+      .where(sql`${t.source_ref} IS NOT NULL`),
+    unique("locations_id_source_unique").on(t.id, t.source_id),
   ],
 );
 
@@ -406,8 +417,12 @@ export const stationsPermits = pgTable(
   "stations_permits",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    permit_id: integer("permit_id").references(() => ukePermits.id, { onDelete: "cascade", onUpdate: "cascade" }),
-    station_id: integer("station_id").references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    permit_id: integer("permit_id")
+      .references(() => officialPermits.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
+    station_id: integer("station_id")
+      .references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
   },
   (t) => [
     index("stations_permits_station_id_idx").on(t.station_id),
@@ -440,91 +455,93 @@ export const extraIdentificators = pgTable(
 );
 
 /**
- * UKE stations table
+ * Official sites table
  * @example
  * { id: 1, station_id: "1234567890123456", location_id: 1, operator_id: 1, updatedAt: new Date(), createdAt: new Date() }
  */
-export const ukeStations = UkeSchema.table(
-  "uke_stations",
+export const officialSites = OfficialSchema.table(
+  "sites",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    station_id: varchar("station_id", { length: 16 }).notNull(),
+    station_id: varchar("site_id", { length: 16 }).notNull(),
     operator_id: integer("operator_id")
       .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    location_id: integer("location_id")
-      .references(() => ukeLocations.id, { onDelete: "cascade", onUpdate: "cascade" })
+    location_id: integer("location_id").notNull(),
+    source_id: integer("source_id")
+      .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" })
       .notNull(),
+    source_ref: varchar("source_ref", { length: 128 }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    unique("uke_stations_station_operator_location_unique").on(t.station_id, t.operator_id, t.location_id),
-    index("uke_stations_station_id_idx").on(t.station_id),
-    index("uke_stations_station_id_trgm_idx").using("gin", sql`(${t.station_id}) gin_trgm_ops`),
-    index("uke_stations_operator_id_idx").on(t.operator_id),
-    index("uke_stations_operator_location_id_idx").on(t.operator_id, t.location_id),
-    index("uke_stations_station_operator_id_idx").on(t.station_id, t.operator_id),
-    index("uke_stations_location_id_idx").on(t.location_id),
-    index("uke_stations_location_operator_id_idx").on(t.location_id, t.operator_id, t.id),
-    index("uke_stations_updated_at_idx").on(t.updatedAt),
-    index("uke_stations_created_at_idx").on(t.createdAt),
-    check("uke_stations_station_id_16_length", sql`${t.station_id} ~ '(^.{1,16}$)'`),
+    foreignKey({
+      name: "sites_location_source_fkey",
+      columns: [t.location_id, t.source_id],
+      foreignColumns: [officialLocations.id, officialLocations.source_id],
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+    uniqueIndex("sites_site_operator_location_unique")
+      .on(t.station_id, t.operator_id, t.location_id)
+      .where(sql`${t.source_ref} IS NULL`),
+    uniqueIndex("sites_source_source_ref_unique")
+      .on(t.source_id, t.source_ref)
+      .where(sql`${t.source_ref} IS NOT NULL`),
+    index("sites_site_id_idx").on(t.station_id),
+    index("sites_site_id_trgm_idx").using("gin", sql`(${t.station_id}) gin_trgm_ops`),
+    index("sites_operator_id_idx").on(t.operator_id),
+    index("sites_operator_location_id_idx").on(t.operator_id, t.location_id),
+    index("sites_site_operator_id_idx").on(t.station_id, t.operator_id),
+    index("sites_location_id_idx").on(t.location_id),
+    index("sites_location_operator_id_idx").on(t.location_id, t.operator_id, t.id),
+    index("sites_updated_at_idx").on(t.updatedAt),
+    index("sites_created_at_idx").on(t.createdAt),
+    check("sites_site_id_16_length", sql`${t.station_id} ~ '(^.{1,16}$)'`),
   ],
 );
 
-export const ukeBands = UkeSchema.table(
-  "uke_bands",
+export const officialPermits = OfficialSchema.table(
+  "permits",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    rat: ratEnum("rat").notNull(),
-    value: integer("value").notNull(),
-    variant: BandVariant("variant").notNull().default("commercial"),
-    name: varchar("name", { length: 15 }).notNull(),
-  },
-  (t) => [unique("uke_bands_rat_value_variant_unique").on(t.rat, t.value, t.variant), unique("uke_bands_name_unique").on(t.name)],
-);
-
-export const ukePermits = UkeSchema.table(
-  "uke_permits",
-  {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    uke_station_id: integer("uke_station_id")
-      .references(() => ukeStations.id, { onDelete: "cascade", onUpdate: "cascade" })
+    official_site_id: integer("official_site_id")
+      .references(() => officialSites.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
     decision_number: varchar("decision_number", { length: 100 }).notNull(),
-    decision_type: UKEPermissionType("decision_type").notNull(),
-    expiry_date: timestamp({ withTimezone: true }).notNull(),
-    band_id: integer("band_id")
-      .references(() => ukeBands.id, { onDelete: "restrict", onUpdate: "cascade" })
-      .notNull(),
-    source: PermitsSource("source").notNull().default("permits"),
+    decision_type: OfficialDecisionType("decision_type").notNull(),
+    expiry_date: date({ mode: "string" }),
+    rat: ratEnum("rat").notNull(),
+    label_mhz: integer("label_mhz").notNull(),
+    label_variant: BandVariant("label_variant").notNull(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    unique("uke_permits_unique_permit").on(t.uke_station_id, t.band_id, t.decision_number, t.decision_type, t.expiry_date),
-    index("uke_permits_uke_station_id_idx").on(t.uke_station_id),
-    index("uke_permits_band_id_idx").on(t.band_id),
-    index("uke_permits_decision_type_idx").on(t.decision_type),
-    index("uke_permits_decision_number_trgm_idx").using("gin", sql`(${t.decision_number}) gin_trgm_ops`),
-    index("uke_permits_uke_station_band_id_idx").on(t.uke_station_id, t.band_id, t.id),
-    index("uke_permits_source_idx").on(t.source),
-    index("uke_permits_uke_station_id_id_idx").on(t.uke_station_id, t.id),
-    index("uke_permits_uke_station_created_at_idx").on(t.uke_station_id, t.createdAt),
-    index("uke_permits_created_at_uke_station_idx").on(t.createdAt, t.uke_station_id),
-    index("uke_permits_updated_at_uke_station_idx").on(t.updatedAt, t.uke_station_id),
+    unique("permits_unique_permit")
+      .on(t.official_site_id, t.rat, t.label_mhz, t.label_variant, t.decision_number, t.decision_type, t.expiry_date)
+      .nullsNotDistinct(),
+    index("permits_official_site_id_idx").on(t.official_site_id),
+    index("permits_label_idx").on(t.rat, t.label_mhz, t.label_variant),
+    index("permits_decision_type_idx").on(t.decision_type),
+    index("permits_decision_number_trgm_idx").using("gin", sql`(${t.decision_number}) gin_trgm_ops`),
+    index("permits_official_site_label_id_idx").on(t.official_site_id, t.rat, t.label_mhz, t.label_variant, t.id),
+    index("permits_official_site_id_id_idx").on(t.official_site_id, t.id),
+    index("permits_official_site_created_at_idx").on(t.official_site_id, t.createdAt),
+    index("permits_created_at_official_site_idx").on(t.createdAt, t.official_site_id),
+    index("permits_updated_at_official_site_idx").on(t.updatedAt, t.official_site_id),
   ],
 );
 
 export const AntennaType = pgEnum("antenna_type", ["indoor", "outdoor"]);
 
-export const ukePermitSectors = UkeSchema.table(
-  "uke_permit_sectors",
+export const officialPermitSectors = OfficialSchema.table(
+  "permit_sectors",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     permit_id: integer("permit_id")
-      .references(() => ukePermits.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .references(() => officialPermits.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
     azimuth: integer("azimuth"),
     elevation: integer("elevation"),
@@ -532,8 +549,8 @@ export const ukePermitSectors = UkeSchema.table(
     antenna_type: AntennaType("antenna_type"),
   },
   (t) => [
-    unique("uke_permit_sectors_unique").on(t.permit_id, t.azimuth, t.elevation, t.antenna_height, t.antenna_type),
-    index("uke_permit_sectors_permit_id_idx").on(t.permit_id),
+    unique("permit_sectors_unique").on(t.permit_id, t.azimuth, t.elevation, t.antenna_height, t.antenna_type),
+    index("permit_sectors_permit_id_idx").on(t.permit_id),
   ],
 );
 
@@ -741,49 +758,68 @@ export const countryBands = pgTable(
 );
 
 /**
- * radioLinesManufacturers table. For UKE microwave links table
+ * Manufacturers table. For the official microwave links table
  * @example
  * { id: 1, name: "Ericsson" }
  */
-export const radioLinesManufacturers = UkeSchema.table("radiolines_manufacturers", {
+export const microwaveLinkManufacturers = OfficialSchema.table("microwave_link_manufacturers", {
   id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
   name: varchar("name", { length: 100 }).notNull().unique(),
 });
 
 /**
- * Antenna types table. For UKE microwave links table
+ * Antenna types table. For the official microwave links table
  * @example
  * { id: 1, name: "Antenna Type 1", manufacturer_id: 1 }
  */
-export const radiolinesAntennaTypes = UkeSchema.table("radiolines_antenna_types", {
+export const microwaveLinkAntennaTypes = OfficialSchema.table("microwave_link_antenna_types", {
   id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
   name: varchar("name", { length: 100 }).notNull().unique(),
-  manufacturer_id: integer("manufacturer_id").references(() => radioLinesManufacturers.id, { onDelete: "set null", onUpdate: "cascade" }),
+  manufacturer_id: integer("manufacturer_id").references(() => microwaveLinkManufacturers.id, {
+    name: "microwave_link_antenna_types_manufacturer_fkey",
+    onDelete: "set null",
+    onUpdate: "cascade",
+  }),
 });
 
 /**
- * Transmitter types table. For UKE microwave links table
+ * Transmitter types table. For the official microwave links table
  * @example
  * { id: 1, name: "Transmitter Type 1", manufacturer_id: 1 }
  */
-export const radiolinesTransmitterTypes = UkeSchema.table("radiolines_transmitter_types", {
+export const microwaveLinkTransmitterTypes = OfficialSchema.table("microwave_link_transmitter_types", {
   id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
   name: varchar("name", { length: 100 }).notNull().unique(),
-  manufacturer_id: integer("manufacturer_id").references(() => radioLinesManufacturers.id, { onDelete: "set null", onUpdate: "cascade" }),
+  manufacturer_id: integer("manufacturer_id").references(() => microwaveLinkManufacturers.id, {
+    name: "microwave_link_transmitter_types_manufacturer_fkey",
+    onDelete: "set null",
+    onUpdate: "cascade",
+  }),
 });
 
-export const ukeOperators = UkeSchema.table("uke_operators", {
-  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-  name: varchar("full_name", { length: 150 }).notNull(),
-  full_name: varchar("name", { length: 250 }).notNull().unique(),
-  brandId: integer("brand_id").references(() => brands.id, { onDelete: "restrict", onUpdate: "cascade" }),
-});
+export const licensees = OfficialSchema.table(
+  "licensees",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    name: varchar("name", { length: 150 }).notNull(),
+    full_name: varchar("legal_name", { length: 250 }).notNull(),
+    brandId: integer("brand_id").references(() => brands.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    sourceId: integer("source_id")
+      .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" })
+      .notNull(),
+    operatorId: integer("operator_id").references(() => operators.id, { onDelete: "set null", onUpdate: "cascade" }),
+  },
+  (t) => [
+    unique("licensees_source_legal_name_unique").on(t.sourceId, t.full_name),
+    check("licensees_operator_or_brand", sql`${t.operatorId} IS NULL OR ${t.brandId} IS NULL`),
+  ],
+);
 
 /**
- * UKE microwave links table
+ * Official microwave links table
  */
-export const ukeRadiolines = UkeSchema.table(
-  "uke_radiolines",
+export const microwaveLinks = OfficialSchema.table(
+  "microwave_links",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     tx_longitude: doublePrecision("tx_longitude").notNull(),
@@ -810,53 +846,214 @@ export const ukeRadiolines = UkeSchema.table(
     bandwidth: varchar("bandwidth", { length: 100 }),
     tx_eirp: doublePrecision("tx_eirp"),
     tx_antenna_attenuation: doublePrecision("tx_antenna_attenuation"),
-    tx_transmitter_type_id: integer("tx_transmitter_type_id").references(() => radiolinesTransmitterTypes.id, {
+    tx_transmitter_type_id: integer("tx_transmitter_type_id").references(() => microwaveLinkTransmitterTypes.id, {
+      name: "microwave_links_tx_transmitter_type_fkey",
       onDelete: "set null",
       onUpdate: "cascade",
     }),
-    tx_antenna_type_id: integer("tx_antenna_type_id").references(() => radiolinesAntennaTypes.id, { onDelete: "set null", onUpdate: "cascade" }),
+    tx_antenna_type_id: integer("tx_antenna_type_id").references(() => microwaveLinkAntennaTypes.id, {
+      name: "microwave_links_tx_antenna_type_fkey",
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
     tx_antenna_gain: doublePrecision("tx_antenna_gain"),
     tx_antenna_height: doublePrecision("tx_antenna_height"),
-    rx_antenna_type_id: integer("rx_antenna_type_id").references(() => radiolinesAntennaTypes.id, { onDelete: "set null", onUpdate: "cascade" }),
+    rx_antenna_type_id: integer("rx_antenna_type_id").references(() => microwaveLinkAntennaTypes.id, {
+      name: "microwave_links_rx_antenna_type_fkey",
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
     rx_antenna_gain: doublePrecision("rx_antenna_gain"),
     rx_antenna_height: doublePrecision("rx_antenna_height"),
     rx_noise_figure: doublePrecision("rx_noise_figure"),
     rx_atpc_attenuation: doublePrecision("rx_atpc_attenuation"),
-    operator_id: integer("operator_id").references(() => ukeOperators.id, { onDelete: "set null", onUpdate: "cascade" }),
-    physical_key: text("physical_key").notNull(),
+    operator_id: integer("licensee_id").references(() => licensees.id, { onDelete: "set null", onUpdate: "cascade" }),
+    dataset_id: integer("dataset_id")
+      .references(() => officialDatasets.id, { onDelete: "restrict", onUpdate: "cascade" })
+      .notNull(),
+    source_ref: text("source_ref"),
     permit_number: varchar("permit_number", { length: 100 }).notNull(),
-    decision_type: UKEPermissionType("decision_type").notNull(),
-    issue_date: timestamp({ withTimezone: true }),
-    expiry_date: timestamp({ withTimezone: true }).notNull(),
+    decision_type: OfficialDecisionType("decision_type").notNull(),
+    issue_date: date({ mode: "string" }),
+    expiry_date: date({ mode: "string" }).notNull(),
     //* Date of the UKE file the technical columns (modulation, bandwidth, equipment, gains...) were last read from. UKE sometimes publishes files without them, so it can be older than updatedAt or null for links that never had them
     specs_date: timestamp({ withTimezone: true }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    unique("uke_radiolines_natural_key").on(t.permit_number, t.physical_key),
-    index("uke_radiolines_operator_id_idx").on(t.operator_id),
-    index("uke_radiolines_physical_key_idx").on(t.physical_key),
-    index("uke_radiolines_permit_number_idx").on(t.permit_number),
-    index("uke_radiolines_permit_number_trgm_idx").using("gin", sql`(${t.permit_number}) gin_trgm_ops`),
-    index("uke_radiolines_tx_point_gist").using("gist", sql`(ST_SetSRID(ST_MakePoint(${t.tx_longitude}, ${t.tx_latitude}), 4326))`),
-    index("uke_radiolines_rx_point_gist").using("gist", sql`(ST_SetSRID(ST_MakePoint(${t.rx_longitude}, ${t.rx_latitude}), 4326))`),
-    index("uke_radiolines_freq_idx").on(t.freq),
+    uniqueIndex("microwave_links_natural_key")
+      .on(
+        t.dataset_id,
+        t.permit_number,
+        t.operator_id,
+        t.tx_longitude,
+        t.tx_latitude,
+        t.rx_longitude,
+        t.rx_latitude,
+        t.freq,
+        t.polarization,
+        t.ch_num,
+      )
+      .where(sql`${t.source_ref} IS NULL`),
+    uniqueIndex("microwave_links_dataset_source_ref_unique")
+      .on(t.dataset_id, t.source_ref)
+      .where(sql`${t.source_ref} IS NOT NULL`),
+    index("microwave_links_licensee_id_idx").on(t.operator_id),
+    index("microwave_links_permit_number_idx").on(t.permit_number),
+    index("microwave_links_permit_number_trgm_idx").using("gin", sql`(${t.permit_number}) gin_trgm_ops`),
+    index("microwave_links_tx_point_gist").using("gist", sql`(ST_SetSRID(ST_MakePoint(${t.tx_longitude}, ${t.tx_latitude}), 4326))`),
+    index("microwave_links_rx_point_gist").using("gist", sql`(ST_SetSRID(ST_MakePoint(${t.rx_longitude}, ${t.rx_latitude}), 4326))`),
+    index("microwave_links_freq_idx").on(t.freq),
   ],
 );
 
-/**
- * UKE import metadata table
- * @example
- * { id: 1, import_type: "stations", file_list: ["https://uke.gov.pl/file1.xlsx", "https://uke.gov.pl/file2.xlsx"], last_import_date: new Date(), status: "success" }
- */
-export const ukeImportMetadata = UkeSchema.table("uke_import_metadata", {
-  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-  import_type: varchar("import_type", { length: 20 }).notNull(),
-  file_list: text("file_list").notNull(),
-  last_import_date: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  status: varchar("status", { length: 20 }).notNull(),
+export const officialSources = OfficialSchema.table(
+  "sources",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    key: varchar("key", { length: 64 }).notNull().unique(),
+    countryCode: char("country_code", { length: 2 })
+      .notNull()
+      .references(() => countries.code, { onDelete: "restrict", onUpdate: "cascade" }),
+    shortName: varchar("short_name", { length: 32 }).notNull(),
+    authority: varchar("authority", { length: 200 }).notNull(),
+    homepageUrl: varchar("homepage_url", { length: 500 }).notNull(),
+    licence: varchar("licence", { length: 200 }).notNull(),
+    attribution: text("attribution").notNull(),
+    coverageNote: text("coverage_note"),
+    isRedistributable: boolean("is_redistributable").notNull(),
+    isEnabled: boolean("is_enabled").notNull().default(false),
+    isVisible: boolean("is_visible").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("sources_visible_only_if_redistributable", sql`${t.isRedistributable} OR NOT ${t.isVisible}`)],
+);
+
+export const officialDatasets = OfficialSchema.table(
+  "datasets",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    key: varchar("key", { length: 64 }).notNull(),
+    layer: OfficialLayer("layer").notNull(),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    checkEveryHours: smallint("check_every_hours").notNull(),
+    nextCheckAt: timestamp("next_check_at", { withTimezone: true }),
+    holdShrinkPercent: smallint("hold_shrink_percent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("datasets_source_key_unique").on(t.sourceId, t.key)],
+);
+
+export const officialDatasetSlices = OfficialSchema.table(
+  "dataset_slices",
+  {
+    datasetId: integer("dataset_id")
+      .notNull()
+      .references(() => officialDatasets.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    key: varchar("key", { length: 64 }).notNull(),
+    snapshotId: integer("snapshot_id").references(() => officialSnapshots.id, { onDelete: "set null", onUpdate: "cascade" }),
+    importedAt: timestamp("imported_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.datasetId, t.key] })],
+);
+
+export const officialListedFiles = OfficialSchema.table(
+  "listed_files",
+  {
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => officialSources.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    url: text("url").notNull(),
+    fileName: varchar("file_name", { length: 255 }).notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    publishedOn: date("published_on"),
+    etag: text("etag"),
+    lastModified: timestamp("last_modified", { withTimezone: true }),
+    fileSha256: char("file_sha256", { length: 64 }).references(() => officialFiles.sha256, { onUpdate: "cascade" }),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.sourceId, t.url] })],
+);
+
+export const officialFiles = OfficialSchema.table("files", {
+  sha256: char("sha256", { length: 64 }).primaryKey(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  mediaType: varchar("media_type", { length: 100 }).notNull(),
 });
+
+export const officialSnapshots = OfficialSchema.table("snapshots", {
+  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+  sha256: char("sha256", { length: 64 }).notNull().unique(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});
+
+export const officialSnapshotFiles = OfficialSchema.table(
+  "snapshot_files",
+  {
+    snapshotId: integer("snapshot_id")
+      .notNull()
+      .references(() => officialSnapshots.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    position: smallint("position").notNull(),
+    fileSha256: char("file_sha256", { length: 64 })
+      .notNull()
+      .references(() => officialFiles.sha256, { onDelete: "restrict", onUpdate: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.snapshotId, t.position] })],
+);
+
+export const officialSnapshotSlices = OfficialSchema.table(
+  "snapshot_slices",
+  {
+    snapshotId: integer("snapshot_id")
+      .notNull()
+      .references(() => officialSnapshots.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    datasetId: integer("dataset_id").notNull(),
+    slice: varchar("slice", { length: 64 }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.snapshotId, t.datasetId, t.slice] }),
+    foreignKey({
+      name: "snapshot_slices_dataset_slice_fkey",
+      columns: [t.datasetId, t.slice],
+      foreignColumns: [officialDatasetSlices.datasetId, officialDatasetSlices.key],
+    })
+      .onDelete("restrict")
+      .onUpdate("cascade"),
+  ],
+);
+
+export const officialPermitListings = OfficialSchema.table(
+  "permit_listings",
+  {
+    permitId: integer("permit_id")
+      .notNull()
+      .references(() => officialPermits.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    datasetId: integer("dataset_id").notNull(),
+    slice: varchar("slice", { length: 64 }).notNull(),
+    licenseeId: integer("licensee_id").references(() => licensees.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    sourceRef: varchar("source_ref", { length: 255 }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.permitId, t.datasetId] }),
+    foreignKey({
+      name: "permit_listings_dataset_slice_fkey",
+      columns: [t.datasetId, t.slice],
+      foreignColumns: [officialDatasetSlices.datasetId, officialDatasetSlices.key],
+    })
+      .onDelete("restrict")
+      .onUpdate("cascade"),
+    uniqueIndex("permit_listings_dataset_source_ref_unique")
+      .on(t.datasetId, t.sourceRef)
+      .where(sql`${t.sourceRef} IS NOT NULL`),
+    index("permit_listings_dataset_slice_idx").on(t.datasetId, t.slice),
+  ],
+);
 
 export const statsSnapshots = StatisticsSchema.table(
   "stats_snapshots",
@@ -866,19 +1063,18 @@ export const statsSnapshots = StatisticsSchema.table(
     operator_id: integer("operator_id")
       .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    band_id: integer("band_id").references(() => ukeBands.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    rat: ratEnum("rat"),
+    label_mhz: integer("label_mhz"),
+    label_variant: BandVariant("label_variant"),
     unique_stations_count: integer("unique_stations_count").notNull(),
     permits_count: integer("permits_count").notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    unique("stats_snapshots_date_operator_band_unique").on(t.snapshot_date, t.operator_id, t.band_id),
-    uniqueIndex("stats_snapshots_date_operator_null_band_unique")
-      .on(t.snapshot_date, t.operator_id)
-      .where(sql`${t.band_id} IS NULL`),
+    unique("stats_snapshots_date_operator_label_unique").on(t.snapshot_date, t.operator_id, t.rat, t.label_mhz, t.label_variant).nullsNotDistinct(),
     index("stats_snapshots_date_idx").on(t.snapshot_date),
     index("stats_snapshots_operator_id_idx").on(t.operator_id),
-    index("stats_snapshots_date_operator_band_idx").on(t.snapshot_date, t.operator_id, t.band_id),
+    check("stats_snapshots_label_complete", sql`num_nulls(${t.rat}, ${t.label_mhz}, ${t.label_variant}) IN (0, 3)`),
   ],
 );
 
@@ -904,24 +1100,4 @@ export const contributionSnapshots = StatisticsSchema.table(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique("contribution_snapshots_date_country_unique").on(t.snapshot_date, t.countryCode)],
-);
-
-export const deletedEntries = pgTable(
-  "deleted_entries",
-  {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    source_table: varchar("source_table", { length: 50 }).notNull(),
-    source_id: integer("source_id").notNull(),
-    source_type: varchar("source_type", { length: 50 }).notNull(),
-    data: jsonb("data").notNull(),
-    deleted_at: timestamp("deleted_at", { withTimezone: true }).notNull().defaultNow(),
-    import_id: integer("import_id").references(() => ukeImportMetadata.id, { onDelete: "set null", onUpdate: "cascade" }),
-  },
-  (t) => [
-    index("deleted_entries_source_table_idx").on(t.source_table),
-    index("deleted_entries_source_type_idx").on(t.source_type),
-    index("deleted_entries_deleted_at_idx").on(t.deleted_at),
-    index("deleted_entries_source_table_type_idx").on(t.source_table, t.source_type),
-    index("deleted_entries_source_table_deleted_at_idx").on(t.source_table, t.deleted_at),
-  ],
 );

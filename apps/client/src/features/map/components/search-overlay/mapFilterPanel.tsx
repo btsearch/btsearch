@@ -9,6 +9,7 @@ import type { MapCountries } from "../../data/mapCountries";
 import { DEFAULT_MAP_FILTERS, type MapFilters, type MapFiltersChange, isDefaultMapStatus } from "../../data/mapFilters";
 import { useMapLookups } from "../../data/mapLookups";
 import { useFilterHandlers } from "../../hooks/useFilterHandlers";
+import { useOfficialLabel } from "../../hooks/useOfficialLabel";
 import { countryStatisticsQueryOptions, readMapDataDates } from "../../statsApi";
 import { FilterLayerStrip } from "./mapFilterLayerStrip";
 import { FadeItem, Reveal, SmoothHeight } from "./mapFilterMotion";
@@ -21,7 +22,14 @@ import {
   listCountryPillCodes,
   splitCountryPillCodes,
 } from "./mapFilterPanelRules";
-import { BandSection, RadiolineOperatorsSection, RecentDaysFilter, StandardSection, UplinkSection, useRadiolineOperators } from "./mapFilterSections";
+import {
+  BandSection,
+  MicrowaveLinkOperatorsSection,
+  RecentDaysFilter,
+  StandardSection,
+  UplinkSection,
+  useMicrowaveLinkOperators,
+} from "./mapFilterSections";
 import { SourceSwitch } from "@/components/cellular/sourceSwitch";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -93,16 +101,17 @@ function formatDataDate(instant: string, language: string): string {
 function DatedSourceSwitch({ source, countryCodes, onSourceChange }: DatedSourceSwitchProps) {
   const { t, i18n } = useTranslation(["main", "common"]);
   const { data: statistics } = useQuery(countryStatisticsQueryOptions());
+  const officialLabel = useOfficialLabel(countryCodes);
   const dates = readMapDataDates(statistics, countryCodes);
   const datedSources: DatedSource[] = [
     { source: "internal", label: t("main:stats.internalData"), date: dates.database },
-    { source: "uke", label: t("common:labels.ukePermits"), date: dates.register },
+    { source: "official", label: t("common:labels.permitRegister"), date: dates.register },
   ];
 
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex" />}>
-        <SourceSwitch source={source} onSourceChange={onSourceChange} alwaysLabeled keepsFocusInPlace />
+        <SourceSwitch source={source} officialLabel={officialLabel} onSourceChange={onSourceChange} alwaysLabeled keepsFocusInPlace />
       </TooltipTrigger>
       {statistics === undefined ? null : (
         <TooltipContent side="bottom">
@@ -232,21 +241,21 @@ export function FilterPanel({
     handleRecentDateFieldChange,
     handleClearFilters,
     activeFilterCount,
-  } = useFilterHandlers({ filters, operators: lookups?.operators, onFiltersChange });
+  } = useFilterHandlers({ filters, operators: lookups?.operators, countries: lookups?.countries, onFiltersChange });
   const {
-    operators: radiolineOperators,
-    isError: hasRadiolineOperatorsError,
-    isRetrying: isRetryingRadiolineOperators,
-    retry: retryRadiolineOperators,
-  } = useRadiolineOperators(filters.showRadiolines);
+    operators: microwaveLinkOperators,
+    isError: hasMicrowaveLinkOperatorsError,
+    isRetrying: isRetryingMicrowaveLinkOperators,
+    retry: retryMicrowaveLinkOperators,
+  } = useMicrowaveLinkOperators(filters.showRadiolines);
   const countryPillCodes = listCountryPillCodes(filters, mapCountries, i18n.language);
-  const bandFacetCountryCodes = listBandFacetCountryCodes(filters, mapCountries, i18n.language);
+  const bandFacetCountryCodes = listBandFacetCountryCodes(filters, mapCountries, i18n.language, lookups?.countries);
 
   const heading = (
     <PanelHeading
       isSheet={isSheet}
       activeFilterCount={activeFilterCount}
-      hasSourceSwitch={mapCountries.isRegisterOnScreen}
+      hasSourceSwitch={mapCountries.capabilities.official}
       source={filters.source}
       countryCodes={mapCountries.onScreen}
       onClearFilters={handleClearFilters}
@@ -256,7 +265,7 @@ export function FilterPanel({
 
   const sections = (
     <>
-      <Reveal shown={hasRegisterSourceNote(filters, mapCountries)} className={SECTION_SLOT_CLASS}>
+      <Reveal shown={hasRegisterSourceNote(filters, mapCountries, lookups?.countries)} className={SECTION_SLOT_CLASS}>
         <FilterNote>{t("main:filters.registerOnly")}</FilterNote>
       </Reveal>
       <Reveal shown={hasCountryFacet(filters, countryPillCodes)} className={SECTION_SLOT_CLASS}>
@@ -281,13 +290,13 @@ export function FilterPanel({
           onFiltersChange={onFiltersChange}
         />
       </div>
-      <Reveal shown={filters.showRadiolines && (radiolineOperators.length > 0 || hasRadiolineOperatorsError)} className={SECTION_SLOT_CLASS}>
-        <RadiolineOperatorsSection
+      <Reveal shown={filters.showRadiolines && (microwaveLinkOperators.length > 0 || hasMicrowaveLinkOperatorsError)} className={SECTION_SLOT_CLASS}>
+        <MicrowaveLinkOperatorsSection
           filters={filters}
-          operators={radiolineOperators}
-          hasOperatorsError={hasRadiolineOperatorsError}
-          isRetryingOperators={isRetryingRadiolineOperators}
-          onRetryOperators={retryRadiolineOperators}
+          operators={microwaveLinkOperators}
+          hasOperatorsError={hasMicrowaveLinkOperatorsError}
+          isRetryingOperators={isRetryingMicrowaveLinkOperators}
+          onRetryOperators={retryMicrowaveLinkOperators}
           onFiltersChange={onFiltersChange}
         />
       </Reveal>
@@ -335,6 +344,7 @@ export function FilterPanel({
       isSheet={isSheet}
       filters={filters}
       mapCountries={mapCountries}
+      countries={lookups?.countries}
       onFiltersChange={onFiltersChange}
       onToggleHeatmap={onToggleHeatmap}
       onTogglePlannedMeasurements={onTogglePlannedMeasurements}

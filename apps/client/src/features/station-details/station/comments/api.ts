@@ -1,7 +1,8 @@
+import type { CommentUpdate } from "@openbts/shared/contract";
 import { type QueryClient, queryOptions } from "@tanstack/react-query";
 
 import type { StationComment } from "./types";
-import { API_V2_BASE, ApiResponseError, fetchJson, fetchV2Data } from "@/lib/api";
+import { API_V2_BASE, ApiResponseError, JSON_HEADERS, fetchJson, fetchV2Data } from "@/lib/api";
 
 const COMMENTS_DISABLED_CODE = "FEATURE_DISABLED";
 const STATION_COMMENTS_STALE_TIME = 1000 * 60 * 5;
@@ -35,6 +36,11 @@ export function createStationComment(stationId: number, content: string, files: 
   return fetchV2Data<StationComment>(`stations/${stationId}/comments`, { method: "POST", body: formData });
 }
 
+export function updateStationCommentText(commentId: string, content: string): Promise<StationComment> {
+  const change: CommentUpdate = { content };
+  return fetchV2Data<StationComment>(`comments/${commentId}`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(change) });
+}
+
 export async function deleteStationComment(commentId: string): Promise<void> {
   await fetchJson(`${API_V2_BASE}/comments/${commentId}`, { method: "DELETE" });
 }
@@ -53,4 +59,10 @@ export function storeCreatedComment(queryClient: QueryClient, comment: StationCo
     return [comment, ...comments];
   });
   void queryClient.invalidateQueries({ queryKey: stationCommentKeys.station(comment.stationId) });
+}
+
+export function storeUpdatedComment(queryClient: QueryClient, updated: StationComment): void {
+  queryClient.setQueriesData<StationCommentsAnswer>({ queryKey: stationCommentKeys.station(updated.stationId) }, (comments) =>
+    comments ? comments.map((comment) => (comment.id === updated.id ? updated : comment)) : comments,
+  );
 }

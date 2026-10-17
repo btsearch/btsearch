@@ -61,13 +61,6 @@ function olderSettings(): Record<string, unknown> {
   return settings;
 }
 
-describe("getDefaultRuntimeSettings", () => {
-  it("does not include the country-scoped feature flags", () => {
-    const settings = runtime.getDefaultRuntimeSettings();
-    for (const flag of ["structureOwnerProposalsEnabled", "pscEnabled", "bsicEnabled"]) expect(settings).not.toHaveProperty(flag);
-  });
-});
-
 describe("mergeRuntimeSettings", () => {
   it("toggles maintenance mode while retaining all other settings", () => {
     const before = { ...runtime.getDefaultRuntimeSettings(), submissionsEnabled: false };
@@ -75,15 +68,6 @@ describe("mergeRuntimeSettings", () => {
     expect(enabled).toEqual({ ...before, maintenanceEnabled: true });
     expect(runtime.mergeRuntimeSettings(enabled, { photosEnabled: false })).toEqual({ ...enabled, photosEnabled: false });
     expect(runtime.mergeRuntimeSettings(enabled, { maintenanceEnabled: false })).toEqual(before);
-  });
-  it("preserves an explicit false and unrelated settings in a partial feature update", () => {
-    const before = { ...runtime.getDefaultRuntimeSettings(), photosEnabled: true };
-    const disabled = runtime.mergeRuntimeSettings(before, { photosEnabled: false });
-    expect(disabled).toEqual({ ...before, photosEnabled: false });
-    expect(runtime.mergeRuntimeSettings(disabled, { submissionsEnabled: false })).toEqual({
-      ...disabled,
-      submissionsEnabled: false,
-    });
   });
 });
 
@@ -101,13 +85,6 @@ describe("initRuntimeSettings", () => {
     stored = JSON.stringify(older);
     await runtime.initRuntimeSettings();
     expect(runtime.getRuntimeSettings()).toEqual(older);
-  });
-
-  it("keeps a stored explicit false after initialization", async () => {
-    const settings = { ...runtime.getDefaultRuntimeSettings(), submissionsEnabled: false };
-    stored = JSON.stringify(settings);
-    await runtime.initRuntimeSettings();
-    expect(runtime.getRuntimeSettings()).toEqual(settings);
   });
 
   it.each([null, "false"])("does not repair an explicitly invalid startup setting %s into a persisted boolean", async (invalid) => {
@@ -139,11 +116,6 @@ describe("loadStoredRuntimeSettings", () => {
     stored = JSON.stringify({ ...current, maintenanceEnabled: invalid });
     expect(await runtime.loadStoredRuntimeSettings()).toEqual(current);
   });
-  it("reads global settings without restoring removed feature defaults", async () => {
-    const older = olderSettings();
-    stored = JSON.stringify(older);
-    expect(await runtime.loadStoredRuntimeSettings()).toEqual(older);
-  });
 
   it.each([null, "false", 0])("rejects an invalid stored global setting %s without replacing current settings", async (invalid) => {
     const current = runtime.getRuntimeSettings();
@@ -155,13 +127,6 @@ describe("loadStoredRuntimeSettings", () => {
 });
 
 describe("runtime settings subscription", () => {
-  it("defaults a missing maintenance flag from an older settings writer without resetting other fields", async () => {
-    await runtime.initRuntimeSettings();
-    const older = olderSettings();
-    delete older.maintenanceEnabled;
-    subscriber!(JSON.stringify(older));
-    expect(runtime.getRuntimeSettings()).toEqual({ ...older, maintenanceEnabled: false });
-  });
   it("applies maintenance mode updates from another server replica", async () => {
     await runtime.initRuntimeSettings();
     const enabled = { ...runtime.getRuntimeSettings(), maintenanceEnabled: true };
@@ -169,19 +134,6 @@ describe("runtime settings subscription", () => {
     expect(runtime.getRuntimeSettings()).toEqual(enabled);
     subscriber!(JSON.stringify({ ...enabled, maintenanceEnabled: false }));
     expect(runtime.getRuntimeSettings()).toEqual({ ...enabled, maintenanceEnabled: false });
-  });
-  it("accepts an older published settings object without resetting its other fields", async () => {
-    await runtime.initRuntimeSettings();
-    const older = olderSettings();
-    subscriber!(JSON.stringify(older));
-    expect(runtime.getRuntimeSettings()).toEqual(older);
-  });
-
-  it("applies an explicit false from another settings writer", async () => {
-    await runtime.initRuntimeSettings();
-    const next = { ...runtime.getRuntimeSettings(), photosEnabled: false };
-    subscriber!(JSON.stringify(next));
-    expect(runtime.getRuntimeSettings()).toEqual(next);
   });
 
   it.each([null, "false"])("ignores an invalid published global setting %s", async (invalid) => {

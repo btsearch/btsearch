@@ -5,7 +5,15 @@ import { baseUrl as configuredBaseUrl, siteName as configuredSiteName, dlogger }
 import { BoundedSemaphore } from "../../lib/async/boundedSemaphore.js";
 import { SingleFlight } from "../../lib/async/singleFlight.js";
 import { BoundedTTLCache } from "../../lib/boundedTTLCache.js";
-import { type OGImageRenderer, type OGRenderRequest, type OGRenderResult, OG_RENDER_MAX_AGE_SECONDS } from "./contract.js";
+import {
+  type OGImageRenderer,
+  type OGMapRenderRequest,
+  type OGRenderRequest,
+  type OGRenderResult,
+  OG_RENDER_LIST_MAX_AGE_SECONDS,
+  OG_RENDER_MAX_AGE_SECONDS,
+} from "./contract.js";
+import { renderListImage } from "./listImage.js";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
@@ -62,6 +70,7 @@ export type OGImageRendererOptions = {
   sharpConcurrency?: number;
   baseUrl?: string;
   siteName?: string;
+  uploadsPath?: string;
 };
 
 const defaultSharpCache: OGSharpCacheOptions = {
@@ -210,7 +219,7 @@ function project(latitude: number, longitude: number): { x: number; y: number } 
   return { x, y };
 }
 
-function markerForRequest(request: OGRenderRequest): Buffer {
+function markerForRequest(request: OGMapRenderRequest): Buffer {
   if (request.kind === "station") return markerSvg(request.colors[0]);
   return piePinSvg(request.colors);
 }
@@ -218,6 +227,7 @@ function markerForRequest(request: OGRenderRequest): Buffer {
 export function createOGImageRenderer(options: OGImageRendererOptions = {}): OGImageRenderer {
   const fetchTileResponse = options.fetch ?? globalThis.fetch;
   const logoPath = options.logoPath ?? resolve(process.cwd(), "static", "og-logo.png");
+  const uploadsPath = options.uploadsPath ?? resolve(process.cwd(), "uploads");
   const rendererBaseUrl = options.baseUrl ?? configuredBaseUrl;
   const rendererSiteName = options.siteName ?? configuredSiteName;
   const logger = dlogger.extend("og-renderer");
@@ -370,7 +380,7 @@ export function createOGImageRenderer(options: OGImageRendererOptions = {}): OGI
     }
   }
 
-  async function renderOGImage(request: OGRenderRequest, marker: Buffer, imageSignal: AbortSignal, deadlineMs: number): Promise<Buffer> {
+  async function renderOGImage(request: OGMapRenderRequest, marker: Buffer, imageSignal: AbortSignal, deadlineMs: number): Promise<Buffer> {
     const { x, y } = project(request.latitude, request.longitude);
     const left = Math.round(x - WIDTH / 2);
     const top = Math.round(y - HEIGHT / 2);
@@ -416,13 +426,20 @@ export function createOGImageRenderer(options: OGImageRendererOptions = {}): OGI
       .toBuffer();
   }
 
+  async function renderRequestImage(request: OGRenderRequest, imageSignal: AbortSignal, deadlineMs: number): Promise<Buffer> {
+    if (request.kind !== "list") return renderOGImage(request, markerForRequest(request), imageSignal, deadlineMs);
+
+    const siteLogo = await getLogoOverlay(deadlineMs, imageSignal);
+    return renderListImage(request, { siteLogo, uploadsPath, timeoutSeconds: () => remainingSharpTimeoutSeconds(deadlineMs, imageSignal) });
+  }
+
   async function renderImageResult(request: OGRenderRequest): Promise<OGRenderResult> {
     const deadlineMs = Date.now() + IMAGE_RENDER_TIMEOUT_MS;
     const imageSignal = AbortSignal.timeout(IMAGE_RENDER_TIMEOUT_MS);
     try {
       return {
-        buffer: await imageRenderSlots.run(() => renderOGImage(request, markerForRequest(request), imageSignal, deadlineMs), imageSignal),
-        maxAgeSeconds: OG_RENDER_MAX_AGE_SECONDS,
+        buffer: await imageRenderSlots.run(() => renderRequestImage(request, imageSignal, deadlineMs), imageSignal),
+        maxAgeSeconds: request.kind === "list" ? OG_RENDER_LIST_MAX_AGE_SECONDS : OG_RENDER_MAX_AGE_SECONDS,
         outcome: "image",
       };
     } catch (error) {

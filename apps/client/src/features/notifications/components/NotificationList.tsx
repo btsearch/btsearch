@@ -1,18 +1,18 @@
 import { Add01Icon, Cancel01Icon, DatabaseIcon, Image01Icon, Message01Icon, SignalFull02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { Brand, Notification, NotificationSite, NotificationType, Operator, SubmissionAction, UserRef } from "@openbts/shared/contract";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Trans, useTranslation } from "react-i18next";
 
 import { BrandMark } from "@/components/cellular/brandMark";
 import { ClampedText } from "@/components/ui/clamped-text";
+import { CloseButton } from "@/components/ui/close-button";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { brandsQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { UserLink } from "@/features/user-profile/components/userLink";
-import { showApiError } from "@/lib/api";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { StationSource } from "@/types/station";
@@ -86,9 +86,9 @@ function getNotificationFacts(notification: Notification): NotificationFact[] {
       const facts = [
         ...countFact("facts.permitsAdded", notification.permits.added),
         ...countFact("facts.permitsDeleted", notification.permits.removed),
-        ...countFact("facts.ukeStationsAdded", notification.officialSitesAdded),
+        ...countFact("facts.registerStationsAdded", notification.officialSitesAdded),
       ];
-      if (notification.isRemovedFromRegister) facts.push({ key: "ukeStationDeleted" });
+      if (notification.isRemovedFromRegister) facts.push({ key: "registerStationDeleted" });
       return facts;
     }
     default:
@@ -140,7 +140,7 @@ function getDialogTarget(notification: Notification): DialogTarget | null {
   if (stationId !== null) return { id: stationId, source: "internal" };
 
   const officialSiteId = getOfficialSite(notification)?.id ?? null;
-  return officialSiteId === null ? null : { id: officialSiteId, source: "uke" };
+  return officialSiteId === null ? null : { id: officialSiteId, source: "official" };
 }
 
 type StationChipProps = {
@@ -183,11 +183,12 @@ type NotificationItemProps = {
   operators?: Operator[];
   brands?: Brand[];
   onRead: (id: string) => void;
+  onDelete: (id: string) => void;
   onNavigate: () => void;
   onOpenStation?: (target: DialogTarget) => void;
 };
 
-function NotificationItem({ notification, operators, brands, onRead, onNavigate, onOpenStation }: NotificationItemProps) {
+function NotificationItem({ notification, operators, brands, onRead, onDelete, onNavigate, onOpenStation }: NotificationItemProps) {
   const { t, i18n } = useTranslation("notifications");
 
   const { id, type, updatedAt } = notification;
@@ -226,7 +227,7 @@ function NotificationItem({ notification, operators, brands, onRead, onNavigate,
   );
 
   return (
-    <li className="relative flex items-start gap-2.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted">
+    <li className="group/notification relative flex items-start gap-2.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted">
       <span
         aria-hidden="true"
         className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md", visual.className, !isUnread && "opacity-70")}
@@ -244,6 +245,12 @@ function NotificationItem({ notification, operators, brands, onRead, onNavigate,
               {actionLabel}
             </button>
           )}
+          <CloseButton
+            size="xs"
+            label={t("delete")}
+            className="relative z-10 -my-0.5 opacity-0 group-hover/notification:opacity-100 hover:bg-foreground/10 focus-visible:opacity-100 pointer-coarse:order-last pointer-coarse:opacity-100 dark:hover:bg-foreground/10"
+            onClick={() => onDelete(id)}
+          />
           {isUnread ? <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" /> : null}
         </div>
         {showStation || facts.length > 0 ? (
@@ -286,30 +293,20 @@ function NotificationItem({ notification, operators, brands, onRead, onNavigate,
 type NotificationListProps = {
   notifications: Notification[];
   onRead: (id: string) => void;
+  onDelete: (id: string) => void;
   onNavigate: () => void;
 };
 
-export function NotificationList({ notifications, onRead, onNavigate }: NotificationListProps) {
+export function NotificationList({ notifications, onRead, onDelete, onNavigate }: NotificationListProps) {
   const isMapPage = useLocation({ select: (location) => location.pathname === "/" });
-  const queryClient = useQueryClient();
-  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
+  const { openStationDialog, openOfficialSiteDialog } = useFloatingDialogStack();
   const hasOperators = notifications.some((notification) => (getNotificationSite(notification)?.operatorId ?? null) !== null);
   const { data: operators } = useQuery({ ...operatorsQueryOptions(), enabled: hasOperators });
   const { data: brands } = useQuery({ ...brandsQueryOptions(), enabled: hasOperators });
 
   const openStation = ({ id, source }: DialogTarget) => {
-    if (source === "internal") {
-      openStationDialog(id, "internal");
-      return;
-    }
-
-    void queryClient
-      .query({
-        queryKey: ["uke-station", id],
-        queryFn: () => import("@/features/station-details/api").then((module) => module.fetchUkeStation(id)),
-      })
-      .then(openUkePermitDialog)
-      .catch(showApiError);
+    if (source === "internal") openStationDialog(id, "internal");
+    else openOfficialSiteDialog(id);
   };
 
   return (
@@ -321,6 +318,7 @@ export function NotificationList({ notifications, onRead, onNavigate }: Notifica
           operators={operators}
           brands={brands}
           onRead={onRead}
+          onDelete={onDelete}
           onNavigate={onNavigate}
           onOpenStation={isMapPage ? openStation : undefined}
         />

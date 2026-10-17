@@ -1,4 +1,4 @@
-import { bands, cells, gsmCells, lteCells, nrCells, stations, umtsCells } from "@openbts/drizzle";
+import { bands, cells, gsmCells, lteCells, nrCells, umtsCells } from "@openbts/drizzle";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -17,7 +17,6 @@ const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });
 const lteCellsSchema = createSelectSchema(lteCells).omit({ cell_id: true });
 const nrCellsSchema = createSelectSchema(nrCells).omit({ cell_id: true });
 const cellDetailsSchema = z.union([gsmCellsSchema, umtsCellsSchema, lteCellsSchema, nrCellsSchema]).nullable();
-const stationsSchema = createSelectSchema(stations);
 type CellBase = z.infer<typeof cellsSchema>;
 type CellDetails = z.infer<typeof cellDetailsSchema>;
 type CellWithRats = CellBase & {
@@ -35,7 +34,7 @@ const schemaRoute = {
   }),
   response: {
     200: z.object({
-      data: cellsSchema.extend({ station: stationsSchema, band: bandsSchema, details: cellDetailsSchema }),
+      data: cellsSchema.extend({ band: bandsSchema, details: cellDetailsSchema }),
     }),
   },
 };

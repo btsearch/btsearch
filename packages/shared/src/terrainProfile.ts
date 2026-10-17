@@ -1,8 +1,4 @@
-export const TERRAIN_RECEIVER_BOUNDS = {
-  latitude: { min: 48.8, max: 55.2 },
-  longitude: { min: 13.8, max: 24.5 },
-  mountedHeight: { min: 1, max: 100 },
-} as const;
+export const TERRAIN_RECEIVER_HEIGHT_M = { min: 1, max: 100 } as const;
 
 export const ANTENNA_AZIMUTH_TOLERANCE_DEG = 60;
 

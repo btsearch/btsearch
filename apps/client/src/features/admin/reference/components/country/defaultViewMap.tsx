@@ -1,16 +1,16 @@
 import { useEffect } from "react";
 
-import type { CountryView } from "../../types";
+import type { BoundingBox } from "../../types";
 import { toPickedView } from "./defaultViewDraft";
 import { MapControls, Map as MapGL, type MapRef, MapRoute, useMap } from "@/components/ui/map";
 
 type DefaultViewPickerMapProps = {
-  initialView: CountryView | null;
-  onVisibleViewChange: (view: CountryView) => void;
+  initialView: BoundingBox | null;
+  onVisibleViewChange: (view: BoundingBox) => void;
 };
 
 type VisibleViewReporterProps = {
-  onVisibleViewChange: (view: CountryView) => void;
+  onVisibleViewChange: (view: BoundingBox) => void;
 };
 
 const OUTLINE_COLOR = "#449AC0";
@@ -22,12 +22,12 @@ const WORLD_CENTER: [number, number] = [10, 30];
 const WORLD_ZOOM = 1;
 const FLAT_MAP_PITCH = 0;
 
-function readVisibleView(map: MapRef): CountryView {
+function readVisibleView(map: MapRef): BoundingBox {
   const bounds = map.getBounds();
   return toPickedView({ west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() });
 }
 
-function ViewCamera({ west, south, east, north }: CountryView) {
+function ViewCamera({ west, south, east, north }: BoundingBox) {
   const { map } = useMap();
 
   useEffect(() => {
@@ -38,7 +38,7 @@ function ViewCamera({ west, south, east, north }: CountryView) {
   return null;
 }
 
-function ViewOutline({ west, south, east, north }: CountryView) {
+function ViewOutline({ west, south, east, north }: BoundingBox) {
   return (
     <MapRoute
       coordinates={[
@@ -77,7 +77,7 @@ function VisibleViewReporter({ onVisibleViewChange }: VisibleViewReporterProps) 
   return null;
 }
 
-export function DefaultViewPreviewMap({ west, south, east, north }: CountryView) {
+export function DefaultViewPreviewMap({ west, south, east, north }: BoundingBox) {
   return (
     <MapGL bounds={[west, south, east, north]} fitBoundsOptions={PREVIEW_FIT_OPTIONS} interactive={false}>
       <ViewCamera west={west} south={south} east={east} north={north} />

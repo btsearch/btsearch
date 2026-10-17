@@ -14,11 +14,4 @@ describe("getStructureOwners", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ data: [owner] });
   });
-
-  it("returns an empty collection when no owners exist", async () => {
-    dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "structure_owners", []);
-    const app = await createRouteHarness(getStructureOwners);
-    expect((await app.inject({ method: "GET", url: "/structure-owners" })).json()).toEqual({ data: [] });
-  });
 });

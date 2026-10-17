@@ -27,7 +27,8 @@
     "addressPlaceholder": "Wpisz adres...",
     "nearbyLocations": "Pobliskie stacje",
     "createNewLocation": "Utwórz tutaj nową lokalizację",
-    "showUkeLocations": "Pokaż lokalizacje UKE",
+    "showSourceLocations": "Pokaż lokalizacje {{source}}",
+    "showRegisterLocations": "Pokaż lokalizacje z rejestru",
     "selectStation": "Wybierz stację do importu",
     "existingLocation": "Istniejąca lokalizacja",
     "useExistingAddress": "Użyj istniejącego adresu"
@@ -215,12 +216,10 @@
       "notFound": "W najnowszym wygenerowanym raporcie laboratoryjnym SI2PEM nie znaleziono azymutów",
       "fetchFailed": "Nie udało się pobrać azymutów z najnowszego wygenerowanego raportu laboratoryjnego SI2PEM"
     },
-    "uke": {
-      "fetchFailed": "Nie udało się pobrać azymutów z UKE"
+    "register": {
+      "notFound": "Nie znaleziono azymutów {{source}} dla tej stacji i operatora",
+      "fetchFailed": "Nie udało się pobrać azymutów z {{source}}"
     }
-  },
-  "ukeSectors": {
-    "notFound": "Nie znaleziono azymutów UKE dla tej stacji i operatora"
   },
   "review": {
     "tabs": {
@@ -231,6 +230,7 @@
     },
     "reload": "Wczytaj ponownie",
     "partnerAzimuths": "Stacja partnera {{station}} dostanie te same azymuty",
+    "severalPartnerStations": "W tym miejscu jest kilka stacji partnera. Uplink, azymuty i zdjęcia trafią tylko do tej z pasującym eNBID. Jeśli nie pasuje żadna albo pasuje kilka, nic nie zostanie skopiowane",
     "queue": {
       "place_one": "{{place, number}} z {{count, number}} oczekującego",
       "place_few": "{{place, number}} z {{count, number}} oczekujących",

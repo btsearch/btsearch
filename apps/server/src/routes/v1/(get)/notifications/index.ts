@@ -1,4 +1,4 @@
-import { NotificationType, notifications, operators, stations, ukeStations } from "@openbts/drizzle";
+import { NotificationType, notifications, officialSites, operators, stations } from "@openbts/drizzle";
 import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -27,7 +27,7 @@ const changesSchema = z.object({
 
 const notificationSchema = z.object({
   id: z.string(),
-  type: z.enum(NotificationType.enumValues),
+  type: z.enum(NotificationType.enumValues.map(toV1NotificationType)),
   title: z.string(),
   readAt: z.date().nullable(),
   createdAt: z.date(),
@@ -85,6 +85,10 @@ const notificationsUnreadQuery = db
   .where(and(eq(notifications.userId, sql.placeholder("userId")), isNull(notifications.readAt)))
   .prepare("notifications_unread");
 
+function toV1NotificationType(type: NotificationRow["type"]) {
+  return type === "station_official_permit_added" ? "station_uke_permit_added" : type;
+}
+
 function metadataRecord(metadata: NotificationRow["metadata"]): Metadata {
   if (metadata !== null && typeof metadata === "object" && !Array.isArray(metadata)) return metadata;
   return {};
@@ -102,15 +106,15 @@ function metadataNumber(metadata: Metadata, key: string): number {
 
 function stationKey(row: NotificationRow): string | null {
   if (row.stationId !== null) return `internal:${row.stationId}`;
-  if (row.ukeStationId !== null) return `uke:${row.ukeStationId}`;
+  if (row.officialSiteId !== null) return `official:${row.officialSiteId}`;
   return null;
 }
 
 async function loadStationDetails(rows: NotificationRow[]): Promise<Map<string, StationDetails>> {
   const stationIds = [...new Set(rows.flatMap((row) => (row.stationId === null ? [] : [row.stationId])))];
-  const ukeStationIds = [...new Set(rows.flatMap((row) => (row.ukeStationId === null ? [] : [row.ukeStationId])))];
+  const officialSiteIds = [...new Set(rows.flatMap((row) => (row.officialSiteId === null ? [] : [row.officialSiteId])))];
 
-  const [stationRows, ukeStationRows] = await Promise.all([
+  const [stationRows, officialSiteRows] = await Promise.all([
     stationIds.length > 0
       ? db
           .select({ id: stations.id, stationId: stations.station_id, name: operators.name, mnc: operators.mnc })
@@ -118,18 +122,18 @@ async function loadStationDetails(rows: NotificationRow[]): Promise<Map<string, 
           .innerJoin(operators, eq(stations.operator_id, operators.id))
           .where(inArray(stations.id, stationIds))
       : Promise.resolve([]),
-    ukeStationIds.length > 0
+    officialSiteIds.length > 0
       ? db
-          .select({ id: ukeStations.id, stationId: ukeStations.station_id, name: operators.name, mnc: operators.mnc })
-          .from(ukeStations)
-          .innerJoin(operators, eq(ukeStations.operator_id, operators.id))
-          .where(inArray(ukeStations.id, ukeStationIds))
+          .select({ id: officialSites.id, stationId: officialSites.station_id, name: operators.name, mnc: operators.mnc })
+          .from(officialSites)
+          .innerJoin(operators, eq(officialSites.operator_id, operators.id))
+          .where(inArray(officialSites.id, officialSiteIds))
       : Promise.resolve([]),
   ]);
 
   return new Map([
     ...stationRows.map(({ id, stationId, name, mnc }) => [`internal:${id}`, { stationId, operator: { name, mnc } }] as const),
-    ...ukeStationRows.map(({ id, stationId, name, mnc }) => [`uke:${id}`, { stationId, operator: { name, mnc } }] as const),
+    ...officialSiteRows.map(({ id, stationId, name, mnc }) => [`official:${id}`, { stationId, operator: { name, mnc } }] as const),
   ]);
 }
 
@@ -150,7 +154,7 @@ async function loadSubmissionActors(rows: NotificationRow[]): Promise<Map<string
 }
 
 function toStation(row: NotificationRow, metadata: Metadata, details: StationDetails | undefined): NotificationItem["station"] {
-  const id = row.stationId ?? row.ukeStationId;
+  const id = row.stationId ?? row.officialSiteId;
   const stationId = details?.stationId ?? metadataString(metadata, "station_id");
   const operatorName = details?.operator.name ?? metadataString(metadata, "station_operator_name");
   if (id === null && stationId === null && operatorName === null) return null;
@@ -159,7 +163,7 @@ function toStation(row: NotificationRow, metadata: Metadata, details: StationDet
   return {
     id,
     station_id: stationId,
-    source: row.stationId === null && (row.ukeStationId !== null || row.type === "station_uke_permit_added") ? "uke" : "internal",
+    source: row.stationId === null && (row.officialSiteId !== null || row.type === "station_official_permit_added") ? "uke" : "internal",
     operator: operatorName === null ? null : { name: operatorName, mnc: details?.operator.mnc ?? (typeof storedMnc === "number" ? storedMnc : null) },
   };
 }
@@ -184,11 +188,11 @@ function toChanges(row: NotificationRow, metadata: Metadata): NotificationItem["
     return {
       cells: { added: metadataNumber(metadata, "added"), removed: metadataNumber(metadata, "removed"), updated: metadataNumber(metadata, "updated") },
     };
-  if (row.type === "station_uke_permit_added")
+  if (row.type === "station_official_permit_added")
     return {
       permits: { added: metadataNumber(metadata, "permits_added"), deleted: metadataNumber(metadata, "permits_deleted") },
-      ukeStationsAdded: metadataNumber(metadata, "uke_stations_added"),
-      removedFromUke: metadata.uke_station_deleted === true,
+      ukeStationsAdded: metadataNumber(metadata, "official_sites_added"),
+      removedFromUke: metadata.official_site_deleted === true,
     };
   return null;
 }
@@ -204,7 +208,7 @@ function toNotificationItem(
 
   return {
     id: row.id,
-    type: row.type,
+    type: toV1NotificationType(row.type),
     title: notificationTitle(row.type, locale),
     readAt: row.readAt,
     createdAt: row.createdAt,

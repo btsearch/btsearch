@@ -1,3 +1,4 @@
+import { conventionsFor } from "@openbts/country-packs";
 import { cells, lteCells } from "@openbts/drizzle";
 import type { CellApply } from "@openbts/shared/contract";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
@@ -11,13 +12,13 @@ import { hasStaffPermission } from "../access/staff.js";
 import { type AuditRecorder, type CellSnapshot, loadCellSnapshots, runAuditedOperation, standaloneAuditContext } from "../audit/index.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateKey } from "../cells/identityDuplicateSpecs.js";
 import { prepareStationChange } from "../stations/edit.js";
-import { findVisibleStation } from "../stations/read.js";
+import { findVisibleStationWithCountry } from "../stations/read.js";
 import { type AppliedChange, applyDirectChange, finishDirectChange } from "../submissions/actions.js";
 import type { ChangeCell, SubmissionChange } from "../submissions/create.js";
 import type { StationEdit } from "../submissions/translate.js";
 
 type StoredTacs = ReadonlyMap<number, number | null>;
-type StationChange = { stationId: number; operatorId: number | null; change: SubmissionChange; tac?: number };
+type StationChange = { stationId: number; operatorId: number | null; hoistedTac: boolean; change: SubmissionChange; tac?: number };
 type AppliedStation = { stationId: number; applied: AppliedChange };
 type AppliedOperation = { operationId: number; appliedStations: AppliedStation[] };
 type SpreadCell = { id: number; old: CellSnapshot };
@@ -29,9 +30,9 @@ function toConfirmedEdit(item: CellApply): StationEdit {
 }
 
 async function prepareItem(req: FastifyRequest, item: CellApply, index: number): Promise<StationChange> {
-  const station = await findVisibleStation(req, item.stationId);
+  const { station, countryCode } = await findVisibleStationWithCountry(req, item.stationId);
   const change = await prepareStationChange(req, toConfirmedEdit(item), (path) => [index, ...path]);
-  return { stationId: item.stationId, operatorId: station.operator_id, change };
+  return { stationId: item.stationId, operatorId: station.operator_id, hoistedTac: conventionsFor(countryCode).hoistedTac, change };
 }
 
 function assertIdentitiesAppearOnce(stationChanges: readonly StationChange[]): void {
@@ -68,7 +69,9 @@ function changedTac(cell: ChangeCell, storedTacs: StoredTacs): number | undefine
 }
 
 function withStationTac(stationChange: StationChange, storedTacs: StoredTacs, index: number): StationChange {
-  const { stationId, change } = stationChange;
+  const { stationId, hoistedTac, change } = stationChange;
+  if (!hoistedTac) return stationChange;
+
   const tacs = unique((change.cells ?? []).map((cell) => changedTac(cell, storedTacs)));
   if (tacs.length > 1) throw itemRefusal("BAD_REQUEST", `Multiple TAC values submitted for station ${stationId}`, [index]);
 
@@ -140,7 +143,7 @@ export async function applyCells(req: FastifyRequest, items: readonly CellApply[
 
   const prepared = await Promise.all(items.map((item, index) => pointRefusalsAtItem(index, () => prepareItem(req, item, index))));
   assertIdentitiesAppearOnce(prepared);
-  const storedTacs = await loadStoredTacs(prepared);
+  const storedTacs = await loadStoredTacs(prepared.filter(({ hoistedTac }) => hoistedTac));
   const stationChanges = prepared.map((stationChange, index) => withStationTac(stationChange, storedTacs, index));
 
   const { operationId, appliedStations } = await runAuditedOperation(
@@ -149,7 +152,7 @@ export async function applyCells(req: FastifyRequest, items: readonly CellApply[
     (_tx, audit) => applyStationChanges(audit, stationChanges),
   );
 
-  await Promise.all(appliedStations.map(({ applied }) => finishDirectChange("update", applied)));
+  await Promise.all(appliedStations.map(({ applied }) => finishDirectChange(applied)));
   return {
     operationId,
     stations: appliedStations.map(({ stationId, applied: { cellChanges } }) => ({

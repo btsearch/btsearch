@@ -40,6 +40,20 @@ services:
       - AXIOM_DATASET=openbts
       - NTM_USERAGENT=
 
+  importer:
+    environment:
+      - DATABASE_URL=postgres://user:{{ db_password }}@postgres:5432/openbts
+      - REDIS_URL=redis://default:{{ redis_password }}@redis:6379
+      - BASE_URL=https://{{ openbts_domain }}
+      - APP_NAME=OpenBTS
+      # VAPID push notifications, the same values as the server's
+      - VAPID_PUBLIC_KEY=
+      - VAPID_PRIVATE_KEY=
+      - VAPID_SUBJECT={{ vapid_subject }}
+      # Optional Axiom logging:
+      - AXIOM_TOKEN=
+      - AXIOM_DATASET=openbts
+
   postgres:
     environment:
       - POSTGRES_USER=user

@@ -1,7 +1,7 @@
 export default {
-  ukeUpdate: {
-    title: "UKE data updated",
-    body: "New UKE station data is available",
+  officialDataUpdate: {
+    title: "{source} data updated",
+    body: "New {source} data is available",
   },
   submissionApproved: {
     title: "Submission approved",
@@ -35,9 +35,9 @@ export default {
     title: "New station comment",
     body: "A watched station has a new comment",
   },
-  stationUkePermitAdded: {
-    title: "UKE permits changed",
-    body: "A watched station has UKE permit changes",
+  stationOfficialPermitAdded: {
+    title: "Station permits changed",
+    body: "A watched station has permit changes",
   },
   labels: {
     station: "Station",
@@ -47,10 +47,10 @@ export default {
     cellsAdded: "Cells added",
     cellsRemoved: "Cells removed",
     cellsUpdated: "Cells updated",
-    permitsAdded: "UKE permits added",
-    permitsDeleted: "UKE permits deleted",
-    ukeStationsAdded: "UKE stations added",
-    ukeStationDeleted: "Station removed from UKE data",
+    permitsAdded: "Permits added",
+    permitsDeleted: "Permits removed",
+    officialSitesAdded: "Register stations added",
+    officialSiteDeleted: "Station removed from the register",
     count: "Count",
   },
 } as const;

@@ -10,6 +10,7 @@ import getEmfInactiveSites from "../../../../../src/routes/v2/(get)/emf/inactive
 import getEmfMeasurements from "../../../../../src/routes/v2/(get)/emf/measurements.js";
 import getEmfReports from "../../../../../src/routes/v2/(get)/emf/reports.js";
 import { dbMock, redisMock } from "../../../../helpers/boundaries.js";
+import { whereQuery } from "../../../../helpers/mutationAssertions.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 let day = 0;
@@ -82,10 +83,35 @@ describe("getEmfReports", () => {
     expect(load).not.toHaveBeenCalled();
   });
 
-  it("hides stations outside the supported country", async () => {
+  it("hides a station in a country without the EMF capability", async () => {
     dbMock.enqueueFor("select", getTableName(stations), [{ siteId: "Test", latitude: 52, longitude: 21, mnc: null, countryCode: "US" }]);
+    const load = vi.spyOn(si2pem, "getWmsFeatureInfo").mockRejectedValue(new Error("Unexpected report lookup"));
     const app = await createRouteHarness(getEmfReports);
     expect((await app.inject({ url: "/emf/reports?stationId=1" })).statusCode).toBe(404);
+    expect(dbMock.calls.some((call) => call.table === "countries")).toBe(false);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("still answers for a station with no known country", async () => {
+    dbMock.enqueueFor("select", getTableName(stations), [{ siteId: "Test", latitude: null, longitude: null, mnc: null, countryCode: null }]);
+    dbMock.enqueueFor("select", "countries", []);
+    const app = await createRouteHarness(getEmfReports);
+    const response = await app.inject({ url: "/emf/reports?stationId=1" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: [] });
+  });
+
+  it("does not find an official site whose source is hidden from you", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "official.sources", [{ id: 1, countryCode: "PL", isVisible: true }]);
+    dbMock.enqueueFor("select", "official.sites", []);
+    const load = vi.spyOn(si2pem, "getWmsFeatureInfo").mockRejectedValue(new Error("Unexpected report lookup"));
+    const app = await createRouteHarness(getEmfReports);
+    expect((await app.inject({ url: "/emf/reports?officialSiteId=7" })).statusCode).toBe(404);
+    const condition = whereQuery("official.sites", "select");
+    expect(condition.sql).toContain('"public_location"."source_id" in');
+    expect(condition.params).toEqual([7, 1]);
+    expect(load).not.toHaveBeenCalled();
   });
 });
 
@@ -100,6 +126,14 @@ describe("getEmfAntennas", () => {
     expect(response.json()).toEqual({ data: { report: null, antennas: [] } });
     expect(load).not.toHaveBeenCalled();
     expect(redisMock.eval).not.toHaveBeenCalled();
+  });
+
+  it("hides a station in a country without the EMF capability", async () => {
+    dbMock.enqueueFor("select", getTableName(stations), [{ siteId: "Test", latitude: 52, longitude: 21, mnc: null, countryCode: "US" }]);
+    const load = vi.spyOn(si2pem, "findLaboratoryReports").mockRejectedValue(new Error("Unexpected report lookup"));
+    const app = await createRouteHarness(getEmfAntennas);
+    expect((await app.inject({ url: "/emf/antennas?stationId=1" })).statusCode).toBe(404);
+    expect(load).not.toHaveBeenCalled();
   });
 
   it("counts an uncached report read and returns its metadata when the PDF exceeds the size limit", async () => {
@@ -272,6 +306,17 @@ describe("getEmfMeasurements", () => {
     expect(load).toHaveBeenCalledWith(expect.objectContaining({ status: "COMPLETED", page: 1, pageSize: 2 }));
   });
 
+  it("asks SI2PEM only for regions in a country with the EMF capability", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "regions", [{ name: "Mazowieckie" }]);
+    const load = vi.spyOn(si2pem, "listPlannedMeasurements").mockResolvedValue({ count: 0, results: [], next: null, previous: null });
+    const app = await createRouteHarness(getEmfMeasurements);
+    const response = await app.inject({ url: "/emf/measurements?regionIds=1" });
+    expect(response.statusCode).toBe(200);
+    expect(whereQuery("regions", "select").params).toEqual([1, "PL"]);
+    expect(load).toHaveBeenCalledWith(expect.objectContaining({ voivodeship: "mazowieckie" }));
+  });
+
   it("does not query the provider for a bounding box outside Poland", async () => {
     dbMock.enqueueFor("select", "countries", []);
     const load = vi.spyOn(si2pem, "getFeatures").mockRejectedValue(new Error("Unexpected map lookup"));
@@ -369,9 +414,16 @@ describe("EMF country visibility", () => {
     [getEmfMeasurements, "/emf/measurements"],
     [getEmfFilings, "/emf/filings"],
     [getEmfInactiveSites, "/emf/inactive-sites"],
-  ] as const)("hides a route when Poland is unavailable: %s", async (route, url) => {
+  ] as const)("hides a route when no country with the EMF capability is visible: %s", async (route, url) => {
     dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     const app = await createRouteHarness(route);
     expect((await app.inject({ url })).statusCode).toBe(404);
+  });
+
+  it("keeps a route when only a country without the EMF capability is hidden", async () => {
+    dbMock.enqueueFor("select", getTableName(stations), [{ siteId: "Test", latitude: null, longitude: null, mnc: null, countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "countries", [{ code: "US" }]);
+    const app = await createRouteHarness(getEmfReports);
+    expect((await app.inject({ url: "/emf/reports?stationId=1" })).statusCode).toBe(200);
   });
 });

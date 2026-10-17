@@ -12,6 +12,7 @@ import {
   TaskDaily01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { type PointerEvent, type RefObject, type TouchEvent, memo, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -30,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { type PageSection, usePageSectionsActiveId, usePageSectionsList } from "@/contexts/pageSections";
 import { useReferenceAccess } from "@/features/admin/reference/access/useReferenceAccess";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
+import { countriesQueryOptions } from "@/features/shared/lookups";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNavLists } from "@/hooks/useNavLists";
 import { useSettings } from "@/hooks/useSettings";
@@ -797,6 +799,7 @@ export function FloatingNav() {
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
   const { canOpenCountries } = useReferenceAccess();
+  const { data: countries } = useQuery(countriesQueryOptions());
   const { favoriteSet, lists: navLists } = useNavLists();
   const [navState, dispatchNav] = useReducer(floatingNavReducer, pathname, createInitialFloatingNavState);
   const { hidden, showCount, expandedKey, collapsedActiveKey, mobileSectionKey, subnavReady } = navState;
@@ -852,13 +855,13 @@ export function FloatingNav() {
       : [];
 
     return [
-      ...translateNav(navMainConfig, t),
+      ...translateNav(navMainConfig, t, countries),
       ...(showAuth ? translateNav(authNavConfig, t) : []),
       ...translatedListSections,
       ...translateAdminNav(adminNavConfig, t, userRole, settings, canOpenCountries),
       ...infoSections,
     ];
-  }, [canOpenCountries, favoriteSet, navLists, settings, showAuth, showLists, t, userRole]);
+  }, [canOpenCountries, countries, favoriteSet, navLists, settings, showAuth, showLists, t, userRole]);
   const activeSection = useMemo(() => getActiveNavSection(sections, pathname), [sections, pathname]);
   const expandedSection = sections.find((section) => section.key === expandedKey) ?? null;
   const displayedSection = expandedSection ?? (activeSection?.key === collapsedActiveKey ? null : activeSection);

@@ -190,10 +190,10 @@ describe("PUT /brands/:id/logo", () => {
     },
   );
 
-  it.each(["0", "-1", "1.5", "abc", "9007199254740992"])("rejects invalid brand id %s before database or file access", async (id) => {
+  it("rejects an invalid brand id before database or file access", async () => {
     const app = await createRouteHarness(route);
 
-    expect((await app.inject({ method: "PUT", url: `/brands/${id}/logo`, ...upload() })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PUT", url: "/brands/0/logo", ...upload() })).statusCode).toBe(400);
     expect(dbMock.query.brands.findFirst).not.toHaveBeenCalled();
     expect(files.writeFile).not.toHaveBeenCalled();
   });

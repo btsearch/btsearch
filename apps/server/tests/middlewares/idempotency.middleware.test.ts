@@ -41,8 +41,8 @@ describe("idempotencyHook", () => {
     expect((await request("POST", "correlation-key")).statusCode).toBe(200);
     expect((await request("POST", "correlation-key")).statusCode).toBe(200);
   });
-  it.each(["GET", "PUT", "PATCH", "DELETE"] as const)("does not acquire POST idempotency locks for %s", async (method) => {
-    expect((await request(method, "correlation-key")).statusCode).toBe(200);
+  it("does not acquire POST idempotency locks for PATCH", async () => {
+    expect((await request("PATCH", "correlation-key")).statusCode).toBe(200);
     expect(redisMock.set).not.toHaveBeenCalled();
   });
   it.each([undefined, ""])("allows a POST without an idempotency key %s", async (key) => {

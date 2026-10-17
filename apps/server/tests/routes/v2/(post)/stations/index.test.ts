@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import route from "../../../../../src/routes/v2/(post)/stations/index.js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
 import { cellBands, cellInputs, storedCell } from "../../../../helpers/cellWriteFixtures.js";
+import { whereQuery } from "../../../../helpers/mutationAssertions.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 import { stationRow, visibleStation } from "../../../../helpers/stationFixtures.js";
 
@@ -59,7 +60,6 @@ describe("POST /stations", () => {
     dbMock.enqueueFor("select", "bands", [{ id: 1 }], cellBands);
     dbMock.enqueueFor("select", "country_bands", [{ bandId: 1 }]);
     dbMock.query.stations.findFirst.mockResolvedValueOnce(undefined).mockResolvedValue(saved);
-    dbMock.query.ukePermits.findMany.mockResolvedValue([]);
     dbMock.enqueueFor("select", getTableName(gsmCells), []);
     dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
     dbMock.enqueueFor("insert", "stations", [saved]);
@@ -69,7 +69,7 @@ describe("POST /stations", () => {
     dbMock.enqueueFor("insert", "station_sectors", [{ id: 5 }]);
     dbMock.enqueueFor("insert", "cells", [created.cell]);
     dbMock.enqueueFor("insert", getTableName(gsmCells), [created.radio]);
-    dbMock.enqueueFor("select", "stations", [{ locationId: null, mnc: null }], []);
+    dbMock.enqueueFor("select", "stations", [{ id: 1, locationId: null, operatorId: 1, countryCode: "PL" }], []);
     dbMock.query.cells.findMany.mockResolvedValue([{ ...created.cell, gsm: created.radio, umts: null, lte: null, nr: null }]);
     dbMock.enqueueFor("select", "cells", [{ bandId: 1, rat: "GSM", bandRat: "GSM", countryCode: "PL", plannedBandId: 1 }]);
     dbMock.enqueueFor("select", "audit_logs", []);
@@ -112,30 +112,6 @@ describe("POST /stations", () => {
     );
   });
 
-  it("validates operator references and combined permissions when creating sectors and cells together", async () => {
-    dbMock.enqueueFor("select", "operators", []);
-    dbMock.enqueueFor("select", "bands", [{ id: 1 }]);
-    const app = await createRouteHarness(route, { session: userSession() });
-    const response = await app.inject({
-      method: "POST",
-      url: "/stations",
-      payload: {
-        ...payload,
-        sectors: [{ key: "north", azimuth: 0 }],
-        cells: [{ rat: "gsm", bandId: 1, lac: 1, cid: 2, sectorKey: "north" }],
-      },
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json().errors[0].message).toBe("Operator 1 does not exist");
-    expect(authBoundary.auth.api.userHasPermission.mock.calls[0]?.[0]).toMatchObject({
-      body: {
-        permissions: { stations: ["create"], cells: ["create"] },
-      },
-    });
-    expect(dbMock.transaction).not.toHaveBeenCalled();
-  });
-
   it("rejects a duplicate site id within the same operator before any writes", async () => {
     dbMock.enqueueFor("select", "operators", [{ id: 1 }]);
     dbMock.query.stations.findFirst.mockResolvedValue(stationRow());
@@ -146,6 +122,47 @@ describe("POST /stations", () => {
     expect(response.json().errors[0].message).toContain("already exists");
     expect(dbMock.transaction).not.toHaveBeenCalled();
     expect(dbMock.insert).not.toHaveBeenCalled();
+  });
+
+  it("refuses an address that a location in Poland does not take, at its field and before any writes", async () => {
+    dbMock.enqueueFor("select", "operators", [{ id: 1 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "regions", [{ id: 1 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
+    const app = await createRouteHarness(route, { session: userSession() });
+    const location = { latitude: 52, longitude: 21, regionId: 1, address: "teren własny" };
+    const response = await app.inject({ method: "POST", url: "/stations", payload: { ...payload, location } });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      errors: [
+        {
+          code: "VALIDATION_ERROR",
+          message: "Validation error.",
+          details: [{ field: "location/address", validationMessage: "Address must not contain variants of własny" }],
+        },
+      ],
+    });
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses a band outside the plan of the country the coordinates fall in, whatever region the request names", async () => {
+    dbMock.enqueueFor("select", "operators", [{ id: 1 }], [{ countryCode: "DE" }]);
+    dbMock.enqueueFor("select", "regions", [{ id: 2 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "bands", [{ id: 1 }], cellBands);
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
+    dbMock.enqueueFor("select", "country_bands", []);
+    dbMock.query.stations.findFirst.mockResolvedValue(undefined);
+    dbMock.query.locations.findFirst.mockResolvedValue(undefined);
+    const app = await createRouteHarness(route, { session: userSession() });
+    const location = { latitude: 52, longitude: 21, regionId: 2 };
+    const response = await app.inject({ method: "POST", url: "/stations", payload: { ...payload, location, cells: [cellInputs.gsm] } });
+
+    expect(response.statusCode, response.body).toBe(400);
+    expect(response.json().errors[0].message).toBe("Band 1 is not in the band plan of PL");
+    expect(whereQuery("regions", "select", 1).params).toEqual([1]);
+    expect(whereQuery("country_bands", "select").params).toEqual(["PL", 1]);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+    expect(dbMock.pendingResults()).toBe(0);
   });
 
   it("rejects the edit when the caller lacks station creation permission", async () => {

@@ -4,6 +4,7 @@ Allow: /
 Disallow: /admin/
 Disallow: /account/
 Disallow: /preferences
+Allow: /lists/
 Disallow: /lists
 Disallow: /submission
 Disallow: /share-target

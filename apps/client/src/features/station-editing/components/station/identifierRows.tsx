@@ -1,8 +1,9 @@
+import { conventionsFor } from "@openbts/country-packs";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { fetchPartnerIdentifiers, findPartnerOperator, resolveOwnNameFromPartner } from "../../data/partner";
+import { fetchPartnerIdentifiers, findPartnerOperator } from "../../data/partner";
 import type { StationDraftApi } from "../../hooks/useStationDraft";
 import { keepDigits } from "../../model/changes";
 import { findDraftOperator } from "../../model/snapshots";
@@ -13,7 +14,7 @@ import { BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { getOperatorShortLabel } from "@/features/station-details/station/utils/stations";
+import { getOperatorShortLabel, toOperatorRef } from "@/features/station-details/station/utils/stations";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +37,7 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
   const { session, dispatch, lookups } = edit;
   const { station, place } = session.draft;
   const operator = findDraftOperator(session.draft, lookups.operatorsById);
-  const kinds = listIdentifierKinds(operator);
+  const kinds = listIdentifierKinds(operator, lookups.operatorsById);
   const hasNetworksFields = kinds.includes("networksId");
   const partner = hasNetworksFields ? findPartnerOperator(operator, lookups.operators) : null;
   const isLocked = !edit.canEdit;
@@ -48,7 +49,7 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
   const networksNameView = getStationFieldView(edit, "networksName", idPrefix);
 
   function fetchFromPartner() {
-    if (stationId === null) return;
+    if (stationId === null || operator === null) return;
 
     setIsFetchingPartner(true);
     void fetchPartnerIdentifiers(stationId)
@@ -58,7 +59,12 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
           return;
         }
 
-        const ownName = resolveOwnNameFromPartner(operator, station.siteId, place?.city ?? null, found.operatorName);
+        const ownName = conventionsFor(lookups.countryCode).suggestOperatorName({
+          operator: toOperatorRef(operator, lookups.operatorsById),
+          siteId: station.siteId,
+          city: place?.city ?? null,
+          partnerName: found.operatorName,
+        });
         if (hasText(found.networksId)) dispatch({ type: "setIdentifier", kind: "networksId", value: found.networksId });
         if (hasText(found.networksName)) dispatch({ type: "setIdentifier", kind: "networksName", value: found.networksName });
         if (hasText(ownName)) dispatch({ type: "setIdentifier", kind: "operatorName", value: ownName });
@@ -150,7 +156,7 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
                 focusableWhenDisabled
                 className={cn(
                   "h-8 shrink-0 cursor-pointer gap-1.5 data-disabled:pointer-events-none data-disabled:opacity-50",
-                  isForm ? "mt-[18px]" : "mt-[22px]",
+                  isForm ? "mt-4.5" : "mt-5.5",
                 )}
               >
                 <BrandMark brand={getOperatorBrand(partner, lookups.brands)} size={14} />

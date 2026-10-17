@@ -1,10 +1,10 @@
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { Licensee } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { registerBandsQueryOptions } from "../../api";
 import { RAT_OPTIONS } from "../../constants";
 import {
   DEFAULT_RECENT_DAYS,
@@ -15,6 +15,8 @@ import {
   UNKNOWN_BAND_LABEL,
   listAppliedMapBands,
   listAppliedMapRats,
+  listMapRegisterRatOptions,
+  listStoredRegisterRatOptions,
 } from "../../data/mapFilters";
 import { type MapLookups, useCountryBandPlans } from "../../data/mapLookups";
 import { Checkbox } from "./checkbox";
@@ -32,9 +34,9 @@ import {
 } from "@/components/ui/combobox";
 import { InlineError } from "@/components/ui/error-state";
 import { Slider } from "@/components/ui/slider";
-import { type UkeOperator, fetchUkeRadioLineOperators } from "@/features/shared/api";
+import { licenseesQueryOptions, officialBandLabelsQueryOptions } from "@/features/official/queries";
 import { FacetCountryMark, FacetPill, FilterPanelSection, KbdHint } from "@/features/shared/filterPanel";
-import { type RatOption, listRegisterRatOptions, toRegisterRatOption } from "@/features/shared/rat";
+import type { RatOption } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { formatBandMhzLabel, isBandLabelInGhz } from "@/features/station-details/station/utils/bands";
 import { UPLINK_APPEARANCE, UPLINK_TYPES, uplinkTypeKey } from "@/lib/format/uplink";
@@ -42,16 +44,16 @@ import { getCountryName } from "@/lib/geo/countryName";
 import { hasFailedLoad } from "@/lib/queryLoadState";
 import { cn, toggleValue } from "@/lib/utils";
 
-type RadiolineOperators = {
-  operators: UkeOperator[];
+type MicrowaveLinkOperators = {
+  operators: Licensee[];
   isError: boolean;
   isRetrying: boolean;
   retry: () => unknown;
 };
 
-type RadiolineOperatorsSectionProps = {
+type MicrowaveLinkOperatorsSectionProps = {
   filters: MapFilters;
-  operators: UkeOperator[];
+  operators: Licensee[];
   hasOperatorsError: boolean;
   isRetryingOperators: boolean;
   onRetryOperators: () => unknown;
@@ -90,50 +92,44 @@ type RecentDaysFilterProps = {
   onRecentDateFieldChange: (fields: MapRecentDateField[]) => void;
 };
 
-const PRIORITY_RADIOLINE_OPERATORS = ["T-Mobile Polska", "Towerlink Poland", "P4", "ORANGE POLSKA"];
+const PRIORITY_MICROWAVE_LINK_OPERATORS = ["T-Mobile Polska", "Towerlink Poland", "P4", "ORANGE POLSKA"];
 const RECENT_DATE_FIELDS: MapRecentDateField[] = ["updatedAt", "createdAt"];
-const RADIOLINE_CHIP_MAX_LENGTH = 12;
-const RADIOLINE_OPERATORS_STALE_TIME = 1000 * 60 * 30;
-const NO_RADIOLINE_OPERATORS: UkeOperator[] = [];
+const MICROWAVE_LINK_CHIP_MAX_LENGTH = 12;
+const NO_MICROWAVE_LINK_OPERATORS: Licensee[] = [];
 
-function compareRadiolineOperators(left: UkeOperator, right: UkeOperator): number {
-  const leftIndex = PRIORITY_RADIOLINE_OPERATORS.indexOf(left.name);
-  const rightIndex = PRIORITY_RADIOLINE_OPERATORS.indexOf(right.name);
+function compareMicrowaveLinkOperators(left: Licensee, right: Licensee): number {
+  const leftIndex = PRIORITY_MICROWAVE_LINK_OPERATORS.indexOf(left.name);
+  const rightIndex = PRIORITY_MICROWAVE_LINK_OPERATORS.indexOf(right.name);
   if (leftIndex !== -1 && rightIndex !== -1) return leftIndex - rightIndex;
   if (leftIndex !== -1) return -1;
   if (rightIndex !== -1) return 1;
   return left.name.localeCompare(right.name);
 }
 
-export function useRadiolineOperators(isLayerShown: boolean): RadiolineOperators {
-  const operatorsQuery = useQuery({
-    queryKey: ["uke", "radiolines", "operators"],
-    queryFn: fetchUkeRadioLineOperators,
-    staleTime: RADIOLINE_OPERATORS_STALE_TIME,
-    enabled: isLayerShown,
-  });
+export function useMicrowaveLinkOperators(isLayerShown: boolean): MicrowaveLinkOperators {
+  const operatorsQuery = useQuery({ ...licenseesQueryOptions({ hasMicrowaveLinks: true }), enabled: isLayerShown });
   const isError = hasFailedLoad(operatorsQuery);
   const isRetrying = isError && operatorsQuery.isFetching;
-  const loadedOperators = operatorsQuery.data ?? NO_RADIOLINE_OPERATORS;
-  const operators = useMemo(() => [...loadedOperators].sort(compareRadiolineOperators), [loadedOperators]);
+  const loadedOperators = operatorsQuery.data ?? NO_MICROWAVE_LINK_OPERATORS;
+  const operators = useMemo(() => [...loadedOperators].sort(compareMicrowaveLinkOperators), [loadedOperators]);
 
   return { operators, isError, isRetrying, retry: operatorsQuery.refetch };
 }
 
-export function RadiolineOperatorsSection({
+export function MicrowaveLinkOperatorsSection({
   filters,
   operators,
   hasOperatorsError,
   isRetryingOperators,
   onRetryOperators,
   onFiltersChange,
-}: RadiolineOperatorsSectionProps) {
+}: MicrowaveLinkOperatorsSectionProps) {
   const { t } = useTranslation(["main", "common"]);
   const chipsRef = useRef<HTMLDivElement>(null);
   const operatorById = useMemo(() => new Map(operators.map((operator) => [operator.id, operator])), [operators]);
   const selectedIds = filters.radiolineOperators;
   const selectedOperators = useMemo(
-    () => selectedIds.map((id) => operatorById.get(id)).filter((operator): operator is UkeOperator => operator !== undefined),
+    () => selectedIds.map((id) => operatorById.get(id)).filter((operator): operator is Licensee => operator !== undefined),
     [operatorById, selectedIds],
   );
 
@@ -155,13 +151,15 @@ export function RadiolineOperatorsSection({
             const needle = query.toLowerCase().trim();
             if (!needle) return true;
             const label = (itemToString?.(operator) ?? operator.name ?? "").toLowerCase();
-            return label.includes(needle) || (operator.full_name ?? "").toLowerCase().includes(needle);
+            return label.includes(needle) || operator.legalName.toLowerCase().includes(needle);
           }}
         >
           <ComboboxChips ref={chipsRef} className="custom-scrollbar max-h-24 min-h-8 overflow-x-hidden overflow-y-auto overscroll-contain text-sm">
             {selectedOperators.map((operator) => (
               <ComboboxChip key={operator.id} title={operator.name}>
-                {operator.name.length > RADIOLINE_CHIP_MAX_LENGTH ? `${operator.name.slice(0, RADIOLINE_CHIP_MAX_LENGTH)}...` : operator.name}
+                {operator.name.length > MICROWAVE_LINK_CHIP_MAX_LENGTH
+                  ? `${operator.name.slice(0, MICROWAVE_LINK_CHIP_MAX_LENGTH)}...`
+                  : operator.name}
               </ComboboxChip>
             ))}
             <ComboboxChipsInput
@@ -173,12 +171,12 @@ export function RadiolineOperatorsSection({
           <ComboboxContent anchor={chipsRef}>
             <ComboboxEmpty>{t("common:placeholder.noOperatorsFound")}</ComboboxEmpty>
             <ComboboxList>
-              {(operator: UkeOperator) => (
+              {(operator: Licensee) => (
                 <ComboboxItem key={operator.id} value={operator}>
                   <span>{operator.name}</span>
-                  {operator.full_name && operator.full_name !== operator.name ? (
-                    <span className="ml-auto max-w-48 truncate text-xs text-muted-foreground" title={operator.full_name}>
-                      {operator.full_name}
+                  {operator.legalName && operator.legalName !== operator.name ? (
+                    <span className="ml-auto max-w-48 truncate text-xs text-muted-foreground" title={operator.legalName}>
+                      {operator.legalName}
                     </span>
                   ) : null}
                 </ComboboxItem>
@@ -194,10 +192,8 @@ export function RadiolineOperatorsSection({
 export function StandardSection({ filters, onToggleRat, onClearAllRats, hasKeyHint = true }: StandardSectionProps) {
   const { t } = useTranslation(["main", "common"]);
   const isDatabaseSource = filters.source === "internal";
-  const registerRatsQuery = useQuery({ ...registerBandsQueryOptions(), select: listRegisterRatOptions, enabled: !isDatabaseSource });
-  const ratOptions: readonly RatOption[] = isDatabaseSource
-    ? RAT_OPTIONS
-    : (registerRatsQuery.data ?? filters.rat.map((value) => ({ ...toRegisterRatOption(value), value })));
+  const registerRatsQuery = useQuery({ ...officialBandLabelsQueryOptions(), select: listMapRegisterRatOptions, enabled: !isDatabaseSource });
+  const ratOptions: readonly RatOption[] = isDatabaseSource ? RAT_OPTIONS : (registerRatsQuery.data ?? listStoredRegisterRatOptions(filters.rat));
   const isError = !isDatabaseSource && hasFailedLoad(registerRatsQuery);
   const hasAppliedRats = listAppliedMapRats(filters).length > 0;
 

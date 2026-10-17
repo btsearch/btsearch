@@ -9,7 +9,6 @@ import {
   submissions,
 } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
-import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
 import { and, count, eq, inArray } from "drizzle-orm/sql";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import z from "zod";
@@ -21,7 +20,6 @@ import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
 import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cells/duplicateCheck.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { assertCellUpdateFitsStoredRat, refuseNsaFields } from "../cells/ratCellSchemas.js";
-import { findPlacementCountryCode } from "../stations/country.js";
 import type { StationStatus } from "../stations/status.js";
 import { uplinkSpeedSchema } from "../stations/uplink.js";
 import {
@@ -52,20 +50,9 @@ const proposedStationInsert = createInsertSchema(proposedStations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
   .strict();
-const proposedLocationInsertBase = createInsertSchema(proposedLocations).omit({
-  createdAt: true,
-  updatedAt: true,
-  submission_id: true,
-  changed_fields: true,
-});
-
-export function refuseGenericAddress(location: { address?: string | null }, ctx: z.RefinementCtx): void {
-  if (hasGenericAddressMarker(location.address)) {
-    ctx.addIssue({ code: "custom", message: "Address must not contain variants of własny", path: ["address"] });
-  }
-}
-
-export const proposedLocationInsert = proposedLocationInsertBase.strict().superRefine(refuseGenericAddress);
+export const proposedLocationInsert = createInsertSchema(proposedLocations)
+  .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
+  .strict();
 export const nrInsertSchema = nrInsertSchemaBase.superRefine(refuseNsaFields);
 export const proposedSectorInsert = createInsertSchema(proposedSectors).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
 const proposedCellInsertBase = createInsertSchema(proposedCells)
@@ -106,7 +93,7 @@ const singleSubmissionSchema = z
       ctx.addIssue({ code: "custom", message: "location_photo_ids and location_photo_ids_to_remove must not overlap" });
   });
 
-export type SingleSubmission = z.infer<typeof singleSubmissionSchema>;
+export type SingleSubmission = z.infer<typeof singleSubmissionSchema> & { placement_country_code?: string | null };
 export type ChangeCell = NonNullable<SingleSubmission["cells"]>[number] & {
   is_confirmed?: boolean;
   destination_station_id?: number;
@@ -136,7 +123,7 @@ function hasSentFields(part: object | null | undefined): boolean {
 export function hasMeaningfulChanges(input: SubmissionChange): boolean {
   if (input.type === "delete" || hasEditorFields(input)) return true;
   if (input.type === "update" && (hasSentFields(input.station) || hasSentFields(input.location))) return true;
-  const { station_id: _stationId, type: _type, origin: _origin, ...payload } = input;
+  const { station_id: _stationId, type: _type, origin: _origin, placement_country_code: _placementCountryCode, ...payload } = input;
   return isNonEmpty(payload);
 }
 
@@ -260,22 +247,9 @@ export async function validateChange(input: SubmissionChange, handling: "review"
     if (unique(allModifiedCellIds).length !== allModifiedCellIds.length) {
       throw new ErrorResponse("BAD_REQUEST", { message: "A cell can be changed once per submission" });
     }
-    // await checkLTEClidConsistency(
-    //   stationId,
-    //   input.cells
-    //     .filter((cell) => cell.operation !== "delete")
-    //     .map((cell) => ({
-    //       rat: cell.rat,
-    //       details: cell.details as Record<string, unknown> | undefined,
-    //       excludeCellId: cell.target_cell_id ?? undefined,
-    //     })),
-    //   input.cells.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined),
-    //   operatorId,
-    // );
-    const countryCode = await findPlacementCountryCode({ stationId, regionId: locationData?.region_id, operatorId: stationData?.operator_id });
     await validateCellBandsInCountry(
       input.cells.filter((cell) => cell.operation !== "delete"),
-      countryCode,
+      input.placement_country_code ?? null,
     );
   }
 

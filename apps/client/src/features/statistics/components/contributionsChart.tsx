@@ -2,21 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { contributionsHistoryQueryOptions } from "../queries";
+import { type Granularity, contributionsQueryOptions } from "../queries";
 import { GranularitySelect } from "./granularitySelect";
 import { StatChartCard } from "./statChartCard";
 
 export function ContributionsChart() {
   const { t } = useTranslation("statistics");
-  const [granularity, setGranularity] = useState<"daily" | "monthly">("monthly");
-  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(contributionsHistoryQueryOptions({ granularity }));
+  const [granularity, setGranularity] = useState<Granularity>("monthly");
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(contributionsQueryOptions(granularity));
   const chartData = useMemo(
     () =>
-      data?.map((row) => ({
-        date: row.date,
-        addedSectors: row.addedSectors,
-        addedExtraIds: row.addedExtraIds,
-        addedCellsWithPCI: row.addedCellsWithPCI,
+      data?.map((point) => ({
+        date: point.date,
+        addedSectors: point.sectors,
+        addedExtraIds: point.identifiers,
+        addedCellsWithPCI: point.cellsWithPci,
       })) ?? [],
     [data],
   );

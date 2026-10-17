@@ -1,6 +1,6 @@
 import type { ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
 
-import { getStation, getStationPem, getStationPhotos, searchStations } from "../api.js";
+import { getBrands, getStation, getStationEmfReports, getStationPhotos, searchStations } from "../api.js";
 import { buildSearchView } from "../embeds/search.js";
 import { buildStationView } from "../embeds/station.js";
 
@@ -95,22 +95,27 @@ export async function handleSearchCommand(interaction: ChatInputCommandInteracti
   }
 
   if (results.length === 0) {
-    await interaction.editReply(buildSearchView(query, []));
+    await interaction.editReply(buildSearchView(query, [], []));
     return;
   }
 
   if (results.length === 1) {
-    const [station, photos] = await Promise.all([getStation(results[0]!.id).catch(() => null), getStationPhotos(results[0]!.id).catch(() => [])]);
+    const stationId = results[0]!.id;
+    const [station, photos, pem, brands] = await Promise.all([
+      getStation(stationId).catch(() => null),
+      getStationPhotos(stationId).catch(() => []),
+      getStationEmfReports(stationId).catch(() => []),
+      getBrands(),
+    ]);
     if (!station) {
-      await interaction.editReply(buildSearchView(query, results));
+      await interaction.editReply(buildSearchView(query, results, brands));
       return;
     }
-    const pem = await getStationPem(station).catch(() => []);
-    await interaction.editReply(buildStationView(station, photos, pem[0]?.url));
+    await interaction.editReply(buildStationView(station, photos, brands, pem[0]?.url));
     return;
   }
 
-  await interaction.editReply(buildSearchView(query, results));
+  await interaction.editReply(buildSearchView(query, results, await getBrands()));
 }
 
 export async function handleSearchSelectMenu(interaction: StringSelectMenuInteraction): Promise<void> {
@@ -125,8 +130,11 @@ export async function handleSearchSelectMenu(interaction: StringSelectMenuIntera
     return;
   }
 
-  const photos = await getStationPhotos(stationId).catch(() => []);
-  const pem = await getStationPem(station).catch(() => []);
+  const [photos, pem, brands] = await Promise.all([
+    getStationPhotos(stationId).catch(() => []),
+    getStationEmfReports(stationId).catch(() => []),
+    getBrands(),
+  ]);
 
-  await interaction.editReply(buildStationView(station, photos, pem[0]?.url));
+  await interaction.editReply(buildStationView(station, photos, brands, pem[0]?.url));
 }

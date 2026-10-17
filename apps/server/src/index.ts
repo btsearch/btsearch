@@ -4,14 +4,13 @@ import { randomUUID } from "node:crypto";
 import { availableParallelism, constants } from "node:os";
 
 import App from "./app.js";
-import { port, ukeAutoImportEnabled } from "./config.js";
-import redis from "./database/redis.js";
+import { officialAutoImportEnabled, port } from "./config.js";
 import { systemAuditContext } from "./features/audit/index.js";
 import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./features/notifications/service.js";
+import { scheduleDueImports } from "./features/official/import/schedule.js";
 import { cleanupExpiredInactiveStations } from "./features/stations/inactiveCleanup.js";
 import { takeContributionSnapshot } from "./features/stats/contributionSnapshot.ts";
 import { cleanupOrphanedSubmissions, removeRejectedSubmissionPhotos } from "./features/submissions/cleanup.js";
-import { getImportJobStatus, startImportJob } from "./features/ukeImport/job.js";
 import { withRedisDeadline } from "./lib/redisDeadline.js";
 import { acquireRedisLock, refreshOwnedRedisLock, releaseOwnedRedisLock } from "./lib/redisLock.js";
 import { refreshDisposableEmailBlocklist } from "./plugins/auth/disposableEmailBlocklist.js";
@@ -34,10 +33,7 @@ const REJECTED_PHOTO_RETENTION_MS = 30 * DAY_MS;
 const SCHEDULER_LOCK_KEY = "scheduler:leader";
 const SCHEDULER_LOCK_TTL = 30;
 const SKIPPED_RUN_RETRY_MS = MINUTE_MS;
-const UKE_IMPORT_INTERVAL_HOURS = 6;
-const UKE_IMPORT_CHECK_INTERVAL_MS = MINUTE_MS;
-const UKE_IMPORT_MAX_STARTS_PER_SLOT = 3;
-const COUNT_START_SCRIPT = 'local starts = redis.call("INCR", KEYS[1]) redis.call("EXPIRE", KEYS[1], ARGV[1]) return starts';
+const OFFICIAL_IMPORT_CHECK_INTERVAL_MS = MINUTE_MS;
 const NOTIFICATION_DIGEST_INTERVAL_MS = Math.max(10_000, Number(process.env.NOTIFICATION_DIGEST_INTERVAL_MS) || 60_000);
 
 const schedulerIdentity = `${process.env.HOSTNAME ?? "local"}:${process.pid}:${randomUUID()}`;
@@ -49,7 +45,7 @@ function describeError(error: unknown): string {
   return error.message || error.name;
 }
 
-function renewSchedulerLock(): Promise<boolean> {
+async function renewSchedulerLock(): Promise<boolean> {
   return refreshOwnedRedisLock(SCHEDULER_LOCK_KEY, schedulerIdentity, SCHEDULER_LOCK_TTL).catch(() => false);
 }
 
@@ -77,36 +73,6 @@ function endSchedulerTerm(term: SchedulerTerm): void {
   term.timers.clear();
 }
 
-function getUkeImportSlot(date = new Date()): Date {
-  const slot = new Date(date);
-  const slotHour = Math.floor(slot.getUTCHours() / UKE_IMPORT_INTERVAL_HOURS) * UKE_IMPORT_INTERVAL_HOURS;
-  slot.setUTCHours(slotHour, 0, 0, 0);
-  return slot;
-}
-
-async function ensureScheduledUkeImport(): Promise<void> {
-  const slot = getUkeImportSlot();
-  const status = await getImportJobStatus();
-  if (status.state === "running") return;
-
-  const hasFinishedInSlot = status.finishedAt !== undefined && new Date(status.finishedAt) >= slot;
-  if (hasFinishedInSlot) return;
-
-  const startsKey = `uke:import:scheduled-starts:${slot.toISOString()}`;
-  if (Number(await redis.get(startsKey)) >= UKE_IMPORT_MAX_STARTS_PER_SLOT) return;
-
-  const start = Number(await redis.eval(COUNT_START_SCRIPT, { keys: [startsKey], arguments: [String(UKE_IMPORT_INTERVAL_HOURS * 3600)] }));
-
-  const { started } = await startImportJob({ importPermits: true, importRadiolines: true, importDeviceRegistry: true }, "scheduled");
-  if (!started) {
-    await redis.decr(startsKey);
-    return;
-  }
-
-  logger.info("uke_import_scheduled", { trigger: "six_hourly", slot: slot.toISOString(), start });
-  if (start >= UKE_IMPORT_MAX_STARTS_PER_SLOT) logger.warn("uke_import_last_start_in_slot", { slot: slot.toISOString() });
-}
-
 async function deliverNotificationDigests(): Promise<void> {
   const delivered = await deliverQueuedStationWatchNotifications().catch((e) => {
     logger.error("Failed to deliver station watch notification batch", { error: describeError(e) });
@@ -127,12 +93,12 @@ async function removeExpiredRejectedPhotos(): Promise<void> {
 }
 
 function startScheduledTasks(term: SchedulerTerm): void {
-  if (ukeAutoImportEnabled) {
-    runEvery(term, 0, UKE_IMPORT_CHECK_INTERVAL_MS, () =>
-      ensureScheduledUkeImport().catch((e) => logger.error("Failed to trigger scheduled UKE import", { error: describeError(e) })),
+  if (officialAutoImportEnabled) {
+    runEvery(term, 0, OFFICIAL_IMPORT_CHECK_INTERVAL_MS, () =>
+      scheduleDueImports().catch((e) => logger.error("Failed to schedule official imports", { error: describeError(e) })),
     );
   } else {
-    logger.info("uke_import_schedule_disabled", { reason: "UKE_AUTO_IMPORT=false" });
+    logger.info("official.import.schedule_disabled", { reason: "OFFICIAL_AUTO_IMPORT=false" });
   }
 
   runEvery(term, 5 * MINUTE_MS, 5 * MINUTE_MS, () =>

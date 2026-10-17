@@ -1,1 +1,0 @@
-ALTER TYPE "uplink_type" ADD VALUE 'satellite';

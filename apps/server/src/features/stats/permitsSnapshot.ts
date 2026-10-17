@@ -1,78 +1,83 @@
-import { operators, statsSnapshots, ukeBands, ukePermits, ukeStations } from "@openbts/drizzle";
+import { officialPermits, officialSites, operators, statsSnapshots } from "@openbts/drizzle";
+import { formatPermitLabel } from "@openbts/shared/permitLabel";
 import { and, count, countDistinct, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "../../database/psql.js";
+import type { DbTx } from "../../types/global.js";
 import { logger } from "../../utils/logger.js";
 
-export async function takeStatsSnapshot(): Promise<void> {
+const SNAPSHOT_KEY = [
+  statsSnapshots.snapshot_date,
+  statsSnapshots.operator_id,
+  statsSnapshots.rat,
+  statsSnapshots.label_mhz,
+  statsSnapshots.label_variant,
+];
+
+export async function takeStatsSnapshot(writer: Pick<DbTx, "select" | "insert"> = db): Promise<void> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  const [bandRows, operatorRows] = await Promise.all([
-    db
+  const [labelRows, operatorRows] = await Promise.all([
+    writer
       .select({
-        operator_id: ukeStations.operator_id,
-        band_id: ukePermits.band_id,
-        unique_stations_count: countDistinct(ukePermits.uke_station_id),
+        operator_id: officialSites.operator_id,
+        rat: officialPermits.rat,
+        label_mhz: officialPermits.label_mhz,
+        label_variant: officialPermits.label_variant,
+        unique_stations_count: countDistinct(officialPermits.official_site_id),
         permits_count: count(),
       })
-      .from(ukePermits)
-      .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
-      .groupBy(ukeStations.operator_id, ukePermits.band_id),
-    db
+      .from(officialPermits)
+      .innerJoin(officialSites, eq(officialPermits.official_site_id, officialSites.id))
+      .groupBy(officialSites.operator_id, officialPermits.rat, officialPermits.label_mhz, officialPermits.label_variant),
+    writer
       .select({
-        operator_id: ukeStations.operator_id,
-        unique_stations_count: countDistinct(ukePermits.uke_station_id),
+        operator_id: officialSites.operator_id,
+        unique_stations_count: countDistinct(officialPermits.official_site_id),
       })
-      .from(ukePermits)
-      .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
-      .groupBy(ukeStations.operator_id),
+      .from(officialPermits)
+      .innerJoin(officialSites, eq(officialPermits.official_site_id, officialSites.id))
+      .groupBy(officialSites.operator_id),
   ]);
 
-  if (bandRows.length === 0) {
+  if (labelRows.length === 0) {
     logger.info("Stats snapshot: no permit data found, skipping");
     return;
   }
 
-  await db
+  await writer
     .insert(statsSnapshots)
-    .values(
-      bandRows.map((row) => ({
-        snapshot_date: today,
-        operator_id: row.operator_id,
-        band_id: row.band_id,
-        unique_stations_count: row.unique_stations_count,
-        permits_count: row.permits_count,
-      })),
-    )
+    .values(labelRows.map((row) => ({ snapshot_date: today, ...row })))
     .onConflictDoUpdate({
-      target: [statsSnapshots.snapshot_date, statsSnapshots.operator_id, statsSnapshots.band_id],
+      target: SNAPSHOT_KEY,
       set: {
         unique_stations_count: sql`excluded.unique_stations_count`,
         permits_count: sql`excluded.permits_count`,
       },
     });
 
-  await db
+  await writer
     .insert(statsSnapshots)
     .values(
       operatorRows.map((row) => ({
         snapshot_date: today,
         operator_id: row.operator_id,
-        band_id: null,
+        rat: null,
+        label_mhz: null,
+        label_variant: null,
         unique_stations_count: row.unique_stations_count,
         permits_count: 0,
       })),
     )
     .onConflictDoUpdate({
-      target: [statsSnapshots.snapshot_date, statsSnapshots.operator_id],
-      targetWhere: sql`${statsSnapshots.band_id} IS NULL`,
+      target: SNAPSHOT_KEY,
       set: {
         unique_stations_count: sql`excluded.unique_stations_count`,
       },
     });
 
-  logger.info(`Stats snapshot: saved ${bandRows.length} band rows + ${operatorRows.length} operator rows for ${today.toISOString().slice(0, 10)}`);
+  logger.info(`Stats snapshot: saved ${labelRows.length} label rows + ${operatorRows.length} operator rows for ${today.toISOString().slice(0, 10)}`);
 }
 
 export interface SnapshotOperatorDelta {
@@ -82,7 +87,7 @@ export interface SnapshotOperatorDelta {
 }
 
 export interface SnapshotBandDelta {
-  id: number;
+  id: string;
   name: string;
   permitsDelta: number;
 }
@@ -107,15 +112,15 @@ export async function getSnapshotDelta(): Promise<SnapshotDelta | null> {
     db
       .select({
         operator_id: statsSnapshots.operator_id,
-        band_id: statsSnapshots.band_id,
+        rat: statsSnapshots.rat,
+        label_mhz: statsSnapshots.label_mhz,
+        label_variant: statsSnapshots.label_variant,
         permits_count: statsSnapshots.permits_count,
         operator_name: operators.name,
-        band_name: ukeBands.name,
       })
       .from(statsSnapshots)
       .leftJoin(operators, eq(statsSnapshots.operator_id, operators.id))
-      .leftJoin(ukeBands, eq(statsSnapshots.band_id!, ukeBands.id))
-      .where(and(eq(statsSnapshots.snapshot_date, date), isNotNull(statsSnapshots.band_id)));
+      .where(and(eq(statsSnapshots.snapshot_date, date), isNotNull(statsSnapshots.rat)));
 
   const [currentRows, previousRows] = await Promise.all([fetchRows(currentDate), fetchRows(previousDate)]);
 
@@ -142,24 +147,27 @@ export async function getSnapshotDelta(): Promise<SnapshotDelta | null> {
     .sort((a, b) => Math.abs(b.permitsDelta) - Math.abs(a.permitsDelta))
     .slice(0, 10);
 
-  const bandNames = new Map<number, string>();
-  const currentByBand = new Map<number, number>();
-  const previousByBand = new Map<number, number>();
+  const labelNames = new Map<string, string>();
+  const currentByLabel = new Map<string, number>();
+  const previousByLabel = new Map<string, number>();
 
-  for (const row of currentRows) {
-    bandNames.set(row.band_id!, row.band_name ?? `Band ${row.band_id}`);
-    currentByBand.set(row.band_id!, (currentByBand.get(row.band_id!) ?? 0) + row.permits_count);
-  }
-  for (const row of previousRows) {
-    previousByBand.set(row.band_id!, (previousByBand.get(row.band_id!) ?? 0) + row.permits_count);
-  }
+  const addByLabel = (rows: typeof currentRows, byLabel: Map<string, number>) => {
+    for (const row of rows) {
+      if (row.rat === null || row.label_mhz === null || row.label_variant === null) continue;
 
-  const allBandIds = new Set([...currentByBand.keys(), ...previousByBand.keys()]);
-  const byBand = [...allBandIds]
-    .map((id) => ({
+      const label = `${row.rat}:${row.label_mhz}:${row.label_variant}`;
+      labelNames.set(label, formatPermitLabel({ rat: row.rat, mhz: row.label_mhz, variant: row.label_variant }));
+      byLabel.set(label, (byLabel.get(label) ?? 0) + row.permits_count);
+    }
+  };
+  addByLabel(currentRows, currentByLabel);
+  addByLabel(previousRows, previousByLabel);
+
+  const byBand = [...labelNames]
+    .map(([id, name]) => ({
       id,
-      name: bandNames.get(id) ?? `Band ${id}`,
-      permitsDelta: (currentByBand.get(id) ?? 0) - (previousByBand.get(id) ?? 0),
+      name,
+      permitsDelta: (currentByLabel.get(id) ?? 0) - (previousByLabel.get(id) ?? 0),
     }))
     .filter((b) => b.permitsDelta !== 0)
     .sort((a, b) => Math.abs(b.permitsDelta) - Math.abs(a.permitsDelta))

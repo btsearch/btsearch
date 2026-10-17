@@ -16,6 +16,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 
 import db from "../../database/psql.js";
+import { stationCountryCode } from "../stations/country.js";
 import type { ClfFormat, ConvertOptions } from "./converter.js";
 import { type ExportSelection, type StationExportMetadata, loadExportLines, renderExportLines } from "./lines.js";
 
@@ -64,6 +65,7 @@ export async function loadNativeExportLines(
       address: locations.address,
       region_code: regions.code,
       country_code: regions.countryCode,
+      station_country_code: stationCountryCode,
       structure_type: locations.structure_type,
       structure_owner: structureOwners.name,
       structure_note: locations.structure_note,

@@ -1,13 +1,9 @@
 {
-  "description": "Statystyki pozwoleń, kompletności bazy, kontrybucji i trendów historycznych w podziale na operatorów i pasma. Dane są aktualizowane co 24 godziny",
-  "refresh": {
-    "summary": "Podsumowanie",
-    "lastUpdated": "Ostatnia aktualizacja:",
-    "next": "Następne odświeżenie za {{duration}}"
-  },
+  "description": "Statystyki pozwoleń, kompletności bazy, wkładu użytkowników i trendów historycznych w podziale na operatorów i pasma",
   "sections": {
     "quality": "Jakość danych",
-    "permitSnapshot": "UKE wg miesiąca"
+    "permitSnapshot": "{{source}} wg miesiąca",
+    "registerSnapshot": "Rejestr wg miesiąca"
   },
   "chartType": {
     "label": "Typ wykresu",
@@ -46,15 +42,17 @@
     "analyzerUsage": "Użycie analizatora"
   },
   "contributions": {
-    "title": "Historia kontrybucji",
+    "title": "Historia uzupełnień",
     "description": "Różnice dla azymutów, dodatkowych identyfikatorów i komórek z PCI",
     "addedSectors": "Dodane azymuty",
     "addedExtraIds": "Dodane dodatkowe ID",
     "addedCellsWithPCI": "Dodane komórki z PCI"
   },
   "permitsByMonth": {
-    "title": "Stacje i pozwolenia UKE wg miesiąca",
-    "description": "Wybierz miesiąc, aby sprawdzić liczbę stacji i pozwoleń UKE",
+    "title": "Stacje i pozwolenia {{source}} wg miesiąca",
+    "registerTitle": "Stacje i pozwolenia z rejestru wg miesiąca",
+    "description": "Wybierz miesiąc, aby sprawdzić liczbę stacji i pozwoleń {{source}}",
+    "registerDescription": "Wybierz miesiąc, aby sprawdzić liczbę stacji i pozwoleń z rejestru",
     "snapshotDate": "Dane z {{date}} względem {{previousDate}}",
     "month": "Miesiąc",
     "view": "Widok",
@@ -67,7 +65,8 @@
       "button": "Pobierz PNG",
       "generating": "Generowanie PNG...",
       "error": "Nie udało się wygenerować obrazu. Spróbuj ponownie",
-      "imageTitle": "UKE w miesiącu {{month}} {{year}}"
+      "imageTitle": "{{source}} w miesiącu {{month}} {{year}}",
+      "registerImageTitle": "Rejestr pozwoleń w miesiącu {{month}} {{year}}"
     }
   },
   "filters": {

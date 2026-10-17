@@ -1,7 +1,6 @@
 import { AlertCircleIcon, Cancel01Icon, CheckmarkCircle02Icon, Note01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { OfficialSiteRef, Station } from "@openbts/shared/contract";
-import { useQueryClient } from "@tanstack/react-query";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -23,12 +22,12 @@ import { EmptyValue } from "@/components/ui/emptyValue";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { useOfficialSource } from "@/features/official/queries";
 import { useCopyText } from "@/features/settings/copyText";
 import { getBandCode, getBandLabel, toRatType } from "@/features/station-details/station/utils/bands";
 import { LIST_DETAIL_SEPARATOR, ListCountryTile, ListIconMark } from "@/features/stations/list/components/table/listCells";
 import { LIST_ROW_LINK_CLASS } from "@/features/stations/list/components/table/listTableRow";
 import { STATION_ID_CLASS } from "@/features/stations/list/components/table/stationsListCells";
-import { showApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type RowViewProps = {
@@ -72,7 +71,6 @@ type MatchCellProps = RowViewProps & {
   openers: RowOpeners;
 };
 
-const REGISTER_TAG = "UKE";
 const PLMN_LABEL = "PLMN";
 const PLACE_SEPARATOR = ", ";
 const CHANNEL_FIELDS: ReadonlySet<string> = new Set(["earfcn", "uarfcn", "arfcn"]);
@@ -101,21 +99,14 @@ const RESULT_BADGES: Record<RowStatus, { icon: IconSvgElement; className: string
 };
 
 export function useRowOpeners(): RowOpeners {
-  const queryClient = useQueryClient();
-  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
+  const { openStationDialog, openOfficialSiteDialog } = useFloatingDialogStack();
 
   function openStation(station: Station) {
     openStationDialog(station.id, "internal", station.location?.id);
   }
 
   function openOfficialSite(site: OfficialSiteRef) {
-    void queryClient
-      .query({
-        queryKey: ["uke-station", site.id],
-        queryFn: () => import("@/features/station-details/api").then((module) => module.fetchUkeStation(site.id)),
-      })
-      .then(openUkePermitDialog)
-      .catch(showApiError);
+    openOfficialSiteDialog(site.id);
   }
 
   return { openStation, openOfficialSite };
@@ -324,40 +315,47 @@ export function StationPlace({ stationView, hasCountryTile, hasRegion = true }: 
 function RegisterSiteButton({ site, onOpen }: RegisterSiteProps) {
   return (
     <button type="button" className={REGISTER_SITE_CLASS} onClick={() => onOpen(site)}>
-      {site.siteId}
+      {site.siteId ?? <EmptyValue />}
     </button>
   );
 }
 
 export function RegisterHint({ sites, hasMoreSites = true, onOpen }: RegisterHintProps) {
   const { t } = useTranslation("cellAnalyzer");
+  const source = useOfficialSource(sites.at(0)?.sourceKey);
   const [firstSite, ...otherSites] = sites;
   if (firstSite === undefined) return null;
 
   const place = getOfficialSitePlace(firstSite);
+  const sourceName = source?.shortName ?? null;
 
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex shrink-0 cursor-help" />}>
-          <Badge variant="secondary" className={REGISTER_TAG_CLASS}>
-            {REGISTER_TAG}
-          </Badge>
-          <span className="sr-only">{t("ukeMatch.hint")}</span>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-72">{t("ukeMatch.hint")}</TooltipContent>
-      </Tooltip>
+      {sourceName === null ? null : (
+        <Tooltip>
+          <TooltipTrigger render={<span className="inline-flex shrink-0 cursor-help" />}>
+            <Badge variant="secondary" className={REGISTER_TAG_CLASS}>
+              {sourceName}
+            </Badge>
+            <span className="sr-only">{t("registerMatch.hint", { source: sourceName })}</span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-72">{t("registerMatch.hint", { source: sourceName })}</TooltipContent>
+        </Tooltip>
+      )}
       <RegisterSiteButton site={firstSite} onOpen={onOpen} />
       <span className="min-w-0 flex-1 truncate" title={place}>
         {place}
       </span>
-      {hasMoreSites && otherSites.length > 0 ? (
+      {hasMoreSites && otherSites.length > 0 && sourceName !== null ? (
         <Popover>
-          <PopoverTrigger aria-label={t("ukeMatch.moreCandidates")} render={<button type="button" className={MORE_SITES_CLASS} />}>
+          <PopoverTrigger
+            aria-label={t("registerMatch.moreCandidates", { source: sourceName })}
+            render={<button type="button" className={MORE_SITES_CLASS} />}
+          >
             +{otherSites.length}
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 gap-1.5">
-            <p className="text-xs font-medium text-muted-foreground">{t("ukeMatch.candidates")}</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("registerMatch.candidates", { source: sourceName })}</p>
             <ul className="flex flex-col gap-1">
               {sites.map((site) => (
                 <li key={site.id} className="flex min-w-0 items-center gap-1.5 text-xs leading-4">

@@ -69,7 +69,7 @@ export function ApproveDialog({
   onConfirm,
 }: ApproveDialogProps) {
   const { t } = useTranslation(["submissions", "common"]);
-  const { sharedPlace, proposedOwner } = facts;
+  const { sharedPlace, proposedOwner, hasSeveralPartnerStations } = facts;
 
   let stationLine = t("review.approve.stationChanges", { station: stationLabel, count: changeCount });
   if (action === "create") stationLine = t("review.approve.stationCreated", { station: stationLabel });
@@ -99,6 +99,7 @@ export function ApproveDialog({
             <EffectLine icon={Location01Icon}>{t("review.approve.placeMoved", { place: placeLabel, count: sharedPlace.stationCount })}</EffectLine>
           )}
           {partnerLabel === null ? null : <EffectLine icon={Link02Icon}>{t("review.partnerAzimuths", { station: partnerLabel })}</EffectLine>}
+          {hasSeveralPartnerStations ? <EffectLine icon={Link02Icon}>{t("review.severalPartnerStations")}</EffectLine> : null}
           {uploadedPhotoCount === 0 ? null : <EffectLine icon={Image01Icon}>{t("review.approve.photos", { count: uploadedPhotoCount })}</EffectLine>}
         </ul>
         {correctionCount === 0 ? null : (

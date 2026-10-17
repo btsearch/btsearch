@@ -1,3 +1,4 @@
+import { type SharedSitePart, conventionsFor } from "@openbts/country-packs";
 import {
   attachments,
   cells,
@@ -5,6 +6,7 @@ import {
   locationPhotos,
   locations,
   operators,
+  regions,
   stationPhotoSelections,
   stationSectors,
   stationUplinks,
@@ -13,7 +15,6 @@ import {
 } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
 import type { CountryFeatures } from "@openbts/shared/contract";
-import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
 import { logger } from "better-auth";
 import { and, count, eq, inArray, isNull, ne } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
@@ -52,11 +53,13 @@ import { deleteLocationWithPhotos } from "../locations/deleteWithPhotos.js";
 import { type StructureChange, assertOwnerFitsAfterWrite } from "../locations/structure.js";
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
+import { correctStationLinks, findStationGroups } from "../official/links.js";
 import { findRegionIdAt } from "../regions/lookup.js";
+import { stationCountryCode } from "../stations/country.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
-import { syncStationsPermitsAssociations } from "../stations/permitsAssociation.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { writeSectorAzimuths } from "../stations/sectorAzimuths.js";
+import { findSharedSiblingIds, keepSameEnbSiblingIds } from "../stations/sharedSiblings.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
 import { isUplinkType } from "../stations/uplink.js";
 import type { StructureOwnerRow } from "../structures/serialize.js";
@@ -263,6 +266,7 @@ type SubmissionPhotoRow = Awaited<ReturnType<DbTx["query"]["submissionPhotos"]["
 type SubmissionLocationPhotoSelectionRow = Awaited<ReturnType<DbTx["query"]["submissionLocationPhotoSelections"]["findMany"]>>[number];
 type ApprovalDuplicateCheckDraft = Pick<ApprovalDraft, "proposedStation" | "proposedCellRows">;
 type ApprovalStationContext = { operatorId: number | null; stationStringId: string | null };
+type StationSite = { id: number; locationId: number | null; operatorId: number | null; countryCode: string | null };
 type CellAuditChanges = {
   added: number[];
   updated: { id: number; old: CellSnapshot }[];
@@ -278,17 +282,12 @@ function resolveProposedCellSectorId(proposed: ProposedCellSectorRef, sectorIdBy
   return undefined;
 }
 
-async function findSiblingStationId(tx: DbTx, locationId: number, mnc: number | null | undefined): Promise<number | null> {
-  const siblingMnc = getNetworksSiblingMnc(mnc);
-  if (siblingMnc === null) return null;
+async function findSharedSiteCopyTarget(tx: DbTx, site: StationSite, part: SharedSitePart): Promise<number | null> {
+  if (!conventionsFor(site.countryCode).sharedSite.copies.includes(part)) return null;
 
-  const [siblingStation] = await tx
-    .select({ id: stations.id })
-    .from(stations)
-    .innerJoin(operators, eq(stations.operator_id, operators.id))
-    .where(and(eq(stations.location_id, locationId), eq(operators.mnc, siblingMnc)))
-    .limit(1);
-  return siblingStation?.id ?? null;
+  const siblingIds = await findSharedSiblingIds(site, { sameEnb: false }, tx);
+  const candidateIds = siblingIds.length > 1 ? await keepSameEnbSiblingIds(site, siblingIds, tx) : siblingIds;
+  return candidateIds.length === 1 ? (candidateIds[0] ?? null) : null;
 }
 
 function getProposedCellDetails(proposed: ProposedCellRow): Record<string, unknown> | null {
@@ -423,7 +422,7 @@ async function syncSiblingUplink(audit: AuditRecorder, stationId: number, values
   const site = await loadStationSiteContext(tx, stationId);
   if (!site?.locationId) return;
 
-  const siblingStationId = await findSiblingStationId(tx, site.locationId, site.mnc);
+  const siblingStationId = await findSharedSiteCopyTarget(tx, site, "backhaul");
   if (siblingStationId === null) return;
 
   if (await saveStationUplink(audit, siblingStationId, values)) {
@@ -435,23 +434,23 @@ async function createUplinkForNewStation(
   audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
   stationId: number,
-): Promise<void> {
+): Promise<UplinkValues | null> {
   const { type, speed, model } = extractUplinkFields(proposedStation);
-  if (!isUplinkType(type)) return;
+  if (!isUplinkType(type)) return null;
 
   const values = { type, speed, model: type === "microwave" ? model : null };
-  if (await saveStationUplink(audit, stationId, values)) await syncSiblingUplink(audit, stationId, values);
+  return (await saveStationUplink(audit, stationId, values)) ? values : null;
 }
 
-async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number): Promise<void> {
-  if (changes.uplink_type === undefined && changes.uplink_speed === undefined && changes.uplink_model === undefined) return;
+async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number): Promise<UplinkValues | null> {
+  if (changes.uplink_type === undefined && changes.uplink_speed === undefined && changes.uplink_model === undefined) return null;
 
   const { tx } = audit;
   const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
   const proposedType = resolveChange(changes.uplink_type, existing?.type ?? null);
 
   if (proposedType === null) {
-    if (!existing) return;
+    if (!existing) return null;
     await tx.delete(stationUplinks).where(eq(stationUplinks.id, existing.id));
     await audit.log({
       entity: "station_uplinks",
@@ -461,7 +460,7 @@ async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationC
       old: existing,
       metadata: audit.entryMetadata,
     });
-    return;
+    return null;
   }
 
   const values = {
@@ -470,7 +469,7 @@ async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationC
     model: proposedType === "microwave" ? resolveChange(changes.uplink_model, existing?.model ?? null) : null,
   };
 
-  if (await saveStationUplink(audit, stationId, values)) await syncSiblingUplink(audit, stationId, values);
+  return (await saveStationUplink(audit, stationId, values)) ? values : null;
 }
 
 async function createStationFromProposal(
@@ -479,7 +478,7 @@ async function createStationFromProposal(
   locationId: number | null,
   proposedCellCount: number,
   isConfirmed: boolean,
-): Promise<number> {
+): Promise<{ stationId: number; savedUplink: UplinkValues | null }> {
   const [newStation] = await audit.tx
     .insert(stations)
     .values({
@@ -504,27 +503,30 @@ async function createStationFromProposal(
   });
 
   await createExtraIdentifierForNewStation(audit, proposedStation, newStation.id);
-  await createUplinkForNewStation(audit, proposedStation, newStation.id);
-  return newStation.id;
+  const savedUplink = await createUplinkForNewStation(audit, proposedStation, newStation.id);
+  return { stationId: newStation.id, savedUplink };
 }
 
 async function applyNewSubmission(
   audit: AuditRecorder,
   draft: ApprovalDraft,
   isConfirmed: boolean,
-): Promise<{ stationId: number | null; resolvedLocationId: number | null }> {
+): Promise<{ stationId: number | null; resolvedLocationId: number | null; savedUplink: UplinkValues | null }> {
   let locationResult: UpsertLocationResult | null = null;
 
   if (draft.proposedLocation) locationResult = await upsertLocation(audit.tx, toLocationValues(draft.proposedLocation.changes));
   const locationId = locationResult?.locationId ?? null;
 
   let stationId: number | null = null;
+  let savedUplink: UplinkValues | null = null;
   if (draft.proposedStation) {
-    stationId = await createStationFromProposal(audit, draft.proposedStation, locationId, draft.proposedCellRows.length, isConfirmed);
+    const created = await createStationFromProposal(audit, draft.proposedStation, locationId, draft.proposedCellRows.length, isConfirmed);
+    stationId = created.stationId;
+    savedUplink = created.savedUplink;
   }
   if (locationResult) await logLocationChange(audit, locationResult, stationId);
 
-  return { stationId, resolvedLocationId: locationId };
+  return { stationId, resolvedLocationId: locationId, savedUplink };
 }
 
 async function deleteEmptiedLocation(audit: AuditRecorder, currentLocation: LocationRow, stationId: number): Promise<void> {
@@ -1199,7 +1201,7 @@ async function syncSiblingSectors(
   const { tx } = audit;
   const site = await loadStationSiteContext(tx, stationId);
   if (!site?.locationId) return;
-  const siblingStationId = await findSiblingStationId(tx, site.locationId, site.mnc);
+  const siblingStationId = await findSharedSiteCopyTarget(tx, site, "sectors");
   if (siblingStationId === null) return;
 
   const siblingSectors = await loadSectorSnapshot(tx, siblingStationId);
@@ -1276,11 +1278,13 @@ async function logCellChanges(audit: AuditRecorder, changes: CellAuditChanges): 
   ]);
 }
 
-async function loadStationSiteContext(tx: DbTx, stationId: number): Promise<{ locationId: number | null; mnc: number | null } | null> {
+async function loadStationSiteContext(tx: DbTx, stationId: number): Promise<StationSite | null> {
   const [stationPhotoContext] = await tx
-    .select({ locationId: stations.location_id, mnc: operators.mnc })
+    .select({ id: stations.id, locationId: stations.location_id, operatorId: stations.operator_id, countryCode: stationCountryCode })
     .from(stations)
-    .leftJoin(operators, eq(stations.operator_id, operators.id))
+    .leftJoin(locations, eq(locations.id, stations.location_id))
+    .leftJoin(regions, eq(regions.id, locations.region_id))
+    .leftJoin(operators, eq(operators.id, stations.operator_id))
     .where(eq(stations.id, stationId))
     .limit(1);
   return stationPhotoContext ?? null;
@@ -1370,7 +1374,10 @@ async function applyUploadedSubmissionPhotos(
 
   if (explicitMainId !== null) await forceMainSelection(tx, stationId, explicitMainId);
 
-  const siblingStationId = await findSiblingStationId(tx, photoLocationId, loadedStationPhotoContext?.mnc);
+  const siblingStationId =
+    loadedStationPhotoContext === null
+      ? null
+      : await findSharedSiteCopyTarget(tx, { ...loadedStationPhotoContext, locationId: photoLocationId }, "photos");
   if (siblingStationId === null) return explicitMainId !== null;
 
   const siblingPreviousSelections = await loadPhotoSelectionSnapshots(tx, [siblingStationId]);
@@ -1739,11 +1746,20 @@ async function applyChange(
   const targetCellsPromise = loadTargetCells(tx, draft.proposedCellRows);
   let stationId = draft.stationId;
   let resolvedLocationId: number | null = null;
+  let savedUplink: UplinkValues | null = null;
+  const changesGroupOrLocation =
+    draft.proposedLocation !== undefined ||
+    draft.proposedStation?.station_id !== undefined ||
+    draft.proposedStation?.operator_id !== undefined ||
+    change?.location === null;
+  const relinksStation = type === "new" || (type === "update" && changesGroupOrLocation);
+  const groupsBefore = relinksStation && stationId ? await findStationGroups(tx, { stationIds: [stationId] }) : [];
 
   if (type === "new") {
     const result = await applyNewSubmission(audit, draft, change?.station_is_confirmed ?? true);
     stationId = result.stationId;
     resolvedLocationId = result.resolvedLocationId;
+    savedUplink = result.savedUplink;
   }
 
   const submissionPhotoSelectionRows =
@@ -1764,7 +1780,7 @@ async function applyChange(
   if (type === "update" && draft.proposedStation && stationId) {
     await applyStationIdentityUpdate(audit, draft.proposedStation, stationId);
     await applyExtraIdentifierUpdate(audit, draft.proposedStation, stationId);
-    await applyUplinkUpdate(audit, draft.proposedStation, stationId);
+    savedUplink = await applyUplinkUpdate(audit, draft.proposedStation, stationId);
   }
 
   if (type === "delete") await applyDeletedSubmission(audit, stationId);
@@ -1785,6 +1801,7 @@ async function applyChange(
   await Promise.all(destinationIds.map((destinationId) => syncStatusWithCells(audit, destinationId)));
 
   await deleteUnretainedSectors(tx, stationId, sectorIdsToDeleteAfterCells);
+  if (stationId && savedUplink) await syncSiblingUplink(audit, stationId, savedUplink);
   await finishSectorChange(audit, stationId, previousSectors);
   await logCellChanges(audit, cellChanges);
 
@@ -1793,6 +1810,11 @@ async function applyChange(
   }
 
   const detachedUuids = change !== null && stationId && type === "update" ? await applyStationEditorFields(audit, stationId, change) : [];
+  if (relinksStation && stationId) {
+    const movedLocationIds = draft.proposedLocation?.move === "location" && resolvedLocationId !== null ? [resolvedLocationId] : [];
+    const groupsAfter = await findStationGroups(tx, { stationIds: [stationId], locationIds: movedLocationIds });
+    await correctStationLinks(tx, [...groupsBefore, ...groupsAfter]);
+  }
   const movesStation = draft.proposedLocation !== undefined || typeof draft.proposedStation?.operator_id === "number" || change?.location === null;
   await assertStoredCellBandsFit(tx, {
     cellIds: [...cellChanges.added, ...cellChanges.updated.map(({ id }) => id)],
@@ -1945,16 +1967,10 @@ export async function approveSubmissionAction({
   return { submission: transactionResult.submission, station_id: transactionResult.stationStringId };
 }
 
-function startChangeFollowUps(type: SubmissionRow["type"], attachmentUuidsToDelete: string[]): void {
+function startChangeFollowUps(attachmentUuidsToDelete: string[]): void {
   void deletePhotoFiles(attachmentUuidsToDelete).catch((e) =>
     logger.error("Failed to delete orphaned location photo files after approval", { error: e instanceof Error ? e.message : String(e) }),
   );
-
-  if (type === "new") {
-    void syncStationsPermitsAssociations().catch((e) =>
-      logger.error("Failed to sync stations_permits after approval", { error: e instanceof Error ? e.message : String(e) }),
-    );
-  }
 }
 
 async function notifyStationChanges({ stationId, cellChanges, photosAdded }: AppliedChange, stationStringId: string | null): Promise<void> {
@@ -1989,14 +2005,14 @@ async function notifyStationChanges({ stationId, cellChanges, photosAdded }: App
   }
 }
 
-export async function finishDirectChange(type: SubmissionRow["type"], applied: AppliedChange): Promise<void> {
-  startChangeFollowUps(type, applied.attachmentUuidsToDelete);
+export async function finishDirectChange(applied: AppliedChange): Promise<void> {
+  startChangeFollowUps(applied.attachmentUuidsToDelete);
   await notifyStationChanges(applied, null);
 }
 
 async function finishApproval(submission: SubmissionRow, outcome: ApprovalOutcome, reviewerId: string): Promise<void> {
   const { submission: result, stationStringId, stationId } = outcome;
-  startChangeFollowUps(submission.type, outcome.attachmentUuidsToDelete);
+  startChangeFollowUps(outcome.attachmentUuidsToDelete);
 
   const reviewer = await db.query.users.findFirst({ where: { id: reviewerId }, columns: { name: true } });
   if (submission.submitter_id !== null) {

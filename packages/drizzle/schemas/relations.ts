@@ -16,6 +16,7 @@ import {
   oauthConsents,
   oauthRefreshTokens,
   oauthResources,
+  officialSiteWatches,
   passkeys,
   pushSubscriptions,
   roleGrantRegions,
@@ -25,7 +26,6 @@ import {
   stationPhotoSelections,
   stationWatches,
   twoFactors,
-  ukeStationWatches,
   userLists,
   users,
 } from "./auth.ts";
@@ -35,16 +35,21 @@ import {
   cells,
   countries,
   countryBands,
-  deletedEntries,
   extraIdentificators,
   gsmCells,
+  licensees,
   locations,
   lteCells,
+  microwaveLinkAntennaTypes,
+  microwaveLinkManufacturers,
+  microwaveLinkTransmitterTypes,
+  microwaveLinks,
   nrCells,
+  officialLocations,
+  officialPermitSectors,
+  officialPermits,
+  officialSites,
   operators,
-  radioLinesManufacturers,
-  radiolinesAntennaTypes,
-  radiolinesTransmitterTypes,
   regions,
   stationSectors,
   stationUplinks,
@@ -52,14 +57,6 @@ import {
   stationsPermits,
   statsSnapshots,
   structureOwners,
-  ukeBands,
-  ukeImportMetadata,
-  ukeLocations,
-  ukeOperators,
-  ukePermitSectors,
-  ukePermits,
-  ukeRadiolines,
-  ukeStations,
   umtsCells,
 } from "./bts.ts";
 import {
@@ -90,22 +87,21 @@ export const relations = defineRelations(
     stations,
     stationSectors,
     stationUplinks,
-    ukeStations,
-    ukeBands,
-    ukePermits,
-    ukePermitSectors,
-    radioLinesManufacturers,
-    radiolinesAntennaTypes,
-    radiolinesTransmitterTypes,
-    ukeRadiolines,
+    officialSites,
+    officialPermits,
+    officialPermitSectors,
+    microwaveLinkManufacturers,
+    microwaveLinkAntennaTypes,
+    microwaveLinkTransmitterTypes,
+    microwaveLinks,
     stationsPermits,
     gsmCells,
     umtsCells,
     lteCells,
     nrCells,
     extraIdentificators,
-    ukeLocations,
-    ukeOperators,
+    officialLocations,
+    licensees,
     accounts,
     apikeys,
     attachments,
@@ -129,7 +125,7 @@ export const relations = defineRelations(
     stationComments,
     stationPhotoSelections,
     stationWatches,
-    ukeStationWatches,
+    officialSiteWatches,
     twoFactors,
     userLists,
     users,
@@ -144,8 +140,6 @@ export const relations = defineRelations(
     proposedUMTSCells,
     submissionPhotos,
     submissionLocationPhotoSelections,
-    ukeImportMetadata,
-    deletedEntries,
     statsSnapshots,
   },
   (helpers) => ({
@@ -199,7 +193,7 @@ export const relations = defineRelations(
     },
     brands: {
       operators: helpers.many.operators(),
-      ukeOperators: helpers.many.ukeOperators(),
+      licensees: helpers.many.licensees(),
       structureOwners: helpers.many.structureOwners(),
     },
     structureOwners: {
@@ -217,9 +211,9 @@ export const relations = defineRelations(
       }),
       locations: helpers.many.locations(),
     },
-    ukeOperators: {
+    licensees: {
       brand: helpers.one.brands({
-        from: helpers.ukeOperators.brandId,
+        from: helpers.licensees.brandId,
         to: helpers.brands.id,
       }),
     },
@@ -239,7 +233,7 @@ export const relations = defineRelations(
         to: helpers.brands.id,
       }),
       stations: helpers.many.stations(),
-      ukeStations: helpers.many.ukeStations(),
+      officialSites: helpers.many.officialSites(),
     },
     regions: {
       country: helpers.one.countries({
@@ -248,7 +242,7 @@ export const relations = defineRelations(
         optional: false,
       }),
       locations: helpers.many.locations(),
-      ukeLocations: helpers.many.ukeLocations(),
+      officialLocations: helpers.many.officialLocations(),
     },
     locations: {
       region: helpers.one.regions({
@@ -379,14 +373,14 @@ export const relations = defineRelations(
         to: helpers.stations.id,
       }),
     },
-    ukeStationWatches: {
+    officialSiteWatches: {
       user: helpers.one.users({
-        from: helpers.ukeStationWatches.userId,
+        from: helpers.officialSiteWatches.userId,
         to: helpers.users.id,
       }),
-      station: helpers.one.ukeStations({
-        from: helpers.ukeStationWatches.ukeStationId,
-        to: helpers.ukeStations.id,
+      officialSite: helpers.one.officialSites({
+        from: helpers.officialSiteWatches.officialSiteId,
+        to: helpers.officialSites.id,
       }),
     },
     stationComments: {
@@ -456,7 +450,7 @@ export const relations = defineRelations(
       notifications: helpers.many.notifications(),
       pushSubscriptions: helpers.many.pushSubscriptions(),
       stationWatches: helpers.many.stationWatches(),
-      ukeStationWatches: helpers.many.ukeStationWatches(),
+      officialSiteWatches: helpers.many.officialSiteWatches(),
     },
     notifications: {
       user: helpers.one.users({
@@ -467,9 +461,9 @@ export const relations = defineRelations(
         from: helpers.notifications.stationId,
         to: helpers.stations.id,
       }),
-      ukeStation: helpers.one.ukeStations({
-        from: helpers.notifications.ukeStationId,
-        to: helpers.ukeStations.id,
+      officialSite: helpers.one.officialSites({
+        from: helpers.notifications.officialSiteId,
+        to: helpers.officialSites.id,
       }),
     },
     pushSubscriptions: {
@@ -555,92 +549,87 @@ export const relations = defineRelations(
         to: helpers.users.id,
       }),
     },
-    radioLinesManufacturers: {
-      radiolinesAntennaTypes: helpers.many.radiolinesAntennaTypes(),
-      radioLinestTansmitterTypes: helpers.many.radiolinesTransmitterTypes(),
+    microwaveLinkManufacturers: {
+      microwaveLinkAntennaTypes: helpers.many.microwaveLinkAntennaTypes(),
+      microwaveLinkTransmitterTypes: helpers.many.microwaveLinkTransmitterTypes(),
     },
-    radiolinesAntennaTypes: {
-      manufacturer: helpers.one.radioLinesManufacturers({
-        from: helpers.radiolinesAntennaTypes.manufacturer_id,
-        to: helpers.radioLinesManufacturers.id,
-      }),
-    },
-    radiolinesTransmitterTypes: {
-      manufacturer: helpers.one.radioLinesManufacturers({
-        from: helpers.radiolinesTransmitterTypes.manufacturer_id,
-        to: helpers.radioLinesManufacturers.id,
-        optional: false,
+    microwaveLinkAntennaTypes: {
+      manufacturer: helpers.one.microwaveLinkManufacturers({
+        from: helpers.microwaveLinkAntennaTypes.manufacturer_id,
+        to: helpers.microwaveLinkManufacturers.id,
       }),
     },
-    ukeRadiolines: {
-      txTransmitterType: helpers.one.radiolinesTransmitterTypes({
-        from: helpers.ukeRadiolines.tx_transmitter_type_id,
-        to: helpers.radiolinesTransmitterTypes.id,
-        optional: false,
-      }),
-      txAntennaType: helpers.one.radiolinesAntennaTypes({
-        from: helpers.ukeRadiolines.tx_antenna_type_id,
-        to: helpers.radiolinesAntennaTypes.id,
-        optional: false,
-      }),
-      rxAntennaType: helpers.one.radiolinesAntennaTypes({
-        from: helpers.ukeRadiolines.rx_antenna_type_id,
-        to: helpers.radiolinesAntennaTypes.id,
-        optional: false,
-      }),
-      operator: helpers.one.ukeOperators({
-        from: helpers.ukeRadiolines.operator_id,
-        to: helpers.ukeOperators.id,
+    microwaveLinkTransmitterTypes: {
+      manufacturer: helpers.one.microwaveLinkManufacturers({
+        from: helpers.microwaveLinkTransmitterTypes.manufacturer_id,
+        to: helpers.microwaveLinkManufacturers.id,
         optional: false,
       }),
     },
-    ukePermits: {
-      band: helpers.one.ukeBands({
-        from: helpers.ukePermits.band_id,
-        to: helpers.ukeBands.id,
+    microwaveLinks: {
+      txTransmitterType: helpers.one.microwaveLinkTransmitterTypes({
+        from: helpers.microwaveLinks.tx_transmitter_type_id,
+        to: helpers.microwaveLinkTransmitterTypes.id,
         optional: false,
       }),
-      station: helpers.one.ukeStations({
-        from: helpers.ukePermits.uke_station_id,
-        to: helpers.ukeStations.id,
+      txAntennaType: helpers.one.microwaveLinkAntennaTypes({
+        from: helpers.microwaveLinks.tx_antenna_type_id,
+        to: helpers.microwaveLinkAntennaTypes.id,
         optional: false,
       }),
-      sectors: helpers.many.ukePermitSectors(),
+      rxAntennaType: helpers.one.microwaveLinkAntennaTypes({
+        from: helpers.microwaveLinks.rx_antenna_type_id,
+        to: helpers.microwaveLinkAntennaTypes.id,
+        optional: false,
+      }),
+      licensee: helpers.one.licensees({
+        from: helpers.microwaveLinks.operator_id,
+        to: helpers.licensees.id,
+        optional: false,
+      }),
+    },
+    officialPermits: {
+      officialSite: helpers.one.officialSites({
+        from: helpers.officialPermits.official_site_id,
+        to: helpers.officialSites.id,
+        optional: false,
+      }),
+      sectors: helpers.many.officialPermitSectors(),
       stationsPermits: helpers.many.stationsPermits(),
     },
-    ukePermitSectors: {
-      permit: helpers.one.ukePermits({
-        from: helpers.ukePermitSectors.permit_id,
-        to: helpers.ukePermits.id,
+    officialPermitSectors: {
+      permit: helpers.one.officialPermits({
+        from: helpers.officialPermitSectors.permit_id,
+        to: helpers.officialPermits.id,
         optional: false,
       }),
     },
-    ukeLocations: {
+    officialLocations: {
       region: helpers.one.regions({
-        from: helpers.ukeLocations.region_id,
+        from: helpers.officialLocations.region_id,
         to: helpers.regions.id,
         optional: false,
       }),
-      stations: helpers.many.ukeStations(),
+      officialSites: helpers.many.officialSites(),
     },
-    ukeStations: {
+    officialSites: {
       operator: helpers.one.operators({
-        from: helpers.ukeStations.operator_id,
+        from: helpers.officialSites.operator_id,
         to: helpers.operators.id,
         optional: false,
       }),
-      location: helpers.one.ukeLocations({
-        from: helpers.ukeStations.location_id,
-        to: helpers.ukeLocations.id,
+      location: helpers.one.officialLocations({
+        from: helpers.officialSites.location_id,
+        to: helpers.officialLocations.id,
         optional: false,
       }),
-      permits: helpers.many.ukePermits(),
-      ukeStationWatches: helpers.many.ukeStationWatches(),
+      permits: helpers.many.officialPermits(),
+      officialSiteWatches: helpers.many.officialSiteWatches(),
     },
     stationsPermits: {
-      permit: helpers.one.ukePermits({
+      permit: helpers.one.officialPermits({
         from: helpers.stationsPermits.permit_id,
-        to: helpers.ukePermits.id,
+        to: helpers.officialPermits.id,
         optional: false,
       }),
       station: helpers.one.stations({
@@ -788,21 +777,10 @@ export const relations = defineRelations(
         to: helpers.proposedNRCells.proposed_cell_id,
       }),
     },
-    deletedEntries: {
-      import: helpers.one.ukeImportMetadata({
-        from: helpers.deletedEntries.import_id,
-        to: helpers.ukeImportMetadata.id,
-      }),
-    },
     statsSnapshots: {
       operator: helpers.one.operators({
         from: helpers.statsSnapshots.operator_id,
         to: helpers.operators.id,
-        optional: false,
-      }),
-      band: helpers.one.ukeBands({
-        from: helpers.statsSnapshots.band_id,
-        to: helpers.ukeBands.id,
         optional: false,
       }),
     },

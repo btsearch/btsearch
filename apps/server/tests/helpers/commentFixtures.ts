@@ -1,5 +1,5 @@
 export const commenterId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-export const commentId = "11111111-1111-4111-8111-111111111111";
+const commentId = "11111111-1111-4111-8111-111111111111";
 export const commentRow = {
   id: commentId,
   station_id: 12,

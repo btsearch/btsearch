@@ -79,7 +79,7 @@ function PersonLabel({ user, isMuted = false }: PersonLabelProps) {
     <>
       <UserAvatar user={toPickerAvatarUser(user)} className={AVATAR_CLASS} />
       <span className="min-w-0 flex-1">
-        <span className={cn("block truncate text-sm leading-[1.125rem] font-medium", isMuted && "text-muted-foreground")}>
+        <span className={cn("block truncate text-sm leading-4.5 font-medium", isMuted && "text-muted-foreground")}>
           {getPickerUserName(user) ?? t("users.picker.unknownUser")}
         </span>
         {handle === null ? null : <span className="block truncate text-xs text-muted-foreground">{handle}</span>}

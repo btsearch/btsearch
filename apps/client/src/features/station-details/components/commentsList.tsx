@@ -1,4 +1,4 @@
-import { Delete02Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { Delete02Icon, PencilEdit02Icon, UserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { COMMENTS_OFF, deleteStationComment, stationCommentKeys, stationCommentsQueryOptions } from "../station/comments/api";
 import type { StationComment } from "../station/comments/types";
 import { AddCommentForm } from "./addCommentForm";
+import { EditCommentForm } from "./editCommentForm";
 import { preloadLightbox } from "@/components/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
@@ -79,6 +80,8 @@ export function CommentsList({ stationId, canModerate = false, showAddForm = fal
   const [commentToDelete, setCommentToDelete] = useState<StationComment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const deleteTriggerRef = useRef<HTMLElement | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const editTriggerRef = useRef<HTMLElement | null>(null);
 
   function requestDelete(comment: StationComment, trigger: HTMLElement): void {
     deleteTriggerRef.current = trigger;
@@ -89,6 +92,16 @@ export function CommentsList({ stationId, canModerate = false, showAddForm = fal
   function confirmDelete(): void {
     if (commentToDelete === null || deleteMutation.isPending) return;
     deleteMutation.mutate(commentToDelete);
+  }
+
+  function startEditing(comment: StationComment, trigger: HTMLElement): void {
+    editTriggerRef.current = trigger;
+    setEditingCommentId(comment.id);
+  }
+
+  function stopEditing(): void {
+    setEditingCommentId(null);
+    editTriggerRef.current?.focus();
   }
 
   if (isLoading) {
@@ -114,6 +127,7 @@ export function CommentsList({ stationId, canModerate = false, showAddForm = fal
   const lightboxComment = lightbox === null ? undefined : comments.find((comment) => comment.id === lightbox.commentId);
   const lightboxPhotos = lightboxComment === undefined ? [] : toLightboxPhotos(lightboxComment);
   const isWithdrawal = commentToDelete?.status === "pending";
+  const editLabel = t("common:actions.edit");
 
   return (
     <div className="space-y-5">
@@ -130,7 +144,9 @@ export function CommentsList({ stationId, canModerate = false, showAddForm = fal
       ) : (
         <div className="divide-y divide-border/60">
           {comments.map((comment) => {
-            const canDelete = canModerate || comment.author.id === currentUserId;
+            const isOwnComment = comment.author.id === currentUserId;
+            const canDelete = canModerate || isOwnComment;
+            const isBeingEdited = isOwnComment && editingCommentId === comment.id;
             const isAwaitingApproval = comment.status === "pending";
             const deleteLabel = isAwaitingApproval ? t("comments.withdraw") : t("admin:comments.deleteTitle");
 
@@ -144,7 +160,7 @@ export function CommentsList({ stationId, canModerate = false, showAddForm = fal
                 </Avatar>
 
                 <div className="relative min-w-0 flex-1">
-                  <div className={cn("flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1", canDelete && "pr-9")}>
+                  <div className={cn("flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1", isOwnComment ? "pr-17" : canDelete && "pr-9")}>
                     <UserLink user={comment.author} className="max-w-full truncate text-sm font-semibold text-foreground">
                       {comment.author.name || (comment.author.username ? `@${comment.author.username}` : t("comments.unknownAuthor"))}
                     </UserLink>
@@ -160,7 +176,20 @@ export function CommentsList({ stationId, canModerate = false, showAddForm = fal
                     </time>
                   </div>
                   {canDelete ? (
-                    <div className="absolute -right-1 -top-1">
+                    <div className="absolute -right-1 -top-1 flex">
+                      {isOwnComment ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="cursor-pointer text-muted-foreground"
+                          aria-label={editLabel}
+                          aria-expanded={isBeingEdited}
+                          title={editLabel}
+                          onClick={(event) => (isBeingEdited ? stopEditing() : startEditing(comment, event.currentTarget))}
+                        >
+                          <HugeiconsIcon icon={PencilEdit02Icon} className="size-4" aria-hidden="true" />
+                        </Button>
+                      ) : null}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -176,7 +205,11 @@ export function CommentsList({ stationId, canModerate = false, showAddForm = fal
                       </Button>
                     </div>
                   ) : null}
-                  <p className="mt-1.5 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-foreground">{comment.content}</p>
+                  {isBeingEdited ? (
+                    <EditCommentForm comment={comment} onClose={stopEditing} />
+                  ) : (
+                    <p className="mt-1.5 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-foreground">{comment.content}</p>
+                  )}
 
                   {comment.attachments.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-2">

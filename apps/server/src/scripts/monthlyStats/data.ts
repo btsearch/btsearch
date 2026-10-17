@@ -16,8 +16,7 @@ import {
 import db from "@openbts/drizzle/db";
 import { type SQL, type SQLWrapper, and, count, eq, exists, gte, inArray, isNotNull, lt, notExists, or, sql } from "drizzle-orm";
 
-import type { StatsOperator } from "../../features/stats/schemas.ts";
-
+export type StatsOperator = { id: number; name: string; mnc: number | null };
 type MonthWindow = { startAt: SQL; endAt: SQL };
 type StationCellGroup = { first_at: SQLWrapper; cells_total: SQLWrapper; cells_added: SQLWrapper };
 type GroupCounts = { operator: StatsOperator; stations: number; stations_added: number; cells: number; cells_added: number };

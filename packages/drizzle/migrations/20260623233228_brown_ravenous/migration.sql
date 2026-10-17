@@ -1,2 +1,0 @@
-ALTER TABLE "submissions"."submission_location_photo_selections" ADD COLUMN "is_removal" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE "submissions"."submission_location_photo_selections" ADD CONSTRAINT "is_main_not_removal" CHECK (NOT ("is_main" = true AND "is_removal" = true));

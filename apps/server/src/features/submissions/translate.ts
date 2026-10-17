@@ -1,3 +1,4 @@
+import { conventionsFor } from "@openbts/country-packs";
 import {
   attachments,
   bands,
@@ -40,13 +41,16 @@ import { ErrorResponse, ValidationError } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import { toFieldPath } from "../../lib/fieldPath.js";
 import { itemRefusal } from "../../lib/itemRefusals.js";
+import { locationRefs } from "../access/scope.js";
 import { RADIO_FIELD_NAMES } from "../cells/radioFields.js";
 import { isNormalRat } from "../cells/ratCellPersistence.js";
 import { assertOwnerFitsRegion, toStructureChange } from "../locations/structure.js";
 import { findRegionIdAt } from "../regions/lookup.js";
+import { findPlacementCountryCode } from "../stations/country.js";
 import { disabledCountryFeatures, findPlacementCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { CONTRACT_RATS, type CellRow, DATABASE_RATS, DATABASE_STATUSES } from "../stations/serialize.js";
 import { findNamedOwner } from "../structures/write.js";
+import { loadCurrentLocations } from "./contributions.js";
 import {
   type ChangeCell,
   type PhotoPickInput,
@@ -77,7 +81,9 @@ type TranslatedContent = {
   location?: LocationInput;
   sectors?: SectorInput[];
   cells?: ChangeCell[];
+  placement_country_code?: string | null;
 };
+type Translation = { translated: TranslatedContent; addressRefusal: string | null };
 export type StationEdit = {
   action: SubmissionAction;
   stationId?: number;
@@ -388,7 +394,15 @@ async function loadSubmissionPlacement(submissionId: string | undefined) {
   return placement;
 }
 
-async function translateContent(stationId: number | null, content: ChangeContent, context: TranslationContext = {}): Promise<TranslatedContent> {
+async function findFiledRegionId(stationId: number | null, { regionId, longitude, latitude }: SubmittedLocationInput): Promise<number | undefined> {
+  if (regionId === undefined) return undefined;
+
+  const current = stationId !== null && latitude === undefined ? (await loadCurrentLocations([stationId])).get(stationId) : null;
+  const [point] = locationRefs({ region_id: regionId, longitude, latitude }, current).points ?? [];
+  return point ? ((await findRegionIdAt(point)) ?? regionId) : regionId;
+}
+
+async function translateContent(stationId: number | null, content: ChangeContent, context: TranslationContext = {}): Promise<Translation> {
   const destinationStationIds = (content.cells ?? []).flatMap((cell) =>
     cell.action === "update" && cell.stationId !== undefined && cell.stationId !== stationId ? [cell.stationId] : [],
   );
@@ -404,16 +418,19 @@ async function translateContent(stationId: number | null, content: ChangeContent
     normalizedLocation && normalizedLocation.regionId === undefined && typeof storedPlacement?.regionId === "number"
       ? { ...normalizedLocation, regionId: storedPlacement.regionId }
       : normalizedLocation;
-  const features = await findPlacementCountryFeatures({
+  const isRegionWorkedOut = normalizedLocation?.regionId !== content.location?.regionId;
+  const filedRegionId = location && !isRegionWorkedOut ? await findFiledRegionId(stationId, location) : location?.regionId;
+  const placement = {
     stationId,
-    regionId: location?.regionId ?? storedPlacement?.regionId,
-    operatorId: content.station?.operatorId ?? storedPlacement?.operatorId,
+    regionId: filedRegionId ?? storedPlacement?.regionId,
+    operatorId: content.station ? content.station.operatorId : storedPlacement?.operatorId,
     withoutLocation: context.detachesLocation,
-  });
+  };
+  const features = await findPlacementCountryFeatures(placement);
   await assertSentOwnerFits(stationId, location);
   const proposedOwner = await findProposedOwner(stationId, location, features, context);
 
-  return {
+  const translated: TranslatedContent = {
     station: content.station && toStationInput(content.station),
     location: location && toLocationInput(location, proposedOwner),
     sectors: content.sectors?.map((sector) => toSectorInput(sector, azimuths)),
@@ -427,6 +444,11 @@ async function translateContent(stationId: number | null, content: ChangeContent
       ),
     ),
   };
+  if (!location?.address && !content.cells?.length) return { translated, addressRefusal: null };
+
+  const countryCode = await findPlacementCountryCode(placement);
+  const addressRefusal = location?.address ? conventionsFor(countryCode).validateAddress(location.address) : null;
+  return { translated: { ...translated, placement_country_code: countryCode }, addressRefusal };
 }
 
 function findInvalidFields(schema: z.ZodType, value: unknown, toPath: BodyPath): InvalidField[] {
@@ -442,14 +464,16 @@ function toRadioFieldPath(rat: CellRat, [column, ...rest]: PropertyKey[]): Prope
   return [field ?? column, ...rest];
 }
 
-function assertValid({ location, cells = [] }: TranslatedContent, bodyPath: BodyPath = (path) => path): void {
+function assertValid({ location, cells = [] }: TranslatedContent, addressRefusal: string | null, bodyPath: BodyPath = (path) => path): void {
   const invalidLocation = location ? findInvalidFields(proposedLocationInsert, location, (path) => bodyPath(["location", ...path])) : [];
+  const invalidAddress =
+    addressRefusal === null ? [] : [{ field: toFieldPath(bodyPath(["location", "address"])), validationMessage: addressRefusal }];
   const invalidCells = cells.flatMap((cell, index) => {
     const rat = cell.rat ? CONTRACT_RATS[cell.rat] : undefined;
     if (!rat || !cell.details) return [];
     return findInvalidFields(RADIO_SCHEMAS[rat], cell.details, (path) => bodyPath(["cells", index, ...toRadioFieldPath(rat, path)]));
   });
-  const invalid = [...invalidLocation, ...invalidCells];
+  const invalid = [...invalidLocation, ...invalidAddress, ...invalidCells];
   if (invalid.length > 0) throw new ValidationError(invalid);
 }
 
@@ -553,11 +577,11 @@ export async function toPhotoPickUpdate(
 
 export async function toSingleSubmission(body: SubmissionCreate, bodyPath?: BodyPath): Promise<SingleSubmission> {
   const stationId = body.stationId ?? null;
-  const [translated, picks] = await Promise.all([
+  const [{ translated, addressRefusal }, picks] = await Promise.all([
     translateContent(stationId, body, { bodyPath }),
     translatePhotoPicks(stationId, body.photos, body.location),
   ]);
-  assertValid(translated, bodyPath);
+  assertValid(translated, addressRefusal, bodyPath);
 
   return {
     type: SUBMISSION_TYPES[body.action],
@@ -573,8 +597,12 @@ export async function toSingleSubmission(body: SubmissionCreate, bodyPath?: Body
 export async function toDirectChange(edit: StationEdit, bodyPath?: BodyPath): Promise<SubmissionChange> {
   const stationId = edit.stationId ?? null;
   const detachesStation = edit.action === "update" && edit.location === null;
-  const translated = await translateContent(stationId, { ...edit, location: edit.location ?? undefined }, { detachesLocation: detachesStation });
-  assertValid(translated, bodyPath);
+  const { translated, addressRefusal } = await translateContent(
+    stationId,
+    { ...edit, location: edit.location ?? undefined },
+    { detachesLocation: detachesStation },
+  );
+  assertValid(translated, addressRefusal, bodyPath);
 
   const { status, isConfirmed } = edit.station ?? {};
   return {
@@ -592,8 +620,8 @@ export async function toSubmissionUpdateInput(
   body: SubmissionUpdate,
   context?: { submissionId: string },
 ): Promise<SubmissionUpdateBody> {
-  const translated = await translateContent(stationId, body, context);
-  assertValid(translated);
+  const { translated, addressRefusal } = await translateContent(stationId, body, context);
+  assertValid(translated, addressRefusal);
 
   return { submitter_note: body.note, review_notes: body.reviewNote, ...translated };
 }

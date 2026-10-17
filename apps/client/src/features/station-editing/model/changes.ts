@@ -1,5 +1,5 @@
 import type { BackhaulMedium, CellType, StationIdentifierKind, StationStatus } from "@openbts/shared/contract";
-import { calculateDistance, formatDistance } from "@openbts/shared/radiolinesUtils";
+import { calculateDistance, formatDistance } from "@openbts/shared/geo";
 
 import {
   CELL_FLAG_LABELS,

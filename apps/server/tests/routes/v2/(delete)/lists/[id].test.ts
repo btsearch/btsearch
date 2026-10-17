@@ -14,7 +14,7 @@ const row = {
   is_public: false,
   notificationsEnabled: true,
   created_by: ownerId,
-  stations: { internal: [12], uke: [24] },
+  stations: { internal: [12], official: [24] },
   radiolines: [36],
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),

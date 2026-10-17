@@ -1,8 +1,8 @@
-import type { EmfAntennaReport } from "@openbts/shared/contract";
+import type { EmfAntennaReport, OfficialSource } from "@openbts/shared/contract";
 
-import { OMNIDIRECTIONAL_DEGREES } from "../model/ratFields";
+import { OMNIDIRECTIONAL_DEGREES, toDegrees } from "../model/ratFields";
 import { fetchPartnerSectors } from "./partner";
-import { fetchUkePermitsByStationId } from "@/features/map/api";
+import { fetchAllOfficialPermits } from "@/features/station-details/api";
 import { getAntennaGroupKind } from "@/features/station-details/station/emf/antennas/antennaModel";
 import { fetchV2Data, isNotFound } from "@/lib/api";
 
@@ -14,9 +14,15 @@ type EmfAzimuthSite = {
   longitude: number;
 };
 
+type RegisterAzimuthSite = {
+  siteId: string;
+  operatorId: number;
+  source: Pick<OfficialSource, "key" | "shortName">;
+};
+
 export type FetchedAzimuths =
   | { source: "emf"; degrees: number[]; measuredOn: string | null; sectorAntennaCount: number }
-  | { source: "register"; degrees: number[] }
+  | { source: "register"; sourceName: string; degrees: number[] }
   | { source: "partner"; degrees: number[] };
 
 const NO_ANTENNA_REPORT: EmfAntennaReport = { report: null, antennas: [] };
@@ -61,13 +67,13 @@ export async function fetchEmfAzimuths(site: EmfAzimuthSite): Promise<FetchedAzi
   };
 }
 
-export async function fetchRegisterAzimuths(siteId: string, operatorMnc: number): Promise<FetchedAzimuths> {
-  const permits = await fetchUkePermitsByStationId(siteId, operatorMnc);
+export async function fetchRegisterAzimuths({ siteId, operatorId, source }: RegisterAzimuthSite): Promise<FetchedAzimuths> {
+  const permits = await fetchAllOfficialPermits({ siteIds: [siteId], operatorIds: [operatorId], sourceKeys: [source.key], include: ["sectors"] });
   const azimuths = permits.flatMap((permit) => (permit.sectors ?? []).map((sector) => sector.azimuth));
-  return { source: "register", degrees: sortAscending(listDistinctDegrees(azimuths)) };
+  return { source: "register", sourceName: source.shortName, degrees: sortAscending(listDistinctDegrees(azimuths)) };
 }
 
 export async function fetchPartnerAzimuths(stationId: number): Promise<FetchedAzimuths> {
   const sectors = await fetchPartnerSectors(stationId);
-  return { source: "partner", degrees: listDistinctDegrees(sectors.map((sector) => sector.azimuth)) };
+  return { source: "partner", degrees: listDistinctDegrees(sectors.map((sector) => toDegrees(sector.azimuth))) };
 }

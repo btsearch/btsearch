@@ -17,12 +17,12 @@ describe("DELETE /regions/7", () => {
     expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "audit_logs")).toBe(false);
   });
 
-  it.each(["locations", "uke_locations", "proposed_locations", "role_grant_regions"])(
+  it.each(["locations", "official.locations", "proposed_locations", "role_grant_regions"])(
     "rejects a region still referenced by %s",
     async (reference) => {
       dbMock.query.regions.findFirst.mockResolvedValue(row);
       scriptAudit();
-      for (const table of ["locations", "uke_locations", "proposed_locations", "role_grant_regions"])
+      for (const table of ["locations", "official.locations", "proposed_locations", "role_grant_regions"])
         dbMock.enqueueFor("select", table, table === reference ? [{ id: 1, grantId: "grant" }] : []);
       expectError(
         await injectMutation(route, request, options),
@@ -39,7 +39,7 @@ describe("DELETE /regions/7", () => {
   it("applies and audits the documented change", async () => {
     scriptAudit();
     dbMock.query.regions.findFirst.mockResolvedValue(row);
-    for (const table of ["locations", "uke_locations", "proposed_locations", "role_grant_regions"]) dbMock.enqueueFor("select", table, []);
+    for (const table of ["locations", "official.locations", "proposed_locations", "role_grant_regions"]) dbMock.enqueueFor("select", table, []);
     dbMock.enqueueFor("delete", "regions", [row]);
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(204);

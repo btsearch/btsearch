@@ -21,10 +21,9 @@ import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperati
 import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
 import { checkCellDuplicatesBatch, checkPciDuplicates, getOperatorIdForStation } from "../cells/duplicateCheck.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
-import { findPlacementCountryCode } from "../stations/country.js";
 import { uplinkSpeedSchema } from "../stations/uplink.js";
 import { assertCountriesOpen, loadCurrentLocations } from "./contributions.js";
-import { type PhotoPickInput, assertTargetCellsFit, insertPhotoPicks, nrInsertSchema, refuseGenericAddress } from "./create.js";
+import { type PhotoPickInput, assertTargetCellsFit, insertPhotoPicks, nrInsertSchema } from "./create.js";
 import {
   changedLocationFields,
   changedStationFields,
@@ -65,8 +64,7 @@ const sectorInputSchema = createInsertSchema(proposedSectors).omit({ createdAt: 
 
 const locationInputSchema = createInsertSchema(proposedLocations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
-  .partial()
-  .superRefine(refuseGenericAddress);
+  .partial();
 
 const submissionUpdateBodySchema = z.object({
   review_notes: z.string().nullable().optional(),
@@ -77,7 +75,7 @@ const submissionUpdateBodySchema = z.object({
   cells: z.array(cellInputSchema).optional(),
 });
 
-export type SubmissionUpdateBody = z.infer<typeof submissionUpdateBodySchema>;
+export type SubmissionUpdateBody = z.infer<typeof submissionUpdateBodySchema> & { placement_country_code?: string | null };
 type ExistingSubmission = NonNullable<Awaited<ReturnType<typeof db.query.submissions.findFirst>>>;
 export type EditableSubmission = { submission: ExistingSubmission; hasAdminPermission: boolean };
 type ProposedCellInput = NonNullable<SubmissionUpdateBody["cells"]>[number];
@@ -153,22 +151,6 @@ async function assertStationTakesChanges(stationId: number | null): Promise<void
 
   const station = await db.query.stations.findFirst({ where: { id: stationId }, columns: { status: true } });
   if (station?.status !== "published" && station?.status !== "pending") throw new ErrorResponse("NOT_FOUND", { message: "Station not found" });
-}
-
-async function loadCellsCountryCode(submissionId: string, stationId: number | null, body: SubmissionUpdateBody): Promise<string | null> {
-  const [storedLocation, storedStation] = await Promise.all([
-    body.location === undefined
-      ? db.query.proposedLocations.findFirst({ where: { submission_id: submissionId }, columns: { region_id: true } })
-      : undefined,
-    body.station === undefined
-      ? db.query.proposedStations.findFirst({ where: { submission_id: submissionId }, columns: { operator_id: true } })
-      : undefined,
-  ]);
-  return findPlacementCountryCode({
-    stationId,
-    regionId: body.location === undefined ? storedLocation?.region_id : body.location.region_id,
-    operatorId: body.station === undefined ? storedStation?.operator_id : body.station.operator_id,
-  });
 }
 
 async function replaceProposedStation(
@@ -379,10 +361,9 @@ export async function updateSubmission(
   }
   await validateCellConflicts(body.cells, stationId);
   if (body.cells && body.cells.length > 0) {
-    const countryCode = await loadCellsCountryCode(id, stationId, body);
     await validateCellBandsInCountry(
       body.cells.filter((cell) => cell.operation !== "delete"),
-      countryCode,
+      body.placement_country_code ?? null,
     );
   }
 

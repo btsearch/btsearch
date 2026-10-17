@@ -2,9 +2,11 @@ import type { AuditEntity, AuditOperationKind } from "@openbts/shared/audit";
 import type { CLFDescriptionTemplates, ClfExportFormat } from "@openbts/shared/clfExportTemplates";
 import {
   type AnyPgColumn,
+  bigint,
   boolean,
   char,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -12,6 +14,7 @@ import {
   pgSchema,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -22,7 +25,20 @@ import {
 import { sql } from "drizzle-orm/sql";
 import { nanoid } from "nanoid";
 
-import { UkeSchema, countries, locations, regions, stations, ukeStations } from "./bts.ts";
+import {
+  OfficialSchema,
+  countries,
+  licensees,
+  locations,
+  officialDatasetSlices,
+  officialDatasets,
+  officialSites,
+  officialSnapshots,
+  officialSources,
+  operators,
+  regions,
+  stations,
+} from "./bts.ts";
 
 export const NotificationType = pgEnum("notification_type", [
   "submission_approved",
@@ -32,7 +48,7 @@ export const NotificationType = pgEnum("notification_type", [
   "station_cells_changed",
   "station_photos_added",
   "station_comment_approved",
-  "station_uke_permit_added",
+  "station_official_permit_added",
 ]);
 export const CommentStatus = pgEnum("comment_status", ["pending", "approved"]);
 
@@ -82,6 +98,36 @@ export const APITokenTier = pgEnum("api_token_tier", ["basic", "pro", "unlimited
 export const AuditOp = pgEnum("audit_op", ["create", "update", "delete"]);
 export const AuditSource = pgEnum("audit_source", ["api", "import", "system"]);
 export const GrantRole = pgEnum("grant_role", ["editor", "maintainer"]);
+export const OfficialRunKind = pgEnum("official_run_kind", ["import", "replay", "remap", "relink"]);
+export const OfficialRunTrigger = pgEnum("official_run_trigger", ["scheduled", "manual", "cli"]);
+export const OfficialRunState = pgEnum("official_run_state", ["queued", "running", "done", "failed", "cancelled"]);
+export const OfficialSliceOutcome = pgEnum("official_slice_outcome", ["applied", "unchanged", "held"]);
+export const OfficialRunStep = pgEnum("official_run_step", [
+  "unlisted_permits",
+  "site_notifications",
+  "links",
+  "station_notifications",
+  "orphans",
+  "statistics",
+  "push",
+  "kmz",
+  "publish",
+  "prune",
+]);
+export const OfficialChange = pgEnum("official_change", [
+  "site_added",
+  "site_moved",
+  "site_remapped",
+  "permit_added",
+  "permit_listed",
+  "permit_unlisted",
+  "permit_archived",
+  "station_linked",
+  "station_unlinked",
+  "microwave_link_added",
+  "microwave_link_renewed",
+  "microwave_link_archived",
+]);
 export const AuditSchema = pgSchema("audit");
 export const AuthSchema = pgSchema("auth");
 
@@ -540,7 +586,7 @@ export const userLists = pgTable(
     created_by: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
-    stations: jsonb("stations").$type<{ internal: number[]; uke: number[] }>().notNull(),
+    stations: jsonb("stations").$type<{ internal: number[]; official: number[] }>().notNull(),
     notificationsEnabled: boolean("notifications_enabled").notNull().default(false),
     radiolines: jsonb("radiolines")
       .$type<number[]>()
@@ -555,7 +601,7 @@ export const userLists = pgTable(
     check("user_lists_stations_is_object", sql`jsonb_typeof(${t.stations}) = 'object'`),
     index("user_lists_radiolines_gin").using("gin", t.radiolines),
     index("user_lists_stations_internal_gin").using("gin", sql`(${t.stations} -> 'internal')`),
-    index("user_lists_stations_uke_gin").using("gin", sql`(${t.stations} -> 'uke')`),
+    index("user_lists_stations_official_gin").using("gin", sql`(${t.stations} -> 'official')`),
     check("user_lists_radiolines_is_array", sql`jsonb_typeof(${t.radiolines}) = 'array'`),
   ],
 );
@@ -582,8 +628,8 @@ export const stationWatches = pgTable(
   ],
 );
 
-export const ukeStationWatches = UkeSchema.table(
-  "uke_station_watches",
+export const officialSiteWatches = OfficialSchema.table(
+  "site_watches",
   {
     id: uuid("id")
       .primaryKey()
@@ -592,15 +638,206 @@ export const ukeStationWatches = UkeSchema.table(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    ukeStationId: integer("uke_station_id")
+    officialSiteId: integer("official_site_id")
       .notNull()
-      .references(() => ukeStations.id, { onDelete: "cascade" }),
+      .references(() => officialSites.id, { onDelete: "cascade" }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("uke_station_watches_user_id_idx").on(t.userId),
-    index("uke_station_watches_uke_station_id_idx").on(t.ukeStationId),
-    unique("uke_station_watches_user_station_unique").on(t.userId, t.ukeStationId),
+    index("site_watches_user_id_idx").on(t.userId),
+    index("site_watches_official_site_id_idx").on(t.officialSiteId),
+    unique("site_watches_user_official_site_unique").on(t.userId, t.officialSiteId),
+  ],
+);
+
+export const officialImportRuns = OfficialSchema.table(
+  "import_runs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`)
+      .notNull(),
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    kind: OfficialRunKind("kind").notNull(),
+    trigger: OfficialRunTrigger("trigger").notNull(),
+    isDryRun: boolean("is_dry_run").notNull().default(false),
+    state: OfficialRunState("state").notNull(),
+    error: text("error"),
+    claimToken: uuid("claim_token"),
+    attempt: smallint("attempt").notNull().default(0),
+    requestedById: uuid("requested_by_id").references(() => users.id, { onDelete: "set null" }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("import_runs_source_running_unique")
+      .on(t.sourceId)
+      .where(sql`${t.state} = 'running'`),
+  ],
+);
+
+export const officialRemapRuns = OfficialSchema.table("remap_runs", {
+  runId: uuid("run_id")
+    .primaryKey()
+    .references(() => officialImportRuns.id, { onDelete: "cascade" }),
+  licenseeId: integer("licensee_id")
+    .notNull()
+    .references(() => licensees.id, { onDelete: "restrict", onUpdate: "cascade" }),
+  fromOperatorId: integer("from_operator_id").references(() => operators.id, { onDelete: "restrict", onUpdate: "cascade" }),
+  toOperatorId: integer("to_operator_id").references(() => operators.id, { onDelete: "restrict", onUpdate: "cascade" }),
+});
+
+export const officialImportRunDatasets = OfficialSchema.table(
+  "import_run_datasets",
+  {
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => officialImportRuns.id, { onDelete: "cascade" }),
+    datasetId: integer("dataset_id")
+      .notNull()
+      .references(() => officialDatasets.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    error: text("error"),
+  },
+  (t) => [primaryKey({ columns: [t.runId, t.datasetId] })],
+);
+
+export const officialImportRunSlices = OfficialSchema.table(
+  "import_run_slices",
+  {
+    runId: uuid("run_id").notNull(),
+    datasetId: integer("dataset_id").notNull(),
+    slice: varchar("slice", { length: 64 }).notNull(),
+    snapshotId: integer("snapshot_id")
+      .notNull()
+      .references(() => officialSnapshots.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    outcome: OfficialSliceOutcome("outcome").notNull(),
+    stagedCount: integer("staged_count").notNull(),
+    liveCount: integer("live_count").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.runId, t.datasetId, t.slice] }),
+    foreignKey({
+      name: "import_run_slices_run_dataset_fkey",
+      columns: [t.runId, t.datasetId],
+      foreignColumns: [officialImportRunDatasets.runId, officialImportRunDatasets.datasetId],
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+    foreignKey({
+      name: "import_run_slices_dataset_slice_fkey",
+      columns: [t.datasetId, t.slice],
+      foreignColumns: [officialDatasetSlices.datasetId, officialDatasetSlices.key],
+    })
+      .onDelete("restrict")
+      .onUpdate("cascade"),
+  ],
+);
+
+export const officialImportRunSkips = OfficialSchema.table(
+  "import_run_skips",
+  {
+    runId: uuid("run_id").notNull(),
+    datasetId: integer("dataset_id").notNull(),
+    slice: varchar("slice", { length: 64 }).notNull(),
+    reason: varchar("reason", { length: 64 }).notNull(),
+    recordCount: integer("record_count").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.runId, t.datasetId, t.slice, t.reason] }),
+    foreignKey({
+      name: "import_run_skips_run_slice_fkey",
+      columns: [t.runId, t.datasetId, t.slice],
+      foreignColumns: [officialImportRunSlices.runId, officialImportRunSlices.datasetId, officialImportRunSlices.slice],
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+  ],
+);
+
+export const officialImportRunApprovals = OfficialSchema.table(
+  "import_run_approvals",
+  {
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => officialImportRuns.id, { onDelete: "cascade" }),
+    datasetId: integer("dataset_id").notNull(),
+    slice: varchar("slice", { length: 64 }).notNull(),
+    snapshotId: integer("snapshot_id")
+      .notNull()
+      .references(() => officialSnapshots.id, { onDelete: "restrict", onUpdate: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.runId, t.datasetId, t.slice] }),
+    foreignKey({
+      name: "import_run_approvals_dataset_slice_fkey",
+      columns: [t.datasetId, t.slice],
+      foreignColumns: [officialDatasetSlices.datasetId, officialDatasetSlices.key],
+    })
+      .onDelete("restrict")
+      .onUpdate("cascade"),
+  ],
+);
+
+export const officialImportRunSteps = OfficialSchema.table(
+  "import_run_steps",
+  {
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => officialImportRuns.id, { onDelete: "cascade" }),
+    step: OfficialRunStep("step").notNull(),
+    lastSeq: bigint("last_seq", { mode: "number" }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    error: text("error"),
+  },
+  (t) => [primaryKey({ columns: [t.runId, t.step] })],
+);
+
+export const officialImportChanges = OfficialSchema.table(
+  "import_changes",
+  {
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => officialImportRuns.id, { onDelete: "cascade" }),
+    seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity(),
+    kind: OfficialChange("kind").notNull(),
+    datasetId: integer("dataset_id"),
+    slice: varchar("slice", { length: 64 }),
+    officialSiteId: integer("official_site_id"),
+    permitId: integer("permit_id"),
+    stationId: integer("station_id"),
+    microwaveLinkId: integer("microwave_link_id"),
+    fromLocationId: integer("from_location_id"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.runId, t.seq] }),
+    foreignKey({
+      name: "import_changes_run_slice_fkey",
+      columns: [t.runId, t.datasetId, t.slice],
+      foreignColumns: [officialImportRunSlices.runId, officialImportRunSlices.datasetId, officialImportRunSlices.slice],
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+    check(
+      "import_changes_official_site_id_by_kind",
+      sql`(${t.officialSiteId} IS NOT NULL) = (${t.kind} IN ('site_added', 'site_moved', 'site_remapped', 'permit_added', 'permit_listed', 'permit_unlisted', 'permit_archived'))`,
+    ),
+    check(
+      "import_changes_permit_id_by_kind",
+      sql`(${t.permitId} IS NOT NULL) = (${t.kind} IN ('permit_added', 'permit_listed', 'permit_unlisted', 'permit_archived', 'station_linked', 'station_unlinked'))`,
+    ),
+    check("import_changes_station_id_by_kind", sql`(${t.stationId} IS NOT NULL) = (${t.kind} IN ('station_linked', 'station_unlinked'))`),
+    check(
+      "import_changes_microwave_link_id_by_kind",
+      sql`(${t.microwaveLinkId} IS NOT NULL) = (${t.kind} IN ('microwave_link_added', 'microwave_link_renewed', 'microwave_link_archived'))`,
+    ),
+    check("import_changes_from_location_id_by_kind", sql`(${t.fromLocationId} IS NOT NULL) = (${t.kind} = 'site_moved')`),
+    check("import_changes_slice_complete", sql`(${t.datasetId} IS NULL) = (${t.slice} IS NULL)`),
   ],
 );
 
@@ -708,7 +945,7 @@ export const notifications = pgTable(
     title: text("title").notNull(),
     submissionId: uuid("submission_id"),
     stationId: integer("station_id").references(() => stations.id, { onDelete: "cascade" }),
-    ukeStationId: integer("uke_station_id").references(() => ukeStations.id, { onDelete: "cascade" }),
+    officialSiteId: integer("official_site_id").references(() => officialSites.id, { onDelete: "cascade" }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     actionUrl: text("action_url"),
     readAt: timestamp({ withTimezone: true }),
@@ -724,11 +961,11 @@ export const notifications = pgTable(
     uniqueIndex("notifications_user_station_type_unread_unique")
       .on(t.userId, t.stationId, t.type)
       .where(
-        sql`${t.readAt} IS NULL AND ${t.stationId} IS NOT NULL AND ${t.type} IN ('station_cells_changed', 'station_photos_added', 'station_comment_approved', 'station_uke_permit_added')`,
+        sql`${t.readAt} IS NULL AND ${t.stationId} IS NOT NULL AND ${t.type} IN ('station_cells_changed', 'station_photos_added', 'station_comment_approved', 'station_official_permit_added')`,
       ),
-    uniqueIndex("notifications_user_uke_station_type_unread_unique")
-      .on(t.userId, t.ukeStationId, t.type)
-      .where(sql`${t.readAt} IS NULL AND ${t.ukeStationId} IS NOT NULL`),
+    uniqueIndex("notifications_user_official_site_type_unread_unique")
+      .on(t.userId, t.officialSiteId, t.type)
+      .where(sql`${t.readAt} IS NULL AND ${t.officialSiteId} IS NOT NULL`),
     index("notifications_station_watch_push_queue_idx")
       .on(t.pushQueuedAt)
       .where(sql`${t.pushQueuedAt} IS NOT NULL AND ${t.pushSentAt} IS NULL`),
@@ -749,7 +986,7 @@ export const pushSubscriptions = pgTable(
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
     preferences: jsonb("preferences")
-      .$type<{ ukeUpdates?: boolean; submissionUpdates?: boolean; newSubmission?: boolean; stationWatches?: boolean }>()
+      .$type<{ officialDataUpdates?: boolean; submissionUpdates?: boolean; newSubmission?: boolean; stationWatches?: boolean }>()
       .notNull()
       .default({}),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

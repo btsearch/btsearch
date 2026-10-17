@@ -6,7 +6,6 @@ import type { RetryHeaders } from "../../lib/requestLimit.js";
 const SI2PEM_RETRY_SECONDS = 60;
 const BUSY_RETRY_SECONDS = 10;
 
-export const EMF_COUNTRY_CODE = "PL";
 export const si2pem = new SI2PEMClient();
 
 export const SI2PEM_UNAVAILABLE_REASON =

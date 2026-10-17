@@ -57,7 +57,6 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
     if (req.body.details && req.body.station_id) {
       const operatorId = await getOperatorIdForStation(req.body.station_id);
       if (operatorId) await checkCellDuplicate({ rat: req.body.rat, details: req.body.details as Record<string, unknown> }, operatorId);
-      // await checkLTEClidConsistency(req.body.station_id, [{ rat: req.body.rat, details: req.body.details as Record<string, unknown> }]);
     }
 
     if (req.body.details && req.body.station_id && req.body.band_id) {

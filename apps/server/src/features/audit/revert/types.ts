@@ -87,7 +87,6 @@ export type ApplyState = {
   sectorIdRemap: Map<number, number>;
   touchedLocationIds: Set<number>;
   indirectlyRevertedEntryIds: Set<number>;
-  stationOrLocationWritten: boolean;
 };
 
 type ForceResolution = "apply" | "skip" | "drop_field";
@@ -162,7 +161,6 @@ export function emptyApplyState(): ApplyState {
     sectorIdRemap: new Map(),
     touchedLocationIds: new Set(),
     indirectlyRevertedEntryIds: new Set(),
-    stationOrLocationWritten: false,
   };
 }
 

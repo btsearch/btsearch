@@ -270,7 +270,7 @@ export const auth = betterAuth({
         enabled: false,
       },
     }),
-    jwt(),
+    jwt({ disableSettingJwtHeader: true }),
     lastLoginMethod(),
     multiSession(),
     oauthProvider({

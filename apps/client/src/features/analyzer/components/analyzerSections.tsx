@@ -12,7 +12,7 @@ import { useAnalyzerTexts } from "./analyzerTexts";
 import type { AnalyzerPanelProps } from "./analyzerTypes";
 import { FadeItem, SmoothHeight } from "@/features/map/components/search-overlay/mapFilterMotion";
 import { OperatorRowsSection } from "@/features/map/components/search-overlay/mapFilterOperatorRows";
-import type { MapCountries } from "@/features/map/data/mapCountries";
+import { type MapCountries, NO_MAP_CAPABILITIES } from "@/features/map/data/mapCountries";
 import { DEFAULT_MAP_FILTERS, type MapFilters, type MapFiltersChange } from "@/features/map/data/mapFilters";
 import { FacetCount, FacetCountryMark, FacetDisclosurePill, FacetPill, FilterPanelSection, ToneFacetPill } from "@/features/shared/filterPanel";
 import { RAT_CELL_SPECS } from "@/features/shared/rat";
@@ -188,7 +188,7 @@ export function RatSection({ filters, panel, onFiltersChange }: AnalyzerPanelPro
 export function OperatorSection({ filters, panel, onFiltersChange }: AnalyzerPanelProps) {
   const { t } = useTranslation("cellAnalyzer");
   const { fileCountryCodes } = panel;
-  const mapCountries: MapCountries = { onScreen: fileCountryCodes, first: fileCountryCodes.at(0) ?? null, isRegisterOnScreen: false };
+  const mapCountries: MapCountries = { onScreen: fileCountryCodes, first: fileCountryCodes.at(0) ?? null, capabilities: NO_MAP_CAPABILITIES };
 
   return (
     <OperatorRowsSection

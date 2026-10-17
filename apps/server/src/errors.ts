@@ -204,6 +204,10 @@ function postgresCause(error: unknown): postgres.PostgresError | null {
   return null;
 }
 
+export function isDatabaseError(error: unknown, code: string): boolean {
+  return postgresCause(error)?.code === code;
+}
+
 export function isStillReferenced(databaseError: postgres.PostgresError): boolean {
   const refusesDelete = databaseError.code === FOREIGN_KEY_VIOLATION && DELETE_STATEMENT.test(databaseError.query);
   return databaseError.code === RESTRICT_VIOLATION || refusesDelete;

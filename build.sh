@@ -13,7 +13,7 @@ elif [[ "$1" == "deploy" ]]; then
   docker stack deploy -c docker-compose.swarm.yml btsearch
 elif [[ "$1" == "server" ]]; then
   COMMIT_SHA=$COMMIT_SHA docker compose build server
-  docker compose up -d --no-deps server og-renderer
+  docker compose up -d --no-deps server og-renderer importer
 elif [[ "$1" == "client" ]]; then
   COMMIT_SHA=$COMMIT_SHA docker compose build client
   docker compose up -d --no-deps client

@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(patch)/lists/[id].js";
-import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
+import { dbMock, userSession } from "../../../../helpers/boundaries.js";
 import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
+import { scriptAdminVisibility, scriptUserVisibility } from "../../../../helpers/officialDataFixtures.js";
 
 const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const row = {
@@ -14,7 +15,7 @@ const row = {
   is_public: false,
   notificationsEnabled: true,
   created_by: ownerId,
-  stations: { internal: [12], uke: [24] },
+  stations: { internal: [12], official: [24] },
   radiolines: [36],
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
@@ -26,7 +27,7 @@ function prepareOwnedListUpdate(): void {
   getRuntimeSettings().enableUserLists = true;
   scriptAudit();
   dbMock.query.userLists.findFirst.mockResolvedValue(row);
-  dbMock.enqueueFor("select", "countries", []);
+  scriptAdminVisibility();
 }
 
 describe("PATCH /lists/list-1", () => {
@@ -81,9 +82,9 @@ describe("PATCH /lists/list-1", () => {
     prepareOwnedListUpdate();
     dbMock.enqueueFor("select", "user_lists", [row]);
     dbMock.enqueueFor("select", "stations", [{ id: 13 }]);
-    dbMock.enqueueFor("select", "uke_stations", [{ id: 25 }]);
-    dbMock.enqueueFor("select", "uke_radiolines", [{ id: 37 }]);
-    dbMock.enqueueFor("update", "user_lists", [{ ...row, stations: { internal: [13], uke: [24, 25] }, radiolines: [37] }]);
+    dbMock.enqueueFor("select", "official.sites", [{ id: 25 }]);
+    dbMock.enqueueFor("select", "official.microwave_links", [{ id: 37 }]);
+    dbMock.enqueueFor("update", "user_lists", [{ ...row, stations: { internal: [13], official: [24, 25] }, radiolines: [37] }]);
     const response = await injectMutation(
       route,
       {
@@ -97,7 +98,7 @@ describe("PATCH /lists/list-1", () => {
     );
     expect(response.statusCode).toBe(200);
     expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "user_lists")?.values).toMatchObject({
-      stations: { internal: [13], uke: [24, 25] },
+      stations: { internal: [13], official: [24, 25] },
       radiolines: [37],
     });
   });
@@ -129,7 +130,7 @@ describe("PATCH /lists/list-1", () => {
   it("returns a controlled failure when the database transaction rejects", async () => {
     getRuntimeSettings().enableUserLists = true;
     dbMock.query.userLists.findFirst.mockResolvedValue(row);
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     dbMock.transaction.mockRejectedValueOnce(new Error("Database connection lost"));
     expectError(await injectMutation(route, request, options), 500, "FAILED_TO_UPDATE");
   });
@@ -156,7 +157,7 @@ describe("PATCH /lists/list-1", () => {
   it("rejects changing another user's public list without manage-all permission", async () => {
     getRuntimeSettings().enableUserLists = true;
     dbMock.query.userLists.findFirst.mockResolvedValue({ ...row, is_public: true });
-    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    scriptUserVisibility();
     const response = await injectMutation(route, request, { session: userSession("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb") });
     expectError(response, 403, "FORBIDDEN");
     expect(dbMock.calls.some((call) => call.operation === "update")).toBe(false);
@@ -177,16 +178,16 @@ describe("PATCH /lists/list-1", () => {
 
   it("returns the documented owner result", async () => {
     getRuntimeSettings().enableUserLists = true;
-    dbMock.enqueueFor("select", "countries", []);
+    scriptAdminVisibility();
     scriptAudit();
     dbMock.query.userLists.findFirst.mockResolvedValue(row);
     dbMock.enqueueFor("select", "user_lists", [row]);
-    dbMock.enqueueFor("update", "user_lists", [{ ...row, stations: { internal: [], uke: [24] } }]);
+    dbMock.enqueueFor("update", "user_lists", [{ ...row, stations: { internal: [], official: [24] } }]);
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ data: { id: "list-1", isOwner: true, notificationsEnabled: true } });
     expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "user_lists")?.values).toMatchObject({
-      stations: { internal: [], uke: [24] },
+      stations: { internal: [], official: [24] },
       radiolines: [36],
     });
   });

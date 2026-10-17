@@ -5,7 +5,7 @@ import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(patch)/submissions/[id].js";
 import { authBoundary, dbMock, setCountryFeatures, userSession } from "../../../../helpers/boundaries.js";
 import { cellBands } from "../../../../helpers/cellWriteFixtures.js";
-import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, scriptAudit, whereQuery } from "../../../../helpers/mutationAssertions.js";
 import { createRouteHarnessWithErrors } from "../../../../helpers/routeHarness.js";
 import { stationRow } from "../../../../helpers/stationFixtures.js";
 import {
@@ -59,11 +59,17 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
         structure: { type: "mast", ownerId: 9, note: "Live structure" },
       },
     } satisfies SubmissionUpdate;
-    dbMock.enqueueFor("select", "operators", [{ id: 7 }]);
-    dbMock.enqueueFor("select", "regions", [{ id: 1 }], [{ countryCode: "PL" }], [{ countryCode: "PL", regionId: 1 }]);
+    dbMock.enqueueFor("select", "operators", [{ id: 7 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "regions", [{ id: 1 }], [{ countryCode: "PL" }], [{ countryCode: "PL" }], [{ countryCode: "PL", regionId: 1 }]);
     dbMock.enqueueFor("select", "structure_owners", [{ countryCode: "PL" }]);
-    dbMock.enqueueFor("select", "stations", [{ stationId: 1, region_id: 1, latitude: 52, longitude: 21 }], [{ countryCode: "PL", regionId: 1 }]);
-    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
+    dbMock.enqueueFor(
+      "select",
+      "stations",
+      [{ locationCountry: "PL", operatorCountry: "PL" }],
+      [{ stationId: 1, region_id: 1, latitude: 52, longitude: 21 }],
+      [{ countryCode: "PL", regionId: 1 }],
+    );
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }], [{ regionId: 1 }]);
     dbMock.enqueueFor("select", "countries", []);
     dbMock.query.stations.findFirst.mockResolvedValue(liveDraftStation);
     dbMock.query.extraIdentificators.findFirst.mockResolvedValue(liveDraftIdentifiers);
@@ -186,14 +192,12 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     dbMock.enqueueSubmissionPlacement([{ regionId: old.proposedLocation?.region_id ?? null, operatorId: old.proposedStation?.operator_id ?? null }]);
     dbMock.enqueueFor("select", "cells", targets.slice(1));
     dbMock.enqueueFor("select", "bands", [{ id: 1 }], cellBands, []);
-    dbMock.enqueueFor("select", "stations", [{ countryCode: "PL", regionId: 1 }], [{ locationCountry: "PL", operatorCountry: "PL" }]);
+    dbMock.enqueueFor("select", "stations", [{ locationCountry: "PL", operatorCountry: "PL" }], [{ countryCode: "PL", regionId: 1 }]);
     dbMock.enqueueFor("select", "countries", []);
     dbMock.query.stations.findFirst.mockResolvedValue(stationRow({ operator_id: 7 }));
     dbMock.query.stationSectors.findMany.mockResolvedValue([]);
     dbMock.query.proposedSectors.findMany.mockResolvedValue([]);
     dbMock.query.cells.findMany.mockResolvedValue(targets.slice(1).map(({ cell }) => cell));
-    dbMock.query.proposedLocations.findFirst.mockResolvedValue(undefined);
-    dbMock.query.proposedStations.findFirst.mockResolvedValue(undefined);
     dbMock.enqueueFor("select", "gsm_cells", []);
     dbMock.enqueueFor("select", "lte_cells", [], []);
     dbMock.enqueueFor("select", "country_bands", [{ bandId: 1 }, { bandId: 3 }]);
@@ -512,7 +516,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     expectError(response, 403, "FEATURE_DISABLED");
     expect(response.json().errors[0].details).toEqual([{ field: "location/structure/ownerName" }]);
     expect(dbMock.transaction).not.toHaveBeenCalled();
-    expect(dbMock.calls.every((call) => call.operation === "select")).toBe(true);
+    expect(dbMock.calls.every((call) => !["insert", "update", "delete"].includes(call.operation))).toBe(true);
   });
 
   it("preserves an omitted pending owner proposal when moving between regions of the same country", async () => {
@@ -581,7 +585,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     expectError(response, 403, "FEATURE_DISABLED");
     expect(response.json().errors[0].details).toEqual([{ field: "location/structure/ownerName" }]);
     expect(dbMock.transaction).not.toHaveBeenCalled();
-    expect(dbMock.calls.every((call) => call.operation === "select")).toBe(true);
+    expect(dbMock.calls.every((call) => !["insert", "update", "delete"].includes(call.operation))).toBe(true);
   });
 
   it("rejects a new owner name from a moderator while proposals are disabled", async () => {
@@ -715,6 +719,19 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     const order = dbMock.calls.map((call) => `${call.operation} ${call.table}`);
     expect(order.lastIndexOf("update submissions")).toBeGreaterThan(order.indexOf("insert proposed_locations"));
     expect(order.lastIndexOf("update submissions")).toBeLessThan(order.indexOf("insert audit_logs"));
+  });
+
+  it("refuses a band outside the plan of the country an edit's coordinates fall in, whatever region it names", async () => {
+    const body = { location: { regionId: 2, latitude: 52, longitude: 21 }, cells: [draftRadios[0].input] } satisfies SubmissionUpdate;
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }], [{ regionId: 1 }]);
+    dbMock.enqueueFor("select", "country_bands", []);
+    scriptDraftUpdate(draftFixture([draftRadios[0]]), body);
+    const response = await injectMutation(route, { ...request, payload: body }, options);
+    expectError(response, 400, "BAD_REQUEST", "Band 1 is not in the band plan of PL");
+    expect(whereQuery("regions", "select", 1).params).toEqual([1]);
+    expect(whereQuery("regions", "select", 2).params).toEqual([1]);
+    expect(whereQuery("country_bands", "select").params).toEqual(["PL", 1]);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
   it("allows an administrator to correct only the review note after rejection", async () => {
@@ -905,6 +922,26 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     dbMock.enqueueSubmissionPlacement([{ regionId: null, operatorId: null }]);
     const response = await injectMutation(route, { ...request, payload: { reviewNote: "Changed review" } }, options);
     expectError(response, 403, "FORBIDDEN", "Cannot modify review notes");
+  });
+
+  it("refuses an address that a location in Poland does not take, at its field", async () => {
+    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    dbMock.query.submissions.findFirst.mockResolvedValue(submissionRow);
+    dbMock.enqueueSubmissionPlacement([{ regionId: 1, operatorId: 7 }]);
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }]);
+    const response = await injectMutation(route, { ...request, payload: { location: { address: "teren własny" } } }, options);
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      errors: [
+        {
+          code: "VALIDATION_ERROR",
+          message: "Validation error.",
+          details: [{ field: "location/address", validationMessage: "Address must not contain variants of własny" }],
+        },
+      ],
+    });
+    expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
   it("rejects content changes in a station deletion submission", async () => {

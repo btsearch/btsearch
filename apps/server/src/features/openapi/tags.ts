@@ -43,7 +43,7 @@ export const TAGS: readonly DocumentedTag[] = [
     name: "statistics",
     "x-displayName": "Statistics",
     description:
-      "Numbers per country: station and cell counts by operator, technology, band and region, " +
+      "Numbers per country: station and cell counts by operator, technology, band and region, permit counts from the official sources, " +
       "how the totals changed over time, and how complete the data is. One endpoint also reports how much the log analyzer is used.",
   },
   {
@@ -104,12 +104,23 @@ export const TAGS: readonly DocumentedTag[] = [
       "tower companies, broadcasters, utilities, or the operators themselves.",
   },
   {
+    name: "official",
+    "x-displayName": "Official data",
+    description:
+      "What regulators publish about the networks: official locations and sites with their permits, and microwave links. " +
+      "Each register is a source, and a source is split into datasets that are downloaded and imported on their own. " +
+      "You can read the data of every visible source. " +
+      "Rows from a hidden source, or from a country that is hidden from you, are left out of every response. " +
+      "Administrators also see hidden sources, and use the remaining endpoints to switch sources on and off, start and follow import runs, " +
+      "and map the licensees a source names to operators.",
+  },
+  {
     name: "emf",
     "x-displayName": "EMF reports",
     description:
       "Electromagnetic field measurements from an official public register: lab reports for a site, the antennas listed in a report, " +
       "the measurements planned and carried out in an area, filings, and sites that went inactive. " +
-      "SI2PEM is the only register connected so far, so the data currently covers Poland. " +
+      "SI2PEM is the only register connected so far. `capabilities.emf` in `GET /countries` tells you which countries the data covers. " +
       "These endpoints return 503 while SI2PEM is unreachable.",
   },
   {
@@ -118,7 +129,8 @@ export const TAGS: readonly DocumentedTag[] = [
     description:
       "A line-of-sight check between one of a station's antennas and a point on the map, taking the terrain in between into account. " +
       "Profiles are computed in the background: create one, then poll it until it is ready. " +
-      "The antenna data comes from SI2PEM, so this currently works for stations in Poland.",
+      "The antenna data comes from SI2PEM, so this only works for stations in countries " +
+      "where `capabilities.terrainProfiles` is not `null` in `GET /countries`.",
   },
   {
     name: "geocoding",
@@ -169,7 +181,7 @@ export const TAG_GROUPS: readonly TagGroup[] = [
   { name: "Network data", tags: ["stations", "locations", "cells", "search", "photos", "statistics"] },
   { name: "Contributions", tags: ["submissions", "comments", "lists"] },
   { name: "Reference data", tags: ["countries", "regions", "operators", "brands", "bands", "structure-owners"] },
-  { name: "Official sources and tools", tags: ["emf", "terrain-profiles", "geocoding"] },
+  { name: "Official sources and tools", tags: ["official", "emf", "terrain-profiles", "geocoding"] },
   { name: "Account", tags: ["me", "users", "notifications", "push-subscriptions"] },
   { name: "Administration", tags: ["settings", "role-grants", "audit-operations"] },
 ];

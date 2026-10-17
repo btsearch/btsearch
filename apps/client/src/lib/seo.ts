@@ -28,7 +28,7 @@ const STATIC_PAGE_METADATA = {
   "/statistics": {
     title: "Statystyki stacji bazowych i pozwoleń UKE",
     description:
-      "Statystyki pozwoleń, kompletności bazy, kontrybucji i trendów historycznych w podziale na operatorów i pasma. Dane są aktualizowane co 24 godziny",
+      "Statystyki pozwoleń, kompletności bazy, wkładu użytkowników i trendów historycznych w podziale na operatorów i pasma. Dane są aktualizowane co 24 godziny",
   },
   "/photos": {
     title: "Zdjęcia stacji bazowych",

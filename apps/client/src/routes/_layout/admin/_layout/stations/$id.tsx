@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import { PageErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NewStationEditor, SavedStationEditor } from "@/features/admin/stations/components/stationEditorPage";
-import { registerStationPermitsQueryOptions } from "@/features/admin/stations/queries";
-import { groupPermitsByStation } from "@/features/map/utils";
+import { registerSiteQueryOptions } from "@/features/admin/stations/queries";
 import { stationRecordQueryOptions } from "@/features/station-details/station/api";
 import { retryEditLookups, useEditReference } from "@/features/station-editing/data/lookups";
 import { pickFreshData } from "@/features/station-editing/hooks/useStationDraft";
@@ -25,7 +24,7 @@ type SavedStationRouteProps = {
 };
 
 type NewStationRouteProps = {
-  registerStationId?: string;
+  registerSiteId?: string;
 };
 
 type StationLoadFailureProps = {
@@ -122,36 +121,35 @@ function SavedStationRoute({ id }: SavedStationRouteProps) {
   return <SavedStationEditor key={freshRecord.id} record={freshRecord} />;
 }
 
-function NewStationRoute({ registerStationId }: NewStationRouteProps) {
+function NewStationRoute({ registerSiteId }: NewStationRouteProps) {
   const reference = useEditReference();
-  const { data: permits, isLoading: isLoadingPermits } = useQuery(registerStationPermitsQueryOptions(registerStationId));
-  const isLoadingPrefill = isLoadingPermits || (permits !== undefined && !reference.isReady && !reference.hasFailed);
+  const { data: registerSite, isLoading: isLoadingSite } = useQuery(registerSiteQueryOptions(registerSiteId));
+  const isLoadingPrefill = isLoadingSite || (registerSite !== undefined && !reference.isReady && !reference.hasFailed);
 
-  function retryPermits() {
-    return queryClient.refetchQueries({ queryKey: registerStationPermitsQueryOptions(registerStationId).queryKey, exact: true });
+  function retrySite() {
+    return queryClient.refetchQueries({ queryKey: registerSiteQueryOptions(registerSiteId).queryKey, exact: true });
   }
 
   if (isLoadingPrefill) return <EditorSkeleton />;
-  if (registerStationId !== undefined && permits === undefined) return <PageErrorState onRetry={retryPermits} />;
-  if (permits !== undefined && reference.hasFailed) return <PageErrorState onRetry={() => retryEditLookups(queryClient, null, reference)} />;
+  if (registerSiteId !== undefined && registerSite === undefined) return <PageErrorState onRetry={retrySite} />;
+  if (registerSite !== undefined && reference.hasFailed) return <PageErrorState onRetry={() => retryEditLookups(queryClient, null, reference)} />;
 
-  const registerStation = permits === undefined ? undefined : groupPermitsByStation(permits).at(0);
-  const prefill = registerStation === undefined ? undefined : toRegisterStationDraft(registerStation, reference, REGISTER_PREFILL_RULES.editor);
-  return <NewStationEditor key={registerStationId ?? NEW_STATION_ID} prefill={prefill} />;
+  const prefill = registerSite ? toRegisterStationDraft(registerSite, reference, REGISTER_PREFILL_RULES.editor) : undefined;
+  return <NewStationEditor key={registerSiteId ?? NEW_STATION_ID} prefill={prefill} />;
 }
 
 function StationEditorRoute() {
   const { id } = Route.useParams();
-  const { uke } = Route.useSearch();
+  const { officialSite } = Route.useSearch();
 
-  if (id === NEW_STATION_ID) return <NewStationRoute registerStationId={uke} />;
+  if (id === NEW_STATION_ID) return <NewStationRoute registerSiteId={officialSite} />;
   return <SavedStationRoute key={id} id={id} />;
 }
 
 export const Route = createFileRoute("/_layout/admin/_layout/stations/$id")({
   component: StationEditorRoute,
   validateSearch: (search: Record<string, unknown>) => ({
-    uke: typeof search.uke === "string" || typeof search.uke === "number" ? String(search.uke) : undefined,
+    officialSite: typeof search.officialSite === "string" || typeof search.officialSite === "number" ? String(search.officialSite) : undefined,
   }),
   staticData: {
     mainClassName: "overflow-hidden max-md:pb-0",

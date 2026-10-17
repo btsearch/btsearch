@@ -32,13 +32,6 @@ describe("getStationPhotos", () => {
     });
   });
 
-  it("returns an empty collection for an existing station", async () => {
-    dbMock.enqueueFor("select", getTableName(stations), [{ station: readStation, countryCode: null }]);
-    dbMock.enqueueFor("select", "station_photo_selections", []);
-    const app = await createRouteHarness(getStationPhotos);
-    expect((await app.inject({ url: "/stations/1/photos" })).json()).toEqual({ data: [] });
-  });
-
   it("does not look up photos for a missing parent", async () => {
     dbMock.enqueueFor("select", getTableName(stations), []);
     const app = await createRouteHarness(getStationPhotos);

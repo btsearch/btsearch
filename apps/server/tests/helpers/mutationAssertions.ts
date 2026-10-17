@@ -31,8 +31,8 @@ export function scriptAudit() {
   dbMock.enqueueFor("update", "audit_operations", []);
 }
 
-export function whereQuery(table: string, operation: string) {
-  const call = dbMock.calls.find((entry) => entry.table === table && entry.operation === operation);
+export function whereQuery(table: string, operation: string, position = 0) {
+  const call = dbMock.calls.filter((entry) => entry.table === table && entry.operation === operation)[position];
   const condition = call?.clauses.where?.[0];
   if (condition === undefined) throw new Error(`No where condition for ${operation} ${table}`);
   return new PgDialect().sqlToQuery(condition as SQL);

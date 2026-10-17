@@ -1,8 +1,8 @@
-import { isNetworksPartnerMnc } from "./operatorUtils.ts";
-
 const RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"] as const;
 const MAX_POSTGRES_INTEGER = 2_147_483_647;
 const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
+const LIST_ID_PATTERN = /^[\w-]{14}$/;
+const LIST_DESCRIPTION_MAX_LENGTH = 200;
 
 export const DEFAULT_SEO_DESCRIPTION =
   "Największa i najstarsza mapa rzeczywistych stacji bazowych i radiolinii w Polsce. Sprawdź operatora, technologie 2G-5G, pasma, odległość i pozwolenia UKE";
@@ -43,14 +43,14 @@ export type StationSEOData = {
   stationCode: string;
   status: string | null | undefined;
   operatorName: string;
-  operatorMnc: number | null | undefined;
-  networksId?: number | null;
+  networksLabel: string | null;
   city?: string | null;
   address?: string | null;
   regionName?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   bands: readonly SEOBand[];
+  siteSourceNames: readonly string[];
 };
 
 export type LocationSEOStation = {
@@ -68,6 +68,23 @@ export type LocationSEOData = {
   latitude: number;
   longitude: number;
   stations: readonly LocationSEOStation[];
+  siteSourceNames: readonly string[];
+};
+
+export type ListSEOOperator = {
+  name: string;
+  count: number;
+};
+
+export type ListSEOData = {
+  id: string;
+  name: string;
+  description?: string | null;
+  ownerUsername?: string | null;
+  stationCount: number;
+  microwaveLinkCount: number;
+  operators: readonly ListSEOOperator[];
+  hasMoreOperators: boolean;
 };
 
 type BreadcrumbItem = {
@@ -101,6 +118,26 @@ export function parseSEOEntityId(value: string): number | null {
   return id;
 }
 
+export function parseSEOListId(value: string): string | null {
+  return LIST_ID_PATTERN.test(value) ? value : null;
+}
+
+export function polishPlural(count: number, one: string, few: string, many: string): string {
+  if (count === 1) return one;
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) return few;
+  return many;
+}
+
+export function stationsNoun(count: number): string {
+  return polishPlural(count, "stacja", "stacje", "stacji");
+}
+
+export function microwaveLinksNoun(count: number): string {
+  return polishPlural(count, "radiolinia", "radiolinie", "radiolinii");
+}
+
 function breadcrumbJsonLd(siteUrl: string, items: readonly BreadcrumbItem[]): JsonLdObject {
   return {
     "@context": "https://schema.org",
@@ -132,19 +169,27 @@ function summarizeBands(rows: readonly SEOBand[]): string {
     .join(", ");
 }
 
+function describePermits(siteSourceNames: readonly string[]): string | null {
+  const names = new Set(siteSourceNames);
+  if (names.size === 0) return null;
+  const [onlyName] = names;
+  return names.size === 1 ? `pozwolenia ${onlyName}` : "pozwolenia";
+}
+
 export function createStationSEOMetadata(site: SEOSite, station: StationSEOData): SEOMetadata {
   const city = normalizeOptionalString(station.city) ?? "Polska";
   const address = normalizeOptionalString(station.address);
   const path = `/stations/${station.id}`;
   const canonicalUrl = absoluteSiteUrl(site.url, path);
   const bandsSummary = summarizeBands(station.bands);
-  const networksSuffix = isNetworksPartnerMnc(station.operatorMnc) && station.networksId ? ` (N!${station.networksId})` : "";
+  const networksSuffix = station.networksLabel ? ` (${station.networksLabel})` : "";
   const name = `Stacja bazowa ${station.operatorName} ${station.stationCode}${networksSuffix}`;
+  const permits = describePermits(station.siteSourceNames);
 
   return {
     title: `${name} - ${city} | ${site.name}`,
     siteName: site.name,
-    description: `Stacja bazowa ${station.operatorName} w ${city}${address ? `, ${address}` : ""}.${bandsSummary ? ` Pasma: ${bandsSummary}.` : ""} Zobacz azymuty, pozwolenia UKE i zdjęcia w bazie ${site.name}`,
+    description: `Stacja bazowa ${station.operatorName} w ${city}${address ? `, ${address}` : ""}.${bandsSummary ? ` Pasma: ${bandsSummary}.` : ""} Zobacz azymuty${permits ? `, ${permits}` : ""} i zdjęcia w bazie ${site.name}`,
     canonicalUrl,
     imageUrl: absoluteSiteUrl(site.url, `/public/og/stations/${station.id}.png`),
     noindex: station.status !== "published",
@@ -198,11 +243,12 @@ export function createLocationSEOMetadata(site: SEOSite, location: LocationSEODa
     .join(", ");
   const suffix = indexableStations.length > 8 ? "..." : "";
   const region = regionName ? ` (woj. ${regionName.toLowerCase()})` : "";
+  const permits = describePermits(location.siteSourceNames);
 
   return {
     title: `Stacje bazowe - ${label} | ${site.name}`,
     siteName: site.name,
-    description: `Lokalizacja stacji bazowych: ${label}${region}.${stationsSummary ? ` Stacje: ${stationsSummary}${suffix}.` : ""} Zobacz pasma i pozwolenia UKE w bazie ${site.name}`,
+    description: `Lokalizacja stacji bazowych: ${label}${region}.${stationsSummary ? ` Stacje: ${stationsSummary}${suffix}.` : ""} Zobacz pasma${permits ? ` i ${permits}` : ""} w bazie ${site.name}`,
     canonicalUrl,
     imageUrl: absoluteSiteUrl(site.url, `/public/og/locations/${location.id}.png`),
     noindex: indexableStations.length === 0,
@@ -227,5 +273,40 @@ export function createLocationSEOMetadata(site: SEOSite, location: LocationSEODa
       },
       breadcrumbJsonLd(site.url, [{ name: site.name, path: "/" }, { name: "Baza stacji", path: "/stations" }, { name: label }]),
     ],
+  };
+}
+
+function summarizeListOperators(list: ListSEOData): string {
+  if (list.operators.length === 0) return "";
+  const operators = list.operators.map((operator) => `${operator.name}: ${operator.count}`).join(", ");
+  return ` (${operators}${list.hasMoreOperators ? " i inni" : ""})`;
+}
+
+function shortenListDescription(description: string): string {
+  const characters = [...description];
+  if (characters.length <= LIST_DESCRIPTION_MAX_LENGTH) return description;
+  return `${characters.slice(0, LIST_DESCRIPTION_MAX_LENGTH).join("").trimEnd()}...`;
+}
+
+export function createListSEOMetadata(site: SEOSite, list: ListSEOData): SEOMetadata {
+  const owner = normalizeOptionalString(list.ownerUsername);
+  const description = normalizeOptionalString(list.description)?.replace(/\s+/g, " ");
+  const subject = owner ? `Lista użytkownika @${owner}` : "Lista";
+  const stations = `${list.stationCount} ${stationsNoun(list.stationCount)}${description ? "" : summarizeListOperators(list)}`;
+  const microwaveLinks = `${list.microwaveLinkCount} ${microwaveLinksNoun(list.microwaveLinkCount)}`;
+  const contents = [list.stationCount > 0 ? stations : null, list.microwaveLinkCount > 0 ? microwaveLinks : null]
+    .filter((part) => part !== null)
+    .join(" i ");
+  const summary = contents ? `${subject}: ${contents}.` : `${subject} jest pusta.`;
+  const callToAction = contents ? ` Zobacz ją na mapie w bazie ${site.name}` : "";
+
+  return {
+    title: `${list.name} | ${site.name}`,
+    siteName: site.name,
+    description: `${summary}${description ? ` ${shortenListDescription(description)}` : callToAction}`,
+    canonicalUrl: absoluteSiteUrl(site.url, `/lists/${list.id}`),
+    imageUrl: absoluteSiteUrl(site.url, `/public/og/lists/${list.id}.png`),
+    noindex: true,
+    jsonLd: [],
   };
 }

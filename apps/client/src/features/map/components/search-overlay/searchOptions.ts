@@ -1,4 +1,6 @@
-import type { StationSearchHit, UkeSearchPermitStation, UkeSearchRadioline } from "../../searchApi";
+import type { MicrowaveLink, OfficialSite } from "@openbts/shared/contract";
+
+import type { StationSearchHit } from "../../searchApi";
 import type { FilterKeyword } from "../../types";
 import type { GeocodedPlace, GeocodingSource } from "@/lib/geo/geocoding";
 
@@ -12,10 +14,10 @@ type FilterSearchOption = { kind: "filter"; key: string; keyword: FilterKeyword 
 type GpsSearchOption = { kind: "gps"; key: string; result: GpsSearchResult };
 type LocationSearchOption = { kind: "location"; key: string; result: GeocodedPlace };
 type StationSearchOption = { kind: "station"; key: string; result: StationSearchHit };
-type PermitSearchOption = { kind: "permit"; key: string; result: UkeSearchPermitStation };
-type RadiolineSearchOption = { kind: "radioline"; key: string; result: UkeSearchRadioline };
+type OfficialSiteSearchOption = { kind: "official-site"; key: string; result: OfficialSite };
+type MicrowaveLinkSearchOption = { kind: "microwave-link"; key: string; result: MicrowaveLink };
 
-export type SearchResultOption = GpsSearchOption | LocationSearchOption | StationSearchOption | PermitSearchOption | RadiolineSearchOption;
+export type SearchResultOption = GpsSearchOption | LocationSearchOption | StationSearchOption | OfficialSiteSearchOption | MicrowaveLinkSearchOption;
 
 export type SearchOption = FilterSearchOption | SearchResultOption;
 
@@ -23,14 +25,14 @@ export type SearchResultGroup =
   | { kind: "gps"; options: GpsSearchOption[]; source: GeocodingSource | null }
   | { kind: "location"; options: LocationSearchOption[]; source: GeocodingSource | null }
   | { kind: "station"; options: StationSearchOption[] }
-  | { kind: "permit"; options: PermitSearchOption[] }
-  | { kind: "radioline"; options: RadiolineSearchOption[] };
+  | { kind: "official-site"; options: OfficialSiteSearchOption[] }
+  | { kind: "microwave-link"; options: MicrowaveLinkSearchOption[] };
 
 type SearchResultCapabilities = {
   location: boolean;
   station: boolean;
-  permit: boolean;
-  radioline: boolean;
+  officialSite: boolean;
+  microwaveLink: boolean;
 };
 
 type BuildSearchResultOptionsArgs = {
@@ -39,8 +41,8 @@ type BuildSearchResultOptionsArgs = {
   locationResults: GeocodedPlace[];
   locationSource: GeocodingSource | null;
   stationResults: StationSearchHit[];
-  permitResults: UkeSearchPermitStation[];
-  radiolineResults: UkeSearchRadioline[];
+  officialSiteResults: OfficialSite[];
+  microwaveLinkResults: MicrowaveLink[];
   capabilities: SearchResultCapabilities;
 };
 
@@ -59,8 +61,8 @@ export function buildSearchResultOptions({
   locationResults,
   locationSource,
   stationResults,
-  permitResults,
-  radiolineResults,
+  officialSiteResults,
+  microwaveLinkResults,
   capabilities,
 }: BuildSearchResultOptionsArgs): BuiltSearchResults {
   const gpsOptions: GpsSearchOption[] =
@@ -71,18 +73,18 @@ export function buildSearchResultOptions({
   const stationOptions: StationSearchOption[] = capabilities.station
     ? stationResults.map((result) => ({ kind: "station", key: `station:${result.id}`, result }))
     : [];
-  const permitOptions: PermitSearchOption[] = capabilities.permit
-    ? permitResults.map((result) => ({ kind: "permit", key: `permit:${result.id}`, result }))
+  const officialSiteOptions: OfficialSiteSearchOption[] = capabilities.officialSite
+    ? officialSiteResults.map((result) => ({ kind: "official-site", key: `official-site:${result.id}`, result }))
     : [];
-  const radiolineOptions: RadiolineSearchOption[] = capabilities.radioline
-    ? radiolineResults.map((result) => ({ kind: "radioline", key: `radioline:${result.id}`, result }))
+  const microwaveLinkOptions: MicrowaveLinkSearchOption[] = capabilities.microwaveLink
+    ? microwaveLinkResults.map((result) => ({ kind: "microwave-link", key: `microwave-link:${result.id}`, result }))
     : [];
   const groups: SearchResultGroup[] = [];
   if (gpsOptions.length > 0) groups.push({ kind: "gps", options: gpsOptions, source: gpsSource });
   if (locationOptions.length > 0) groups.push({ kind: "location", options: locationOptions, source: locationSource });
   if (stationOptions.length > 0) groups.push({ kind: "station", options: stationOptions });
-  if (permitOptions.length > 0) groups.push({ kind: "permit", options: permitOptions });
-  if (radiolineOptions.length > 0) groups.push({ kind: "radioline", options: radiolineOptions });
+  if (officialSiteOptions.length > 0) groups.push({ kind: "official-site", options: officialSiteOptions });
+  if (microwaveLinkOptions.length > 0) groups.push({ kind: "microwave-link", options: microwaveLinkOptions });
   const options: SearchResultOption[] = [];
   for (const group of groups) options.push(...group.options);
 

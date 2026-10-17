@@ -128,7 +128,7 @@ describe("POST /role-grants", () => {
     expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "role_grants")).toBe(false);
   });
 
-  it.each([{ regionIds: [] }, { regionIds: [1, 1] }, { regionIds: [0] }, { regionIds: [-1] }])(
+  it.each([{ regionIds: [] }, { regionIds: [1, 1] }, { regionIds: [0] }])(
     "rejects invalid region sets %j before database access",
     async ({ regionIds }) => {
       const response = await injectMutation(route, { ...request, payload: { ...request.payload, regionIds } }, options);

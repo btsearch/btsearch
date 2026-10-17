@@ -13,7 +13,7 @@ describe("GET /notifications", () => {
     ["station_cells_changed", "stationCellsChanged"],
     ["station_photos_added", "stationPhotosAdded"],
     ["station_comment_approved", "stationCommentApproved"],
-    ["station_uke_permit_added", "officialPermitsChanged"],
+    ["station_official_permit_added", "officialPermitsChanged"],
   ])("serializes %s with its documented type %s and stored details after site deletion", async (type, expectedType) => {
     const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const timestamp = new Date("2026-01-01T00:00:00Z");
@@ -24,7 +24,7 @@ describe("GET /notifications", () => {
       title: "Stored notification",
       submissionId: null,
       stationId: null,
-      ukeStationId: null,
+      officialSiteId: null,
       readAt: null,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -39,8 +39,8 @@ describe("GET /notifications", () => {
         reviewer_note: "Reason",
         permits_added: 2,
         permits_deleted: 1,
-        uke_stations_added: 1,
-        uke_station_deleted: true,
+        official_sites_added: 1,
+        official_site_deleted: true,
       },
     };
     dbMock.enqueueFor("select", "notifications", [{ notification, key: "1767225600000000" }]);
@@ -74,7 +74,7 @@ describe("GET /notifications", () => {
       title: "Photo",
       submissionId: null,
       stationId: null,
-      ukeStationId: null,
+      officialSiteId: null,
       readAt: null,
       createdAt: timestamp,
       updatedAt: timestamp,

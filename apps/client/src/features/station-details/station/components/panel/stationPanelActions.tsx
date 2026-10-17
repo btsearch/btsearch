@@ -40,7 +40,7 @@ export function StationPanelActions({ station, editTarget, onClose }: StationPan
         <Link
           to="/admin/stations/$id"
           params={{ id: String(station.id) }}
-          search={{ uke: undefined }}
+          search={{ officialSite: undefined }}
           className={stationDialogPrimaryActionClassName}
           onClick={onClose}
         >

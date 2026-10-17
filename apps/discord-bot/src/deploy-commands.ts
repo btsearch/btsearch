@@ -62,8 +62,8 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("import")
-    .setDescription("UKE import job commands")
-    .addSubcommand((sub) => sub.setName("status").setDescription("Pokaż status bieżącego lub ostatniego zadania importu UKE")),
+    .setDescription("Import rejestru")
+    .addSubcommand((sub) => sub.setName("status").setDescription("Pokaż status trwającego lub ostatniego importu rejestru")),
 ];
 
 const rest = new REST().setToken(DISCORD_TOKEN);

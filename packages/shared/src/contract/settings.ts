@@ -22,7 +22,12 @@ export const settingsFeaturesSchema = z.object({
   submissions: z.boolean().describe("Submissions can be sent, read and reviewed"),
   photoUploads: z.boolean().describe("Photos can be added to a submission"),
   comments: z.boolean().describe("Station comments can be read and written"),
-  commentReview: z.boolean().describe("New comments need a moderator's approval before they are shown, unless a moderator wrote them"),
+  commentReview: z
+    .boolean()
+    .describe(
+      "New comments need a moderator's approval before they are shown, and so does an approved comment whose author changes its text. " +
+        "Comments that a moderator writes or edits skip the review",
+    ),
   lists: z.boolean().describe("Users can create and share lists"),
 });
 export type SettingsFeatures = z.infer<typeof settingsFeaturesSchema>;

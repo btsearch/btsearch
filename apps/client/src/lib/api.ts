@@ -13,6 +13,7 @@ export const CONFLICT_STATUS = 409;
 type ApiError = { code: string; message: string; details?: unknown[] };
 
 export type DataEnvelope<T> = { data: T };
+type CursorPage<T> = { data: T[]; paging: { nextCursor: string | null } };
 
 export type AuditOperationHandle = {
   id: string;
@@ -206,16 +207,16 @@ export async function fetchV2Data<T>(path: string, options?: FetchOptions): Prom
   return response.data;
 }
 
-export async function postApiData<T, B = unknown>(endpoint: string, body: B, idempotencyKey?: string): Promise<T> {
-  const result = await fetchJson<DataEnvelope<T>>(`${API_BASE}/${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-  return result.data;
+export async function fetchAllPages<T>(fetchPage: (cursor: string | undefined) => Promise<CursorPage<T>>): Promise<T[]> {
+  const items: T[] = [];
+  const readFrom = async (cursor: string | undefined): Promise<void> => {
+    const page = await fetchPage(cursor);
+    items.push(...page.data);
+    const nextCursor = page.paging.nextCursor ?? undefined;
+    if (nextCursor !== undefined) await readFrom(nextCursor);
+  };
+  await readFrom(undefined);
+  return items;
 }
 
 export function appendList(params: URLSearchParams, key: string, values: readonly (string | number)[] | undefined): void {

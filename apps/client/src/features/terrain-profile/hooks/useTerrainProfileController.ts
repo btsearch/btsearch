@@ -123,7 +123,7 @@ function planCalculation(
   if (station === null || receiverPoint === null) return { choice: null, rangeIssue: null, request: null };
 
   const choice: TerrainProfileChoice = { receiverPoint, receiverHeightMeters, antennaKey };
-  const rangeIssue = findReceiverRangeIssue(station, receiverPoint);
+  const rangeIssue = findReceiverRangeIssue(station, receiverPoint, station.receiverBounds);
   return { choice, rangeIssue, request: rangeIssue === null ? toTerrainProfileRequest(station, choice) : null };
 }
 

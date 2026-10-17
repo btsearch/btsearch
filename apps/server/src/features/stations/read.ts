@@ -27,7 +27,7 @@ import type {
   areaFilterShape,
   stationFilterShape,
 } from "@openbts/shared/contract";
-import { type SQL, and, asc, eq, gte, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, gte, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
@@ -58,6 +58,7 @@ import { findHostStationIds } from "./physicalStations.js";
 import { DATABASE_RATS, DATABASE_STATUSES, type StationRow, toBackhaul, toCell, toSector, toStation, toStationLocation } from "./serialize.js";
 
 type ListedStationFilter = "keepOtherCountries" | "hasPhotos" | "hasSectors" | "isConfirmed";
+type VisibleStation = { station: StationRow; countryCode: string | null };
 
 export type StationFilterQuery = Pick<StationListQuery, keyof typeof stationFilterShape | ListedStationFilter>;
 export type AreaFilterQuery = Pick<StationListQuery, keyof typeof areaFilterShape>;
@@ -117,7 +118,7 @@ export async function findVisibleLocation(req: FastifyRequest, locationId: numbe
   return row;
 }
 
-export async function findVisibleStation(req: FastifyRequest, stationId: number): Promise<StationRow> {
+export async function findVisibleStationWithCountry(req: FastifyRequest, stationId: number): Promise<VisibleStation> {
   const [row] = await db
     .select({ station: stations, countryCode: stationCountries.countryCode })
     .from(stations)
@@ -126,7 +127,11 @@ export async function findVisibleStation(req: FastifyRequest, stationId: number)
     .limit(1);
   if (!row) throw new ErrorResponse("NOT_FOUND");
   if (row.countryCode !== null && (await loadHiddenCountryCodes(req)).includes(row.countryCode)) throw new ErrorResponse("NOT_FOUND");
-  return row.station;
+  return row;
+}
+
+export async function findVisibleStation(req: FastifyRequest, stationId: number): Promise<StationRow> {
+  return (await findVisibleStationWithCountry(req, stationId)).station;
 }
 
 export async function listStationIds(req: FastifyRequest, listId: string | undefined): Promise<number[] | null> {
@@ -180,15 +185,15 @@ export function sectorFilterCondition(query: StationFilterQuery, keywordCellMatc
   return buildSectorFilterCondition(stationSectors, filter, [keywordCellMatch, query.supportsIot === true ? IOT_CAPABLE_CELL : undefined]);
 }
 
-function bboxCondition([west, south, east, north]: Bbox): SQL {
-  const between = (from: number, to: number) => sql`ST_Intersects(${locations.point}, ST_MakeEnvelope(${from}, ${south}, ${to}, ${north}, 4326))`;
+export function bboxCondition(point: SQLWrapper, [west, south, east, north]: Bbox): SQL {
+  const between = (from: number, to: number) => sql`ST_Intersects(${point}, ST_MakeEnvelope(${from}, ${south}, ${to}, ${north}, 4326))`;
   return west < east ? between(west, east) : sql`(${between(west, 180)} OR ${between(-180, east)})`;
 }
 
 export function stationPlacementConditions(query: AreaFilterQuery, hiddenCountryCodes: readonly string[]): SQL[] {
   const conditions: SQL[] = [];
 
-  if (query.bbox) conditions.push(bboxCondition(query.bbox));
+  if (query.bbox) conditions.push(bboxCondition(locations.point, query.bbox));
   if (query.regionIds) conditions.push(inArray(locations.region_id, query.regionIds));
   if (query.countryCodes) conditions.push(inArray(stationCountryCode, query.countryCodes));
   if (hiddenCountryCodes.length > 0) {
@@ -205,7 +210,7 @@ export function stationAreaConditions(query: AreaFilterQuery, hiddenCountryCodes
 export function locationAreaConditions(query: AreaFilterQuery, hiddenCountryCodes: readonly string[]): SQL[] {
   const conditions: SQL[] = [];
 
-  if (query.bbox) conditions.push(bboxCondition(query.bbox));
+  if (query.bbox) conditions.push(bboxCondition(locations.point, query.bbox));
   if (query.regionIds) conditions.push(inArray(locations.region_id, query.regionIds));
   if (query.countryCodes) conditions.push(inArray(regions.countryCode, query.countryCodes));
   if (hiddenCountryCodes.length > 0) conditions.push(notInArray(regions.countryCode, [...hiddenCountryCodes]));

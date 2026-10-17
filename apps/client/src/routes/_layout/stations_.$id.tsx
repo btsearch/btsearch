@@ -8,6 +8,7 @@ import {
   SearchRemoveIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { OfficialSource } from "@openbts/shared/contract";
 import { createStationSEOMetadata, parseSEOEntityId } from "@openbts/shared/seo";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
@@ -22,7 +23,9 @@ import { useFloatingDialogStack } from "@/features/floating-dialogs/components/f
 import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { getStationMapHash } from "@/features/map/mapLinks";
-import { brandsQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
+import { officialSourcesQueryOptions } from "@/features/official/queries";
+import { hasOfficialData, listPublicSiteSourceNames } from "@/features/official/sources";
+import { brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
 import { CommentsList } from "@/features/station-details/components/commentsList";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { PermitsList } from "@/features/station-details/components/permitsList";
@@ -34,6 +37,7 @@ import {
 } from "@/features/station-details/components/stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "@/features/station-details/components/stationDialogHeaderStyles";
 import { WatchButton } from "@/features/station-details/components/watchButton";
+import { useStationPermitsSourceName } from "@/features/station-details/queries";
 import { locationRecordQueryOptions, stationPhotoRecordsQueryOptions, stationRecordQueryOptions } from "@/features/station-details/station/api";
 import { StationCellTables } from "@/features/station-details/station/components/cells/stationCellTables";
 import { StationOverviewGrid } from "@/features/station-details/station/components/overview/stationOverviewCard";
@@ -42,14 +46,9 @@ import { StationPanelHeading } from "@/features/station-details/station/componen
 import { listShownPhotos } from "@/features/station-details/station/components/photos/stationPhotos";
 import type { Sector, StationRecord } from "@/features/station-details/station/types";
 import { getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
 import { formatSectorAzimuth } from "@/features/station-details/station/utils/sectors";
-import {
-  NETWORKS_ID_KIND,
-  findHostStation,
-  findStationIdentifier,
-  toV1OperatorMnc,
-  toV1StationStatus,
-} from "@/features/station-details/station/utils/stations";
+import { findHostStation, getStationCountryCode, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { usePreferences } from "@/hooks/usePreferences";
 import { settingsQueryOptions, useSettings } from "@/hooks/useSettings";
 import { i18n } from "@/i18n";
@@ -64,10 +63,7 @@ type StationSectorsCompassProps = {
   color: string;
 };
 
-function stationHead(station: StationRecord) {
-  const networksId = findStationIdentifier(station.identifiers, NETWORKS_ID_KIND);
-  const numericNetworksId = networksId === null ? null : Number(networksId);
-
+function stationHead(station: StationRecord, sources: readonly OfficialSource[]) {
   return buildPageHead(
     createStationSEOMetadata(
       { name: APP_NAME, url: getBrowserOrigin() },
@@ -76,14 +72,14 @@ function stationHead(station: StationRecord) {
         stationCode: station.siteId,
         status: toV1StationStatus(station.status),
         operatorName: station.operator?.name ?? i18n.t("main:unknownOperator"),
-        operatorMnc: toV1OperatorMnc(station.operator),
-        networksId: numericNetworksId !== null && Number.isFinite(numericNetworksId) ? numericNetworksId : null,
+        networksLabel: getNetworksIdLabel(station),
         city: station.location?.city,
         address: station.location?.address,
         regionName: station.location?.region.name,
         latitude: station.location?.latitude,
         longitude: station.location?.longitude,
         bands: station.cells.map((cell) => ({ rat: cell.rat, value: cell.band?.labelMhz ?? null })),
+        siteSourceNames: listPublicSiteSourceNames(sources, getStationCountryCode(station)),
       },
     ),
   );
@@ -123,6 +119,10 @@ function StationPage() {
   const { data: location, isLoading: isLocationLoading } = useQuery(locationRecordQueryOptions(station?.locationId));
   const { data: brands } = useQuery(brandsQueryOptions());
   const { data: operators } = useQuery(operatorsQueryOptions());
+  const { data: countries } = useQuery(countriesQueryOptions());
+  const countryCode = station === undefined ? null : getStationCountryCode(station);
+  const isOfficialCountry = station !== undefined && hasOfficialData(countries, countryCode);
+  const permitsSourceName = useStationPermitsSourceName(isOfficialCountry ? stationId : undefined, countryCode);
 
   const userRole = session?.user?.role;
   const isAdmin = userRole === "admin" || userRole === "editor";
@@ -215,7 +215,7 @@ function StationPage() {
               <Link
                 to="/admin/stations/$id"
                 params={{ id: String(station.id) }}
-                search={{ uke: undefined }}
+                search={{ officialSite: undefined }}
                 className="ml-1 mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
               >
                 <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" aria-hidden="true" />
@@ -318,23 +318,26 @@ function StationPage() {
             <StationCellTables station={station} showHeading={false} />
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("tabs.permits")}>
-            <PermitsList
-              stationId={stationId}
-              permitHolderNote={
-                hostStation !== null ? (
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-sm">
-                    <span>{t("permits.permitHolder")}</span>
-                    <HostStationLink
-                      station={hostStation}
-                      brand={getOperatorBrand(hostStation.operator, brands)}
-                      onOpen={(stationId) => openStationDialog(stationId, "internal")}
-                    />
-                  </div>
-                ) : null
-              }
-            />
-          </CollapsibleSection>
+          {isOfficialCountry ? (
+            <CollapsibleSection title={permitsSourceName === null ? t("tabs.registerPermits") : t("tabs.permits", { source: permitsSourceName })}>
+              <PermitsList
+                stationId={stationId}
+                sourceName={permitsSourceName}
+                permitHolderNote={
+                  hostStation !== null ? (
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-sm">
+                      <span>{t("permits.permitHolder")}</span>
+                      <HostStationLink
+                        station={hostStation}
+                        brand={getOperatorBrand(hostStation.operator, brands)}
+                        onOpen={(stationId) => openStationDialog(stationId, "internal")}
+                      />
+                    </div>
+                  ) : null
+                }
+              />
+            </CollapsibleSection>
+          ) : null}
 
           {settings?.features.comments ? (
             <CollapsibleSection title={t("comments.title")}>
@@ -358,13 +361,17 @@ export const Route = createFileRoute("/_layout/stations_/$id")({
       .then((settings) => (settings?.features.photoUploads ? queryClient.query(stationPhotoRecordsQueryOptions(id)) : undefined))
       .catch(() => undefined);
     try {
-      return await queryClient.query({ ...stationRecordQueryOptions(id), staleTime: "static" });
+      const [station, sources] = await Promise.all([
+        queryClient.query({ ...stationRecordQueryOptions(id), staleTime: "static" }),
+        queryClient.query(officialSourcesQueryOptions()).catch(() => []),
+      ]);
+      return { station, sources };
     } catch (error) {
       if (error instanceof ApiResponseError && error.status === 404) throw notFound();
       throw error;
     }
   },
-  head: ({ loaderData }) => (loaderData ? stationHead(loaderData) : { meta: [{ name: "robots", content: "noindex" }] }),
+  head: ({ loaderData }) => (loaderData ? stationHead(loaderData.station, loaderData.sources) : { meta: [{ name: "robots", content: "noindex" }] }),
   notFoundComponent: StationNotFound,
   errorComponent: StationRouteError,
 });

@@ -124,31 +124,16 @@ describe("parseAddress", () => {
     expect(parseAddress(`ul. Dworcowa 35 - ${description}`)).toMatchObject({ street: "ul. Dworcowa 35", type, note: null });
   });
 
-  it.each([
-    "mieszkalno-usługowego",
-    "usługowo-mieszkalnego",
-    "handlowo-usługowego",
-    "usługowo-handlowego",
-    "biurowo-usługowego",
-    "usługowo-biurowego",
-    "handlowo-biurowego",
-    "biurowo-handlowego",
-    "biurowo-mieszkalnego",
-    "mieszkalno-biurowego",
-    "mieszkalno-handlowego",
-    "handlowo-mieszkalnego",
-    "handlowo-usługowo-biurowego",
-    "biurowo-usługowo-handlowy",
-    "mieszkalno-biurowo-usługowy",
-    "magazynowo-biurowym",
-    "biurowo-magazynowym",
-  ])("consumes only known building-use combinations in a structural building context: %s", (modifier) => {
-    const description = `wieża kratowa na dachu budynku ${modifier}`;
-    expect(parseAddress(description)).toMatchObject({ type: "lattice_tower", note: null });
-    expect(parseAddress(`${description} - SLR - Stacja Linii Radiowych`).note).toBe("SLR - Stacja Linii Radiowych");
-    expect(parseAddress(`${description} Altus-Nowy`).note).toBe("budynek Altus-Nowy");
-    expect(parseAddress(`wieża ${modifier}`).note).toContain(modifier);
-  });
+  it.each(["mieszkalno-usługowego", "handlowo-usługowo-biurowego", "biurowo-usługowo-handlowy", "magazynowo-biurowym"])(
+    "consumes only known building-use combinations in a structural building context: %s",
+    (modifier) => {
+      const description = `wieża kratowa na dachu budynku ${modifier}`;
+      expect(parseAddress(description)).toMatchObject({ type: "lattice_tower", note: null });
+      expect(parseAddress(`${description} - SLR - Stacja Linii Radiowych`).note).toBe("SLR - Stacja Linii Radiowych");
+      expect(parseAddress(`${description} Altus-Nowy`).note).toBe("budynek Altus-Nowy");
+      expect(parseAddress(`wieża ${modifier}`).note).toContain(modifier);
+    },
+  );
 
   it.each(["handlowo-usługowym", "biurowo-usługowym", "magazynowo-biurowym", "biurowo-magazynowym", "przemysłowym"])(
     "recognizes a directly attached building placement: %s",

@@ -18,11 +18,11 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialStationId?: number;
-  initialRadiolineIds?: number[];
-  initialUkeStationId?: number;
+  initialMicrowaveLinkIds?: number[];
+  initialOfficialSiteId?: number;
 };
 
-export function CreateListDialog({ open, onOpenChange, initialStationId, initialRadiolineIds, initialUkeStationId }: Props): JSX.Element {
+export function CreateListDialog({ open, onOpenChange, initialStationId, initialMicrowaveLinkIds, initialOfficialSiteId }: Props): JSX.Element {
   const { t } = useTranslation(["lists", "common"]);
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
@@ -61,8 +61,8 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
       isPublic,
       items: {
         stationIds: initialStationId ? [initialStationId] : [],
-        officialSiteIds: initialUkeStationId ? [initialUkeStationId] : [],
-        microwaveLinkIds: initialRadiolineIds ?? [],
+        officialSiteIds: initialOfficialSiteId ? [initialOfficialSiteId] : [],
+        microwaveLinkIds: initialMicrowaveLinkIds ?? [],
       },
     });
   }

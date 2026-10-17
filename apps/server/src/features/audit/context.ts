@@ -57,10 +57,10 @@ function readJoinKey(req: FastifyRequest): string | null {
   return key.success ? key.data.toLowerCase() : null;
 }
 
-export function auditContextFromRequest(req: FastifyRequest, source: AuditSource = "api"): AuditContext {
-  if (!isLegacyRequest(req)) return standaloneAuditContext(req, source);
+export function auditContextFromRequest(req: FastifyRequest): AuditContext {
+  if (!isLegacyRequest(req)) return standaloneAuditContext(req);
 
-  return { ...standaloneAuditContext(req, source), ...parseClientCorrelation(req) };
+  return { ...standaloneAuditContext(req), ...parseClientCorrelation(req) };
 }
 
 export function standaloneAuditContext(req: FastifyRequest, source: AuditSource = "api"): AuditContext {

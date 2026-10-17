@@ -3,7 +3,15 @@ import { useTranslation } from "react-i18next";
 
 import { type EditLookups, useCountryLookups, useEditReference } from "../data/lookups";
 import { type ChangeContext, type Translate, countCells, formatTextPart, formatTextParts, listChanges } from "../model/changes";
-import { type DraftAction, type DraftDispatch, type SessionInput, createSession, draftReducer, withNewKey } from "../model/draftReducer";
+import {
+  type DraftAction,
+  type DraftDispatch,
+  type SessionInput,
+  createSession,
+  draftReducer,
+  findTacRuleChange,
+  withNewKey,
+} from "../model/draftReducer";
 import { findDraftCountryCode } from "../model/snapshots";
 import type { ChangeItem, EditError, EditSession, Rat, RatCounters, TextPart } from "../model/types";
 import { listShownErrors, validateDraft } from "../model/validate";
@@ -92,6 +100,8 @@ export function useStationDraft(input: StationDraftInput): StationDraftApi {
   const reference = useEditReference();
   const featureCountryCode = findDraftCountryCode(session.draft, reference.operatorsById, reference.regionsById, null);
   const countryCode = featureCountryCode ?? session.countryCode;
+  const tacRuleChange = findTacRuleChange(session, countryCode);
+  if (tacRuleChange !== null) send({ type: "setHoistedTac", hoistedTac: tacRuleChange });
   const lookups = useCountryLookups(reference, countryCode, featureCountryCode);
   const { language } = i18n;
   const { canEdit } = input;

@@ -1,8 +1,8 @@
-import type { StationSource } from "@/types/station";
+import type { Country } from "@openbts/shared/contract";
 
-const TERRAIN_DATA_COUNTRY_CODE = "PL";
-const TERRAIN_DATA_REGISTER_SOURCE: StationSource = "uke";
+import type { TerrainReceiverBounds } from "./types";
 
-export function isTerrainProfileAvailable(source: StationSource, stationCountryCode: string | null): boolean {
-  return source === TERRAIN_DATA_REGISTER_SOURCE || stationCountryCode === TERRAIN_DATA_COUNTRY_CODE;
+export function findTerrainReceiverBounds(countryCode: string | null, countries: readonly Country[] | undefined): TerrainReceiverBounds | null {
+  const country = countries?.find((entry) => entry.code === countryCode);
+  return country?.capabilities.terrainProfiles?.receiverBounds ?? null;
 }

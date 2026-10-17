@@ -1,20 +1,16 @@
+import { PLMN_TO_SI2PEM_NAME, SI2PEM_NAME_TO_PLMN } from "@openbts/country-packs";
 import { operators } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
 import { inArray } from "drizzle-orm";
 
-export const MNC_TO_ENTITY: Record<number, string> = {
-  26001: "Towerlink Poland Sp. z o.o.",
-  26002: "T-Mobile Polska S.A.",
-  26003: "Orange Polska S.A.",
-  26006: "P4 Sp. z o.o.",
-};
-export const ENTITY_TO_MNC: Record<string, number> = {
-  "Towerlink Poland Sp. z o.o.": 26001,
-  "Polkomtel Sp. z o.o.": 26001,
-  "T-Mobile Polska S.A.": 26002,
-  "Orange Polska S.A.": 26003,
-  "P4 Sp. z o.o.": 26006,
-};
+export function si2pemNameToMnc(name: string | null | undefined): number | undefined {
+  const plmn = SI2PEM_NAME_TO_PLMN[name ?? ""];
+  return plmn === undefined ? undefined : Number(plmn);
+}
+
+export function mncToSi2pemName(mnc: number): string | undefined {
+  return PLMN_TO_SI2PEM_NAME[String(mnc)];
+}
 
 export async function fetchOperatorsMap(mncs: (number | null | undefined)[]) {
   const uniqueMncs = [...new Set(mncs.filter((mnc): mnc is number => Boolean(mnc)))];

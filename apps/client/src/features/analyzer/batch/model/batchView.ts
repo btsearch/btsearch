@@ -1,3 +1,4 @@
+import { conventionsFor } from "@openbts/country-packs";
 import type { Sector, Station } from "@openbts/shared/contract";
 
 import { type BatchRow, type BatchStation, isBandMissing } from "./batchRows";
@@ -106,13 +107,14 @@ function toStationView(entry: BatchStation, input: BatchViewInput): StationView 
   if (known !== undefined && known.record === record && hasSameFacts(known.view, facts)) return known.view;
 
   const { activeRows } = facts;
-  const spread = record === null ? null : planTacSpread(activeRows, record.cells ?? []);
+  const { hoistedTac } = conventionsFor(countryCode);
+  const spread = record === null || !hoistedTac ? null : planTacSpread(activeRows, record.cells ?? []);
   const view: StationView = {
     ...facts,
     station,
     sourceRows: entry.rows,
     changeCount: activeRows.length + (spread === null ? 0 : spread.cellIds.length),
-    conflicts: findConflicts(activeRows),
+    conflicts: findConflicts(activeRows, hoistedTac),
     spread,
     sectorsById: record === null ? NO_SECTORS : new Map((record.sectors ?? []).map((sector) => [sector.id, sector])),
   };

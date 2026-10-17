@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import route from "../../../../../src/routes/v2/(patch)/locations/[id].js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
-import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, scriptAudit, whereQuery } from "../../../../helpers/mutationAssertions.js";
 
 const row = {
   id: 7,
@@ -19,6 +19,16 @@ const row = {
 };
 const request = { method: "PATCH" as const, url: "/locations/7", payload: { city: "" } };
 const options = { session: userSession("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "admin") };
+const ownAddressRequest = { ...request, payload: { address: "teren własny" } };
+const ownAddressRefusal = {
+  errors: [
+    {
+      code: "VALIDATION_ERROR",
+      message: "Validation error",
+      details: [{ field: "address", validationMessage: "Address must not contain variants of własny" }],
+    },
+  ],
+};
 
 describe("PATCH /locations", () => {
   it("checks a metadata-only edit against the location's existing region", async () => {
@@ -78,5 +88,48 @@ describe("PATCH /locations", () => {
     const response = await injectMutation(route, { ...request, payload: { latitude: 52 } }, options);
     expectError(response, 400, "VALIDATION_ERROR");
     expect(dbMock.calls).toEqual([]);
+  });
+
+  it("refuses an address that a location in Poland does not take, at its field", async () => {
+    scriptAudit();
+    dbMock.query.locations.findFirst.mockResolvedValue(row);
+    dbMock.query.stations.findMany.mockResolvedValue([]);
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
+    const response = await injectMutation(route, ownAddressRequest, options);
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(ownAddressRefusal);
+    expect(dbMock.calls.some((call) => call.operation === "update")).toBe(false);
+  });
+
+  it("goes by the region a location moves to", async () => {
+    scriptAudit();
+    dbMock.query.locations.findFirst.mockResolvedValue({ ...row, region_id: 99 });
+    dbMock.query.stations.findMany.mockResolvedValue([]);
+    dbMock.enqueueFor("select", "locations", []);
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
+    const payload = { latitude: 52.1, longitude: 21.1, address: "teren własny" };
+    const response = await injectMutation(route, { ...request, payload }, options);
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(ownAddressRefusal);
+    expect(whereQuery("regions", "select").params).toEqual([1]);
+    expect(dbMock.calls.some((call) => call.operation === "update")).toBe(false);
+  });
+
+  it("accepts the same address for a location in a country without a pack", async () => {
+    const stored = { ...row, region_id: 99, city: "Berlin" };
+    const saved = { ...stored, address: "teren własny" };
+    scriptAudit();
+    dbMock.query.locations.findFirst.mockResolvedValue(stored);
+    dbMock.query.stations.findMany.mockResolvedValue([]);
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "DE" }]);
+    dbMock.enqueueFor("update", "locations", [saved]);
+    dbMock.enqueueFor("select", "locations", [{ location: saved, region: { countryCode: "DE" }, owner: null }]);
+    dbMock.enqueueFor("select", "countries", []);
+    const response = await injectMutation(route, ownAddressRequest, options);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ data: { countryCode: "DE", address: "teren własny" } });
+    expect(whereQuery("regions", "select").params).toEqual([stored.region_id]);
+    expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "locations")?.values).toMatchObject({ address: "teren własny" });
   });
 });

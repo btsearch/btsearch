@@ -1,7 +1,15 @@
 import type { Notification, NotificationList } from "@openbts/shared/contract";
 import { type QueryClient, type QueryKey, keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchNotificationList, markAllNotificationsRead, markNotificationRead, notificationKeys, unreadNotificationCountQueryOptions } from "./api";
+import {
+  deleteAllNotifications,
+  deleteNotification,
+  fetchNotificationList,
+  markAllNotificationsRead,
+  markNotificationRead,
+  notificationKeys,
+  unreadNotificationCountQueryOptions,
+} from "./api";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
@@ -9,6 +17,8 @@ export const NOTIFICATIONS_PAGE_SIZE = 20;
 const NOTIFICATIONS_MAX_LIMIT = 100;
 const MARK_ONE_READ_KEY = [...notificationKeys.all, "mark-one-read"] as const;
 const MARK_ALL_READ_KEY = [...notificationKeys.all, "mark-all-read"] as const;
+const DELETE_ONE_KEY = [...notificationKeys.all, "delete-one"] as const;
+const DELETE_ALL_KEY = [...notificationKeys.all, "delete-all"] as const;
 
 type NotificationCachesSnapshot = {
   lists: [QueryKey, NotificationList | undefined][];
@@ -35,6 +45,20 @@ function keepPendingReadMarks(client: QueryClient, list: NotificationList): Noti
   return { ...list, data };
 }
 
+function dropPendingDeletions(client: QueryClient, list: NotificationList): NotificationList {
+  if (client.isMutating({ mutationKey: DELETE_ALL_KEY }) > 0) return { ...list, data: [] };
+
+  const pendingDeletions = client.getMutationCache().findAll({ mutationKey: DELETE_ONE_KEY, status: "pending" });
+  if (pendingDeletions.length === 0) return list;
+
+  const deletedIds = new Set(pendingDeletions.map((mutation) => mutation.state.variables));
+  return { ...list, data: list.data.filter((notification) => !deletedIds.has(notification.id)) };
+}
+
+function isUnreadInSnapshot(snapshot: NotificationCachesSnapshot, id: string): boolean {
+  return snapshot.lists.some(([, list]) => list?.data.some((notification) => notification.id === id && !notification.isRead));
+}
+
 export function useNotifications(limit: number) {
   const { data: session } = authClient.useSession();
   const queryClient = useQueryClient();
@@ -42,7 +66,10 @@ export function useNotifications(limit: number) {
 
   const listQuery = useQuery({
     queryKey: notificationKeys.list(limit),
-    queryFn: async ({ client, signal }) => keepPendingReadMarks(client, await fetchNotificationList(limit, signal)),
+    queryFn: async ({ client, signal }) => {
+      const list = await fetchNotificationList(limit, signal);
+      return dropPendingDeletions(client, keepPendingReadMarks(client, list));
+    },
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
     refetchIntervalInBackground: true,
@@ -53,8 +80,8 @@ export function useNotifications(limit: number) {
 
   const resyncNotifications = async () => {
     await queryClient.cancelQueries({ queryKey: notificationKeys.all });
-    const isLastPendingMark = queryClient.isMutating({ mutationKey: notificationKeys.all }) === 1;
-    if (isLastPendingMark) void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    const isLastPendingChange = queryClient.isMutating({ mutationKey: notificationKeys.all }) === 1;
+    if (isLastPendingChange) void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
   };
 
   const snapshotCaches = async (): Promise<NotificationCachesSnapshot> => {
@@ -68,6 +95,12 @@ export function useNotifications(limit: number) {
   const updateCachedLists = (update: (notification: Notification) => Notification) => {
     queryClient.setQueriesData<NotificationList>({ queryKey: notificationKeys.lists }, (list) =>
       list === undefined ? list : { ...list, data: list.data.map(update) },
+    );
+  };
+
+  const removeFromCachedLists = (isRemoved: (notification: Notification) => boolean) => {
+    queryClient.setQueriesData<NotificationList>({ queryKey: notificationKeys.lists }, (list) =>
+      list === undefined ? list : { ...list, data: list.data.filter((notification) => !isRemoved(notification)) },
     );
   };
 
@@ -103,7 +136,7 @@ export function useNotifications(limit: number) {
     onMutate: async (id: string) => {
       const snapshot = await snapshotCaches();
       const readAt = new Date().toISOString();
-      const wasUnread = snapshot.lists.some(([, list]) => list?.data.some((notification) => notification.id === id && !notification.isRead));
+      const wasUnread = isUnreadInSnapshot(snapshot, id);
       updateCachedLists((notification) => (notification.id === id ? toReadNotification(notification, readAt) : notification));
       if (wasUnread) updateCachedUnreadCount((count) => Math.max(0, count - 1));
       return wasUnread;
@@ -116,6 +149,31 @@ export function useNotifications(limit: number) {
       }
       showApiError(error);
     },
+    onSettled: resyncNotifications,
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationKey: DELETE_ALL_KEY,
+    mutationFn: deleteAllNotifications,
+    onMutate: async () => {
+      const snapshot = await snapshotCaches();
+      removeFromCachedLists(() => true);
+      updateCachedUnreadCount(() => 0);
+      return snapshot;
+    },
+    onError: rollback,
+    onSettled: resyncNotifications,
+  });
+
+  const deleteOneMutation = useMutation({
+    mutationKey: DELETE_ONE_KEY,
+    mutationFn: deleteNotification,
+    onMutate: async (id: string) => {
+      const snapshot = await snapshotCaches();
+      removeFromCachedLists((notification) => notification.id === id);
+      if (isUnreadInSnapshot(snapshot, id)) updateCachedUnreadCount((count) => Math.max(0, count - 1));
+    },
+    onError: showApiError,
     onSettled: resyncNotifications,
   });
 
@@ -134,5 +192,7 @@ export function useNotifications(limit: number) {
     refetch: listQuery.refetch,
     markAllRead: () => markAllMutation.mutate(),
     markRead: (id: string) => markReadMutation.mutate(id),
+    deleteAll: () => deleteAllMutation.mutate(),
+    deleteOne: (id: string) => deleteOneMutation.mutate(id),
   };
 }

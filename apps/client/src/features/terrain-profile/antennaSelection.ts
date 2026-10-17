@@ -1,4 +1,4 @@
-import { calculateBearing } from "@openbts/shared/radiolinesUtils";
+import { calculateBearing } from "@openbts/shared/geo";
 import { ANTENNA_AZIMUTH_TOLERANCE_DEG, circularAzimuthDeltaDeg } from "@openbts/shared/terrainProfile";
 
 import type { GeoPoint, ReadyTerrainProfile, TerrainAntenna } from "./types";

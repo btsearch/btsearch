@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import type { MapCountries } from "../../data/mapCountries";
+import { useOfficialLabel } from "../../hooks/useOfficialLabel";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import i18n from "@/i18n/config";
 import { cn } from "@/lib/utils";
@@ -9,9 +10,9 @@ import type { StationSource } from "@/types/station";
 type MobileStatsPanelProps = {
   locationCount: number;
   totalCount: number;
-  radioLineCount: number;
-  radioLineTotalCount: number;
-  isRadioLinesFetching: boolean;
+  microwaveLinkCount: number;
+  microwaveLinkTotalCount: number;
+  isMicrowaveLinksFetching: boolean;
   showStations: boolean;
   searchMode: "bounds" | "search";
   zoom?: number;
@@ -28,9 +29,9 @@ function getPanelCursorClass(isSourceSwitch: boolean, hasMoreLocations: boolean)
 export function MobileStatsPanel({
   locationCount,
   totalCount,
-  radioLineCount,
-  radioLineTotalCount,
-  isRadioLinesFetching,
+  microwaveLinkCount,
+  microwaveLinkTotalCount,
+  isMicrowaveLinksFetching,
   showStations,
   searchMode,
   zoom,
@@ -39,13 +40,14 @@ export function MobileStatsPanel({
   onSourceChange,
 }: MobileStatsPanelProps) {
   const { t } = useTranslation("main");
+  const officialLabel = useOfficialLabel(mapCountries.onScreen);
   const hasMoreLocations = totalCount > locationCount;
-  const hasMoreRadioLines = radioLineTotalCount > radioLineCount;
-  const showRadioLines = radioLineCount > 0 || isRadioLinesFetching;
-  const { isRegisterOnScreen } = mapCountries;
+  const hasMoreMicrowaveLinks = microwaveLinkTotalCount > microwaveLinkCount;
+  const showMicrowaveLinks = microwaveLinkCount > 0 || isMicrowaveLinksFetching;
+  const hasSourceSwitch = mapCountries.capabilities.official;
 
   function handleSourceSwitch() {
-    onSourceChange(source === "internal" ? "uke" : "internal");
+    onSourceChange(source === "internal" ? "official" : "internal");
   }
 
   return (
@@ -54,8 +56,8 @@ export function MobileStatsPanel({
         <TooltipTrigger
           type="button"
           onMouseDown={(event) => event.preventDefault()}
-          onClick={isRegisterOnScreen ? handleSourceSwitch : undefined}
-          className={cn("px-2 py-1.5 bg-muted/30 flex items-center gap-2", getPanelCursorClass(isRegisterOnScreen, hasMoreLocations))}
+          onClick={hasSourceSwitch ? handleSourceSwitch : undefined}
+          className={cn("px-2 py-1.5 bg-muted/30 flex items-center gap-2", getPanelCursorClass(hasSourceSwitch, hasMoreLocations))}
         >
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1">
@@ -69,33 +71,33 @@ export function MobileStatsPanel({
                   </span>
                 </>
               ) : null}
-              {showRadioLines ? (
+              {showMicrowaveLinks ? (
                 <>
                   {showStations ? (
                     <span aria-hidden="true" className="text-[8px] text-muted-foreground leading-none">
                       ·
                     </span>
                   ) : null}
-                  <span className={cn("text-xs font-bold leading-none", hasMoreRadioLines && "text-amber-500")}>
-                    {radioLineCount.toLocaleString(i18n.language)}
+                  <span className={cn("text-xs font-bold leading-none", hasMoreMicrowaveLinks && "text-amber-500")}>
+                    {microwaveLinkCount.toLocaleString(i18n.language)}
                   </span>
                   <span className="text-[8px] font-bold text-muted-foreground leading-none uppercase tracking-wider">
-                    {t("overlay.radiolinesCount", { count: radioLineCount })}
+                    {t("overlay.radiolinesCount", { count: microwaveLinkCount })}
                   </span>
                 </>
               ) : null}
             </div>
             <div className="flex items-center gap-1">
-              {isRegisterOnScreen ? (
+              {hasSourceSwitch ? (
                 <span
                   className={cn(
                     "text-[7px] uppercase font-bold border-b leading-none",
-                    source === "uke"
+                    source === "official"
                       ? "text-violet-600 dark:text-violet-400 border-violet-500/30"
                       : "text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
                   )}
                 >
-                  {source === "uke" ? "UKE" : "INT"}
+                  {source === "official" ? officialLabel : "INT"}
                 </span>
               ) : null}
               <span className="text-[7px] uppercase font-bold text-blue-600 dark:text-blue-400 leading-none">Z{zoom?.toFixed(1) || "-"}</span>
@@ -106,11 +108,11 @@ export function MobileStatsPanel({
         {hasMoreLocations ? (
           <TooltipContent side="top">
             {showStations ? <p>{t("overlay.moreStations", { total: totalCount, shown: locationCount })}</p> : null}
-            {hasMoreRadioLines ? (
+            {hasMoreMicrowaveLinks ? (
               <p>
                 {t("overlay.moreRadiolines", {
-                  total: radioLineTotalCount,
-                  shown: radioLineCount,
+                  total: microwaveLinkTotalCount,
+                  shown: microwaveLinkCount,
                 })}
               </p>
             ) : null}

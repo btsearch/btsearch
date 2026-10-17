@@ -8,8 +8,8 @@ RUN npm install --global pnpm@12.8.1
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/typescript-configs/package.json ./packages/typescript-configs/
 COPY packages/drizzle/package.json ./packages/drizzle/
-COPY packages/uke-importer/package.json ./packages/uke-importer/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/country-packs/package.json ./packages/country-packs/
 COPY apps/client/package.json ./apps/client/
 COPY apps/discord-bot/package.json ./apps/discord-bot/
 COPY apps/server/package.json ./apps/server/
@@ -20,10 +20,13 @@ RUN pnpm install --frozen-lockfile
 # Copy sources
 COPY packages/typescript-configs ./packages/typescript-configs
 COPY packages/shared ./packages/shared
+COPY packages/drizzle ./packages/drizzle
+COPY packages/country-packs ./packages/country-packs
 COPY apps/client ./apps/client
 
 # Build workspace packages
-RUN pnpm --filter @openbts/shared build
+RUN pnpm --filter @openbts/shared build && \
+    pnpm --filter @openbts/country-packs build
 
 WORKDIR /app/apps/client
 

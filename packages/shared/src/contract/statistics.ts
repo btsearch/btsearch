@@ -1,7 +1,9 @@
 import { z } from "zod/v4";
 
+import { BAND_VARIANTS } from "./bands.ts";
 import { CELL_RATS } from "./cells.ts";
 import { countryCodeSchema, csvCountryCodesSchema, csvEnumSchema, daySchema } from "./common.ts";
+import { OFFICIAL_RATS } from "./officialSites.ts";
 
 export const STATISTICS_DIMENSIONS = ["region", "operator", "rat", "band"] as const;
 export type StatisticsDimension = (typeof STATISTICS_DIMENSIONS)[number];
@@ -9,7 +11,20 @@ export type StatisticsDimension = (typeof STATISTICS_DIMENSIONS)[number];
 export const STATISTICS_INTERVALS = ["day", "month"] as const;
 export type StatisticsInterval = (typeof STATISTICS_INTERVALS)[number];
 
+export const PERMIT_STATISTICS_DIMENSIONS = ["operator", "region", "rat", "label"] as const;
+export type PermitStatisticsDimension = (typeof PERMIT_STATISTICS_DIMENSIONS)[number];
+
+export const PERMIT_HISTORY_DIMENSIONS = ["operator", "label"] as const;
+export type PermitHistoryDimension = (typeof PERMIT_HISTORY_DIMENSIONS)[number];
+
 const countSchema = z.number().int().nonnegative();
+
+function groupBySchema<const T extends readonly [string, ...string[]]>(dimensions: T) {
+  return csvEnumSchema(dimensions)
+    .refine((grouped) => new Set(grouped).size === grouped.length, { message: "Each dimension may be named once" })
+    .optional()
+    .describe(`Splits each country further by these dimensions. Comma-separated list. Possible values: \`${dimensions.join("`, `")}\``);
+}
 
 export const officialStatisticsSchema = z.object({
   locations: countSchema,
@@ -53,10 +68,7 @@ export type StationBreakdownRow = z.infer<typeof stationBreakdownRowSchema>;
 export const stationBreakdownQuerySchema = z
   .object({
     countryCodes: csvCountryCodesSchema.optional(),
-    groupBy: csvEnumSchema(STATISTICS_DIMENSIONS)
-      .refine((dimensions) => new Set(dimensions).size === dimensions.length, { message: "Each dimension may be named once" })
-      .optional()
-      .describe(`Splits each country further by these dimensions. Comma-separated list. Possible values: \`${STATISTICS_DIMENSIONS.join("`, `")}\``),
+    groupBy: groupBySchema(STATISTICS_DIMENSIONS),
   })
   .strict();
 export type StationBreakdownQuery = z.infer<typeof stationBreakdownQuerySchema>;
@@ -126,3 +138,58 @@ export const analyzerUsageQuerySchema = z
   })
   .strict();
 export type AnalyzerUsageQuery = z.infer<typeof analyzerUsageQuerySchema>;
+
+const LABEL_NOTE = "`null` if `groupBy` does not include `label`, or if the register names none";
+const VARIANT_NOTE = `\`railway\` for a band set aside for railways, \`commercial\` for every other band. ${LABEL_NOTE}`;
+
+export const permitBreakdownRowSchema = z.object({
+  countryCode: countryCodeSchema.describe("The country the official sites are in"),
+  operatorId: z.number().int().nullable().describe("`null` if `groupBy` does not include `operator`, or for sites without an operator"),
+  regionId: z.number().int().nullable().describe("`null` if `groupBy` does not include `region`, or for sites in no known region"),
+  rat: z.enum(OFFICIAL_RATS).nullable().describe("`null` if `groupBy` includes neither `rat` nor `label`, or if the register names no technology"),
+  labelMhz: z.number().int().nullable().describe(`The nominal frequency of the band in MHz. ${LABEL_NOTE}`),
+  variant: z.enum(BAND_VARIANTS).nullable().describe(VARIANT_NOTE),
+  sites: countSchema.describe("The number of official sites with at least one permit in the group"),
+  permits: countSchema.describe("The number of permits in the group"),
+});
+export type PermitBreakdownRow = z.infer<typeof permitBreakdownRowSchema>;
+
+export const permitBreakdownQuerySchema = z
+  .object({
+    countryCodes: csvCountryCodesSchema.optional(),
+    groupBy: groupBySchema(PERMIT_STATISTICS_DIMENSIONS),
+  })
+  .strict();
+export type PermitBreakdownQuery = z.infer<typeof permitBreakdownQuerySchema>;
+
+export const permitHistoryPointSchema = z.object({
+  countryCode: countryCodeSchema.describe("The country of the operators"),
+  snapshotOn: daySchema.describe("The day the snapshot was taken"),
+  operatorId: z.number().int().nullable().describe("`null` if `groupBy` does not include `operator`"),
+  rat: z.enum(OFFICIAL_RATS).nullable().describe(LABEL_NOTE),
+  labelMhz: z.number().int().nullable().describe(`The nominal frequency of the band in MHz. ${LABEL_NOTE}`),
+  variant: z.enum(BAND_VARIANTS).nullable().describe(VARIANT_NOTE),
+  sites: countSchema.describe("The number of official sites with at least one permit in the group"),
+  permits: countSchema.describe("The number of permits in the group"),
+  added: z
+    .object({
+      sites: changeSchema,
+      permits: changeSchema,
+    })
+    .describe(
+      "The change since the previous snapshot of the same country in the response. " +
+        "A group that was not in that snapshot counts from zero, and every change is zero on a country's first snapshot",
+    ),
+});
+export type PermitHistoryPoint = z.infer<typeof permitHistoryPointSchema>;
+
+export const permitHistoryQuerySchema = z
+  .object({
+    countryCodes: csvCountryCodesSchema.optional(),
+    groupBy: groupBySchema(PERMIT_HISTORY_DIMENSIONS),
+    takenAfter: daySchema.optional().describe("Returns only snapshots taken on or after this day"),
+    takenBefore: daySchema.optional().describe("Returns only snapshots taken on or before this day"),
+    interval: z.enum(STATISTICS_INTERVALS).default("month").describe("`month` returns the last snapshot of each month, `day` returns every snapshot"),
+  })
+  .strict();
+export type PermitHistoryQuery = z.infer<typeof permitHistoryQuerySchema>;

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import route from "../../../../../src/routes/v2/(patch)/stations/[id].js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
-import { cellInputs, prepareCellChange, writeCreatedCells } from "../../../../helpers/cellWriteFixtures.js";
+import { cellBands, cellInputs, prepareCellChange, writeCreatedCells } from "../../../../helpers/cellWriteFixtures.js";
+import { whereQuery } from "../../../../helpers/mutationAssertions.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 import { stationRow, visibleStation } from "../../../../helpers/stationFixtures.js";
 import { detachPlacedStation, movePlacedStation, placedStation } from "../../../../helpers/stationLocationFixtures.js";
@@ -155,7 +156,6 @@ describe("PATCH /stations/:id", () => {
     ["notes", " new notes ", " new notes "],
     ["null notes", null, null],
     ["blank notes", "   ", null],
-    ["plain notes", "Lorem ipsum", "Lorem ipsum"],
   ])("updates %s without changing the station identity or location", async (_name, notes, expected) => {
     editableStation();
     const updated = stationRow({ notes: expected });
@@ -171,6 +171,49 @@ describe("PATCH /stations/:id", () => {
       { updatedAt: expect.any(Date) },
     ]);
     expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "locations")).toBe(false);
+  });
+
+  it("refuses an address that a location in Poland does not take, at its field and before any writes", async () => {
+    placedStation();
+    dbMock.enqueueFor("select", "stations", [{ locationCountry: "PL", operatorCountry: "PL" }]);
+    const app = await createRouteHarness(route, { session: userSession() });
+    const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { location: { address: "teren własny" } } });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      errors: [
+        {
+          code: "VALIDATION_ERROR",
+          message: "Validation error.",
+          details: [{ field: "location/address", validationMessage: "Address must not contain variants of własny" }],
+        },
+      ],
+    });
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses a band outside the plan of the country the station stays in, whatever region the request names", async () => {
+    placedStation();
+    dbMock.enqueueFor("select", "regions", [{ id: 2 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "bands", [{ id: 1 }], cellBands);
+    dbMock.enqueueFor(
+      "select",
+      "stations",
+      [{ stationId: 1, region_id: 1, latitude: 52, longitude: 21 }],
+      [{ locationCountry: "PL", operatorCountry: "PL" }],
+    );
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
+    dbMock.enqueueFor("select", "country_bands", []);
+    const app = await createRouteHarness(route, { session: userSession() });
+    const payload = { location: { regionId: 2 }, cells: [{ action: "create", ...cellInputs.gsm }] };
+    const response = await app.inject({ method: "PATCH", url: "/stations/1", payload });
+
+    expect(response.statusCode, response.body).toBe(400);
+    expect(response.json().errors[0].message).toBe("Band 1 is not in the band plan of PL");
+    expect(whereQuery("regions", "select", 1).params).toEqual([1]);
+    expect(whereQuery("country_bands", "select").params).toEqual(["PL", 1]);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+    expect(dbMock.pendingResults()).toBe(0);
   });
 
   it("returns 404 for a missing station before translating or saving edits", async () => {

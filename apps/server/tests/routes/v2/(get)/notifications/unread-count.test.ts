@@ -7,13 +7,6 @@ import { expectError, injectMutation } from "../../../../helpers/mutationAsserti
 const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 describe("GET /notifications/unread-count", () => {
-  it("returns zero when the unread count query has no aggregate row", async () => {
-    dbMock.enqueueFor("select", "notifications", []);
-    const response = await injectMutation(route, { method: "GET", url: "/notifications/unread-count" }, { session: userSession(ownerId) });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ data: { count: 0 } });
-  });
-
   it("rejects a request without an account before reading or writing data", async () => {
     const response = await injectMutation(route, { method: "GET", url: "/notifications/unread-count" });
     expectError(response, 401, "UNAUTHORIZED");

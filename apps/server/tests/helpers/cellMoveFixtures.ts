@@ -12,14 +12,13 @@ export function prepareCellMove(options: { destinationId?: number; missing?: boo
   const destination = stationRow({ id: destinationId, operator_id: options.duplicate ? 7 : null, status: "pending", location: null, sectors: [] });
   const moves = destinationId !== 1;
   dbMock.enqueueFor("select", "cells", [previous], [previous]);
-  dbMock.enqueueFor("select", "stations", [{ station: source, countryCode: null }]);
+  dbMock.enqueueFor("select", "stations", [{ station: source, countryCode: null }], [{ locationCountry: null, operatorCountry: null }]);
   if (moves) dbMock.enqueueFor("select", "stations", options.missing ? [] : [{ station: destination, countryCode: options.hidden ? "PL" : null }]);
   if (options.hidden) {
     dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     dbMock.enqueueFor("select", "users", [{ role: "user" }]);
     dbMock.enqueueFor("select", "role_grants", []);
   }
-  dbMock.enqueueFor("select", "stations", [{ locationCountry: null, operatorCountry: null }]);
   dbMock.enqueueFor("select", "bands", cellBands);
   dbMock.query.stations.findFirst.mockImplementation(async (options) =>
     (options as { where: { id: number } }).where.id === 1 ? source : destination,

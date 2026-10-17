@@ -470,8 +470,8 @@ function NotificationsCard() {
         ) : (
           <>
             <PreferenceSwitchRow
-              title={t("preferences.ukeUpdates")}
-              description={t("preferences.ukeUpdatesHint")}
+              title={t("preferences.officialDataUpdates")}
+              description={t("preferences.officialDataUpdatesHint")}
               checked={pushTopics?.officialDataUpdates ?? false}
               disabled={topicsDisabled}
               onCheckedChange={(officialDataUpdates) => updateTopics({ officialDataUpdates })}

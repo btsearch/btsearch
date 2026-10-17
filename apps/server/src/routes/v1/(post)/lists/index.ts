@@ -46,7 +46,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   if ((listCountRow?.count ?? 0) >= MAX_USER_LISTS)
     throw new ErrorResponse("LIST_LIMIT_REACHED", { message: `You have reached the maximum limit of ${MAX_USER_LISTS} lists` });
 
-  const { internal, uke } = req.body.stations;
+  const { internal, uke: official } = req.body.stations;
   const foreign = await findForeignStationIds(internal);
 
   const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "list.create" }, async (tx, audit) => {
@@ -54,7 +54,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       .insert(userLists)
       .values({
         ...req.body,
-        stations: { internal: internal.filter((id) => !foreign.has(id)), uke },
+        stations: { internal: internal.filter((id) => !foreign.has(id)), official },
         radiolines: req.body.radiolines ?? [],
         created_by: userId,
       })
@@ -68,7 +68,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     throw new ErrorResponse("FAILED_TO_CREATE", { cause: error });
   });
 
-  return res.send({ data: created });
+  return res.send({ data: { ...created, stations: { internal: created.stations.internal, uke: created.stations.official } } });
 }
 
 const createList: Route<ReqBody, ResponseData> = {

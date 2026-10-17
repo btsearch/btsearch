@@ -37,8 +37,8 @@ export function unreadNotificationCountQueryOptions() {
     queryKey: notificationKeys.unreadCount,
     queryFn: async ({ client, signal }) => {
       const count = await fetchUnreadNotificationCount(signal);
-      const isReadMarkPending = client.isMutating({ mutationKey: notificationKeys.all }) > 0;
-      return isReadMarkPending ? (client.getQueryData<number>(notificationKeys.unreadCount) ?? count) : count;
+      const isChangePending = client.isMutating({ mutationKey: notificationKeys.all }) > 0;
+      return isChangePending ? (client.getQueryData<number>(notificationKeys.unreadCount) ?? count) : count;
     },
     refetchInterval: 30_000,
     refetchIntervalInBackground: true,
@@ -52,6 +52,14 @@ export async function markNotificationRead(id: string): Promise<void> {
 
 export async function markAllNotificationsRead(): Promise<void> {
   await fetchJson(`${API_V2_BASE}/notifications/read`, { method: "PUT" });
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  await fetchJson(`${API_V2_BASE}/notifications/${id}`, { method: "DELETE" });
+}
+
+export async function deleteAllNotifications(): Promise<void> {
+  await fetchJson(`${API_V2_BASE}/notifications`, { method: "DELETE" });
 }
 
 export async function registerPushSubscription(browserSubscription: PushSubscription): Promise<PushSubscriptionRecord> {

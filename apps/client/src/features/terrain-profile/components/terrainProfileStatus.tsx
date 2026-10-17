@@ -46,7 +46,7 @@ type VerdictDetailProps = {
 const WARNING_TEXT_KEYS: Record<ListedWarning, string> = {
   emfReportUnavailable: "warnings.codes.SI2PEM_REPORT_UNAVAILABLE",
   emfReportUnreadable: "warnings.codes.SI2PEM_REPORT_PARSE_FAILED",
-  antennaFromPermit: "warnings.codes.UKE_ANTENNA_FALLBACK",
+  antennaFromPermit: "warnings.codes.PERMIT_ANTENNA_FALLBACK",
   antennaFromSharedNetwork: "warnings.codes.NETWORKS_SHARING_DATA",
   surfaceDataUnavailable: "warnings.codes.SURFACE_MODEL_UNAVAILABLE",
   surfaceDataIncomplete: "warnings.codes.SURFACE_MODEL_PARTIAL",

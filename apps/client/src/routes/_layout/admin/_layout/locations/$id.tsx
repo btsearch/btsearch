@@ -8,7 +8,7 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
+import { conventionsFor } from "@openbts/country-packs";
 import type { Location, LocationUpdate } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -210,7 +210,7 @@ function LocationDetailForm({ location, area }: { location: LocationRecord; area
   }, []);
 
   const handleSave = () => {
-    if (hasGenericAddressMarker(locationForm.address)) {
+    if (conventionsFor(countryCode).validateAddress(locationForm.address) !== null) {
       toast.error(t("common:validation.addressOwnWordForbidden"));
       return;
     }
@@ -435,7 +435,7 @@ function LocationDetailForm({ location, area }: { location: LocationRecord; area
               <LocationStationList
                 stations={stations}
                 renderLink={(station, linkProps) => (
-                  <Link to="/admin/stations/$id" params={{ id: String(station.id) }} search={{ uke: undefined }} {...linkProps} />
+                  <Link to="/admin/stations/$id" params={{ id: String(station.id) }} search={{ officialSite: undefined }} {...linkProps} />
                 )}
               />
             </div>

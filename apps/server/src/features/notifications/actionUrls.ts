@@ -13,7 +13,7 @@ export function buildInternalStationActionUrl(station: StationActionTarget): str
   return `/#map=16.00/${station.location.latitude}/${station.location.longitude}~f~S${station.id}`;
 }
 
-export function buildUkeStationActionUrl(station: StationActionTarget): string | undefined {
+export function buildOfficialSiteActionUrl(station: StationActionTarget): string | undefined {
   if (!station.location) return undefined;
   return `/#map=16.00/${station.location.latitude}/${station.location.longitude}~fu~U${station.id}`;
 }

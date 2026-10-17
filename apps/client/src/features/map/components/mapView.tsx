@@ -1,12 +1,13 @@
+import type { MicrowaveLink, OfficialSite } from "@openbts/shared/contract";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { fetchRadioLines, mapLocationsQueryOptions } from "../api";
+import { mapLocationsQueryOptions, mapMicrowaveLinksQueryOptions } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "../constants";
-import { getEffectiveMapFilters, isMapSourceUndecided, useMapCountries, useRegisterOnScreen } from "../data/mapCountries";
+import { getEffectiveMapFilters, isMapSourceUndecided, useCapabilitiesOnScreen, useMapCountries } from "../data/mapCountries";
 import { areMapRatFiltersReady } from "../data/mapFilters";
 import { useMapLookups, useMapMaxBounds } from "../data/mapLookups";
-import { type MapPlace, useMapPoints } from "../data/mapPoints";
+import { toOfficialMapPlace, useMapPoints } from "../data/mapPoints";
 import { useSavedMapFilters } from "../data/useSavedMapFilters";
 import { useMapBounds } from "../hooks/useMapBounds";
 import { loadMapPosition, useMapPositionPersistence } from "../hooks/useMapPositionPersistence";
@@ -14,7 +15,8 @@ import { useMapQueryHousekeeping } from "../hooks/useMapQueryHousekeeping";
 import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
 import { useStationPopupActions } from "../hooks/useStationPopupActions";
 import { useWakeLock } from "../hooks/useWakeLock";
-import { type StationSearchHit, type UkeSearchPermitStation, type UkeSearchRadioline, isRejectedSearchQuery, toSearchHitPlace } from "../searchApi";
+import { type StationSearchHit, isRejectedSearchQuery, toSearchHitPlace } from "../searchApi";
+import { OfficialAttribution } from "./officialAttribution";
 import { MapSearchOverlay } from "./search-overlay";
 import { StationsLayer } from "./stationsLayer";
 import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
@@ -24,13 +26,12 @@ import { useTerrainProfileController } from "@/features/terrain-profile/hooks/us
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { useSettledSession } from "@/hooks/useSettledSession";
-import type { RadioLine, UkeStation } from "@/types/station";
 
-const RadioLinesLayer = lazy(() => import("./radioLinesLayer"));
+const MicrowaveLinksLayer = lazy(() => import("./microwaveLinksLayer"));
 const TerrainProfileSurface = lazy(() => import("@/features/terrain-profile/components/terrainProfileSurface"));
 
-const MAP_QUERY_FAMILIES = new Set(["locations", "radiolines"]);
-const NO_RADIO_LINES: RadioLine[] = [];
+const MAP_QUERY_FAMILIES = new Set(["locations", "microwave-links"]);
+const NO_MICROWAVE_LINKS: MicrowaveLink[] = [];
 const SELECTED_DOT_TOLERANCE = 0.0001;
 
 type SearchTextAnswer = {
@@ -65,13 +66,13 @@ function MapViewInner() {
   const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
   const [savedFilters, setSavedFilters, isRegisterRatListReady] = useSavedMapFilters();
   const { lookups } = useMapLookups();
-  const registerOnScreen = useRegisterOnScreen(bounds);
+  const capabilitiesOnScreen = useCapabilitiesOnScreen(bounds);
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapQuery, setMapQuery] = useState<string | undefined>(undefined);
 
   const terrainProfile = useTerrainProfileController({ map, isLoaded });
 
-  const [pendingRadiolineId, setPendingRadiolineId] = useState<number | null>(null);
+  const [pendingMicrowaveLinkId, setPendingMicrowaveLinkId] = useState<number | null>(null);
   const { setTerrainProfileStartHandler } = useFloatingDialogStack();
 
   useEffect(() => {
@@ -81,7 +82,7 @@ function MapViewInner() {
 
   useMapMaxBounds(map);
 
-  const shownFilters = getEffectiveMapFilters(savedFilters, registerOnScreen);
+  const shownFilters = getEffectiveMapFilters(savedFilters, capabilitiesOnScreen);
   const { showPopup, openLocations, popupContents, closePopups, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
@@ -96,7 +97,7 @@ function MapViewInner() {
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   const searchText = shownFilters.source === "internal" ? mapQuery : undefined;
-  const isSourceUndecided = isMapSourceUndecided(savedFilters, registerOnScreen);
+  const isSourceUndecided = isMapSourceUndecided(savedFilters, capabilitiesOnScreen);
   useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: MAP_QUERY_FAMILIES, isInScope: isMainMapQuery });
 
   const {
@@ -122,24 +123,15 @@ function MapViewInner() {
   const locationCount = page?.locations.length ?? 0;
   const totalCount = page?.total ?? 0;
 
-  const { data: radioLinesResponse, isFetching: isRadioLinesFetching } = useQuery({
-    queryKey: ["radiolines", bounds, shownFilters.radiolineOperators, shownFilters.recentDays, preferences.mapRadiolinesLimit],
-    queryFn: ({ signal }) =>
-      fetchRadioLines(bounds, {
-        signal,
-        operatorIds: shownFilters.radiolineOperators,
-        limit: preferences.mapRadiolinesLimit,
-        recentDays: shownFilters.recentDays,
-      }),
+  const { data: microwaveLinksResponse, isFetching: isMicrowaveLinksFetching } = useQuery({
+    ...mapMicrowaveLinksQueryOptions({ bounds, filters: shownFilters, limit: preferences.mapRadiolinesLimit }),
     enabled: shownFilters.showRadiolines && bounds !== "" && !isMoving && zoom >= preferences.radiolinesMinZoom,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60,
     placeholderData: keepPreviousData,
   });
 
-  const radioLines = radioLinesResponse?.data ?? NO_RADIO_LINES;
-  const radioLineCount = shownFilters.showRadiolines ? radioLines.length : 0;
-  const radioLineTotalCount = shownFilters.showRadiolines ? (radioLinesResponse?.totalCount ?? 0) : 0;
+  const microwaveLinks = microwaveLinksResponse?.data ?? NO_MICROWAVE_LINKS;
+  const microwaveLinkCount = shownFilters.showRadiolines ? microwaveLinks.length : 0;
+  const microwaveLinkTotalCount = shownFilters.showRadiolines ? (microwaveLinksResponse?.paging.total ?? microwaveLinks.length) : 0;
 
   const { openDetails: openStationDetails } = stationActions;
   usePlannedMeasurementsLayer({
@@ -210,39 +202,25 @@ function MapViewInner() {
     () => setSavedFilters((prev) => ({ ...prev, showPlannedMeasurements: !prev.showPlannedMeasurements })),
     [setSavedFilters],
   );
-  const handleUkeStationSelectFromSearch = useCallback(
-    async (station: UkeSearchPermitStation) => {
-      if (!map || !station.location) return;
-      const { latitude, longitude } = station.location;
+  const handleOfficialSiteSelectFromSearch = useCallback(
+    async (site: OfficialSite) => {
+      if (!map || site.location === undefined) return;
+      const place = toOfficialMapPlace(site.location, lookups);
       latestSearchPickRef.current += 1;
       const searchPick = latestSearchPickRef.current;
-      map.flyTo({ center: [longitude, latitude], zoom: 16, essential: true, speed: 1.5 });
+      map.flyTo({ center: [place.longitude, place.latitude], zoom: 16, essential: true, speed: 1.5 });
       await new Promise<void>((resolve) => map.once("moveend", () => resolve()));
-      if (searchPick !== latestSearchPickRef.current || shownSourceRef.current !== "uke") return;
+      if (searchPick !== latestSearchPickRef.current || shownSourceRef.current !== "official") return;
 
-      const place: MapPlace = {
-        id: station.location.id,
-        city: station.location.city,
-        address: station.location.address,
-        regionName: null,
-        latitude,
-        longitude,
-      };
-      const popupStation: UkeStation = {
-        id: station.id,
-        station_id: station.station_id,
-        operator: station.operator,
-        permits: station.permits,
-      };
-      showPopup([longitude, latitude], place, null, [popupStation], "uke");
+      showPopup([place.longitude, place.latitude], place, null, [site], "official");
     },
-    [map, showPopup],
+    [map, lookups, showPopup],
   );
 
-  const handleRadiolineSelectFromSearch = useCallback(
-    (radioline: UkeSearchRadioline) => {
-      handleLocationSelect(radioline.tx.latitude, radioline.tx.longitude);
-      setPendingRadiolineId(radioline.id);
+  const handleMicrowaveLinkSelectFromSearch = useCallback(
+    (microwaveLink: MicrowaveLink) => {
+      handleLocationSelect(microwaveLink.tx.latitude, microwaveLink.tx.longitude);
+      setPendingMicrowaveLinkId(microwaveLink.id);
     },
     [handleLocationSelect],
   );
@@ -253,9 +231,9 @@ function MapViewInner() {
       <MapSearchOverlay
         locationCount={locationCount}
         totalCount={totalCount}
-        radioLineCount={radioLineCount}
-        radioLineTotalCount={radioLineTotalCount}
-        isRadioLinesFetching={shownFilters.showRadiolines && isRadioLinesFetching}
+        microwaveLinkCount={microwaveLinkCount}
+        microwaveLinkTotalCount={microwaveLinkTotalCount}
+        isMicrowaveLinksFetching={shownFilters.showRadiolines && isMicrowaveLinksFetching}
         filters={shownFilters}
         mapCountries={mapCountries}
         zoom={zoom}
@@ -264,8 +242,8 @@ function MapViewInner() {
         onFiltersChange={setSavedFilters}
         onLocationSelect={handleLocationSelect}
         onStationSelect={handleStationSelect}
-        onUkeStationSelect={handleUkeStationSelectFromSearch}
-        onRadiolineSelect={handleRadiolineSelectFromSearch}
+        onOfficialSiteSelect={handleOfficialSiteSelectFromSearch}
+        onMicrowaveLinkSelect={handleMicrowaveLinkSelectFromSearch}
         onToggleHeatmap={handleToggleHeatmap}
         onTogglePlannedMeasurements={handleTogglePlannedMeasurements}
         onFilterQueryChange={setMapQuery}
@@ -291,20 +269,21 @@ function MapViewInner() {
         onActiveMarkerChange={setActiveMarker}
         stationActions={stationActions}
         popupActions={popupActions}
-        onRadiolineIdFromUrl={setPendingRadiolineId}
+        onMicrowaveLinkIdFromUrl={setPendingMicrowaveLinkId}
         activePopupLocations={openLocations}
       />
-      {shownFilters.showRadiolines || pendingRadiolineId !== null ? (
+      {shownFilters.showRadiolines || pendingMicrowaveLinkId !== null ? (
         <Suspense fallback={null}>
-          <RadioLinesLayer
-            radioLines={radioLines}
-            pendingRadiolineId={pendingRadiolineId}
+          <MicrowaveLinksLayer
+            microwaveLinks={microwaveLinks}
+            pendingMicrowaveLinkId={pendingMicrowaveLinkId}
             showAddToList={showAddToList}
             isPickingReceiver={terrainProfile.isPickingReceiver}
-            onPendingRadiolineConsumed={setPendingRadiolineId}
+            onPendingMicrowaveLinkConsumed={setPendingMicrowaveLinkId}
           />
         </Suspense>
       ) : null}
+      <OfficialAttribution filters={shownFilters} countryCodes={mapCountries.onScreen} />
       <MapControls showLocate showCompass showScale showFullscreen />
       {terrainProfile.hasOpened ? (
         <Suspense fallback={null}>

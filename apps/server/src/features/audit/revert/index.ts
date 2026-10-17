@@ -7,9 +7,7 @@ import db from "../../../database/psql.js";
 import type { Database } from "../../../database/psql.js";
 import { DEADLOCK_DETECTED, DetailedErrorResponse, ErrorResponse, SERIALIZATION_FAILURE } from "../../../errors.js";
 import type { DbTx } from "../../../types/global.js";
-import { logger } from "../../../utils/logger.js";
 import { queueStationCellsChangedNotification } from "../../notifications/stationCellChanges.js";
-import { syncStationsPermitsAssociations } from "../../stations/permitsAssociation.js";
 import { loadOperationCountries, stampOperationCountry } from "../country.js";
 import { toAuditMetadata } from "../metadata.js";
 import { runAuditedOperation } from "../operation.js";
@@ -212,12 +210,6 @@ export async function revertOperation(input: RevertOperationInput): Promise<Reve
   }
 
   for (const [stationId, counts] of transactionResult.cellChanges) queueStationCellsChangedNotification({ stationId, counts });
-  if (transactionResult.stationOrLocationWritten)
-    void syncStationsPermitsAssociations().catch((error) =>
-      logger.error("Failed to sync stations_permits after audit revert", {
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
 
   return {
     operation: transactionResult.operation,

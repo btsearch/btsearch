@@ -1,8 +1,10 @@
+import type { OperatorRef } from "@openbts/country-packs";
+
 import type { LocationStationRecord, Operator, StationIdentifier, StationIdentifierKind, StationLocationRecord, StationStatus } from "../types";
 import type { StationStatus as V1StationStatus } from "@/types/station";
 
-type PlacedStation = {
-  location: Pick<StationLocationRecord, "countryCode"> | null;
+export type PlacedStation = {
+  location?: Pick<StationLocationRecord, "countryCode"> | null;
   operator: Pick<Operator, "countryCode"> | null;
 };
 type ListedStation = Pick<LocationStationRecord, "id" | "siteId" | "operator">;
@@ -34,6 +36,18 @@ export function findV1StationStatus(status: string): V1StationStatus | undefined
 export function toV1OperatorMnc(operator: Pick<Operator, "primaryPlmn"> | null): number | null {
   if (operator === null || operator.primaryPlmn === null) return null;
   return Number(operator.primaryPlmn);
+}
+
+export function listSharedNetworkIds(operator: Pick<Operator, "links">): number[] {
+  return operator.links.flatMap((link) => (link.kind === "jvMember" ? [link.operatorId] : []));
+}
+
+export function toOperatorRef(
+  operator: Pick<Operator, "id" | "primaryPlmn" | "links">,
+  operatorsById: ReadonlyMap<number, Pick<Operator, "primaryPlmn">>,
+): OperatorRef {
+  const sharedNetworkPlmns = listSharedNetworkIds(operator).flatMap((networkId) => operatorsById.get(networkId)?.primaryPlmn ?? []);
+  return { id: operator.id, primaryPlmn: operator.primaryPlmn, sharedNetworkPlmns };
 }
 
 export function getOperatorShortLabel(operator: Pick<Operator, "shortCode" | "name"> | null): string | null {

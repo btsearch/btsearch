@@ -1,5 +1,5 @@
 import { calculateP1812Detailed } from "@btsearch/rf-engine/p1812";
-import { EARTH_RADIUS_M, calculateBearing, calculateDistance } from "@openbts/shared/radiolinesUtils";
+import { EARTH_RADIUS_M, calculateBearing, calculateDistance } from "@openbts/shared/geo";
 import { circularAzimuthDeltaDeg } from "@openbts/shared/terrainProfile";
 
 const DEFAULT_EFFECTIVE_EARTH_RADIUS_FACTOR = 4 / 3;

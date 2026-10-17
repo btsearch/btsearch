@@ -2,21 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { statsCompletenessQueryOptions } from "../queries";
+import { completenessQueryOptions } from "../queries";
 import { StatChartCard } from "./statChartCard";
 
 export function CompletenessCharts() {
   const { t } = useTranslation("statistics");
-  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(statsCompletenessQueryOptions());
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(completenessQueryOptions());
 
   const stationData = useMemo(
     () => [
       {
         metric: t("common:labels.stations"),
         withSectors: data?.stations.withSectors ?? 0,
-        withExtraIds: data?.stations.withExtraIds ?? 0,
+        withExtraIds: data?.stations.withIdentifiers ?? 0,
         withoutSectors: Math.max((data?.stations.total ?? 0) - (data?.stations.withSectors ?? 0), 0),
-        withoutExtraIds: Math.max((data?.stations.total ?? 0) - (data?.stations.withExtraIds ?? 0), 0),
+        withoutExtraIds: Math.max((data?.stations.total ?? 0) - (data?.stations.withIdentifiers ?? 0), 0),
       },
     ],
     [data, t],

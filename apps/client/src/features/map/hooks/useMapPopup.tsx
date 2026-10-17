@@ -1,3 +1,4 @@
+import type { OfficialSite } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { type MapMouseEvent, type Map as MaplibreMap, Popup } from "maplibre-gl";
 import { type ReactPortal, useCallback, useEffect, useRef, useState } from "react";
@@ -11,7 +12,7 @@ import { type MapPlace, type MapPoint, type MapPointStation, type MapPopupStatio
 import { locationRecordQueryOptions, seedStationRecord } from "@/features/station-details/station/api";
 import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { queryClient } from "@/lib/queryClient";
-import type { StationSource, UkeStation } from "@/types/station";
+import type { StationSource } from "@/types/station";
 
 type UseMapPopupArgs = {
   map: MaplibreMap | null;
@@ -21,7 +22,7 @@ type UseMapPopupArgs = {
   statusFilter: MapFilters["status"];
   filterStations?: (stations: MapPopupStation[]) => MapPopupStation[];
   onOpenStationDetails: (id: number, source: StationSource, locationId?: number) => boolean | void;
-  onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+  onOpenOfficialSiteDetails: (site: OfficialSite) => boolean | void;
   onClose?: (location: MapPopupLocation) => void;
 };
 
@@ -31,7 +32,7 @@ export type ShowMapPopup = (
   coordinates: [number, number],
   location: MapPlace,
   stations: readonly MapPointStation[] | null,
-  ukeStations: readonly UkeStation[] | null,
+  officialSites: readonly OfficialSite[] | null,
   source: StationSource,
 ) => void;
 
@@ -43,16 +44,16 @@ type PopupEntry = {
   focusOrigin: HTMLElement | null;
   location: MapPlace;
   stations: readonly MapPointStation[] | null;
-  ukeStations: readonly UkeStation[] | null;
+  officialSites: readonly OfficialSite[] | null;
   source: StationSource;
 };
 
-type PopupView = Pick<PopupEntry, "location" | "stations" | "ukeStations" | "source"> & {
+type PopupView = Pick<PopupEntry, "location" | "stations" | "officialSites" | "source"> & {
   entry: PopupEntry;
 };
 
 function toPopupView(entry: PopupEntry): PopupView {
-  return { entry, location: entry.location, stations: entry.stations, ukeStations: entry.ukeStations, source: entry.source };
+  return { entry, location: entry.location, stations: entry.stations, officialSites: entry.officialSites, source: entry.source };
 }
 
 function getMapPopupKey({ locationId, source }: MapPopupLocation): string {
@@ -103,7 +104,7 @@ function listShownStations(
 type PopupLocationContentProps = {
   location: MapPlace;
   markerStations: readonly MapPointStation[] | null;
-  ukeStations: readonly UkeStation[] | null;
+  officialSites: readonly OfficialSite[] | null;
   source: StationSource;
   statusFilter: MapFilters["status"];
   lookups: MapLookups | undefined;
@@ -114,13 +115,13 @@ type PopupLocationContentProps = {
   onRetryLookups: () => void;
   onClose: () => void;
   onOpenStationDetails: (id: number) => boolean | void;
-  onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+  onOpenOfficialSiteDetails: (site: OfficialSite) => boolean | void;
 };
 
 function PopupLocationContent({
   location,
   markerStations,
-  ukeStations,
+  officialSites,
   source,
   statusFilter,
   lookups,
@@ -131,16 +132,16 @@ function PopupLocationContent({
   onRetryLookups,
   onClose,
   onOpenStationDetails,
-  onOpenUkeStationDetails,
+  onOpenOfficialSiteDetails,
 }: PopupLocationContentProps) {
   const { data, isError, isFetching, refetch } = useQuery({
     ...locationRecordQueryOptions(location.id),
-    enabled: source !== "uke",
+    enabled: source !== "official",
   });
 
-  const record = source === "uke" ? undefined : data;
-  const hasRecordFailed = source !== "uke" && isError && record === undefined;
-  const areLookupsUnavailable = source !== "uke" && lookups === undefined && hasLookupFailed;
+  const record = source === "official" ? undefined : data;
+  const hasRecordFailed = source !== "official" && isError && record === undefined;
+  const areLookupsUnavailable = source !== "official" && lookups === undefined && hasLookupFailed;
   const locationStations = record === undefined || lookups === undefined ? null : toMapPopupStations(record, lookups);
   const shownStations = locationStations === null ? null : listShownStations(locationStations, markerStations, statusFilter);
   const loadedStations = shownStations === null ? null : (filterStations?.(shownStations) ?? shownStations);
@@ -155,7 +156,7 @@ function PopupLocationContent({
       location={record === undefined || lookups === undefined ? location : toMapPlace(record, lookups)}
       stations={loadedStations ?? listEntriesAwaitingCells(markerStations)}
       locationStations={locationStations}
-      ukeStations={ukeStations}
+      officialSites={officialSites}
       lookups={lookups}
       source={source}
       showAddToList={showAddToList}
@@ -164,7 +165,7 @@ function PopupLocationContent({
       onRetry={retryFailedRequests}
       onClose={onClose}
       onOpenStationDetails={onOpenStationDetails}
-      onOpenUkeStationDetails={onOpenUkeStationDetails}
+      onOpenOfficialSiteDetails={onOpenOfficialSiteDetails}
     />
   );
 }
@@ -186,7 +187,7 @@ export function useMapPopup({
   statusFilter,
   filterStations,
   onOpenStationDetails,
-  onOpenUkeStationDetails,
+  onOpenOfficialSiteDetails,
   onClose,
 }: UseMapPopupArgs): UseMapPopupReturn {
   const popupEntriesRef = useRef(new Map<string, PopupEntry>());
@@ -197,7 +198,7 @@ export function useMapPopup({
   }, []);
 
   const showPopup: ShowMapPopup = useCallback(
-    (coordinates, location, stations, ukeStations, source) => {
+    (coordinates, location, stations, officialSites, source) => {
       if (!map) return;
 
       const popupLocation = { locationId: location.id, source };
@@ -211,7 +212,7 @@ export function useMapPopup({
 
       const existingEntry = popupEntriesRef.current.get(popupKey);
       if (existingEntry) {
-        Object.assign(existingEntry, { location, stations, ukeStations, source });
+        Object.assign(existingEntry, { location, stations, officialSites, source });
         existingEntry.popup.setLngLat(coordinates);
         publishPopupViews();
         return;
@@ -230,7 +231,7 @@ export function useMapPopup({
       })
         .setLngLat(coordinates)
         .setDOMContent(container);
-      const entry: PopupEntry = { popup, container, focusOrigin: null, location, stations, ukeStations, source };
+      const entry: PopupEntry = { popup, container, focusOrigin: null, location, stations, officialSites, source };
       container.addEventListener("focusin", (event) => rememberFocusOrigin(entry, event));
       container.addEventListener("keydown", (event) => {
         if (event.key !== "Escape") return;
@@ -308,12 +309,12 @@ export function useMapPopup({
   }, []);
 
   const openLocations = popupViews.map(({ location, source }) => ({ locationId: location.id, source }));
-  const popupContents = popupViews.map(({ entry, location, stations, ukeStations, source }) =>
+  const popupContents = popupViews.map(({ entry, location, stations, officialSites, source }) =>
     createPortal(
       <PopupLocationContent
         location={location}
         markerStations={stations}
-        ukeStations={ukeStations}
+        officialSites={officialSites}
         source={source}
         statusFilter={statusFilter}
         lookups={lookups}
@@ -329,8 +330,8 @@ export function useMapPopup({
           const didOpen = onOpenStationDetails(id, source, locationId);
           if (didOpen !== false) closePopupFromInside(entry, hasKeyboardFocusInside(entry.container));
         }}
-        onOpenUkeStationDetails={(station) => {
-          const didOpen = onOpenUkeStationDetails(station);
+        onOpenOfficialSiteDetails={(site) => {
+          const didOpen = onOpenOfficialSiteDetails(site);
           if (didOpen !== false) closePopupFromInside(entry, hasKeyboardFocusInside(entry.container));
         }}
       />,

@@ -13,8 +13,8 @@ export type UserListRow = z.infer<typeof userListSelectSchema>;
 
 export type UserListMembership = {
   internal: number[];
-  uke: number[];
-  radiolines: number[];
+  official: number[];
+  microwaveLinks: number[];
 };
 
 export async function getVisibleUserList(req: FastifyRequest, uuid: string): Promise<UserListRow> {
@@ -46,11 +46,11 @@ export async function findListForViewer(req: FastifyRequest, publicId: string, v
   return list;
 }
 
-export function getUserListMembership(list: UserListRow): UserListMembership {
-  const stationMembership = (list.stations as { internal?: number[]; uke?: number[] } | null) ?? {};
+export function getUserListMembership(list: Pick<UserListRow, "stations" | "radiolines">): UserListMembership {
+  const stationMembership = (list.stations as { internal?: number[]; official?: number[] } | null) ?? {};
   return {
     internal: stationMembership.internal ?? [],
-    uke: stationMembership.uke ?? [],
-    radiolines: (list.radiolines as number[] | null) ?? [],
+    official: stationMembership.official ?? [],
+    microwaveLinks: (list.radiolines as number[] | null) ?? [],
   };
 }

@@ -1,21 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchIsUkeStationWatched, unwatchUkeStation, watchUkeStation } from "../api";
 import { fetchIsStationWatched, stationWatchKeys, unwatchStation, watchStation } from "../station/watch/api";
+import { fetchIsOfficialSiteWatched, unwatchOfficialSite, watchOfficialSite } from "@/features/official/api";
+import { officialKeys } from "@/features/official/queries";
 import { showApiError } from "@/lib/api";
 import type { StationSource } from "@/types/station";
 
 function getStationWatchKey(source: StationSource, stationId: number) {
-  return source === "internal" ? stationWatchKeys.status(stationId) : (["station-watch", source, stationId] as const);
+  return source === "internal" ? stationWatchKeys.status(stationId) : officialKeys.siteWatch(stationId);
 }
 
 function fetchIsWatched(source: StationSource, stationId: number, signal: AbortSignal): Promise<boolean> {
-  return source === "internal" ? fetchIsStationWatched(stationId, signal) : fetchIsUkeStationWatched(stationId);
+  return source === "internal" ? fetchIsStationWatched(stationId, signal) : fetchIsOfficialSiteWatched(stationId, signal);
 }
 
 function saveWatch(source: StationSource, stationId: number, watched: boolean): Promise<void> {
   if (source === "internal") return watched ? watchStation(stationId) : unwatchStation(stationId);
-  return watched ? watchUkeStation(stationId) : unwatchUkeStation(stationId);
+  return watched ? watchOfficialSite(stationId) : unwatchOfficialSite(stationId);
 }
 
 export function useStationWatch(stationId: number, source: StationSource = "internal", enabled = true) {

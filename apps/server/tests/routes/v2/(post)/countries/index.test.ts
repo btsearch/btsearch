@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import route from "../../../../../src/routes/v2/(post)/countries/index.js";
-import { dbMock, userSession } from "../../../../helpers/boundaries.js";
+import { dbMock, redisMock, userSession } from "../../../../helpers/boundaries.js";
 import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
 
 const row = {
@@ -19,6 +19,11 @@ const row = {
 const request = { method: "POST" as const, url: "/countries", payload: { code: "PL" } };
 const options = { session: userSession("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "admin") };
 
+function scriptSourceCapabilities() {
+  dbMock.enqueueFor("select", "countries", []);
+  dbMock.enqueueFor("select", "official.sources", []);
+}
+
 describe("POST /countries", () => {
   it("rejects an existing country without creating a second band plan", async () => {
     scriptAudit();
@@ -31,6 +36,7 @@ describe("POST /countries", () => {
     scriptAudit();
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("insert", "countries", [row]);
+    scriptSourceCapabilities();
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(201);
     const mutation = dbMock.calls.find((call) => call.operation === "insert" && call.table === "countries");
@@ -38,6 +44,8 @@ describe("POST /countries", () => {
     expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "audit_logs")).toBe(true);
     expect(response.json()).toMatchObject({ data: { code: "PL" } });
     expect(response.json().data.features).toEqual({ structureOwnerProposals: true, psc: false, bsic: false });
+    expect(redisMock.del).toHaveBeenCalledWith("countries:v2:visibility");
+    expect(redisMock.del.mock.invocationCallOrder[0]).toBeGreaterThan(Math.max(...dbMock.insert.mock.invocationCallOrder));
   });
 
   it("accepts country-specific feature values during creation", async () => {
@@ -45,6 +53,7 @@ describe("POST /countries", () => {
     scriptAudit();
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("insert", "countries", [{ ...row, ...features }]);
+    scriptSourceCapabilities();
     const response = await injectMutation(route, { ...request, payload: { code: "PL", features } }, options);
     expect(response.statusCode).toBe(201);
     expect(response.json().data.features).toEqual(features);
@@ -58,5 +67,6 @@ describe("POST /countries", () => {
     const response = await injectMutation(route, request, options);
     expectError(response, 500, "FAILED_TO_CREATE");
     expect(dbMock.calls.some((call) => call.table === "audit_logs")).toBe(false);
+    expect(redisMock.del).not.toHaveBeenCalled();
   });
 });

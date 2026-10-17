@@ -1,15 +1,16 @@
-import { TERRAIN_RECEIVER_BOUNDS } from "@openbts/shared/terrainProfile";
+import { MAX_LATITUDE, MAX_LONGITUDE } from "@openbts/shared/contract";
+import { TERRAIN_RECEIVER_HEIGHT_M } from "@openbts/shared/terrainProfile";
 import { z } from "zod/v4";
 
 export const TerrainProfileRequestSchema = z.object({
   station: z.discriminatedUnion("source", [
     z.object({ source: z.literal("internal"), id: z.number().int().positive() }),
-    z.object({ source: z.literal("uke"), id: z.number().int().positive() }),
+    z.object({ source: z.literal("official"), id: z.number().int().positive() }),
   ]),
   receiver: z.object({
-    latitude: z.number().min(TERRAIN_RECEIVER_BOUNDS.latitude.min).max(TERRAIN_RECEIVER_BOUNDS.latitude.max),
-    longitude: z.number().min(TERRAIN_RECEIVER_BOUNDS.longitude.min).max(TERRAIN_RECEIVER_BOUNDS.longitude.max),
-    mountedHeight: z.number().min(TERRAIN_RECEIVER_BOUNDS.mountedHeight.min).max(TERRAIN_RECEIVER_BOUNDS.mountedHeight.max),
+    latitude: z.number().min(-MAX_LATITUDE).max(MAX_LATITUDE),
+    longitude: z.number().min(-MAX_LONGITUDE).max(MAX_LONGITUDE),
+    mountedHeight: z.number().min(TERRAIN_RECEIVER_HEIGHT_M.min).max(TERRAIN_RECEIVER_HEIGHT_M.max),
   }),
   antenna_key: z.string().min(1).max(128).optional(),
 });
@@ -21,7 +22,7 @@ export const TerrainWarningCodeSchema = z.enum([
   "ANTENNA_SELECTION_INVALID",
   "SI2PEM_REPORT_UNAVAILABLE",
   "SI2PEM_REPORT_PARSE_FAILED",
-  "UKE_ANTENNA_FALLBACK",
+  "PERMIT_ANTENNA_FALLBACK",
   "NETWORKS_SHARING_DATA",
   "ANTENNA_AZIMUTH_MISMATCH",
   "SURFACE_MODEL_UNAVAILABLE",
@@ -34,7 +35,7 @@ export type TerrainWarningCode = z.infer<typeof TerrainWarningCodeSchema>;
 
 export const AntennaCandidateSchema = z.object({
   key: z.string(),
-  source: z.enum(["si2pem_report", "uke_permit_fallback"]),
+  source: z.enum(["si2pem_report", "permit_fallback"]),
   antenna: z.object({
     mountedHeight: z.number().positive(),
     azimuth: z.number().min(0).max(360).nullable(),
@@ -43,8 +44,6 @@ export const AntennaCandidateSchema = z.object({
   measuredTilt: z.number().nullable(),
   band: z
     .object({
-      id: z.number().int().positive(),
-      name: z.string(),
       value: z.number().positive().nullable(),
       rat: z.string(),
       variant: z.string(),
@@ -61,7 +60,7 @@ export const AntennaCandidateSchema = z.object({
 export type AntennaCandidate = z.infer<typeof AntennaCandidateSchema>;
 
 export const ResolvedTerrainStationSchema = z.object({
-  source: z.enum(["internal", "uke"]),
+  source: z.enum(["internal", "official"]),
   id: z.number().int().positive(),
   station_id: z.string(),
   latitude: z.number(),

@@ -209,6 +209,9 @@ importers:
       '@number-flow/react':
         specifier: 0.6.2
         version: 0.6.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@openbts/country-packs':
+        specifier: workspace:*
+        version: link:../../packages/country-packs
       '@openbts/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -442,15 +445,15 @@ importers:
       '@node-rs/argon2':
         specifier: 2.2.1
         version: 2.2.1
+      '@openbts/country-packs':
+        specifier: workspace:*
+        version: link:../../packages/country-packs
       '@openbts/drizzle':
         specifier: workspace:*
         version: link:../../packages/drizzle
       '@openbts/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@openbts/uke-importer':
-        specifier: workspace:*
-        version: link:../../packages/uke-importer
       '@scalar/fastify-api-reference':
         specifier: 1.72.4
         version: 1.72.4
@@ -540,6 +543,37 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@26.6.4)(@vitest/coverage-v8@5.0.3)(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/country-packs:
+    dependencies:
+      '@openbts/drizzle':
+        specifier: workspace:*
+        version: link:../drizzle
+      '@openbts/shared':
+        specifier: workspace:*
+        version: link:../shared
+      cheerio:
+        specifier: 1.2.0
+        version: 1.2.0
+      drizzle-orm:
+        specifier: 1.0.0-rc.4
+        version: 1.0.0-rc.4(@types/pg@8.23.1)(postgres@3.4.9)(zod@4.6.5)
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      xlsx:
+        specifier: 0.18.5
+        version: 0.18.5
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@openbts/typescript-configs':
+        specifier: workspace:*
+        version: link:../typescript-configs
+      '@types/node':
+        specifier: 26.6.3
+        version: 26.6.3
+
   packages/drizzle:
     dependencies:
       '@openbts/shared':
@@ -582,55 +616,6 @@ importers:
         version: link:../typescript-configs
 
   packages/typescript-configs: {}
-
-  packages/uke-importer:
-    dependencies:
-      '@openbts/drizzle':
-        specifier: workspace:*
-        version: link:../drizzle
-      '@openbts/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@turf/boolean-point-in-polygon':
-        specifier: 7.4.0
-        version: 7.4.0
-      '@turf/helpers':
-        specifier: 7.4.0
-        version: 7.4.0
-      cheerio:
-        specifier: 1.2.0
-        version: 1.2.0
-      dotenv:
-        specifier: 18.0.4
-        version: 18.0.4
-      drizzle-orm:
-        specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@types/pg@8.23.1)(postgres@3.4.9)(zod@4.6.5)
-      fflate:
-        specifier: 0.8.3
-        version: 0.8.3
-      geojson-rbush:
-        specifier: ~3.2.0
-        version: 3.2.0
-      postgres:
-        specifier: 3.4.9
-        version: 3.4.9
-      xlsx:
-        specifier: 0.18.5
-        version: 0.18.5
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@openbts/typescript-configs':
-        specifier: workspace:*
-        version: link:../typescript-configs
-      '@types/geojson':
-        specifier: 7946.0.16
-        version: 7946.0.16
-      '@types/node':
-        specifier: 26.6.3
-        version: 26.6.3
 
 packages:
 
@@ -3740,27 +3725,6 @@ packages:
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
 
-  '@turf/bbox@7.4.0':
-    resolution: {integrity: sha512-yOX9lALc2GmjYUIE99+nRj7eZA7eDtx7Ixu/hrgIo+YqHvL1reaPVTC9rQWMHMm0pH0/WHjzk8uOpAHjptrudQ==}
-
-  '@turf/boolean-point-in-polygon@7.4.0':
-    resolution: {integrity: sha512-GQrHc6WSDHhf32GB/b9AGyOeC05AQ3nGN7ooWTrlCYefKn7X9/2wG9BNexF47AuyDq5jPdOvITVR26BLFWV+mA==}
-
-  '@turf/helpers@6.5.0':
-    resolution: {integrity: sha512-VbI1dV5bLFzohYYdgqwikdMVpe7pJ9X3E+dlr425wa2/sMJqYDhTO++ec38/pcPvPE6oD9WEEeU3Xu3gza+VPw==}
-
-  '@turf/helpers@7.4.0':
-    resolution: {integrity: sha512-7PAwLZqOdRzTI5g9bHvUwlloAXPDH/mlajtryk0tw4ZwGMtmXsAyF4QundsAMfy4u48Fyd3AUqMXY0SMxqJGWg==}
-
-  '@turf/invariant@7.4.0':
-    resolution: {integrity: sha512-OAsc3qdNx+tRqzWmMNFMnVlWWACIqnYqIejZKvb2oKkKPYJJrURPXZ6OdrGD58ljJMolLoqwIZGSx3VndaEjxg==}
-
-  '@turf/meta@6.5.0':
-    resolution: {integrity: sha512-RrArvtsV0vdsCBegoBtOalgdSOfkBrTJ07VkpiCnq/491W67hnMWmDu7e6Ztw0C3WldRYTXkg3SumfdzZxLBHA==}
-
-  '@turf/meta@7.4.0':
-    resolution: {integrity: sha512-3cLUvlEyDuSnMSzrjhaLAEiYR8xhbfWyTVQlrlEw40xL81d4KF4PqUWbjTXKpXZStdYbet2GCurl79KMypNw6g==}
-
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -3811,9 +3775,6 @@ packages:
 
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
-
-  '@types/geojson@7946.0.8':
-    resolution: {integrity: sha512-1rkryxURpr6aWP7R786/UQOkJ3PcpQiWkAXBmdWc7ryFWqN6a4xfK7BtjXvFBKO9LjQ+MWQSWxYeZX1OApnArA==}
 
   '@types/hast@3.0.5':
     resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
@@ -5393,9 +5354,6 @@ packages:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
 
-  geojson-rbush@3.2.0:
-    resolution: {integrity: sha512-oVltQTXolxvsz1sZnutlSuLDEcQAKYC/uXt9zDzJJ6bu0W+baTI8LZBaTup5afzibEH4N3jlq2p+a152wlBJ7w==}
-
   get-east-asian-width@1.6.0:
     resolution: {integrity: sha512-QRbvDIbx6YklUe6RxeTeleMR0yv3cYH6PsPZHcnVn7xv7zO1BHN8r0XETu8n6Ye3Q+ahtSarc3WgtNWmehIBfA==}
     engines: {node: '>=18'}
@@ -6693,9 +6651,6 @@ packages:
     resolution: {integrity: sha512-nDywThFk1i4BQK4twPQ6TA4RT8bDY96yeuCVBWL3ePARCiEKDRSrNGbFIgUJpLp+XeIR65v8ra7WuJOFUBtkMA==}
     engines: {node: '>=8'}
 
-  point-in-polygon-hao@1.2.4:
-    resolution: {integrity: sha512-x2pcvXeqhRHlNRdhLs/tgFapAbSSe86wa/eqmj1G6pWftbEs5aVRJhRGM6FYSUERKu0PjekJzMq0gsI2XyiclQ==}
-
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
@@ -6807,9 +6762,6 @@ packages:
   quick-format-unescaped@4.0.4:
     resolution: {integrity: sha512-tYC1Q1hgyRuHgloV/YXs2w15unPVh8qfu/qCTfhTYamaw7fyhumKa2yGpdSo87vY32rIclj+4fWYQXUMs9EHvg==}
 
-  quickselect@2.0.0:
-    resolution: {integrity: sha512-RKJ22hX8mHe3Y6wH/N3wCM6BWtjaxIyyUIkpHOvfFnxdI4yD4tBXEBKSbriGujF6jnSVkJrffuo6vxACiSSxIw==}
-
   quickselect@3.0.0:
     resolution: {integrity: sha512-XdjUArbK4Bm5fLLvlm5KpTFOiOThgfWWI4axAZDWg4E/0mKdZyI9tNEfds27qCi1ze/vwTR16kvmmGhRra3c2g==}
 
@@ -6820,9 +6772,6 @@ packages:
   raw-body@3.0.2:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
-
-  rbush@3.0.1:
-    resolution: {integrity: sha512-XRaVO0YecOpEuIvbhbpTrZgoiI6xBlz6hnlr6EHhd+0x9ase6EmeN+hdwwUaJvLcsFFQ8iWVF1GAK1yB0BWi0w==}
 
   react-day-picker@10.0.2:
     resolution: {integrity: sha512-QetiKtZWE9Uaw/pM/SYNv6WPYOTRnSJ2puL0GgwkmUFMIwiY0dtjH1W4B7DOVXVNQM0ZOClGpH/heOfBSzWeiA==}
@@ -7013,9 +6962,6 @@ packages:
 
   rfdc@1.4.1:
     resolution: {integrity: sha512-q1b3N5QkRUWUl7iyylaaj3kOpIT0N2i9MqIEQXP73GVsN9cw3fdx8X63cEmWhJGi2PPCF23Ijp7ktmd39rawIA==}
-
-  robust-predicates@3.0.3:
-    resolution: {integrity: sha512-NS3levdsRIUOmiJ8FZWCP7LG3QpJyrs/TE0Zpf1yvZu8cAJJ6QMW92H1c7kWpdIHo8RvmLxN/o2JXTKHp74lUA==}
 
   rolldown@1.2.12:
     resolution: {integrity: sha512-8wafseiaG80xmXSfqidUNqZcylTlhmPZZt+za2m+js2sFZ8dTNlhIOV2WcbIPx2hgwPBJpEUGFAMZ9bgBBLTSQ==}
@@ -10663,44 +10609,6 @@ snapshots:
       minimatch: 10.2.6
       path-browserify: 1.0.1
 
-  '@turf/bbox@7.4.0':
-    dependencies:
-      '@turf/helpers': 7.4.0
-      '@turf/meta': 7.4.0
-      '@types/geojson': 7946.0.16
-      tslib: 2.8.1
-
-  '@turf/boolean-point-in-polygon@7.4.0':
-    dependencies:
-      '@turf/helpers': 7.4.0
-      '@turf/invariant': 7.4.0
-      '@types/geojson': 7946.0.16
-      point-in-polygon-hao: 1.2.4
-      tslib: 2.8.1
-
-  '@turf/helpers@6.5.0': {}
-
-  '@turf/helpers@7.4.0':
-    dependencies:
-      '@types/geojson': 7946.0.16
-      tslib: 2.8.1
-
-  '@turf/invariant@7.4.0':
-    dependencies:
-      '@turf/helpers': 7.4.0
-      '@types/geojson': 7946.0.16
-      tslib: 2.8.1
-
-  '@turf/meta@6.5.0':
-    dependencies:
-      '@turf/helpers': 6.5.0
-
-  '@turf/meta@7.4.0':
-    dependencies:
-      '@turf/helpers': 7.4.0
-      '@types/geojson': 7946.0.16
-      tslib: 2.8.1
-
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -10747,8 +10655,6 @@ snapshots:
   '@types/figlet@1.7.0': {}
 
   '@types/geojson@7946.0.16': {}
-
-  '@types/geojson@7946.0.8': {}
 
   '@types/hast@3.0.5':
     dependencies:
@@ -12304,14 +12210,6 @@ snapshots:
 
   gensync@1.0.0-beta.2: {}
 
-  geojson-rbush@3.2.0:
-    dependencies:
-      '@turf/bbox': 7.4.0
-      '@turf/helpers': 6.5.0
-      '@turf/meta': 6.5.0
-      '@types/geojson': 7946.0.8
-      rbush: 3.0.1
-
   get-east-asian-width@1.6.0: {}
 
   get-intrinsic@1.3.0:
@@ -13797,10 +13695,6 @@ snapshots:
     dependencies:
       find-up: 3.0.0
 
-  point-in-polygon-hao@1.2.4:
-    dependencies:
-      robust-predicates: 3.0.3
-
   possible-typed-array-names@1.1.0: {}
 
   postal-mime@2.7.6: {}
@@ -13887,8 +13781,6 @@ snapshots:
 
   quick-format-unescaped@4.0.4: {}
 
-  quickselect@2.0.0: {}
-
   quickselect@3.0.0: {}
 
   range-parser@1.3.0: {}
@@ -13899,10 +13791,6 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.3
       unpipe: 1.0.0
-
-  rbush@3.0.1:
-    dependencies:
-      quickselect: 2.0.0
 
   react-day-picker@10.0.2(@types/react@19.3.0)(react@19.3.0):
     dependencies:
@@ -14138,8 +14026,6 @@ snapshots:
   reusify@1.1.0: {}
 
   rfdc@1.4.1: {}
-
-  robust-predicates@3.0.3: {}
 
   rolldown@1.2.12:
     dependencies:

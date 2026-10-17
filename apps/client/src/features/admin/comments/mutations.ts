@@ -3,9 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { approveComment, sendCommentBackToQueue, updateCommentText } from "./api";
+import { approveComment, sendCommentBackToQueue } from "./api";
 import { invalidateCommentQueries, storeChangedComment, storeDeletedComment } from "./queries";
-import { deleteStationComment } from "@/features/station-details/station/comments/api";
+import { deleteStationComment, updateStationCommentText } from "@/features/station-details/station/comments/api";
 import { ApiResponseError, showApiError } from "@/lib/api";
 
 type CommentWriteKind = "approve" | "sendBack" | "edit" | "delete";
@@ -108,7 +108,7 @@ export function useCommentModeration() {
   });
 
   const editMutation = useMutation({
-    mutationFn: ({ comment, content }: CommentTextEdit) => updateCommentText(comment.id, content),
+    mutationFn: ({ comment, content }: CommentTextEdit) => updateStationCommentText(comment.id, content),
     onSuccess: (edited) => storeChange(edited, t("comments.editSuccess")),
     onError: (error, { comment }) => reportFailedWrite(error, comment),
   });

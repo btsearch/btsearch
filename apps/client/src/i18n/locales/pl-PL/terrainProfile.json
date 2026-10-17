@@ -90,7 +90,7 @@
       "ANTENNA_SELECTION_INVALID": "Wybrana antena nie jest już dostępna",
       "SI2PEM_REPORT_UNAVAILABLE": "Nie znaleziono pasującego raportu SI2PEM",
       "SI2PEM_REPORT_PARSE_FAILED": "Nie udało się wiarygodnie odczytać najnowszego raportu SI2PEM",
-      "UKE_ANTENNA_FALLBACK": "Użyto wysokości z pozwolenia UKE, ponieważ dane SI2PEM były niedostępne",
+      "PERMIT_ANTENNA_FALLBACK": "Użyto wysokości anteny z pozwolenia, ponieważ dane SI2PEM były niedostępne",
       "NETWORKS_SHARING_DATA": "Dane antenowe pochodzą ze stacji partnerskiej w tej samej lokalizacji (współdzielenie stacji T-Mobile/Orange)",
       "SURFACE_MODEL_UNAVAILABLE": "Brak danych o pokryciu i roślinności",
       "SURFACE_MODEL_PARTIAL": "Dane o pokryciu i roślinności są niepełne na tej trasie",
@@ -139,7 +139,7 @@
     "source": {
       "emfReport": "raport PEM",
       "emfReportDated": "raport PEM z {{date}}",
-      "permit": "pozwolenie UKE"
+      "permit": "pozwolenie"
     }
   },
   "marker": {

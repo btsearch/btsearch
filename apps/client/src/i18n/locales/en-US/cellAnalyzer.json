@@ -48,10 +48,10 @@
     "notFound": "Not found",
     "notAnalyzed": "Not analyzed"
   },
-  "ukeMatch": {
-    "hint": "Probable station from UKE permits, matched by eNBID",
-    "candidates": "Possible UKE stations",
-    "moreCandidates": "Show other possible UKE stations"
+  "registerMatch": {
+    "hint": "Probable station from {{source}} permits, matched by eNBID",
+    "candidates": "Possible {{source}} stations",
+    "moreCandidates": "Show other possible {{source}} stations"
   },
   "errors": {
     "noValidRows": "The file contains no valid cell data",

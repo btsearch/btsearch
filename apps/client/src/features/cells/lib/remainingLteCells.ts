@@ -1,20 +1,12 @@
-import { isNetworksPartnerMnc } from "@/lib/cellular/operators";
+import { type LteSectorRule, type OperatorRef, conventionsFor } from "@openbts/country-packs";
 
 const LTE_MAX_CLID = 255;
 const DEFAULT_LTE_SECTOR_COUNT = 3;
-const PLUS_MNC = 26001;
-const PLAY_MNC = 26006;
 
 type LTECellIdentity = {
   clid: number;
   ecid: number;
   enbid: number;
-};
-
-type LTESectorRule = {
-  clidStep: number;
-  isSequenceStart: (ecid: number) => boolean;
-  supportsFourthSector: boolean;
 };
 
 type LTECellSeed<T> = {
@@ -30,7 +22,8 @@ type LTESectorSequence = {
 };
 
 type BuildRemainingLTECellsOptions<T> = {
-  operatorMnc?: number | null;
+  countryCode: string | null;
+  operator: OperatorRef | null;
   cells: readonly T[];
   getBandId: (cell: T) => number | null;
   getDetails: (cell: T) => Readonly<Record<string, unknown>>;
@@ -51,45 +44,11 @@ function getLTEIdentity(details: Readonly<Record<string, unknown>>): LTECellIden
   return { clid, ecid, enbid };
 }
 
-function isPlaySequenceStart(ecid: number): boolean {
-  const sectorDigit = Math.floor(ecid / 10) % 10;
-  return sectorDigit === 1 || sectorDigit === 4 || sectorDigit === 7;
+function getSectorRule(countryCode: string | null, operator: OperatorRef | null): LteSectorRule | null {
+  return operator === null ? null : conventionsFor(countryCode).lteSectorRule(operator);
 }
 
-function isConsecutiveSequenceStart(ecid: number): boolean {
-  const lastDigit = ecid % 10;
-  return lastDigit % DEFAULT_LTE_SECTOR_COUNT === 0;
-}
-
-const PLAY_SECTOR_RULE: LTESectorRule = {
-  clidStep: 10,
-  isSequenceStart: isPlaySequenceStart,
-  supportsFourthSector: true,
-};
-
-const CONSECUTIVE_SECTOR_RULE = {
-  clidStep: 1,
-  isSequenceStart: isConsecutiveSequenceStart,
-};
-
-const PLUS_SECTOR_RULE: LTESectorRule = {
-  ...CONSECUTIVE_SECTOR_RULE,
-  supportsFourthSector: true,
-};
-
-const NETWORKS_SECTOR_RULE: LTESectorRule = {
-  ...CONSECUTIVE_SECTOR_RULE,
-  supportsFourthSector: false,
-};
-
-function getSectorRule(operatorMnc?: number | null): LTESectorRule | null {
-  if (operatorMnc === PLAY_MNC) return PLAY_SECTOR_RULE;
-  if (operatorMnc === PLUS_MNC) return PLUS_SECTOR_RULE;
-  if (isNetworksPartnerMnc(operatorMnc)) return NETWORKS_SECTOR_RULE;
-  return null;
-}
-
-function getSectorIndex(identity: LTECellIdentity, sequence: LTESectorSequence, rule: LTESectorRule): number | null {
+function getSectorIndex(identity: LTECellIdentity, sequence: LTESectorSequence, rule: LteSectorRule): number | null {
   if (identity.enbid !== sequence.enbid) return null;
   const clidOffset = identity.clid - sequence.startClid;
   if (clidOffset < 0 || clidOffset % rule.clidStep !== 0) return null;
@@ -97,7 +56,7 @@ function getSectorIndex(identity: LTECellIdentity, sequence: LTESectorSequence, 
   return sectorIndex < sequence.sectorCount ? sectorIndex : null;
 }
 
-function resolveSectorSequence(identities: readonly LTECellIdentity[], rule: LTESectorRule, sectorCount: number): LTESectorSequence | null {
+function resolveSectorSequence(identities: readonly LTECellIdentity[], rule: LteSectorRule, sectorCount: number): LTESectorSequence | null {
   const candidates = new Map<string, Pick<LTESectorSequence, "enbid" | "startClid">>();
 
   for (const identity of identities) {
@@ -130,17 +89,24 @@ function resolveSectorSequence(identities: readonly LTECellIdentity[], rule: LTE
   return hasTie ? null : best;
 }
 
-function getTargetSectorCount(rule: LTESectorRule, identityGroups: readonly (readonly LTECellIdentity[])[]): number {
+function getTargetSectorCount(rule: LteSectorRule, identityGroups: readonly (readonly LTECellIdentity[])[]): number {
   if (!rule.supportsFourthSector) return DEFAULT_LTE_SECTOR_COUNT;
   return identityGroups.some((identities) => resolveSectorSequence(identities, rule, 4)?.matchedSectorCount === 4) ? 4 : DEFAULT_LTE_SECTOR_COUNT;
 }
 
-export function supportsRemainingLTECells(operatorMnc?: number | null): boolean {
-  return getSectorRule(operatorMnc) !== null;
+export function supportsRemainingLTECells(countryCode: string | null, operator: OperatorRef | null): boolean {
+  return getSectorRule(countryCode, operator) !== null;
 }
 
-export function buildRemainingLTECells<T>({ operatorMnc, cells, getBandId, getDetails, createCell }: BuildRemainingLTECellsOptions<T>): T[] {
-  const rule = getSectorRule(operatorMnc);
+export function buildRemainingLTECells<T>({
+  countryCode,
+  operator,
+  cells,
+  getBandId,
+  getDetails,
+  createCell,
+}: BuildRemainingLTECellsOptions<T>): T[] {
+  const rule = getSectorRule(countryCode, operator);
   if (rule === null) return [];
 
   const usedEcids = new Set<number>();

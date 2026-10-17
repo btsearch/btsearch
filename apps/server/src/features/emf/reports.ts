@@ -2,7 +2,7 @@ import type { EmfReport } from "@openbts/shared/contract";
 import { type SI2PEMMeasureProperties, SI2PEM_WMS_LAYERS, escapeCqlLiteral } from "si2pem-reader";
 
 import { withRedisStaleCache } from "../../lib/redisCache.js";
-import { MNC_TO_ENTITY } from "../pem/entities.js";
+import { mncToSi2pemName } from "../pem/entities.js";
 import { si2pemDateToInstant, si2pemDateToWarsawDay, toSI2PEMFileUrl } from "../pem/si2pemValues.js";
 import { si2pem } from "./si2pem.js";
 import { type EmfSite, siteBox } from "./site.js";
@@ -93,7 +93,7 @@ async function cachedReports(key: string, load: () => Promise<EmfReport[]>): Pro
 
 export async function listEmfReports(site: EmfSite): Promise<EmfReport[]> {
   const siteKey = encodeURIComponent(site.siteId);
-  const entityName = site.mnc === null ? undefined : MNC_TO_ENTITY[site.mnc];
+  const entityName = site.mnc === null ? undefined : mncToSi2pemName(site.mnc);
 
   const requests = [cachedReports(`measurements:${siteKey}:${site.latitude}:${site.longitude}`, () => fetchMeasurementReports(site))];
   if (entityName !== undefined) requests.push(cachedReports(`filings:${siteKey}:${site.mnc}`, () => fetchFilingReports(site.siteId, entityName)));

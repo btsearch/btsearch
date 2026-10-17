@@ -1,16 +1,24 @@
 import type { Operator } from "@openbts/shared/contract";
 
-import { type MapFilters, type MapFiltersChange, type MapRecentDateField, clearMapFilters, countActiveMapFilters } from "../data/mapFilters";
+import {
+  type CapableCountries,
+  type MapFilters,
+  type MapFiltersChange,
+  type MapRecentDateField,
+  clearMapFilters,
+  countActiveMapFilters,
+} from "../data/mapFilters";
 import { toggleValue } from "@/lib/utils";
 import type { StationStatus } from "@/types/station";
 
 type UseFilterHandlersArgs = {
   filters: MapFilters;
   operators: readonly Operator[] | undefined;
+  countries: CapableCountries;
   onFiltersChange: (update: MapFiltersChange) => void;
 };
 
-export function useFilterHandlers({ filters, operators, onFiltersChange }: UseFilterHandlersArgs) {
+export function useFilterHandlers({ filters, operators, countries, onFiltersChange }: UseFilterHandlersArgs) {
   function handleToggleOperator(operatorId: number) {
     onFiltersChange((current) => ({ ...current, operatorIds: toggleValue(current.operatorIds, operatorId) }));
   }
@@ -66,6 +74,6 @@ export function useFilterHandlers({ filters, operators, onFiltersChange }: UseFi
     handleRecentDaysChange,
     handleRecentDateFieldChange,
     handleClearFilters,
-    activeFilterCount: countActiveMapFilters(filters, operators),
+    activeFilterCount: countActiveMapFilters(filters, operators, countries),
   };
 }

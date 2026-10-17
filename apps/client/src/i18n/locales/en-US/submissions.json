@@ -27,7 +27,8 @@
     "addressPlaceholder": "Enter address...",
     "nearbyLocations": "Nearby stations",
     "createNewLocation": "Create new location here",
-    "showUkeLocations": "Show UKE locations",
+    "showSourceLocations": "Show {{source}} locations",
+    "showRegisterLocations": "Show register locations",
     "selectStation": "Select a station to import",
     "existingLocation": "Existing location",
     "useExistingAddress": "Use existing address"
@@ -211,12 +212,10 @@
       "notFound": "No azimuths found in the latest SI2PEM laboratory report",
       "fetchFailed": "Failed to fetch azimuths from the latest SI2PEM laboratory report"
     },
-    "uke": {
-      "fetchFailed": "Failed to fetch azimuths from UKE"
+    "register": {
+      "notFound": "No {{source}} azimuths found for this station and operator",
+      "fetchFailed": "Failed to fetch azimuths from {{source}}"
     }
-  },
-  "ukeSectors": {
-    "notFound": "No UKE azimuths found for this station and operator"
   },
   "review": {
     "tabs": {
@@ -227,6 +226,7 @@
     },
     "reload": "Reload",
     "partnerAzimuths": "The partner's station {{station}} will get the same azimuths",
+    "severalPartnerStations": "Several partner stations share this place. The uplink, azimuths and photos go only to the one with a matching eNBID. If none or more than one matches, nothing is copied",
     "queue": {
       "place_one": "{{place, number}} of {{count, number}} pending",
       "place_other": "{{place, number}} of {{count, number}} pending",

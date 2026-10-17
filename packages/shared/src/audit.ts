@@ -53,7 +53,10 @@ export const AUDIT_OPERATION_KINDS = [
   "list.update",
   "list.delete",
   "settings.update",
-  "uke.import",
+  "official.import",
+  "official_source.update",
+  "official_dataset.update",
+  "licensee.update",
   "system.inactive_cleanup",
   "system.submission_cleanup",
   "revert",
@@ -93,6 +96,9 @@ export const AUDIT_ENTITIES = [
   "users",
   "user_lists",
   "settings",
+  "official_sources",
+  "official_datasets",
+  "licensees",
 ] as const;
 
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];

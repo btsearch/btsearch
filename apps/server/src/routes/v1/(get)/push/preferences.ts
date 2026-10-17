@@ -36,7 +36,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   return res.send({
     data: {
-      ukeUpdates: prefs.ukeUpdates === true,
+      ukeUpdates: prefs.officialDataUpdates === true,
       submissionUpdates: prefs.submissionUpdates !== false,
       newSubmission: prefs.newSubmission !== false,
       stationWatches: prefs.stationWatches !== false,

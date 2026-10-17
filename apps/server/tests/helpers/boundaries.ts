@@ -1,5 +1,5 @@
 import type { CountryFeatures } from "@openbts/shared/contract";
-import { type SQL, type SQLWrapper, getTableName, sql } from "drizzle-orm";
+import { type Query, SQL, type SQLWrapper, getTableName, getTableUniqueName, sql } from "drizzle-orm";
 import type { Table } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { FastifyRequest } from "fastify";
@@ -15,7 +15,14 @@ export type DatabaseCall = {
   values?: unknown;
   selection?: unknown;
 };
-type ScriptedResult = { operation?: string; table?: string; countryFeatures?: boolean; submissionPlacement?: boolean; result: unknown };
+type ScriptedResult = {
+  operation?: string;
+  table?: string;
+  countryFeatures?: boolean;
+  submissionPlacement?: boolean;
+  stationLinks?: boolean;
+  result: unknown;
+};
 type QueryBoundary = {
   [Name in keyof Database["query"]]: {
     findFirst: Mock<(options?: unknown) => Promise<unknown>>;
@@ -27,15 +34,10 @@ const calls: DatabaseCall[] = [];
 const queryTables: Record<string, Record<string, ReturnType<typeof vi.fn>>> = {};
 const defaultCountryFeatures: CountryFeatures = { structureOwnerProposals: true, psc: false, bsic: false };
 const countryFeatures = new Map<string, CountryFeatures>();
-const stationCountries = new Map<number, string>();
 const dialect = new PgDialect();
 
 export function setCountryFeatures(features: Partial<CountryFeatures>, countryCode = "PL"): void {
   countryFeatures.set(countryCode, { ...(countryFeatures.get(countryCode) ?? defaultCountryFeatures), ...features });
-}
-
-export function setStationCountry(stationId: number, countryCode: string): void {
-  stationCountries.set(stationId, countryCode);
 }
 
 function isCountryFeatureProjection(selection: unknown): selection is Record<string, unknown> {
@@ -61,6 +63,21 @@ function isSubmissionPlacementProjection(call: DatabaseCall): boolean {
   );
 }
 
+function isStationLinkRead(call: DatabaseCall): boolean {
+  if (call.operation !== "select" || (call.table !== "stations" && call.table !== "official.sites")) return false;
+
+  const selection = call.selection;
+  if (typeof selection === "object" && selection !== null && Object.keys(selection).join() === "operatorId,siteId") return true;
+
+  const condition = call.clauses.where?.[0];
+  return (
+    typeof condition === "object" &&
+    condition !== null &&
+    "getSQL" in condition &&
+    dialect.sqlToQuery((condition as SQLWrapper).getSQL()).sql.includes("link_group")
+  );
+}
+
 function defaultFeatureResult(call: DatabaseCall, selection: Record<string, unknown>) {
   const condition = call.clauses.where?.[0];
   const params =
@@ -68,7 +85,7 @@ function defaultFeatureResult(call: DatabaseCall, selection: Record<string, unkn
   if ("stationId" in selection)
     return [...new Set(params.filter((value): value is number => typeof value === "number"))].map((stationId) => ({
       stationId,
-      ...(countryFeatures.get(stationCountries.get(stationId) ?? "PL") ?? defaultCountryFeatures),
+      ...(countryFeatures.get("PL") ?? defaultCountryFeatures),
     }));
   if ("code" in selection)
     return [...new Set(params.filter((value): value is string => typeof value === "string"))].map((code) => ({
@@ -81,7 +98,8 @@ function defaultFeatureResult(call: DatabaseCall, selection: Record<string, unkn
 function tableName(table: unknown): string | undefined {
   if (typeof table !== "object" || table === null) return undefined;
   try {
-    return getTableName(table as Table);
+    const uniqueName = getTableUniqueName(table as Table);
+    return uniqueName.startsWith("official.") ? uniqueName : getTableName(table as Table);
   } catch {
     return undefined;
   }
@@ -92,14 +110,17 @@ function consume(call: DatabaseCall): Promise<unknown> {
   const selection = call.selection;
   const featureProjection = isCountryFeatureProjection(selection);
   const placementProjection = isSubmissionPlacementProjection(call);
+  const stationLinkRead = isStationLinkRead(call);
   const matching = results.findIndex(
     (entry) =>
       (entry.countryFeatures === true) === featureProjection &&
       (entry.submissionPlacement === true) === placementProjection &&
+      (entry.stationLinks === true) === stationLinkRead &&
       (entry.operation === undefined || entry.operation === call.operation) &&
       (entry.table === undefined || entry.table === call.table),
   );
   if (matching < 0 && featureProjection) return Promise.resolve(defaultFeatureResult(call, selection));
+  if (matching < 0 && stationLinkRead) return Promise.resolve([]);
   if (matching < 0) return Promise.reject(new Error(`Unscripted database call: ${call.operation} ${call.table ?? ""}`));
   const entry = results.splice(matching, 1)[0];
   if (entry?.result instanceof Error) return Promise.reject(entry.result);
@@ -124,7 +145,7 @@ function chain(operation: string, table?: unknown, selection?: unknown): Record<
           const selected =
             projection.length > 0
               ? sql.join(
-                  projection.map((column) => sql`${column as SQLWrapper}`),
+                  projection.map((column) => sql`${(column instanceof SQL.Aliased ? column.sql : column) as SQLWrapper}`),
                   sql`, `,
                 )
               : sql`*`;
@@ -136,7 +157,7 @@ function chain(operation: string, table?: unknown, selection?: unknown): Record<
       return (...args: unknown[]) => {
         const name = String(property);
         call.clauses[name] = args;
-        if (name === "from") call.table = tableName(args[0]);
+        if (name === "from" && operation === "select") call.table = tableName(args[0]);
         if (name === "values" || name === "set") call.values = args[0];
         return builder;
       };
@@ -159,6 +180,8 @@ export const dbMock = {
   query,
   select: vi.fn((selection?: unknown) => chain("select", undefined, selection)),
   selectDistinct: vi.fn((selection?: unknown) => chain("select", undefined, selection)),
+  selectDistinctOn: vi.fn((_columns: unknown, selection?: unknown) => chain("select", undefined, selection)),
+  $with: vi.fn((alias: string) => ({ as: (subquery: { as(name: string): unknown }) => subquery.as(alias) })),
   insert: vi.fn((table: unknown) => chain("insert", table)),
   update: vi.fn((table: unknown) => chain("update", table)),
   delete: vi.fn((table: unknown) => chain("delete", table)),
@@ -177,10 +200,18 @@ export const dbMock = {
   enqueueSubmissionPlacement(...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation: "select", table: "submissions", submissionPlacement: true, result })));
   },
+  enqueueStationLinks(...scripted: unknown[]): void {
+    results.push(...scripted.map((result) => ({ operation: "select", stationLinks: true, result })));
+  },
   pendingResults(): number {
     return results.length;
   },
 };
+
+export function queryOf(recorded: unknown): Query {
+  if (recorded === undefined) throw new Error("No such call or clause was recorded");
+  return dialect.sqlToQuery((recorded as SQLWrapper).getSQL());
+}
 
 const redisValues = new Map<string, string>();
 export const redisMock = {
@@ -195,7 +226,12 @@ export const redisMock = {
     redisValues.set(key, value);
     return "OK";
   }),
-  del: vi.fn(async (key: string) => Number(redisValues.delete(key))),
+  del: vi.fn(async (key: string | string[]) => [key].flat().filter((name) => redisValues.delete(name)).length),
+  scanIterator: vi.fn(async function* scanKeys(options?: { MATCH?: string }) {
+    const prefix = (options?.MATCH ?? "*").replace(/\*$/, "");
+    const keys = [...redisValues.keys()].filter((key) => key.startsWith(prefix));
+    if (keys.length > 0) yield keys;
+  }),
   exists: vi.fn(async (key: string) => Number(redisValues.has(key))),
   expire: vi.fn(async () => 1),
   incr: vi.fn(async () => 1),
@@ -213,6 +249,10 @@ export const redisMock = {
   duplicate: vi.fn(),
   multi: vi.fn(),
 };
+export function cacheInRedis(key: string, value: unknown): void {
+  redisValues.set(key, JSON.stringify({ freshUntil: Date.now() + 60_000, value }));
+}
+
 const initialRedisImplementations = Object.entries(redisMock).flatMap(([name, value]) =>
   vi.isMockFunction(value) ? [[name, value.getMockImplementation()] as const] : [],
 );
@@ -269,7 +309,6 @@ export function resetBoundaries(): void {
   calls.length = 0;
   redisValues.clear();
   countryFeatures.clear();
-  stationCountries.clear();
   redisMock.isReady = true;
   vi.clearAllMocks();
   for (const [name, implementation] of initialRedisImplementations) {

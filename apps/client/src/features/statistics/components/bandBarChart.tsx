@@ -1,30 +1,18 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { InternalPermitRow, StatsOperator, StatsPermitRow } from "../api";
-import { operatorDataKey, operatorSeries } from "../lib/series";
+import { type OperatorValue, toStackedBars } from "../lib/series";
 import { type ChartErrorProps, StatChartCard } from "./statChartCard";
 
-function useBarData(rows: { operator: StatsOperator; band: { name: string } }[] | undefined, valueKey: string) {
-  return useMemo(() => {
-    if (!rows?.length) return { data: [], series: [] };
+type BandBarChartProps = { data?: OperatorValue[]; isLoading: boolean } & ChartErrorProps;
 
-    const bandMap = new Map<string, Record<string, string | number>>();
-    for (const row of rows) {
-      const existing = bandMap.get(row.band.name) ?? { band: row.band.name };
-      existing[operatorDataKey(row.operator)] = (row as Record<string, unknown>)[valueKey] as number;
-      bandMap.set(row.band.name, existing);
-    }
-
-    return { data: [...bandMap.values()], series: operatorSeries(rows.map((row) => row.operator)) };
-  }, [rows, valueKey]);
+function useBarData(values: OperatorValue[] | undefined) {
+  return useMemo(() => (values?.length ? toStackedBars(values, "band") : { data: [], series: [] }), [values]);
 }
 
-type BandBarChartProps<T> = { data?: T[]; isLoading: boolean } & ChartErrorProps;
-
-export function UkeBandBarChart({ data, isLoading, ...errorProps }: BandBarChartProps<StatsPermitRow>) {
+export function RegisterBandBarChart({ data, isLoading, ...errorProps }: BandBarChartProps) {
   const { t } = useTranslation("statistics");
-  const { data: chartData, series } = useBarData(data, "unique_stations");
+  const { data: chartData, series } = useBarData(data);
 
   return (
     <StatChartCard
@@ -40,9 +28,9 @@ export function UkeBandBarChart({ data, isLoading, ...errorProps }: BandBarChart
   );
 }
 
-export function InternalBandStationsBarChart({ data, isLoading, ...errorProps }: BandBarChartProps<InternalPermitRow>) {
+export function InternalBandStationsBarChart({ data, isLoading, ...errorProps }: BandBarChartProps) {
   const { t } = useTranslation("statistics");
-  const { data: chartData, series } = useBarData(data, "stations");
+  const { data: chartData, series } = useBarData(data);
 
   return (
     <StatChartCard

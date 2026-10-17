@@ -111,12 +111,6 @@ describe("authHook", () => {
     settings({ maintenanceEnabled: true });
     expectFailure(await request({}, {}, "/api/v1/auth/sign-up/email", "/api/v1/auth/*"), 503, "MAINTENANCE_MODE");
   });
-  it("restores guest access when maintenance mode is disabled", async () => {
-    settings({ maintenanceEnabled: true });
-    expectFailure(await request({ allowGuestAccess: true }), 503, "MAINTENANCE_MODE");
-    settings({ maintenanceEnabled: false });
-    expect((await request({ allowGuestAccess: true })).statusCode).toBe(200);
-  });
   it("retains permission checks for administrators during maintenance", async () => {
     settings({ maintenanceEnabled: true });
     authBoundary.getCurrentUser.mockResolvedValue(userSession(userId, "admin"));

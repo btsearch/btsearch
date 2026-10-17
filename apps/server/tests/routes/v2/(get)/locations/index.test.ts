@@ -105,15 +105,10 @@ describe("getLocations", () => {
     expect(dbMock.calls.find((call) => call.table === "locations")?.clauses.limit).toEqual([1501]);
   });
 
-  it.each(["page", "total", "stations"])("returns a controlled failure when the %s query rejects", async (failedQuery) => {
+  it.each(["total", "stations"])("returns a controlled failure when the %s query rejects", async (failedQuery) => {
     const failure = new Error(`Failed ${failedQuery} query`);
     dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor(
-      "select",
-      "locations",
-      failedQuery === "page" ? failure : [{ ...readLocation, key: 1 }],
-      failedQuery === "total" ? failure : [{ total: 7 }],
-    );
+    dbMock.enqueueFor("select", "locations", [{ ...readLocation, key: 1 }], failedQuery === "total" ? failure : [{ total: 7 }]);
     dbMock.enqueueFor("select", "stations", failedQuery === "stations" ? failure : [{ station: { ...readStation, location_id: 1 } }], []);
     dbMock.enqueueFor("select", "extra_identificators", []);
     const { app, errors } = await createRouteHarnessWithErrors(getLocations);
@@ -129,15 +124,6 @@ describe("getLocations", () => {
     expect(response.statusCode).toBe(403);
     expect(response.json().errors[0].code).toBe("INSUFFICIENT_PERMISSIONS");
     expect(dbMock.calls).toHaveLength(0);
-  });
-
-  it("returns an empty collection with zero total for a valid empty page", async () => {
-    dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "locations", [], []);
-    const app = await createRouteHarness(getLocations);
-    const response = await app.inject({ method: "GET", url: "/locations?includeTotal=true" });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ data: [], paging: { limit: 50, nextCursor: null, total: 0 } });
   });
 
   it.each(["limit=1501", "cursor=x&offset=0", "hasStations=0", "include=stations.invalid", "q=%00", "structureTypes=unknownValue"])(

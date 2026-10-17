@@ -8,11 +8,11 @@ import { z } from "zod/v4";
 import { ErrorResponse } from "../../../../errors.js";
 import { actorIdFromRequest } from "../../../../features/access/access.js";
 import { runAuditedOperation, standaloneAuditContext } from "../../../../features/audit/index.js";
-import { loadHiddenCountryCodes } from "../../../../features/countries/visibility.js";
 import { assertItemsExist } from "../../../../features/lists/items.js";
 import { MAX_USER_LISTS } from "../../../../features/lists/limits.js";
 import { toList } from "../../../../features/lists/serialize.js";
 import { assertListsEnabled } from "../../../../features/lists/visibility.js";
+import { loadOfficialVisibility } from "../../../../features/official/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -21,7 +21,8 @@ const schemaRoute = {
   description:
     "Creates a list and returns it. You can have up to 15 lists, and each of them needs its own name. " +
     "A new list is private and has notifications turned off unless you set `isPublic` or `notificationsEnabled`. " +
-    "Every item you add has to exist, and stations in countries you cannot access count as missing.",
+    "Every item you add has to exist. Stations in countries you cannot access count as missing, " +
+    "and so do official sites and microwave links of sources that are hidden from you.",
   body: listCreateSchema,
   response: {
     201: z.object({
@@ -44,7 +45,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   if (userId === null) throw new ErrorResponse("UNAUTHORIZED");
 
   const { name, description, isPublic = false, notificationsEnabled = false, items = {} } = req.body;
-  const hidden = await loadHiddenCountryCodes(req);
+  const visibility = await loadOfficialVisibility(req);
 
   try {
     const created = await runAuditedOperation(standaloneAuditContext(req), { kind: "list.create" }, async (tx, audit) => {
@@ -54,7 +55,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       }
       if (owned.some((list) => list.name === name)) throw new ErrorResponse("CONFLICT", { message: "You already have a list with this name" });
 
-      await assertItemsExist(tx, items, hidden);
+      await assertItemsExist(tx, items, visibility);
 
       const [result] = await tx
         .insert(userLists)
@@ -64,7 +65,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
           is_public: isPublic,
           notificationsEnabled,
           created_by: userId,
-          stations: { internal: [...new Set(items.stationIds)], uke: [...new Set(items.officialSiteIds)] },
+          stations: { internal: [...new Set(items.stationIds)], official: [...new Set(items.officialSiteIds)] },
           radiolines: [...new Set(items.microwaveLinkIds)],
         })
         .returning();

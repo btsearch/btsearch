@@ -8,11 +8,11 @@ export default defineConfig({
     alias: [
       { find: "@openbts/shared/contract", replacement: `${workspace}packages/shared/src/contract/index.ts` },
       { find: /^@openbts\/shared\/(.+)$/, replacement: `${workspace}packages/shared/src/$1.ts` },
+      { find: "@openbts/country-packs/sources", replacement: `${workspace}packages/country-packs/sources.ts` },
+      { find: "@openbts/country-packs", replacement: `${workspace}packages/country-packs/index.ts` },
       { find: "@openbts/drizzle/db", replacement: `${workspace}packages/drizzle/db.ts` },
-      { find: "@openbts/drizzle/types", replacement: `${workspace}packages/drizzle/schemas/types.ts` },
       { find: "@openbts/drizzle", replacement: `${workspace}packages/drizzle/schemas/index.ts` },
       { find: /^@openbts\/proto\/gen\/(.+)$/, replacement: `${workspace}packages/proto/src/gen/$1.ts` },
-      { find: /^@openbts\/uke-importer\/(.+)$/, replacement: `${workspace}packages/uke-importer/src/$1.ts` },
     ],
   },
   test: {

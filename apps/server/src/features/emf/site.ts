@@ -1,13 +1,14 @@
-import { locations, operators, regions, stations, ukeLocations, ukeStations } from "@openbts/drizzle";
+import { capabilitiesFor } from "@openbts/country-packs";
+import { locations, officialLocations, officialSites, operators, regions, stations } from "@openbts/drizzle";
 import type { Bbox, EmfSiteReference } from "@openbts/shared/contract";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
-import { loadHiddenCountryCodes } from "../countries/visibility.js";
+import { assertCapabilityVisible } from "../countries/visibility.js";
+import { loadOfficialVisibility, officialLocationIsPublic } from "../official/visibility.js";
 import { stationCountryCode } from "../stations/country.js";
-import { EMF_COUNTRY_CODE } from "./si2pem.js";
 
 export type EmfSite = { siteId: string; latitude: number; longitude: number; mnc: number | null };
 
@@ -20,10 +21,6 @@ function roundCoordinate(degrees: number): number {
 
 function toSite(siteId: string, latitude: number, longitude: number, mnc: number | null): EmfSite {
   return { siteId, latitude: roundCoordinate(latitude), longitude: roundCoordinate(longitude), mnc };
-}
-
-export async function assertEmfCountryVisible(req: FastifyRequest): Promise<void> {
-  if ((await loadHiddenCountryCodes(req)).includes(EMF_COUNTRY_CODE)) throw new ErrorResponse("NOT_FOUND");
 }
 
 async function stationSite(req: FastifyRequest, stationId: number): Promise<EmfSite | null> {
@@ -42,23 +39,24 @@ async function stationSite(req: FastifyRequest, stationId: number): Promise<EmfS
     .where(eq(stations.id, stationId))
     .limit(1);
   if (!row) throw new ErrorResponse("NOT_FOUND");
-  if (row.countryCode !== null && row.countryCode !== EMF_COUNTRY_CODE) throw new ErrorResponse("NOT_FOUND");
-  await assertEmfCountryVisible(req);
+  if (row.countryCode !== null && !capabilitiesFor(row.countryCode).emf) throw new ErrorResponse("NOT_FOUND");
+  await assertCapabilityVisible(req, "emf");
 
   if (row.latitude === null || row.longitude === null) return null;
   return toSite(row.siteId, row.latitude, row.longitude, row.mnc);
 }
 
 async function officialSite(req: FastifyRequest, officialSiteId: number): Promise<EmfSite> {
+  const visibility = await loadOfficialVisibility(req);
   const [row] = await db
-    .select({ siteId: ukeStations.station_id, latitude: ukeLocations.latitude, longitude: ukeLocations.longitude, mnc: operators.mnc })
-    .from(ukeStations)
-    .innerJoin(ukeLocations, eq(ukeLocations.id, ukeStations.location_id))
-    .innerJoin(operators, eq(operators.id, ukeStations.operator_id))
-    .where(eq(ukeStations.id, officialSiteId))
+    .select({ siteId: officialSites.station_id, latitude: officialLocations.latitude, longitude: officialLocations.longitude, mnc: operators.mnc })
+    .from(officialSites)
+    .innerJoin(officialLocations, eq(officialLocations.id, officialSites.location_id))
+    .innerJoin(operators, eq(operators.id, officialSites.operator_id))
+    .where(and(eq(officialSites.id, officialSiteId), officialLocationIsPublic(officialSites.location_id, visibility)))
     .limit(1);
   if (!row) throw new ErrorResponse("NOT_FOUND");
-  await assertEmfCountryVisible(req);
+  await assertCapabilityVisible(req, "emf");
 
   return toSite(row.siteId, row.latitude, row.longitude, row.mnc);
 }
@@ -75,7 +73,7 @@ export async function resolveEmfSite(req: FastifyRequest, reference: EmfSiteRefe
 
   const { siteId, latitude, longitude, operatorId } = reference;
   if (siteId === undefined || latitude === undefined || longitude === undefined) throw new ErrorResponse("BAD_REQUEST");
-  await assertEmfCountryVisible(req);
+  await assertCapabilityVisible(req, "emf");
   return toSite(siteId, latitude, longitude, operatorId === undefined ? null : await operatorMnc(operatorId));
 }
 

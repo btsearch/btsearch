@@ -233,7 +233,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                             key={stationId}
                             to="/admin/stations/$id"
                             params={{ id: String(stationId) }}
-                            search={{ uke: undefined }}
+                            search={{ officialSite: undefined }}
                             className="text-sm text-primary hover:underline"
                             onClick={() => handleOpenChange(false)}
                           >

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { countryQueryOptions, updateCountry } from "../../api/countries";
 import { invalidateCountries } from "../../api/queryKeys";
-import type { Country, CountryUpdate, CountryView } from "../../types";
+import type { BoundingBox, Country, CountryUpdate } from "../../types";
 import { hasChanges, pickChanges } from "../../utils/diff";
 import { showReferenceError } from "../../utils/errors";
 import {
@@ -64,7 +64,7 @@ type CoordinateFieldProps = {
 };
 
 type DefaultViewPreviewProps = {
-  view: CountryView | null;
+  view: BoundingBox | null;
   isDraftEmpty: boolean;
 };
 
@@ -118,7 +118,7 @@ function PreviewPlaceholder({ children }: { children: ReactNode }) {
   );
 }
 
-function PreviewContent({ view }: { view: CountryView | null }) {
+function PreviewContent({ view }: { view: BoundingBox | null }) {
   const { t } = useTranslation("admin");
 
   if (view === null) return <PreviewPlaceholder>{t("reference.country.general.defaultView.preview.empty")}</PreviewPlaceholder>;

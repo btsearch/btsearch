@@ -1,3 +1,4 @@
+import { conventionsFor } from "@openbts/country-packs";
 import {
   bands,
   cells,
@@ -16,6 +17,7 @@ import {
 import { type SQL, and, eq, inArray } from "drizzle-orm";
 
 import db from "../../database/psql.js";
+import { stationCountryCode } from "../stations/country.js";
 import type { StoredStructureType } from "../structures/serialize.js";
 import { type BandDuplex, type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF, prepareConvertOptions } from "./converter.js";
 
@@ -39,6 +41,7 @@ export type StationExportMetadata = {
   address: string | null;
   region_code: string | null;
   country_code: string | null;
+  station_country_code: string | null;
   structure_type: StoredStructureType | null;
   structure_owner: string | null;
   structure_note: string | null;
@@ -136,6 +139,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
     address: locations.address,
     region_code: regions.code,
     country_code: regions.countryCode,
+    station_country_code: stationCountryCode,
     structure_type: locations.structure_type,
     structure_owner: structureOwners.name,
     structure_note: locations.structure_note,
@@ -276,10 +280,15 @@ export async function renderExportLines(
 ): Promise<string[]> {
   const preparedOptions = prepareConvertOptions(convertOptions);
   const displayNRSeparately = convertOptions.displayNRSeparately === true;
+  const perCellTacStationIds = new Set<number>();
   const stationLteTacMap = new Map<number, number>();
   if (displayNRSeparately) {
+    for (const row of nrRows) {
+      if (row.nr_type === "nsa" && !conventionsFor(row.station_country_code).hoistedTac) perCellTacStationIds.add(row.station_pk);
+    }
     for (const row of lteRows) {
       if (row.lte_tac === null || row.lte_tac === undefined) continue;
+      if (perCellTacStationIds.has(row.station_pk)) continue;
       if (!stationLteTacMap.has(row.station_pk)) stationLteTacMap.set(row.station_pk, row.lte_tac);
     }
   }
@@ -310,7 +319,15 @@ export async function renderExportLines(
 
   for (const row of stationLteTacRows) {
     if (row.station_lte_tac === null || row.station_lte_tac === undefined) continue;
+    if (perCellTacStationIds.has(row.station_id)) continue;
     if (!stationLteTacMap.has(row.station_id)) stationLteTacMap.set(row.station_id, row.station_lte_tac);
+  }
+
+  const lteTacRowsByStation = Map.groupBy(stationLteTacRows, (row) => row.station_id);
+  for (const stationId of perCellTacStationIds) {
+    const tacs = (lteTacRowsByStation.get(stationId) ?? []).map((row) => row.station_lte_tac);
+    const [tac] = tacs;
+    if (typeof tac === "number" && tacs.every((other) => other === tac)) stationLteTacMap.set(stationId, tac);
   }
 
   stationSectorRows.sort((a, b) => (a.station_id === b.station_id ? a.id - b.id : a.station_id - b.station_id));

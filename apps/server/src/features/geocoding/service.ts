@@ -69,7 +69,7 @@ export async function searchPlaces(query: string, scope: GeocodingScope): Promis
     .update(JSON.stringify([text.toLowerCase(), language, countryCodes]))
     .digest("hex")
     .slice(0, 32);
-  const { value } = await withRedisStaleCache(`geocoding:search:v3:${cacheId}`, GEOCODING_CACHE, async () => {
+  const { value } = await withRedisStaleCache(`geocoding:search:v4:${cacheId}`, GEOCODING_CACHE, async () => {
     const { source, value: results } = await runWithFallback((provider) => provider.search(text, { language, countryCodes }));
     return { source, results };
   });
@@ -82,7 +82,7 @@ export async function reverseGeocode(latitude: number, longitude: number, reques
   const lat = Number(latitude.toFixed(5));
   const lng = Number(longitude.toFixed(5));
   const language = providerLanguage(requestedLanguage);
-  const { value } = await withRedisStaleCache(`geocoding:reverse:v3:${language}:${lat}:${lng}`, GEOCODING_CACHE, async () => {
+  const { value } = await withRedisStaleCache(`geocoding:reverse:v4:${language}:${lat}:${lng}`, GEOCODING_CACHE, async () => {
     const { source, value: result } = await runWithFallback((provider) => provider.reverse(lat, lng, language));
     return { source, result };
   });

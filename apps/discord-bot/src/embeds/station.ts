@@ -13,16 +13,25 @@ import {
   TextDisplayBuilder,
 } from "discord.js";
 
-import type { Cell, GsmDetails, LteDetails, NrDetails, Photo, Station, UmtsDetails } from "../api.js";
+import type { Brand, Cell, Photo, Station } from "../api.js";
 import { photoUrl, stationUrl } from "../api.js";
-import { operatorDot } from "../utils.js";
+import { operatorDot, operatorName } from "../utils.js";
 
 function ratSummary(cells: Cell[]): string {
   const counts: Record<string, number> = {};
   for (const cell of cells) counts[cell.rat] = (counts[cell.rat] ?? 0) + 1;
   return Object.entries(counts)
-    .map(([rat, n]) => `**${rat}**: ${n}`)
+    .map(([rat, n]) => `**${rat.toUpperCase()}**: ${n}`)
     .join(" · ");
+}
+
+function identifierOf(station: Station, kind: string): string | undefined {
+  return station.identifiers.find((identifier) => identifier.kind === kind)?.value;
+}
+
+function stationHeader(station: Station): string {
+  const mnoName = identifierOf(station, "operatorName");
+  return `### ${station.siteId} ${mnoName ? `(${mnoName})` : ""}`;
 }
 
 type MessageComponent = NonNullable<BaseMessageOptions["components"]>[number];
@@ -65,41 +74,39 @@ export function buildStationNav(
   );
 }
 
-export function buildStationView(station: Station, photos: Photo[], pemUrl?: string): StationReply {
-  const mainPhoto = photos.find((p) => p.is_main) ?? photos[0];
-  const url = stationUrl(station);
+export function buildStationView(station: Station, photos: Photo[], brands: readonly Brand[], pemUrl?: string): StationReply {
+  const mainPhoto = photos.find((p) => p.selections.some((selection) => selection.stationId === station.id && selection.isMain)) ?? photos[0];
+  const { location } = station;
+  const opName = operatorName(station.operator, brands);
 
   const components: MessageComponent[] = [];
 
-  if (mainPhoto) components.push(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(photoUrl(mainPhoto.attachment_uuid))));
+  if (mainPhoto) components.push(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(photoUrl(mainPhoto))));
 
-  const ei = station.extra_identificators;
-  components.push(new TextDisplayBuilder().setContent(`### ${station.station_id} ${ei ? `(${ei.mno_name})` : ""}`));
+  components.push(new TextDisplayBuilder().setContent(stationHeader(station)));
 
-  const details = [
-    `${operatorDot(station.operator.name)}${station.operator.name} · ${station.location.region.name}`,
-    `📍 ${station.location.city}, ${station.location.address}`,
-    `🌐 ${station.location.latitude.toFixed(5)}°N ${station.location.longitude.toFixed(5)}°E`,
-  ];
+  const details = [`${operatorDot(opName)}${opName}${location ? ` · ${location.region.name}` : ""}`];
+  if (location) details.push(`📍 ${location.city}, ${location.address}`, `🌐 ${location.latitude.toFixed(5)}°N ${location.longitude.toFixed(5)}°E`);
   if (station.cells.length > 0) details.push(`📶 ${ratSummary(station.cells)}`);
 
-  if (ei) {
-    if (ei.networks_name ?? ei.networks_id) {
-      const label = ei.networks_name ?? "";
-      const id = ei.networks_id !== null ? ` (N!${ei.networks_id})` : "";
-      details.push(`NetWorks: **${label}${id}**`);
-    }
+  const networksName = identifierOf(station, "networksName");
+  const networksId = identifierOf(station, "networksId");
+  if (networksName !== undefined || networksId !== undefined) {
+    const id = networksId !== undefined ? ` (N!${networksId})` : "";
+    details.push(`NetWorks: **${networksName ?? ""}${id}**`);
   }
 
   components.push(new TextDisplayBuilder().setContent(details.join("\n")));
 
   if (station.notes) components.push(new TextDisplayBuilder().setContent(`> ${station.notes}`));
 
-  components.push(
-    new SectionBuilder()
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent("Zobacz na BTSearch"))
-      .setButtonAccessory(new ButtonBuilder().setLabel("Otwórz").setStyle(ButtonStyle.Link).setURL(url)),
-  );
+  if (location) {
+    components.push(
+      new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent("Zobacz na BTSearch"))
+        .setButtonAccessory(new ButtonBuilder().setLabel("Otwórz").setStyle(ButtonStyle.Link).setURL(stationUrl(station.id, location))),
+    );
+  }
 
   if (pemUrl) {
     components.push(
@@ -115,47 +122,45 @@ export function buildStationView(station: Station, photos: Photo[], pemUrl?: str
 }
 
 function formatCellDetails(cell: Cell): string {
-  const { rat, details } = cell;
-  if (!details) return "-";
-
-  switch (rat) {
-    case "GSM": {
-      const d = details as unknown as GsmDetails;
-      return `CID: ${d.cid} · LAC: ${d.lac}${d.e_gsm ? " · E-GSM" : ""}`;
-    }
-    case "UMTS": {
-      const d = details as unknown as UmtsDetails;
-      return `RNC: ${d.rnc} · CID: ${d.cid} · LongCID: ${d.cid_long}${d.lac !== null ? ` · LAC: ${d.lac}` : ""}`;
-    }
-    case "LTE": {
-      const d = details as unknown as LteDetails;
-      const parts = [`eNBID: ${d.enbid}`, `CLID: ${d.clid}`, `E-CID: ${d.ecid}`];
-      if (d.tac !== null) parts.push(`TAC: ${d.tac}`);
-      if (d.pci !== null) parts.push(`PCI: ${d.pci}`);
-      if (d.supports_iot) parts.push("IoT");
+  switch (cell.rat) {
+    case "gsm":
+      return `CID: ${cell.cid} · LAC: ${cell.lac}${cell.isEGsm ? " · E-GSM" : ""}`;
+    case "umts": {
+      const parts: string[] = [];
+      if (cell.rnc !== null) parts.push(`RNC: ${cell.rnc}`);
+      if (cell.cid !== null) parts.push(`CID: ${cell.cid}`);
+      if (cell.longCid !== null) parts.push(`LongCID: ${cell.longCid}`);
+      if (cell.lac !== null) parts.push(`LAC: ${cell.lac}`);
       return parts.join(" · ");
     }
-    case "NR": {
-      const d = details as unknown as NrDetails;
+    case "lte": {
       const parts: string[] = [];
-      if (d.gnbid !== null) parts.push(`gNBID: ${d.gnbid}`);
-      if (d.clid !== null) parts.push(`CLID: ${d.clid}`);
-      if (d.nrtac !== null) parts.push(`NR-TAC: ${d.nrtac}`);
-      if (d.nci !== null) parts.push(`NCI: ${d.nci}`);
-      if (d.pci !== null) parts.push(`PCI: ${d.pci}`);
-      parts.push(d.type.toUpperCase());
-      if (d.supports_nr_redcap) parts.push("RedCap");
+      if (cell.enbid !== null) parts.push(`eNBID: ${cell.enbid}`);
+      if (cell.clid !== null) parts.push(`CLID: ${cell.clid}`);
+      if (cell.eci !== null) parts.push(`E-CID: ${cell.eci}`);
+      if (cell.tac !== null) parts.push(`TAC: ${cell.tac}`);
+      if (cell.pci !== null) parts.push(`PCI: ${cell.pci}`);
+      if (cell.supportsIot) parts.push("IoT");
+      return parts.join(" · ");
+    }
+    case "nr": {
+      const parts: string[] = [];
+      if (cell.gnbid !== null) parts.push(`gNBID: ${cell.gnbid}`);
+      if (cell.clid !== null) parts.push(`CLID: ${cell.clid}`);
+      if (cell.tac !== null) parts.push(`NR-TAC: ${cell.tac}`);
+      if (cell.nci !== null) parts.push(`NCI: ${cell.nci}`);
+      if (cell.pci !== null) parts.push(`PCI: ${cell.pci}`);
+      parts.push(cell.mode.toUpperCase());
+      if (cell.supportsRedCap) parts.push("RedCap");
       return parts.join(" · ");
     }
   }
 }
 
 export function buildPhotosView(station: Station, photos: Photo[]): StationReply {
-  const gallery = new MediaGalleryBuilder().addItems(
-    ...photos.slice(0, 10).map((p) => new MediaGalleryItemBuilder().setURL(photoUrl(p.attachment_uuid))),
-  );
+  const gallery = new MediaGalleryBuilder().addItems(...photos.slice(0, 10).map((p) => new MediaGalleryItemBuilder().setURL(photoUrl(p))));
 
-  const header = `### ${station.station_id} ${station.extra_identificators?.mno_name ? `(${station.extra_identificators.mno_name})` : ""}`;
+  const header = stationHeader(station);
 
   return {
     flags: MessageFlags.IsComponentsV2,
@@ -164,11 +169,7 @@ export function buildPhotosView(station: Station, photos: Photo[]): StationReply
 }
 
 export function buildCellsView(station: Station, photos: Photo[]): StationReply {
-  const ei = station.extra_identificators;
-  const components: MessageComponent[] = [
-    new TextDisplayBuilder().setContent(`### ${station.station_id} ${ei ? `(${ei.mno_name})` : ""}`),
-    new SeparatorBuilder(),
-  ];
+  const components: MessageComponent[] = [new TextDisplayBuilder().setContent(stationHeader(station)), new SeparatorBuilder()];
 
   if (station.cells.length === 0) {
     components.push(new TextDisplayBuilder().setContent("Brak zarejestrowanych komórek."));
@@ -180,16 +181,16 @@ export function buildCellsView(station: Station, photos: Photo[]): StationReply 
       byRat.set(cell.rat, group);
     }
 
-    const RAT_ORDER = ["GSM", "UMTS", "LTE", "NR"] as const;
+    const RAT_ORDER = ["gsm", "umts", "lte", "nr"] as const;
     const MAX = 10;
     for (const rat of RAT_ORDER) {
       const cells = byRat.get(rat);
       if (!cells?.length) continue;
 
-      const lines = cells.map((c) => `${c.band.name.replace(new RegExp(`^${rat}\\s*`, "i"), "")} - ${formatCellDetails(c)}`);
+      const lines = cells.map((c) => `${c.band?.name.replace(new RegExp(`^${rat}\\s*`, "i"), "") ?? "?"} - ${formatCellDetails(c)}`);
       const display = lines.length > MAX ? [...lines.slice(0, MAX), `_i ${lines.length - MAX} więcej_`] : lines;
 
-      components.push(new TextDisplayBuilder().setContent(`**${rat}**\n${display.join("\n")}`));
+      components.push(new TextDisplayBuilder().setContent(`**${rat.toUpperCase()}**\n${display.join("\n")}`));
     }
   }
 

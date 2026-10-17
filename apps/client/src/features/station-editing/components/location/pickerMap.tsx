@@ -1,3 +1,4 @@
+import type { OfficialLocation, OfficialSite } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import type { Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
@@ -16,17 +17,15 @@ import {
 import { RegisterStationOverlay } from "./registerStationOverlay";
 import { usePickerMapLayers } from "./usePickerMapLayers";
 import { MapControls, Map as MapGL, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
-import { PICKER_LAYER_IDS, PICKER_UKE_LAYER_IDS, POLAND_CENTER } from "@/features/map/constants";
+import { PICKER_LAYER_IDS, PICKER_REGISTER_LAYER_IDS, POLAND_CENTER } from "@/features/map/constants";
 import { useMapLookups } from "@/features/map/data/mapLookups";
-import { type MapPoint, registerLocationToMapPoint } from "@/features/map/data/mapPoints";
+import { type MapPoint, officialLocationToMapPoint } from "@/features/map/data/mapPoints";
 import { useAzimuthLayer } from "@/features/map/hooks/useAzimuthLayer";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
-import { attachUkeLocationToStations } from "@/features/map/utils";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import type { PlacePoint } from "@/lib/geo/geocoding";
-import type { UkeLocationWithPermits, UkeStation } from "@/types/station";
 
 export type PickerMatchMode = "select" | "compare";
 
@@ -39,12 +38,13 @@ type PickerMapProps = {
   knownLocationId: number | null;
   azimuthStationId: number | null;
   showsRegister: boolean;
+  registerCountryCode: string | null;
   isDisabled: boolean;
   onPointSet: (point: PlacePoint) => void;
   onPlacePick: (location: PickerLocation) => void;
   onPlaceDetect: (location: PickerLocation) => void;
   onMatchChange: (location: PickerLocation | null) => void;
-  onRegisterStationPick: (station: UkeStation) => void;
+  onRegisterStationPick: (site: OfficialSite) => void;
 };
 
 type MapView = {
@@ -52,12 +52,10 @@ type MapView = {
   zoom: number;
 };
 
-type PickerPanel =
-  | { kind: "nearby"; point: PlacePoint; locations: NearbyLocation[] }
-  | { kind: "register"; location: UkeLocationWithPermits; stations: UkeStation[] };
+type PickerPanel = { kind: "nearby"; point: PlacePoint; locations: NearbyLocation[] } | { kind: "register"; location: OfficialLocation };
 
 const NO_LOCATIONS: PickerLocation[] = [];
-const NO_REGISTER_LOCATIONS: UkeLocationWithPermits[] = [];
+const NO_REGISTER_LOCATIONS: OfficialLocation[] = [];
 const NO_POINTS: MapPoint[] = [];
 const COUNTRY_ZOOM = 6;
 const PLACE_ZOOM = 15;
@@ -123,6 +121,7 @@ function PickerMapContent({
   knownLocationId,
   azimuthStationId,
   showsRegister,
+  registerCountryCode,
   isDisabled,
   onPointSet,
   onPlacePick,
@@ -131,7 +130,7 @@ function PickerMapContent({
   onRegisterStationPick,
 }: PickerMapProps) {
   const { map, isLoaded } = useMap();
-  const { bounds, bbox, zoom } = useMapBounds({ map, isLoaded, debounceMs: VIEW_DEBOUNCE_MS });
+  const { bbox, zoom } = useMapBounds({ map, isLoaded, debounceMs: VIEW_DEBOUNCE_MS });
   const { preferences } = usePreferences();
   const { lookups } = useMapLookups();
   const { data: session } = useSettledSession();
@@ -146,7 +145,7 @@ function PickerMapContent({
 
   const { data: locations = NO_LOCATIONS } = useQuery(pickerLocationsQueryOptions(bbox, isStaff, showsAzimuths));
   const { data: registerLocations = NO_REGISTER_LOCATIONS } = useQuery({
-    ...registerLocationsQueryOptions(bounds, showsAzimuths),
+    ...registerLocationsQueryOptions(bbox, registerCountryCode),
     enabled: showsRegister,
   });
 
@@ -155,7 +154,7 @@ function PickerMapContent({
     [locations, lookups],
   );
   const registerPoints = useMemo(
-    () => (lookups === undefined ? NO_POINTS : registerLocations.map((location) => registerLocationToMapPoint(location, lookups))),
+    () => (lookups === undefined ? NO_POINTS : registerLocations.map((location) => officialLocationToMapPoint(location, lookups))),
     [registerLocations, lookups],
   );
   const places = useMemo(() => toPickerGeoJSON(placePoints), [placePoints]);
@@ -215,10 +214,10 @@ function PickerMapContent({
       return;
     }
 
-    const registerId = showsRegister ? findClickedId(map, event, PICKER_UKE_LAYER_IDS) : null;
+    const registerId = showsRegister ? findClickedId(map, event, PICKER_REGISTER_LAYER_IDS) : null;
     if (registerId !== null) {
       const location = registerLocations.find((candidate) => candidate.id === registerId);
-      if (location !== undefined) setPanel({ kind: "register", location, stations: attachUkeLocationToStations(location.stations, location) });
+      if (location !== undefined) setPanel({ kind: "register", location });
       return;
     }
 
@@ -309,9 +308,8 @@ function PickerMapContent({
       {shownPanel?.kind === "register" ? (
         <RegisterStationOverlay
           location={shownPanel.location}
-          stations={shownPanel.stations}
-          onStationPick={(station) => {
-            onRegisterStationPick(station);
+          onSitePick={(site) => {
+            onRegisterStationPick(site);
             setPanel(null);
           }}
         />

@@ -1,1 +1,0 @@
-ALTER TABLE "submissions"."submission_location_photo_selections" ADD COLUMN "is_main" boolean DEFAULT false NOT NULL;

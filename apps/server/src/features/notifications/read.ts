@@ -1,4 +1,4 @@
-import { locations, notifications, operators, stations, submissions, ukeLocations, ukeStations, users } from "@openbts/drizzle";
+import { locations, notifications, officialLocations, officialSites, operators, stations, submissions, users } from "@openbts/drizzle";
 import { MAX_ID } from "@openbts/shared/contract";
 import type { Notification, NotificationSite, SubmissionAction, UserRef } from "@openbts/shared/contract";
 import { eq, inArray, or } from "drizzle-orm";
@@ -54,7 +54,7 @@ function toSite(id: number | null, live: SiteDetails | undefined, stored: SiteDe
 
 function hasLiveSite(row: NotificationRow, sites: Sites): boolean {
   if (row.stationId !== null) return sites.stations.has(row.stationId);
-  return row.ukeStationId !== null && sites.officialSites.has(row.ukeStationId);
+  return row.officialSiteId !== null && sites.officialSites.has(row.officialSiteId);
 }
 
 function findLabelledOperatorId({ byMnc, byName }: LabelledOperators, { mnc, name }: OperatorLabel): number | null {
@@ -88,7 +88,7 @@ async function loadPeople(userIds: readonly string[], viewer: UserRefViewer): Pr
 
 async function loadSites(rows: readonly NotificationRow[]): Promise<Sites> {
   const stationIds = unique(rows.map((row) => row.stationId));
-  const officialSiteIds = unique(rows.map((row) => row.ukeStationId));
+  const officialSiteIds = unique(rows.map((row) => row.officialSiteId));
 
   const [stationRows, officialSiteRows] = await Promise.all([
     stationIds.length > 0
@@ -107,15 +107,15 @@ async function loadSites(rows: readonly NotificationRow[]): Promise<Sites> {
     officialSiteIds.length > 0
       ? db
           .select({
-            id: ukeStations.id,
-            siteId: ukeStations.station_id,
-            operatorId: ukeStations.operator_id,
-            latitude: ukeLocations.latitude,
-            longitude: ukeLocations.longitude,
+            id: officialSites.id,
+            siteId: officialSites.station_id,
+            operatorId: officialSites.operator_id,
+            latitude: officialLocations.latitude,
+            longitude: officialLocations.longitude,
           })
-          .from(ukeStations)
-          .leftJoin(ukeLocations, eq(ukeLocations.id, ukeStations.location_id))
-          .where(inArray(ukeStations.id, officialSiteIds))
+          .from(officialSites)
+          .leftJoin(officialLocations, eq(officialLocations.id, officialSites.location_id))
+          .where(inArray(officialSites.id, officialSiteIds))
       : [],
   ]);
 
@@ -193,17 +193,17 @@ export async function serializeNotifications(rows: readonly NotificationRow[], v
         return { ...common, type: "stationPhotosAdded", station };
       case "station_comment_approved":
         return { ...common, type: "stationCommentApproved", station };
-      case "station_uke_permit_added": {
+      case "station_official_permit_added": {
         const isOfficial = row.stationId === null;
-        const liveOfficialSite = row.ukeStationId === null ? undefined : sites.officialSites.get(row.ukeStationId);
+        const liveOfficialSite = row.officialSiteId === null ? undefined : sites.officialSites.get(row.officialSiteId);
         return {
           ...common,
           type: "officialPermitsChanged",
           station: isOfficial ? null : station,
-          officialSite: isOfficial ? toSite(row.ukeStationId, liveOfficialSite, stored) : null,
+          officialSite: isOfficial ? toSite(row.officialSiteId, liveOfficialSite, stored) : null,
           permits: { added: toCount(metadata.permits_added), removed: toCount(metadata.permits_deleted) },
-          officialSitesAdded: toCount(metadata.uke_stations_added),
-          isRemovedFromRegister: metadata.uke_station_deleted === true,
+          officialSitesAdded: toCount(metadata.official_sites_added),
+          isRemovedFromRegister: metadata.official_site_deleted === true,
         };
       }
     }

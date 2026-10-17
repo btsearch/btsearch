@@ -1,12 +1,12 @@
-import type { Band, Brand, Country, Operator, Region } from "@openbts/shared/contract";
+import type { Band, Brand, Country, OfficialBandLabel, Operator, Region } from "@openbts/shared/contract";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo } from "react";
 
-import { listRegisterBandLabels, registerBandsQueryOptions } from "../api";
-import { REGISTER_COUNTRY_CODE } from "../constants";
 import { UNKNOWN_BAND_LABEL } from "./mapFilters";
 import { bandPlanQueryOptions } from "@/features/admin/reference/api/bandPlan";
+import { listOfficialLabelMhz } from "@/features/official/labels";
+import { officialBandLabelsQueryOptions } from "@/features/official/queries";
 import { bandsQueryOptions, brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { FALLBACK_BRAND_COLOR, getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { type QueryLoadState, hasFailedLoad } from "@/lib/queryLoadState";
@@ -68,6 +68,7 @@ type BandPlanAnswers = {
 };
 
 const UNKNOWN_OPERATOR_LOOK: OperatorLook = { operator: null, brand: null, color: FALLBACK_BRAND_COLOR };
+const NO_BAND_LABELS_BY_COUNTRY: MapBandLabelsByCountry = new Map();
 const planSelectorsByCountry = new Map<string, PlanSelector>();
 const KEYBIND_OPERATOR_COUNT = 4;
 const FULL_TURN_DEGREES = 360;
@@ -250,19 +251,28 @@ function collectBandPlans(planQueries: readonly BandPlanQuery[]): BandPlanAnswer
   };
 }
 
+export function groupOfficialLabelMhzByCountry(labels: readonly OfficialBandLabel[]): MapBandLabelsByCountry {
+  const countryCodes = new Set(labels.map((label) => label.countryCode));
+  return new Map(
+    [...countryCodes].map((countryCode) => [countryCode, listOfficialLabelMhz(labels.filter((label) => label.countryCode === countryCode))]),
+  );
+}
+
 export function useCountryBandPlans(countryCodes: readonly string[], source: StationSource, lookups: MapLookups | undefined) {
-  const registerBandLabelsQuery = useQuery({ ...registerBandsQueryOptions(), select: listRegisterBandLabels, enabled: source === "uke" });
+  const registerBandLabelsQuery = useQuery({
+    ...officialBandLabelsQueryOptions(),
+    select: groupOfficialLabelMhzByCountry,
+    enabled: source === "official",
+  });
   const { plans, isError, isRetrying, refetchFailedPlans } = useQueries({
-    queries: source === "uke" ? [] : countryCodes.map((countryCode) => countryBandPlanQueryOptions(countryCode)),
+    queries: source === "official" ? [] : countryCodes.map((countryCode) => countryBandPlanQueryOptions(countryCode)),
     combine: collectBandPlans,
   });
 
   const labelsByCountry: MapBandLabelsByCountry = useMemo(() => {
+    if (source === "official") return registerBandLabelsQuery.data ?? NO_BAND_LABELS_BY_COUNTRY;
+
     const labels = new Map<string, readonly number[]>();
-    if (source === "uke") {
-      if (registerBandLabelsQuery.data !== undefined) labels.set(REGISTER_COUNTRY_CODE, registerBandLabelsQuery.data);
-      return labels;
-    }
     if (lookups === undefined) return labels;
 
     for (const plan of plans) labels.set(plan.countryCode, listPlanBandLabels(plan.bandIds, lookups.bandsById));
@@ -270,11 +280,11 @@ export function useCountryBandPlans(countryCodes: readonly string[], source: Sta
   }, [lookups, plans, source, registerBandLabelsQuery.data]);
 
   function retry() {
-    if (source === "uke") void registerBandLabelsQuery.refetch();
+    if (source === "official") void registerBandLabelsQuery.refetch();
     else for (const refetchPlan of refetchFailedPlans) void refetchPlan();
   }
 
-  const hasRegisterBandLabelsFailed = source === "uke" && hasFailedLoad(registerBandLabelsQuery);
+  const hasRegisterBandLabelsFailed = source === "official" && hasFailedLoad(registerBandLabelsQuery);
   return {
     labelsByCountry,
     isError: isError || hasRegisterBandLabelsFailed,

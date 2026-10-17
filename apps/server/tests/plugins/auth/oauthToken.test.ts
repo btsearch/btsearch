@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type OAuthTokenContext, hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../../../src/plugins/auth/oauthToken.js";
+import { type OAuthTokenContext, hasRequiredScopes, verifyOAuthAccessToken } from "../../../src/plugins/auth/oauthToken.js";
 import { dbMock, userSession } from "../../helpers/boundaries.js";
 
 const now = new Date("2026-10-06T12:00:00Z");
@@ -30,11 +30,6 @@ function tokenRecord(overrides: Partial<TokenRecord> = {}): TokenRecord {
   };
 }
 
-describe("isOAuthBearerToken", () => {
-  it.each(["oat_value", "oat_"])("recognizes OAuth token %s", (value) => expect(isOAuthBearerToken(value)).toBe(true));
-  it.each(["", "OAT_value", "pk_value", "valueoat_value"])("rejects non-OAuth token %s", (value) => expect(isOAuthBearerToken(value)).toBe(false));
-});
-
 describe("hasRequiredScopes", () => {
   const token: OAuthTokenContext = { clientId: "client", userId: "user", scopes: ["read:stations", "read:cells"] };
   it.each([{ permissions: undefined }, { permissions: [] }])("allows requests without scope requirements $permissions", ({ permissions }) =>
@@ -44,7 +39,6 @@ describe("hasRequiredScopes", () => {
     expect(hasRequiredScopes(token, ["read:stations", "read:cells"])).toBe(true);
     expect(hasRequiredScopes(token, ["read:stations", "update:cells"])).toBe(false);
   });
-  it("rejects a write request with only read scopes", () => expect(hasRequiredScopes(token, ["create:stations"])).toBe(false));
   it("does not infer scopes by substring or hierarchy", () => {
     expect(hasRequiredScopes({ ...token, scopes: ["read:stations:all"] }, ["read:stations"])).toBe(false);
   });

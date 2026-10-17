@@ -1,6 +1,5 @@
-import { REGISTER_COUNTRY_CODE } from "../../constants";
 import { type MapCountries, sortCountryCodesByName } from "../../data/mapCountries";
-import { type MapFilters, UNKNOWN_BAND_LABEL, isMapCountryAllowed } from "../../data/mapFilters";
+import { type CapableCountries, type MapFilters, UNKNOWN_BAND_LABEL, hasCountryCapability, isMapCountryAllowed } from "../../data/mapFilters";
 import type { MapBandLabelsByCountry, MapLookups, MapOperator } from "../../data/mapLookups";
 
 type CountryPillSplit = {
@@ -29,7 +28,7 @@ export type BandPill = {
   markCountryCode: string | null;
 };
 
-type RegisterLayersNote = "sharedView" | "offScreen";
+export type LayersNote = "sharedView" | "linksAndEmfUnavailable" | "linksUnavailable" | "emfUnavailable";
 
 type RowCountry = Pick<OperatorRow, "countryCode" | "isOffScreen">;
 
@@ -40,12 +39,8 @@ const NO_BAND_LABELS: readonly number[] = [];
 const FEWEST_MARKED_COUNTRIES = 2;
 const MOST_MARKED_COUNTRIES = 3;
 
-function listAllowedCountryCodesOnScreen(filters: OperatorRowFilters, mapCountries: MapCountries): string[] {
-  return mapCountries.onScreen.filter((countryCode) => isMapCountryAllowed(filters, countryCode));
-}
-
-function isOtherCountry(countryCode: string): boolean {
-  return countryCode !== REGISTER_COUNTRY_CODE;
+function listAllowedCountryCodesOnScreen(filters: OperatorRowFilters, mapCountries: MapCountries, countries: CapableCountries): string[] {
+  return mapCountries.onScreen.filter((countryCode) => isMapCountryAllowed(filters, countryCode, countries));
 }
 
 export function listCountryPillCodes(filters: MapFilters, mapCountries: MapCountries, language: string): string[] {
@@ -66,12 +61,11 @@ export function splitCountryPillCodes(filters: MapFilters, countryPillCodes: rea
 }
 
 export function hasCountryFacet(filters: MapFilters, countryPillCodes: readonly string[]): boolean {
-  return filters.source !== "uke" && (countryPillCodes.length > 1 || filters.countryCodes.length > 0);
+  return filters.source !== "official" && (countryPillCodes.length > 1 || filters.countryCodes.length > 0);
 }
 
-export function findKeybindCountryCode(filters: MapFilters, mapCountries: MapCountries): string | null {
-  if (filters.source === "uke") return REGISTER_COUNTRY_CODE;
-  return listAllowedCountryCodesOnScreen(filters, mapCountries).at(0) ?? null;
+export function findKeybindCountryCode(filters: MapFilters, mapCountries: MapCountries, countries: CapableCountries): string | null {
+  return listAllowedCountryCodesOnScreen(filters, mapCountries, countries).at(0) ?? null;
 }
 
 function listTickedCountryCodesOffScreen(filters: OperatorRowFilters, mapCountries: MapCountries, lookups: MapLookups, language: string): string[] {
@@ -80,7 +74,7 @@ function listTickedCountryCodesOffScreen(filters: OperatorRowFilters, mapCountri
   for (const operatorId of filters.operatorIds) {
     const countryCode = lookups.operatorsById.get(operatorId)?.operator.countryCode;
     if (countryCode === undefined || mapCountries.onScreen.includes(countryCode)) continue;
-    if (isMapCountryAllowed(filters, countryCode)) countryCodes.add(countryCode);
+    if (isMapCountryAllowed(filters, countryCode, lookups.countries)) countryCodes.add(countryCode);
   }
   return sortCountryCodesByName([...countryCodes], language);
 }
@@ -90,16 +84,14 @@ function toRowCountries(countryCodes: readonly string[], isOffScreen: boolean): 
 }
 
 function listRowCountries(filters: OperatorRowFilters, mapCountries: MapCountries, lookups: MapLookups, language: string): RowCountry[] {
-  if (filters.source === "uke") return toRowCountries([REGISTER_COUNTRY_CODE], false);
+  const rowCountriesOnScreen = toRowCountries(listAllowedCountryCodesOnScreen(filters, mapCountries, lookups.countries), false);
+  if (filters.source === "official") return rowCountriesOnScreen;
 
-  return [
-    ...toRowCountries(listAllowedCountryCodesOnScreen(filters, mapCountries), false),
-    ...toRowCountries(listTickedCountryCodesOffScreen(filters, mapCountries, lookups, language), true),
-  ];
+  return [...rowCountriesOnScreen, ...toRowCountries(listTickedCountryCodesOffScreen(filters, mapCountries, lookups, language), true)];
 }
 
 function isSingleCountryPanel(filters: OperatorRowFilters, mapCountries: MapCountries, rowCountries: readonly RowCountry[]): boolean {
-  if (filters.source === "uke") return true;
+  if (filters.source === "official") return rowCountries.length <= 1;
   if (rowCountries.length !== 1 || rowCountries[0].isOffScreen) return false;
   return mapCountries.onScreen.length === 1 && filters.countryCodes.length === 0;
 }
@@ -135,10 +127,10 @@ export function listOperatorRows(
   };
 }
 
-export function listBandFacetCountryCodes(filters: MapFilters, mapCountries: MapCountries, language: string): string[] {
-  if (filters.source === "uke") return [REGISTER_COUNTRY_CODE];
+export function listBandFacetCountryCodes(filters: MapFilters, mapCountries: MapCountries, language: string, countries: CapableCountries): string[] {
+  const allowedOnScreen = listAllowedCountryCodesOnScreen(filters, mapCountries, countries);
+  if (filters.source === "official") return allowedOnScreen;
 
-  const allowedOnScreen = listAllowedCountryCodesOnScreen(filters, mapCountries);
   return allowedOnScreen.length > 0 ? allowedOnScreen : sortCountryCodesByName(filters.countryCodes, language);
 }
 
@@ -164,7 +156,7 @@ export function markSingleCountryKeys<Key>(
 }
 
 function canMarkBandCountries(filters: MapFilters, facetCountryCodes: readonly string[], labelsByCountry: MapBandLabelsByCountry): boolean {
-  if (filters.source === "uke") return false;
+  if (filters.source === "official") return false;
   return canMarkCountries(facetCountryCodes, (countryCode) => labelsByCountry.has(countryCode));
 }
 
@@ -180,17 +172,27 @@ export function listBandPills(filters: MapFilters, facetCountryCodes: readonly s
     : null;
   const pills = [...labels].sort((left, right) => left - right).map((label): BandPill => ({ label, markCountryCode: marks?.get(label) ?? null }));
 
-  return filters.source === "uke" ? pills : [...pills, { label: UNKNOWN_BAND_LABEL, markCountryCode: null }];
+  return filters.source === "official" ? pills : [...pills, { label: UNKNOWN_BAND_LABEL, markCountryCode: null }];
 }
 
-export function hasRegisterSourceNote(filters: MapFilters, mapCountries: MapCountries): boolean {
-  return filters.source === "uke" && mapCountries.onScreen.some(isOtherCountry);
+export function hasRegisterSourceNote(filters: MapFilters, mapCountries: MapCountries, countries: CapableCountries): boolean {
+  if (filters.source !== "official" || countries === undefined) return false;
+  return mapCountries.onScreen.some((countryCode) => !hasCountryCapability(countries, countryCode, "official"));
 }
 
-export function getRegisterLayersNote(filters: MapFilters, mapCountries: MapCountries): RegisterLayersNote | null {
-  if (!mapCountries.isRegisterOnScreen) return "offScreen";
-  if (filters.source === "uke") return null;
+function lacksShownLayer(countryCode: string, hasEmfLayer: boolean, countries: CapableCountries): boolean {
+  if (!hasCountryCapability(countries, countryCode, "microwaveLinks")) return true;
+  return hasEmfLayer && !hasCountryCapability(countries, countryCode, "emf");
+}
 
-  const showsOtherCountry = mapCountries.onScreen.some((countryCode) => isOtherCountry(countryCode) && isMapCountryAllowed(filters, countryCode));
-  return showsOtherCountry ? "sharedView" : null;
+export function getLayersNote(filters: MapFilters, mapCountries: MapCountries, hasEmfLayer: boolean, countries: CapableCountries): LayersNote | null {
+  const isEmfLayerUnavailable = hasEmfLayer && !mapCountries.capabilities.emf;
+  if (!mapCountries.capabilities.microwaveLinks) return isEmfLayerUnavailable ? "linksAndEmfUnavailable" : "linksUnavailable";
+  if (isEmfLayerUnavailable) return "emfUnavailable";
+  if (filters.source === "official" || countries === undefined) return null;
+
+  const showsUncoveredCountry = listAllowedCountryCodesOnScreen(filters, mapCountries, countries).some((countryCode) =>
+    lacksShownLayer(countryCode, hasEmfLayer, countries),
+  );
+  return showsUncoveredCountry ? "sharedView" : null;
 }

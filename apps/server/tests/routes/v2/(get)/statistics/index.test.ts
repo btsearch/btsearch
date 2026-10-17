@@ -2,14 +2,16 @@ import {
   analyzerUsage,
   contributionSnapshots,
   lteCells,
+  microwaveLinks,
   nrCells,
+  officialDatasetSlices,
+  officialLocations,
+  officialPermits,
+  officialSources,
   stations,
-  ukeImportMetadata,
-  ukeLocations,
-  ukePermits,
-  ukeRadiolines,
 } from "@openbts/drizzle";
-import { getTableName } from "drizzle-orm";
+import { type SQLWrapper, getTableName, getTableUniqueName } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import getAnalyzerUsage from "../../../../../src/routes/v2/(get)/statistics/analyzer-usage.js";
@@ -17,9 +19,49 @@ import getCompleteness from "../../../../../src/routes/v2/(get)/statistics/compl
 import getHistory from "../../../../../src/routes/v2/(get)/statistics/history.js";
 import getStatistics from "../../../../../src/routes/v2/(get)/statistics/index.js";
 import getBreakdown from "../../../../../src/routes/v2/(get)/statistics/stations.js";
-import { dbMock, redisMock } from "../../../../helpers/boundaries.js";
+import { dbMock, redisMock, userSession } from "../../../../helpers/boundaries.js";
 import { readDate } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
+
+type SourceCount = { sourceId: number; countryCode: string; value: number };
+type OfficialScript = {
+  locations?: SourceCount[];
+  permits?: SourceCount[];
+  microwaveLinks?: SourceCount[];
+  imports?: { sourceId: number; countryCode: string; layer: string; importedAt: Date | null }[];
+  layers?: { sourceId: number; layer: string }[];
+};
+
+function scriptCountryTotals(countryCodes: string[]) {
+  redisMock.isReady = false;
+  dbMock.enqueueFor(
+    "select",
+    "countries",
+    countryCodes.map((code) => ({ code, isVisible: true })),
+  );
+  dbMock.enqueueFor("select", getTableName(stations), []);
+  dbMock.enqueueFor("select", "cells", []);
+  dbMock.enqueueFor("select", "locations", []);
+}
+
+function scriptOfficial(publicSourceIds: number[] | null, official: OfficialScript) {
+  const sources = [1, 2].map((id) => ({
+    id,
+    countryCode: "PL",
+    isVisible: publicSourceIds?.includes(id) ?? false,
+    layers: (official.layers ?? []).filter((dataset) => dataset.sourceId === id).map((dataset) => dataset.layer),
+  }));
+  dbMock.enqueueFor("select", "countries", []);
+  dbMock.enqueueFor("select", getTableUniqueName(officialSources), sources, sources);
+  dbMock.enqueueFor("select", getTableUniqueName(officialLocations), official.locations ?? []);
+  dbMock.enqueueFor("select", getTableUniqueName(officialPermits), official.permits ?? []);
+  dbMock.enqueueFor("select", getTableUniqueName(microwaveLinks), official.microwaveLinks ?? []);
+  dbMock.enqueueFor("select", getTableUniqueName(officialDatasetSlices), official.imports ?? []);
+}
+
+function officialOf(response: { json(): { data: { countryCode: string; official: unknown }[] } }) {
+  return response.json().data.map((country) => [country.countryCode, country.official]);
+}
 
 describe("getStatistics", () => {
   it("sorts countries, translates status counts and fills countries with no data", async () => {
@@ -35,10 +77,16 @@ describe("getStatistics", () => {
     ]);
     dbMock.enqueueFor("select", "cells", [{ countryCode: "PL", value: 9 }]);
     dbMock.enqueueFor("select", "locations", [{ countryCode: "PL", value: 3 }]);
-    dbMock.enqueueFor("select", getTableName(ukeLocations), [{ value: 1 }]);
-    dbMock.enqueueFor("select", getTableName(ukePermits), [{ value: 2 }]);
-    dbMock.enqueueFor("select", getTableName(ukeRadiolines), [{ value: 3 }]);
-    dbMock.enqueueFor("select", getTableName(ukeImportMetadata), [{ value: readDate }], [{ value: null }]);
+    scriptOfficial([1], {
+      locations: [{ sourceId: 1, countryCode: "PL", value: 1 }],
+      permits: [{ sourceId: 1, countryCode: "PL", value: 2 }],
+      microwaveLinks: [{ sourceId: 1, countryCode: "PL", value: 3 }],
+      imports: [{ sourceId: 1, countryCode: "PL", layer: "sites", importedAt: readDate }],
+      layers: [
+        { sourceId: 1, layer: "sites" },
+        { sourceId: 1, layer: "microwave_links" },
+      ],
+    });
     const app = await createRouteHarness(getStatistics);
     const response = await app.inject({ method: "GET", url: "/statistics" });
     expect(response.statusCode).toBe(200);
@@ -55,6 +103,104 @@ describe("getStatistics", () => {
         { countryCode: "US", stations: { active: 0, awaitingCells: 0, inactive: 0 }, cells: 0, locations: 0, updatedAt: null, official: null },
       ],
     });
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("counts for a guest only the rows of the visible sources, each in the country of its location or, for links, of its source", async () => {
+    scriptCountryTotals(["CZ", "PL"]);
+    scriptOfficial([1], {
+      locations: [
+        { sourceId: 1, countryCode: "PL", value: 5 },
+        { sourceId: 2, countryCode: "PL", value: 7 },
+        { sourceId: 1, countryCode: "CZ", value: 1 },
+      ],
+      permits: [
+        { sourceId: 1, countryCode: "PL", value: 9 },
+        { sourceId: 2, countryCode: "PL", value: 11 },
+      ],
+      microwaveLinks: [{ sourceId: 2, countryCode: "PL", value: 4 }],
+      imports: [
+        { sourceId: 1, countryCode: "PL", layer: "sites", importedAt: readDate },
+        { sourceId: 2, countryCode: "PL", layer: "sites", importedAt: new Date("2030-01-01T00:00:00Z") },
+        { sourceId: 2, countryCode: "PL", layer: "microwave_links", importedAt: new Date("2030-01-01T00:00:00Z") },
+      ],
+      layers: [{ sourceId: 1, layer: "sites" }],
+    });
+    const app = await createRouteHarness(getStatistics);
+    const response = await app.inject({ method: "GET", url: "/statistics" });
+    expect(response.statusCode).toBe(200);
+    expect(officialOf(response)).toEqual([
+      ["CZ", { locations: 1, permits: 0, microwaveLinks: 0, permitsImportedAt: null, microwaveLinksImportedAt: null }],
+      ["PL", { locations: 5, permits: 9, microwaveLinks: 0, permitsImportedAt: readDate.toISOString(), microwaveLinksImportedAt: null }],
+    ]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("counts the rows of a hidden source for an administrator", async () => {
+    scriptCountryTotals(["PL"]);
+    scriptOfficial(null, {
+      locations: [
+        { sourceId: 1, countryCode: "PL", value: 5 },
+        { sourceId: 2, countryCode: "PL", value: 7 },
+      ],
+      microwaveLinks: [{ sourceId: 2, countryCode: "PL", value: 4 }],
+      imports: [
+        { sourceId: 1, countryCode: "PL", layer: "sites", importedAt: readDate },
+        { sourceId: 2, countryCode: "PL", layer: "microwave_links", importedAt: new Date("2026-10-02T06:00:00Z") },
+      ],
+      layers: [
+        { sourceId: 1, layer: "sites" },
+        { sourceId: 2, layer: "microwave_links" },
+      ],
+    });
+    const app = await createRouteHarness(getStatistics, { session: userSession(undefined, "admin") });
+    const response = await app.inject({ method: "GET", url: "/statistics" });
+    expect(officialOf(response)).toEqual([
+      [
+        "PL",
+        {
+          locations: 12,
+          permits: 0,
+          microwaveLinks: 4,
+          permitsImportedAt: readDate.toISOString(),
+          microwaveLinksImportedAt: "2026-10-02T06:00:00.000Z",
+        },
+      ],
+    ]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("reads the counts and the import dates per source, whatever the source's switch", async () => {
+    scriptCountryTotals(["PL"]);
+    scriptOfficial([1], {});
+    const app = await createRouteHarness(getStatistics);
+    await app.inject({ method: "GET", url: "/statistics" });
+
+    const dialect = new PgDialect();
+    const text = (clause: unknown) => dialect.sqlToQuery((clause as SQLWrapper).getSQL()).sql;
+    const groupings = [officialLocations, officialPermits, microwaveLinks, officialDatasetSlices].map((table) => {
+      const read = dbMock.calls.find((call) => call.table === getTableUniqueName(table));
+      expect(read?.clauses.where).toBeUndefined();
+      return (read?.clauses.groupBy ?? []).map(text);
+    });
+    expect(groupings).toEqual([
+      ['"official"."locations"."source_id"', '"regions"."country_code"'],
+      ['"official"."sites"."source_id"', '"regions"."country_code"'],
+      ['"official"."sources"."id"', '"official"."sources"."country_code"'],
+      ['"official"."sources"."id"', '"official"."sources"."country_code"', '"official"."datasets"."layer"'],
+    ]);
+  });
+
+  it("attaches empty official totals to a country whose visible source has no rows yet, even when it has no stations", async () => {
+    scriptCountryTotals(["PL", "US"]);
+    scriptOfficial([1], { layers: [{ sourceId: 1, layer: "microwave_links" }] });
+    const app = await createRouteHarness(getStatistics);
+    const response = await app.inject({ method: "GET", url: "/statistics" });
+    expect(response.statusCode).toBe(200);
+    expect(officialOf(response)).toEqual([
+      ["PL", { locations: 0, permits: 0, microwaveLinks: 0, permitsImportedAt: null, microwaveLinksImportedAt: null }],
+      ["US", null],
+    ]);
   });
 
   it("returns an empty collection without loading aggregates when no countries are visible", async () => {
@@ -199,11 +345,5 @@ describe("getAnalyzerUsage", () => {
               { startsOn: "2026-02-01", count: 4 },
             ],
     });
-  });
-
-  it("returns an empty collection when no analyzer usage exists", async () => {
-    dbMock.enqueueFor("select", getTableName(analyzerUsage), []);
-    const app = await createRouteHarness(getAnalyzerUsage);
-    expect((await app.inject({ method: "GET", url: "/statistics/analyzer-usage" })).json()).toEqual({ data: [] });
   });
 });

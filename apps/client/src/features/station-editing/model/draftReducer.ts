@@ -1,7 +1,17 @@
+import { conventionsFor } from "@openbts/country-packs";
 import type { LocationMove, StationIdentifierKind } from "@openbts/shared/contract";
 
-import { MAX_SECTORS, RAT_FIELDS, RAT_ORDER, carriesAreaCode, getAreaCodeField, getCellNumber } from "./ratFields";
-import { EMPTY_BACKHAUL, EMPTY_SNAPSHOT, IDENTIFIER_KINDS, createCellDraft, createEmptyPlace, createSectorDraft, newDraftKey } from "./snapshots";
+import { MAX_SECTORS, RAT_FIELDS, RAT_ORDER, canShareAreaCode, carriesAreaCode, getAreaCodeField, getCellNumber } from "./ratFields";
+import {
+  EMPTY_BACKHAUL,
+  EMPTY_SNAPSHOT,
+  IDENTIFIER_KINDS,
+  applyTacRule,
+  createCellDraft,
+  createEmptyPlace,
+  createSectorDraft,
+  newDraftKey,
+} from "./snapshots";
 import type {
   AreaCode,
   BackhaulDraft,
@@ -65,6 +75,7 @@ export type DraftAction =
   | { type: "restoreCell"; key: DraftKey }
   | { type: "setAreaCode"; rat: Rat; value: number | null }
   | { type: "unifyAreaCode"; rat: Rat }
+  | { type: "setHoistedTac"; hoistedTac: boolean }
   | { type: "applyCells"; cells: readonly CellDraft[] }
   | { type: "setEnabledRats"; rats: readonly Rat[] }
   | { type: "setAction"; action: EditAction }
@@ -109,12 +120,14 @@ function listEnabledRats(wantedRats: readonly Rat[], cells: readonly CellDraft[]
 }
 
 export function createSession(input: SessionInput): EditSession {
-  const initial = input.initialDraft ?? input.proposed ?? input.live ?? EMPTY_SNAPSHOT;
+  const hoistedTac = input.countryCode === null || conventionsFor(input.countryCode).hoistedTac;
+  const initial = applyTacRule(input.initialDraft ?? input.proposed ?? input.live ?? EMPTY_SNAPSHOT, hoistedTac);
 
   return {
     kind: input.kind,
     action: input.action,
     countryCode: input.countryCode,
+    hoistedTac,
     live: input.live,
     proposed: input.proposed,
     initial,
@@ -435,6 +448,10 @@ function withAreaCode(session: EditSession, rat: Rat, areaCode: AreaCode): EditS
   return withDraft(session, { ...session.draft, areaCodes: { ...areaCodes, [rat]: areaCode } });
 }
 
+function shareAreaCode(session: EditSession, rat: Rat, value: number | null): EditSession {
+  return canShareAreaCode(rat, session.hoistedTac) ? withAreaCode(session, rat, { mode: "shared", value }) : session;
+}
+
 export function findMostFrequentAreaCode(cells: readonly CellDraft[], rat: Rat): number | null {
   const field = getAreaCodeField(rat);
   const counts = new Map<number, number>();
@@ -452,6 +469,18 @@ export function findMostFrequentAreaCode(cells: readonly CellDraft[], rat: Rat):
     winnerCount = count;
   }
   return winner;
+}
+
+export function findTacRuleChange(session: EditSession, countryCode: string | null): boolean | null {
+  if (countryCode === null) return null;
+
+  const { hoistedTac } = conventionsFor(countryCode);
+  return hoistedTac === session.hoistedTac ? null : hoistedTac;
+}
+
+function setHoistedTac(session: EditSession, hoistedTac: boolean): EditSession {
+  if (session.hoistedTac === hoistedTac) return session;
+  return { ...session, hoistedTac, initial: applyTacRule(session.initial, hoistedTac), draft: applyTacRule(session.draft, hoistedTac) };
 }
 
 function setEnabledRats(session: EditSession, rats: readonly Rat[]): EditSession {
@@ -578,7 +607,7 @@ function revertAreaCode(session: EditSession, base: StationSnapshot, rat: Rat | 
     return baseRow === undefined ? cell : patchCell(cell, toNumberPatch(field, getCellNumber(baseRow, field)));
   });
   const hasChangedCell = cells.some((cell, index) => cell !== session.draft.cells[index]);
-  const reverted = withAreaCode(session, rat, base.areaCodes[rat]);
+  const reverted = canShareAreaCode(rat, session.hoistedTac) ? withAreaCode(session, rat, base.areaCodes[rat]) : session;
   return hasChangedCell ? withCells(reverted, cells) : reverted;
 }
 
@@ -594,7 +623,7 @@ function revertToLive(session: EditSession, target: FieldTarget): EditSession {
 }
 
 function rebase(session: EditSession, live: StationSnapshot | null, proposed: StationSnapshot | null): EditSession {
-  const initial = proposed ?? live ?? EMPTY_SNAPSHOT;
+  const initial = applyTacRule(proposed ?? live ?? EMPTY_SNAPSHOT, session.hoistedTac);
   const enabledRats = listEnabledRats(session.enabledRats, initial.cells);
   return { ...session, live, proposed, initial, draft: initial, enabledRats, serverErrors: NO_ERRORS, isSaveAttempted: false };
 }
@@ -647,9 +676,11 @@ function applyAction(session: EditSession, action: DraftAction): EditSession {
     case "restoreCell":
       return replaceCell(session, action.key, (cell) => (cell.isDeleted ? { ...cell, isDeleted: false } : cell));
     case "setAreaCode":
-      return withAreaCode(session, action.rat, { mode: "shared", value: action.value });
+      return shareAreaCode(session, action.rat, action.value);
     case "unifyAreaCode":
-      return withAreaCode(session, action.rat, { mode: "shared", value: findMostFrequentAreaCode(session.draft.cells, action.rat) });
+      return shareAreaCode(session, action.rat, findMostFrequentAreaCode(session.draft.cells, action.rat));
+    case "setHoistedTac":
+      return setHoistedTac(session, action.hoistedTac);
     case "applyCells":
       return withCells(session, [...action.cells]);
     case "setEnabledRats":

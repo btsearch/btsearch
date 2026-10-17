@@ -1,28 +1,30 @@
-import type { Country, Region } from "@openbts/shared/contract";
+import type { Country, CountryCapabilities, Region } from "@openbts/shared/contract";
 import { keepPreviousData, queryOptions, skipToken, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { POLAND_BOUNDS, REGISTER_COUNTRY_CODE } from "../constants";
+import { POLAND_BOUNDS } from "../constants";
 import { type MapBox, type MapBoxCenter, getMapBoxCenter, parseV1Bounds, toV2Bbox } from "./mapBox";
-import { type MapFilters, changeMapFilterSource } from "./mapFilters";
+import { type MapCountryCapability, type MapFilters, type MapFiltersUpdater, changeMapFilterSource } from "./mapFilters";
 import type { MapPoint } from "./mapPoints";
 import { countriesQueryOptions } from "@/features/shared/lookups";
 import { fetchV2Data } from "@/lib/api";
 import { getCountryName } from "@/lib/geo/countryName";
 
+export type MapCapabilities = Pick<CountryCapabilities, MapCountryCapability>;
+
 export type MapCountries = {
   onScreen: readonly string[];
   first: string | null;
-  isRegisterOnScreen: boolean;
+  capabilities: MapCapabilities;
 };
 
-export type RegisterOnScreen = {
-  isRegisterOnScreen: boolean;
-  isSettled: boolean;
+export type CapabilitiesOnScreen = {
+  capabilities: MapCapabilities;
+  isOfficialLookupDone: boolean;
 };
 
-type BoxCountrySources = {
+export type BoxCountrySources = {
   regions: readonly Pick<Region, "countryCode">[] | undefined;
   countries: readonly Country[] | undefined;
   isBoxLookupDone: boolean;
@@ -40,14 +42,18 @@ const REGIONS_IN_BOX_STALE_TIME = 1000 * 60 * 5;
 const REGIONS_IN_BOX_GC_TIME = 1000 * 60;
 const DEGREES_TO_RADIANS = Math.PI / 180;
 const FULL_TURN_DEGREES = 360;
-const REGISTER_EXTENT_MARGIN_DEGREES = 1;
-const REGISTER_FALLBACK_EXTENT: MapBox = {
+const COUNTRY_EXTENT_MARGIN_DEGREES = 1;
+const POLAND_COUNTRY_CODE = "PL";
+const POLAND_FALLBACK_EXTENT: MapBox = {
   west: POLAND_BOUNDS[0][0],
   south: POLAND_BOUNDS[0][1],
   east: POLAND_BOUNDS[1][0],
   north: POLAND_BOUNDS[1][1],
 };
-const filtersWithoutRegisterData = new WeakMap<MapFilters, MapFilters>();
+export const NO_MAP_CAPABILITIES: MapCapabilities = { official: false, microwaveLinks: false, emf: false };
+const filtersOnDatabaseSource = new WeakMap<MapFilters, MapFilters>();
+const filtersWithoutMicrowaveLinks = new WeakMap<MapFilters, MapFilters>();
+const filtersWithoutPlannedMeasurements = new WeakMap<MapFilters, MapFilters>();
 let lastMapCountries: MapCountries | undefined;
 
 function fetchRegionsInBox(bbox: string, signal?: AbortSignal): Promise<Region[]> {
@@ -118,20 +124,20 @@ function orderCountryCodesOnScreen(countryCodes: readonly string[], first: strin
   return first !== null && countryCodes.includes(first) ? [first, ...rest] : rest;
 }
 
-function isRegisterCountryInBox(regions: readonly Pick<Region, "countryCode">[] | undefined, countries: readonly Country[] | undefined): boolean {
-  if (regions !== undefined && regions.length > 0) return regions.some((region) => region.countryCode === REGISTER_COUNTRY_CODE);
-  return countries?.length === 1 && countries[0].code === REGISTER_COUNTRY_CODE;
+function listCountriesInBox(
+  regions: readonly Pick<Region, "countryCode">[] | undefined,
+  countries: readonly Country[] | undefined,
+): readonly Country[] {
+  if (countries === undefined) return [];
+  if (regions === undefined || regions.length === 0) return countries.length === 1 ? countries : [];
+
+  const countryCodesInBox = new Set(regions.map((region) => region.countryCode));
+  return countries.filter((country) => countryCodesInBox.has(country.code));
 }
 
-function isRegisterOnScreenSettled({ regions, countries, isBoxLookupDone, isCountriesLookupDone }: BoxCountrySources): boolean {
-  if (countries?.length === 1) return true;
-  if (!isBoxLookupDone) return false;
-  return isCountriesLookupDone || (regions !== undefined && regions.length > 0);
-}
-
-function getRegisterExtent(countries: readonly Country[] | undefined): MapBox {
-  const registerCountry = countries?.find((country) => country.code === REGISTER_COUNTRY_CODE);
-  return registerCountry?.defaultView ?? REGISTER_FALLBACK_EXTENT;
+function getCountryExtent(country: Country): MapBox | null {
+  if (country.defaultView !== null) return country.defaultView;
+  return country.code === POLAND_COUNTRY_CODE ? POLAND_FALLBACK_EXTENT : null;
 }
 
 function touchesLongitudeSpan(box: MapBox, spanWest: number, spanEast: number): boolean {
@@ -141,22 +147,33 @@ function touchesLongitudeSpan(box: MapBox, spanWest: number, spanEast: number): 
   return box.west - wholeTurns <= spanEast || box.east - wholeTurns >= spanWest + FULL_TURN_DEGREES;
 }
 
-function isClearOfRegisterCountry(box: MapBox | null, countries: readonly Country[] | undefined): boolean {
-  if (box === null) return false;
-
-  const extent = getRegisterExtent(countries);
-  if (box.north < extent.south - REGISTER_EXTENT_MARGIN_DEGREES || box.south > extent.north + REGISTER_EXTENT_MARGIN_DEGREES) return true;
+function isClearOfCountry(box: MapBox | null, country: Country): boolean {
+  const extent = getCountryExtent(country);
+  if (box === null || extent === null) return false;
+  if (box.north < extent.south - COUNTRY_EXTENT_MARGIN_DEGREES || box.south > extent.north + COUNTRY_EXTENT_MARGIN_DEGREES) return true;
 
   const unwrappedEast = extent.east < extent.west ? extent.east + FULL_TURN_DEGREES : extent.east;
-  return !touchesLongitudeSpan(box, extent.west - REGISTER_EXTENT_MARGIN_DEGREES, unwrappedEast + REGISTER_EXTENT_MARGIN_DEGREES);
+  return !touchesLongitudeSpan(box, extent.west - COUNTRY_EXTENT_MARGIN_DEGREES, unwrappedEast + COUNTRY_EXTENT_MARGIN_DEGREES);
 }
 
-function isRegisterCountryOnScreen(
+function getMapCapabilities(
   box: MapBox | null,
   regions: readonly Pick<Region, "countryCode">[] | undefined,
   countries: readonly Country[] | undefined,
-): boolean {
-  return !isClearOfRegisterCountry(box, countries) && isRegisterCountryInBox(regions, countries);
+): MapCapabilities {
+  const countriesOnScreen = listCountriesInBox(regions, countries).filter((country) => !isClearOfCountry(box, country));
+
+  return {
+    official: countriesOnScreen.some((country) => country.capabilities.official),
+    microwaveLinks: countriesOnScreen.some((country) => country.capabilities.microwaveLinks),
+    emf: countriesOnScreen.some((country) => country.capabilities.emf),
+  };
+}
+
+function isOfficialLookupDone(box: MapBox | null, { countries, isBoxLookupDone, isCountriesLookupDone }: BoxCountrySources): boolean {
+  if (!isCountriesLookupDone) return false;
+  if (isBoxLookupDone || countries === undefined || countries.length === 1) return true;
+  return countries.every((country) => !country.capabilities.official || isClearOfCountry(box, country));
 }
 
 function getMapCountries(
@@ -173,7 +190,7 @@ function getMapCountries(
   return {
     onScreen: orderCountryCodesOnScreen(countryCodes, first, language),
     first,
-    isRegisterOnScreen: isRegisterCountryOnScreen(box, regions, countries),
+    capabilities: getMapCapabilities(box, regions, countries),
   };
 }
 
@@ -181,8 +198,14 @@ function hasSameCountryCodes(left: readonly string[], right: readonly string[]):
   return left.length === right.length && left.every((countryCode, index) => countryCode === right[index]);
 }
 
+function hasSameCapabilities(left: MapCapabilities, right: MapCapabilities): boolean {
+  return left.official === right.official && left.microwaveLinks === right.microwaveLinks && left.emf === right.emf;
+}
+
 function hasSameCountries(left: MapCountries, right: MapCountries): boolean {
-  return left.first === right.first && left.isRegisterOnScreen === right.isRegisterOnScreen && hasSameCountryCodes(left.onScreen, right.onScreen);
+  return (
+    left.first === right.first && hasSameCapabilities(left.capabilities, right.capabilities) && hasSameCountryCodes(left.onScreen, right.onScreen)
+  );
 }
 
 function reuseLastMapCountries(mapCountries: MapCountries): MapCountries {
@@ -192,27 +215,42 @@ function reuseLastMapCountries(mapCountries: MapCountries): MapCountries {
   return mapCountries;
 }
 
-export function isMapSourceUndecided(filters: Pick<MapFilters, "source">, registerOnScreen: RegisterOnScreen): boolean {
-  return filters.source === "uke" && !registerOnScreen.isRegisterOnScreen && !registerOnScreen.isSettled;
+export function isMapSourceUndecided(filters: Pick<MapFilters, "source">, capabilitiesOnScreen: CapabilitiesOnScreen): boolean {
+  return filters.source === "official" && !capabilitiesOnScreen.capabilities.official && !capabilitiesOnScreen.isOfficialLookupDone;
 }
 
-function usesRegisterData(filters: MapFilters): boolean {
-  return filters.source === "uke" || filters.showRadiolines || filters.showPlannedMeasurements;
+function withDatabaseSource(filters: MapFilters): MapFilters {
+  return changeMapFilterSource(filters, "internal");
 }
 
-function withoutRegisterData(filters: MapFilters): MapFilters {
-  const databaseFilters = filters.source === "uke" ? changeMapFilterSource(filters, "internal") : filters;
-  return { ...databaseFilters, showRadiolines: false, showPlannedMeasurements: false };
+function withoutMicrowaveLinks(filters: MapFilters): MapFilters {
+  return { ...filters, showRadiolines: false };
 }
 
-export function getEffectiveMapFilters(filters: MapFilters, mapCountries: Pick<MapCountries, "isRegisterOnScreen">): MapFilters {
-  if (mapCountries.isRegisterOnScreen || !usesRegisterData(filters)) return filters;
+function withoutPlannedMeasurements(filters: MapFilters): MapFilters {
+  return { ...filters, showPlannedMeasurements: false };
+}
 
-  const knownFilters = filtersWithoutRegisterData.get(filters);
+function reuseChangedFilters(knownChanges: WeakMap<MapFilters, MapFilters>, filters: MapFilters, change: MapFiltersUpdater): MapFilters {
+  const knownFilters = knownChanges.get(filters);
   if (knownFilters !== undefined) return knownFilters;
 
-  const shownFilters = withoutRegisterData(filters);
-  filtersWithoutRegisterData.set(filters, shownFilters);
+  const changedFilters = change(filters);
+  knownChanges.set(filters, changedFilters);
+  return changedFilters;
+}
+
+export function getEffectiveMapFilters(filters: MapFilters, { capabilities }: Pick<MapCountries, "capabilities">): MapFilters {
+  let shownFilters = filters;
+  if (!capabilities.official && shownFilters.source === "official") {
+    shownFilters = reuseChangedFilters(filtersOnDatabaseSource, shownFilters, withDatabaseSource);
+  }
+  if (!capabilities.microwaveLinks && shownFilters.showRadiolines) {
+    shownFilters = reuseChangedFilters(filtersWithoutMicrowaveLinks, shownFilters, withoutMicrowaveLinks);
+  }
+  if (!capabilities.emf && shownFilters.showPlannedMeasurements) {
+    shownFilters = reuseChangedFilters(filtersWithoutPlannedMeasurements, shownFilters, withoutPlannedMeasurements);
+  }
   return shownFilters;
 }
 
@@ -228,14 +266,18 @@ function useBoxCountrySources(bounds: string): BoxCountrySources {
   };
 }
 
-export function useRegisterOnScreen(bounds: string): RegisterOnScreen {
-  const sources = useBoxCountrySources(bounds);
+export function readCapabilitiesOnScreen(bounds: string, sources: BoxCountrySources): CapabilitiesOnScreen {
   const box = parseV1Bounds(bounds);
 
   return {
-    isRegisterOnScreen: isRegisterCountryOnScreen(box, sources.regions, sources.countries),
-    isSettled: isClearOfRegisterCountry(box, sources.countries) || isRegisterOnScreenSettled(sources),
+    capabilities: getMapCapabilities(box, sources.regions, sources.countries),
+    isOfficialLookupDone: isOfficialLookupDone(box, sources),
   };
+}
+
+export function useCapabilitiesOnScreen(bounds: string): CapabilitiesOnScreen {
+  const sources = useBoxCountrySources(bounds);
+  return readCapabilitiesOnScreen(bounds, sources);
 }
 
 export function useMapCountries({ bounds, points }: UseMapCountriesArgs): MapCountries {

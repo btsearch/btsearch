@@ -1,3 +1,4 @@
+import { OFFICIAL_SITE_INCLUDES, type OfficialPermit } from "@openbts/shared/contract";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
@@ -7,12 +8,12 @@ import {
   StationDialogToolbarSkeleton,
   StationSourceSwitch,
 } from "../../components/stationDialogShell";
-import { stationPermitsQueryOptions, ukeStationQueryOptions } from "../../queries";
+import { stationPermitsQueryOptions } from "../../queries";
 import type { TabId } from "../../tabs";
-import { groupPermitsByUkeStation } from "../../utils";
 import { useStationEditTarget } from "../access";
 import { locationRecordQueryOptions, seedStationRecord, stationRecordQueryOptions } from "../api";
 import { getOperatorBrand } from "../utils/brands";
+import { getStationCountryCode } from "../utils/stations";
 import { fetchIsStationWatched, stationWatchKeys } from "../watch/api";
 import { StationPanelActions } from "./panel/stationPanelActions";
 import { StationPanelBanners } from "./panel/stationPanelBanners";
@@ -23,10 +24,11 @@ import { StationSiblingStrip } from "./panel/stationSiblingStrip";
 import { StationPhotoPane } from "./photos/stationPhotoPane";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import type { FloatingDialogPanelFrameProps, StationDialogTarget } from "@/features/floating-dialogs/types";
-import { brandsQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
+import { officialSiteQueryOptions, useOfficialSource } from "@/features/official/queries";
+import { hasOfficialData } from "@/features/official/sources";
+import { brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useSettledSession } from "@/hooks/useSettledSession";
-import type { UkePermit } from "@/types/station";
 
 type StationPanelProps = FloatingDialogPanelFrameProps & {
   stationId: number;
@@ -38,8 +40,8 @@ type StationPanelProps = FloatingDialogPanelFrameProps & {
   onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
 };
 
-function selectFirstUkeStation(permits: UkePermit[]) {
-  return groupPermitsByUkeStation(permits).at(0);
+function selectFirstPermitSite(permits: OfficialPermit[]) {
+  return permits.at(0)?.officialSite;
 }
 
 function useStationWatchPreload(stationId: number) {
@@ -75,25 +77,30 @@ export function StationPanel({
   });
   const { data: brands } = useQuery(brandsQueryOptions());
   const { data: operators } = useQuery(operatorsQueryOptions());
-  const { data: linkedUkeStation } = useQuery({
-    ...stationPermitsQueryOptions(stationId),
-    select: selectFirstUkeStation,
+  const { data: countries } = useQuery(countriesQueryOptions());
+  const isOfficialCountry = station !== undefined && hasOfficialData(countries, getStationCountryCode(station));
+  const { data: linkedSite } = useQuery({
+    ...stationPermitsQueryOptions(isOfficialCountry ? stationId : undefined),
+    select: selectFirstPermitSite,
     enabled: onSwitchStation !== undefined,
   });
   const editTarget = useStationEditTarget(station);
   useStationWatchPreload(stationId);
+  const previousOfficialTarget = switchedFrom?.source === "official" ? switchedFrom : undefined;
+  const officialSite = linkedSite ?? previousOfficialTarget?.officialSite;
+  const officialSource = useOfficialSource(officialSite?.sourceKey);
 
   const tintOperator = station?.operator ?? location?.stations.find((listed) => listed.id === stationId)?.operator;
-  const previousUkeTarget = switchedFrom?.source === "uke" ? switchedFrom : undefined;
-  const ukeTarget: StationDialogTarget | undefined = linkedUkeStation
-    ? { source: "uke", id: linkedUkeStation.id, ukeStation: linkedUkeStation }
-    : previousUkeTarget;
+  const officialTarget: StationDialogTarget | undefined = linkedSite
+    ? { source: "official", id: linkedSite.id, officialSite: linkedSite }
+    : previousOfficialTarget;
   const sourceSwitch =
-    onSwitchStation && ukeTarget ? (
+    onSwitchStation && officialTarget && officialSource ? (
       <StationSourceSwitch
         source="internal"
-        onSwitch={() => onSwitchStation(ukeTarget)}
-        onPrefetch={() => void queryClient.prefetchQuery(ukeStationQueryOptions(ukeTarget.id))}
+        officialLabel={officialSource.shortName}
+        onSwitch={() => onSwitchStation(officialTarget)}
+        onPrefetch={() => void queryClient.prefetchQuery(officialSiteQueryOptions(officialTarget.id, OFFICIAL_SITE_INCLUDES))}
       />
     ) : null;
 
@@ -136,7 +143,7 @@ export function StationPanel({
       onClose={onClose}
       operatorBrand={getOperatorBrand(tintOperator, brands)}
       sourceSwitch={sourceSwitch}
-      enterFrom={previousUkeTarget ? "left" : undefined}
+      enterFrom={previousOfficialTarget ? "left" : undefined}
       heading={heading}
       toolbar={toolbar}
       actions={station ? <StationPanelActions key={station.id} station={station} editTarget={editTarget} onClose={onClose} /> : null}

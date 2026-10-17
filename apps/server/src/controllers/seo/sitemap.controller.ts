@@ -223,6 +223,7 @@ function robotsHandler(_req: FastifyRequest, res: FastifyReply) {
     "Disallow: /admin/",
     "Disallow: /account/",
     "Disallow: /preferences",
+    "Allow: /lists/",
     "Disallow: /lists",
     "Disallow: /submission",
     "Disallow: /share-target",

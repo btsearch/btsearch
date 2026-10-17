@@ -5,6 +5,8 @@ import {
   countries,
   countryBands,
   locations,
+  officialLocations,
+  officialSites,
   operatorLinks,
   operators,
   plmns,
@@ -15,8 +17,6 @@ import {
   roleGrantRegions,
   stations,
   statsSnapshots,
-  ukeLocations,
-  ukeStations,
 } from "@openbts/drizzle";
 import { operatorLinkSchema, plmnSchema } from "@openbts/shared/contract";
 import type { OperatorLink, Plmn } from "@openbts/shared/contract";
@@ -111,9 +111,9 @@ async function markRegionStations(tx: DbTx, state: ApplyState, regionId: number)
 }
 
 async function operatorDependents(context: StrategyContext, plan: PlannedEntry, id: number): Promise<RevertDependent[]> {
-  const [stationRows, ukeRows, childRows, proposedRows, snapshotRows, memberRows] = await Promise.all([
+  const [stationRows, officialSiteRows, childRows, proposedRows, snapshotRows, memberRows] = await Promise.all([
     context.tx.select({ id: stations.id }).from(stations).where(eq(stations.operator_id, id)),
-    context.tx.select({ value: count() }).from(ukeStations).where(eq(ukeStations.operator_id, id)),
+    context.tx.select({ value: count() }).from(officialSites).where(eq(officialSites.operator_id, id)),
     context.tx.select({ id: operators.id }).from(operators).where(eq(operators.parent_id, id)),
     context.tx.select({ value: count() }).from(proposedStations).where(eq(proposedStations.operator_id, id)),
     context.tx.select({ value: count() }).from(statsSnapshots).where(eq(statsSnapshots.operator_id, id)),
@@ -133,7 +133,7 @@ async function operatorDependents(context: StrategyContext, plan: PlannedEntry, 
   });
   return positiveDependents([
     { table: "stations", count: stationaryStations.length },
-    { table: "uke.uke_stations", count: ukeRows[0]?.value ?? 0 },
+    { table: "official.sites", count: officialSiteRows[0]?.value ?? 0 },
     { table: "operators", count: retainedChildren.length },
     { table: "submissions.proposed_stations", count: proposedRows[0]?.value ?? 0 },
     { table: "statistics.stats_snapshots", count: snapshotRows[0]?.value ?? 0 },
@@ -159,9 +159,9 @@ async function bandDependents(context: StrategyContext, plan: PlannedEntry, id: 
 }
 
 async function regionDependents(context: StrategyContext, plan: PlannedEntry, id: number): Promise<RevertDependent[]> {
-  const [locationRows, ukeRows, proposedRows, grantRows] = await Promise.all([
+  const [locationRows, officialLocationRows, proposedRows, grantRows] = await Promise.all([
     context.tx.select({ id: locations.id }).from(locations).where(eq(locations.region_id, id)),
-    context.tx.select({ value: count() }).from(ukeLocations).where(eq(ukeLocations.region_id, id)),
+    context.tx.select({ value: count() }).from(officialLocations).where(eq(officialLocations.region_id, id)),
     context.tx.select({ value: count() }).from(proposedLocations).where(eq(proposedLocations.region_id, id)),
     context.tx.select({ value: count() }).from(roleGrantRegions).where(eq(roleGrantRegions.regionId, id)),
   ]);
@@ -173,7 +173,7 @@ async function regionDependents(context: StrategyContext, plan: PlannedEntry, id
   });
   return positiveDependents([
     { table: "locations", count: retainedLocations.length },
-    { table: "uke.uke_locations", count: ukeRows[0]?.value ?? 0 },
+    { table: "official.locations", count: officialLocationRows[0]?.value ?? 0 },
     { table: "submissions.proposed_locations", count: proposedRows[0]?.value ?? 0 },
     { table: "auth.role_grant_regions", count: grantRows[0]?.value ?? 0 },
   ]);

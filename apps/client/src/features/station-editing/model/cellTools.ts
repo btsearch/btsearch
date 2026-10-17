@@ -1,10 +1,10 @@
+import { type OperatorRef, conventionsFor, defaultLteEarfcn } from "@openbts/country-packs";
 import type { Band } from "@openbts/shared/contract";
 
 import { patchCell } from "./draftReducer";
 import { DEFAULT_CELL_TYPE, getCellNumber } from "./ratFields";
 import { createCellDraft } from "./snapshots";
 import type { CellDraft, DraftKey, Rat } from "./types";
-import { getKnownEARFCN } from "@/features/cells/lib/earfcnFill";
 import { buildRemainingLTECells, supportsRemainingLTECells } from "@/features/cells/lib/remainingLteCells";
 import { getBandDuplexMark } from "@/features/station-details/station/utils/bands";
 
@@ -15,12 +15,14 @@ export type CellToolInput = {
   cells: readonly CellDraft[];
   rat: Rat;
   bandsById: ReadonlyMap<number, Band>;
-  operatorMnc: number | null;
+  countryCode: string | null;
+  operator: OperatorRef | null;
   confirmScope: ConfirmScope;
 };
 
 type CellToolOffer = {
-  operatorMnc: number | null;
+  countryCode: string | null;
+  operator: OperatorRef | null;
   hasConfirmTool: boolean;
 };
 
@@ -38,8 +40,8 @@ function keepUnchanged(cells: readonly CellDraft[], next: readonly CellDraft[]):
 }
 
 function isOffered(tool: CellToolId, offer: CellToolOffer): boolean {
-  if (tool === "fillChannels") return offer.operatorMnc !== null;
-  if (tool === "addMissingCells") return supportsRemainingLTECells(offer.operatorMnc);
+  if (tool === "fillChannels") return offer.operator !== null && offer.operator.primaryPlmn !== null;
+  if (tool === "addMissingCells") return supportsRemainingLTECells(offer.countryCode, offer.operator);
   if (tool === "confirmCells") return offer.hasConfirmTool;
   return true;
 }
@@ -65,35 +67,42 @@ function hasEmptyChannel(cell: CellDraft): boolean {
   return channel === null || channel === 0;
 }
 
-export function fillLteChannels(cells: readonly CellDraft[], bandsById: ReadonlyMap<number, Band>, operatorMnc: number | null): readonly CellDraft[] {
+export function fillLteChannels(cells: readonly CellDraft[], bandsById: ReadonlyMap<number, Band>, plmn: string | null): readonly CellDraft[] {
+  if (plmn === null) return cells;
+
   const filled = cells.map((cell) => {
     if (!isKeptLteCell(cell) || !hasEmptyChannel(cell) || cell.bandId === null) return cell;
 
     const band = bandsById.get(cell.bandId);
-    const channel = band === undefined ? null : getKnownEARFCN(operatorMnc, band.labelMhz, getBandDuplexMark(band));
+    const duplex = getBandDuplexMark(band);
+    if (band === undefined || band.labelMhz === null || duplex === null) return cell;
+
+    const channel = defaultLteEarfcn(plmn, band.labelMhz, duplex === "TDD" ? "TDD" : "FDD");
     return channel === null ? cell : patchCell(cell, { numbers: { earfcn: channel } });
   });
   return keepUnchanged(cells, filled);
 }
 
-function createSeriesCell(source: CellDraft, clid: number): CellDraft {
+export function createSeriesCell(source: CellDraft, clid: number, countryCode: string | null): CellDraft {
+  const tac = conventionsFor(countryCode).hoistedTac ? getCellNumber(source, "tac") : null;
   return createCellDraft("lte", {
     bandId: source.bandId,
     cellType: source.cellType ?? DEFAULT_CELL_TYPE,
     notes: source.notes,
     isConfirmed: source.isConfirmed,
-    numbers: { ...source.numbers, clid, pci: null },
+    numbers: { ...source.numbers, clid, pci: null, tac },
     flags: { ...source.flags },
   });
 }
 
-export function addMissingLteCells(cells: readonly CellDraft[], operatorMnc: number | null): readonly CellDraft[] {
+export function addMissingLteCells(cells: readonly CellDraft[], countryCode: string | null, operator: OperatorRef | null): readonly CellDraft[] {
   const additions = buildRemainingLTECells<CellDraft>({
-    operatorMnc,
+    countryCode,
+    operator,
     cells: cells.filter(isKeptLteCell),
     getBandId: (cell) => cell.bandId,
     getDetails: (cell) => ({ enbid: getCellNumber(cell, "enbid"), clid: getCellNumber(cell, "clid") }),
-    createCell: createSeriesCell,
+    createCell: (source, clid) => createSeriesCell(source, clid, countryCode),
   });
   if (additions.length === 0) return cells;
 
@@ -160,8 +169,8 @@ export function confirmCells(cells: readonly CellDraft[], rat: Rat, scope: Confi
 }
 
 export function runCellTool(tool: CellToolId, input: CellToolInput): readonly CellDraft[] {
-  if (tool === "fillChannels") return fillLteChannels(input.cells, input.bandsById, input.operatorMnc);
-  if (tool === "addMissingCells") return addMissingLteCells(input.cells, input.operatorMnc);
+  if (tool === "fillChannels") return fillLteChannels(input.cells, input.bandsById, input.operator?.primaryPlmn ?? null);
+  if (tool === "addMissingCells") return addMissingLteCells(input.cells, input.countryCode, input.operator);
   if (tool === "assignSectorsByPci") return assignSectorsByPci(input.cells, input.rat);
   return confirmCells(input.cells, input.rat, input.confirmScope);
 }

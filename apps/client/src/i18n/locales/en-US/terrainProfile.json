@@ -90,7 +90,7 @@
       "ANTENNA_SELECTION_INVALID": "The selected antenna is no longer available",
       "SI2PEM_REPORT_UNAVAILABLE": "No matching SI2PEM report was available",
       "SI2PEM_REPORT_PARSE_FAILED": "The latest SI2PEM report could not be read reliably",
-      "UKE_ANTENNA_FALLBACK": "A UKE permit height was used because SI2PEM data was unavailable",
+      "PERMIT_ANTENNA_FALLBACK": "The antenna height from the permit was used because SI2PEM data was unavailable",
       "NETWORKS_SHARING_DATA": "Antenna data comes from the co-located partner network station (T-Mobile/Orange RAN sharing)",
       "SURFACE_MODEL_UNAVAILABLE": "Surface and vegetation data was unavailable",
       "SURFACE_MODEL_PARTIAL": "Surface and vegetation coverage is incomplete along this path",
@@ -139,7 +139,7 @@
     "source": {
       "emfReport": "EMF report",
       "emfReportDated": "EMF report of {{date}}",
-      "permit": "UKE permit"
+      "permit": "Permit"
     }
   },
   "marker": {

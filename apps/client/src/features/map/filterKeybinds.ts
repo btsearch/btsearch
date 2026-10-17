@@ -1,3 +1,4 @@
+import type { MapCapabilities } from "./data/mapCountries";
 import { DEFAULT_RECENT_DAYS, type MapFiltersUpdater, changeMapFilterSource, clearMapFilters } from "./data/mapFilters";
 import { toggleValue } from "@/lib/utils";
 
@@ -8,7 +9,7 @@ export type MapVisibilityKeybind = "azimuths" | "stations";
 
 export type MapFilterKeybindContext = {
   operatorIds: readonly number[];
-  isRegisterOnScreen: boolean;
+  capabilities: Pick<MapCapabilities, "official" | "microwaveLinks">;
 };
 
 const MAP_VISIBILITY_KEYBINDS: ReadonlyMap<string, MapVisibilityKeybind> = new Map([
@@ -33,11 +34,11 @@ export function getMapFilterKeybindUpdater(key: string, shiftKey: boolean, conte
 
   switch (normalizedKey) {
     case "r":
-      if (!context.isRegisterOnScreen) return undefined;
+      if (!context.capabilities.microwaveLinks) return undefined;
       return (filters) => ({ ...filters, showRadiolines: !filters.showRadiolines });
     case "z":
-      if (!context.isRegisterOnScreen) return undefined;
-      return (filters) => changeMapFilterSource(filters, filters.source === "uke" ? "internal" : "uke");
+      if (!context.capabilities.official) return undefined;
+      return (filters) => changeMapFilterSource(filters, filters.source === "official" ? "internal" : "official");
     case "n":
       return (filters) => ({ ...filters, recentDays: filters.recentDays === null ? DEFAULT_RECENT_DAYS : null });
     default: {

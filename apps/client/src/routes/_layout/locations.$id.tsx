@@ -1,5 +1,6 @@
 import { Globe02Icon, Location01Icon, LocationRemove01Icon, MapsLocation01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { OfficialSource } from "@openbts/shared/contract";
 import { createLocationSEOMetadata, parseSEOEntityId } from "@openbts/shared/seo";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
@@ -10,6 +11,8 @@ import { EntityNotFound, EntityRouteError, entityPageChipClassName } from "@/com
 import { PhotoStrip } from "@/components/photos/photoStrip";
 import { InlineError } from "@/components/ui/error-state";
 import { getLocationMapHash } from "@/features/map/mapLinks";
+import { officialSourcesQueryOptions } from "@/features/official/queries";
+import { listPublicSiteSourceNames } from "@/features/official/sources";
 import { CopyButton } from "@/features/station-details/components/copyButton";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { ShareButton } from "@/features/station-details/components/shareButton";
@@ -31,7 +34,7 @@ function locationLabel(location: LocationRecord, fallbackCity: string): string {
   return location.address ? `${city}, ${location.address}` : city;
 }
 
-function locationHead(location: LocationRecord) {
+function locationHead(location: LocationRecord, sources: readonly OfficialSource[]) {
   return buildPageHead(
     createLocationSEOMetadata(
       { name: APP_NAME, url: getBrowserOrigin() },
@@ -48,6 +51,7 @@ function locationHead(location: LocationRecord) {
           operatorName: station.operator?.name,
           status: toV1StationStatus(station.status),
         })),
+        siteSourceNames: listPublicSiteSourceNames(sources, location.countryCode),
       },
     ),
   );
@@ -175,13 +179,17 @@ export const Route = createFileRoute("/_layout/locations/$id")({
     if (id === null) throw notFound();
     void queryClient.query(locationPhotoRecordsQueryOptions(id)).catch(() => undefined);
     try {
-      return await queryClient.query({ ...locationRecordQueryOptions(id), staleTime: "static" });
+      const [location, sources] = await Promise.all([
+        queryClient.query({ ...locationRecordQueryOptions(id), staleTime: "static" }),
+        queryClient.query(officialSourcesQueryOptions()).catch(() => []),
+      ]);
+      return { location, sources };
     } catch (error) {
       if (error instanceof ApiResponseError && error.status === 404) throw notFound();
       throw error;
     }
   },
-  head: ({ loaderData }) => (loaderData ? locationHead(loaderData) : { meta: [{ name: "robots", content: "noindex" }] }),
+  head: ({ loaderData }) => (loaderData ? locationHead(loaderData.location, loaderData.sources) : { meta: [{ name: "robots", content: "noindex" }] }),
   notFoundComponent: LocationNotFound,
   errorComponent: LocationRouteError,
 });

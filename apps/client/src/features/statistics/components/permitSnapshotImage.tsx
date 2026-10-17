@@ -2,7 +2,8 @@ import type { CSSProperties } from "react";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { PermitSnapshotBandChart, type SnapshotBand, type SnapshotMetric } from "./permitSnapshotBandChart";
+import type { SnapshotBand } from "../lib/chartData";
+import { PermitSnapshotBandChart, type SnapshotMetric } from "./permitSnapshotBandChart";
 
 const IMAGE_WIDTH = 1920;
 const IMAGE_HEIGHT = 1080;
@@ -41,10 +42,15 @@ export const PermitSnapshotImage = forwardRef<
     description: string;
     metric: SnapshotMetric;
     month: string;
+    sourceName: string | null;
   }
->(function PermitSnapshotImage({ bands, description, metric, month }, ref) {
+>(function PermitSnapshotImage({ bands, description, metric, month, sourceName }, ref) {
   const { t, i18n } = useTranslation("statistics");
   const localizedMonth = getLocalizedMonth(month, i18n.language);
+  const title =
+    sourceName === null
+      ? t("permitsByMonth.export.registerImageTitle", localizedMonth)
+      : t("permitsByMonth.export.imageTitle", { ...localizedMonth, source: sourceName });
 
   return (
     <div aria-hidden="true" className="pointer-events-none fixed left-[-10000px] top-0 z-[-1]">
@@ -53,9 +59,7 @@ export const PermitSnapshotImage = forwardRef<
           <div className="flex min-w-0 items-center gap-8">
             <img src="/btsearch.webp" alt="" width={185} height={65} className="h-[65px] w-[185px] shrink-0 brightness-0 invert" draggable={false} />
             <div className="min-w-0 border-l border-white/20 pl-8">
-              <h1 className="truncate text-[42px] font-semibold leading-tight tracking-[-0.02em]">
-                {t("permitsByMonth.export.imageTitle", localizedMonth)}
-              </h1>
+              <h1 className="truncate text-[42px] font-semibold leading-tight tracking-[-0.02em]">{title}</h1>
               <p className="mt-1 text-lg text-zinc-400">
                 {t(`permitsByMonth.views.${metric}`)} · {description}
               </p>
@@ -76,7 +80,7 @@ export const PermitSnapshotImage = forwardRef<
           {bands.map((band) => {
             const slots = Math.max(band.rows.length, MIN_OPERATOR_SLOTS);
             return (
-              <div key={band.id} className="flex min-w-0" style={{ flex: `${slots} 1 ${slots * OPERATOR_SLOT_WIDTH}px` }}>
+              <div key={band.key} className="flex min-w-0" style={{ flex: `${slots} 1 ${slots * OPERATOR_SLOT_WIDTH}px` }}>
                 <PermitSnapshotBandChart band={band} metric={metric} mode="export" />
               </div>
             );

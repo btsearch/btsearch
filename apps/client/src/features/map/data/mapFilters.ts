@@ -1,11 +1,17 @@
-import type { Operator } from "@openbts/shared/contract";
+import { type Country, OFFICIAL_RAT_FILTERS, type OfficialLayer, type OfficialRatFilter, type Operator } from "@openbts/shared/contract";
 
-import { RAT_OPTIONS, REGISTER_COUNTRY_CODE } from "../constants";
+import { RAT_OPTIONS } from "../constants";
+import { type OfficialLabelParts, listOfficialRatOptions, toOfficialRatOption } from "@/features/official/labels";
+import type { RatOption } from "@/features/shared/rat";
 import { isCountryCode, isRecordId } from "@/lib/apiValues";
 import { isUplinkType } from "@/lib/format/uplink";
 import type { StationSource, StationStatus, UplinkType } from "@/types/station";
 
 export type MapRecentDateField = "createdAt" | "updatedAt";
+
+export type MapCountryCapability = "official" | "microwaveLinks" | "emf";
+
+export type CapableCountries = readonly Pick<Country, "code" | "capabilities">[] | undefined;
 
 export type MapFilters = {
   operatorIds: number[];
@@ -35,9 +41,22 @@ const MIN_RECENT_DAYS = 1;
 const MAX_RECENT_DAYS = 30;
 const DEFAULT_MAP_STATUS: StationStatus = "published";
 const DEFAULT_RECENT_DATE_FIELD: MapRecentDateField = "createdAt";
+const LEGACY_OFFICIAL_SOURCE = "uke";
 const MAP_STATUSES: ReadonlySet<string> = new Set<StationStatus>(["published", "pending", "inactive"]);
 const RECENT_DATE_FIELDS: ReadonlySet<string> = new Set<MapRecentDateField>(["createdAt", "updatedAt"]);
 const INTERNAL_MAP_RATS: ReadonlySet<string> = new Set<string>(RAT_OPTIONS.map((rat) => rat.value));
+const STORED_REGISTER_RATS: Readonly<Record<OfficialRatFilter, string>> = {
+  nr: "NR",
+  lte: "LTE",
+  umts: "UMTS",
+  cdma: "CDMA",
+  gsm: "GSM",
+  gsmR: "GSM-R",
+  iot: IOT_RAT,
+};
+const OFFICIAL_RATS_BY_STORED_RAT: ReadonlyMap<string, OfficialRatFilter> = new Map(
+  OFFICIAL_RAT_FILTERS.map((rat) => [STORED_REGISTER_RATS[rat], rat]),
+);
 
 export const DEFAULT_MAP_FILTERS: MapFilters = {
   operatorIds: [],
@@ -91,6 +110,10 @@ export function clampRecentDays(days: number): number | null {
   return Math.min(MAX_RECENT_DAYS, Math.max(MIN_RECENT_DAYS, Math.round(days)));
 }
 
+export function readMapSource(value: unknown): StationSource {
+  return value === "official" || value === LEGACY_OFFICIAL_SOURCE ? "official" : "internal";
+}
+
 function listKnownMapRats(source: StationSource, registerRats: readonly string[] | undefined): ReadonlySet<string> | null {
   if (source === "internal") return INTERNAL_MAP_RATS;
   return registerRats === undefined ? null : new Set(registerRats);
@@ -122,7 +145,7 @@ export function readStoredMapFilters(stored: Record<string, unknown>): MapFilter
     bands: readNumbers(stored.bands),
     rat: readStrings(stored.rat),
     status: readStrings(stored.status).filter(isMapStationStatus),
-    source: stored.source === "uke" ? "uke" : "internal",
+    source: readMapSource(stored.source),
     recentDays: typeof stored.recentDays === "number" ? stored.recentDays : null,
     recentDateFields: readStrings(stored.recentDateFields).filter(isMapRecentDateField),
     showStations: stored.showStations !== false,
@@ -138,36 +161,62 @@ export function readStoredOperatorMncs(stored: Record<string, unknown>, field: s
   return unique(readNumbers(stored[field]).filter(isRecordId));
 }
 
-export function isMapCountryAllowed(filters: Pick<MapFilters, "source" | "countryCodes">, countryCode: string): boolean {
-  if (filters.source === "uke") return countryCode === REGISTER_COUNTRY_CODE;
+export function hasCountryCapability(countries: CapableCountries, countryCode: string, capability: MapCountryCapability): boolean {
+  return countries?.some((country) => country.code === countryCode && country.capabilities[capability]) === true;
+}
+
+export function isMapCountryAllowed(filters: Pick<MapFilters, "source" | "countryCodes">, countryCode: string, countries: CapableCountries): boolean {
+  if (filters.source === "official") return hasCountryCapability(countries, countryCode, "official");
   return filters.countryCodes.length === 0 || filters.countryCodes.includes(countryCode);
 }
 
 export function listAppliedMapBands(filters: Pick<MapFilters, "source" | "bands">): number[] {
-  return filters.source === "uke" ? filters.bands.filter((label) => label !== UNKNOWN_BAND_LABEL) : filters.bands;
+  return filters.source === "official" ? filters.bands.filter((label) => label !== UNKNOWN_BAND_LABEL) : filters.bands;
 }
 
 export function listAppliedMapRats(filters: Pick<MapFilters, "source" | "rat">): string[] {
-  return filters.source === "uke" ? filters.rat : filters.rat.filter((rat) => INTERNAL_MAP_RATS.has(rat));
+  return filters.source === "official" ? filters.rat : filters.rat.filter((rat) => INTERNAL_MAP_RATS.has(rat));
+}
+
+export function listShownOfficialLayers(filters: Pick<MapFilters, "source" | "showStations" | "showHeatmap" | "showRadiolines">): OfficialLayer[] {
+  const layers: OfficialLayer[] = [];
+  if (filters.source === "official" && (filters.showStations || filters.showHeatmap)) layers.push("sites");
+  if (filters.showRadiolines) layers.push("microwaveLinks");
+  return layers;
 }
 
 export function areMapRatFiltersReady(filters: Pick<MapFilters, "source" | "rat">, isRegisterRatListReady: boolean): boolean {
-  return filters.source !== "uke" || filters.rat.length === 0 || isRegisterRatListReady;
+  return filters.source !== "official" || filters.rat.length === 0 || isRegisterRatListReady;
 }
 
-export function countAllowedMapOperators(filters: MapFilters, operators: readonly Operator[] | undefined): number {
+export function listOfficialRatFilters(storedRats: readonly string[]): OfficialRatFilter[] {
+  return OFFICIAL_RAT_FILTERS.filter((rat) => storedRats.includes(STORED_REGISTER_RATS[rat]));
+}
+
+export function listMapRegisterRatOptions(labels: readonly Pick<OfficialLabelParts, "rat" | "variant">[]): RatOption[] {
+  return listOfficialRatOptions(labels).map((option) => ({ ...option, value: STORED_REGISTER_RATS[option.value] }));
+}
+
+export function listStoredRegisterRatOptions(storedRats: readonly string[]): RatOption[] {
+  return storedRats.flatMap((storedRat) => {
+    const rat = OFFICIAL_RATS_BY_STORED_RAT.get(storedRat);
+    return rat === undefined ? [] : [{ ...toOfficialRatOption(rat), value: storedRat }];
+  });
+}
+
+export function countAllowedMapOperators(filters: MapFilters, operators: readonly Operator[] | undefined, countries: CapableCountries): number {
   if (operators === undefined) return filters.operatorIds.length;
 
   const chosenIds = new Set(filters.operatorIds);
-  return operators.filter((operator) => chosenIds.has(operator.id) && isMapCountryAllowed(filters, operator.countryCode)).length;
+  return operators.filter((operator) => chosenIds.has(operator.id) && isMapCountryAllowed(filters, operator.countryCode, countries)).length;
 }
 
-export function countActiveMapFilters(filters: MapFilters, operators: readonly Operator[] | undefined): number {
-  const isRegister = filters.source === "uke";
+export function countActiveMapFilters(filters: MapFilters, operators: readonly Operator[] | undefined, countries: CapableCountries): number {
+  const isRegister = filters.source === "official";
   const statusCount = isRegister || isDefaultMapStatus(filters.status) ? 0 : filters.status.length;
 
   return (
-    countAllowedMapOperators(filters, operators) +
+    countAllowedMapOperators(filters, operators, countries) +
     (isRegister ? 0 : filters.countryCodes.length) +
     listAppliedMapBands(filters).length +
     listAppliedMapRats(filters).length +

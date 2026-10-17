@@ -8,11 +8,11 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 type SubmissionSearch = {
   station?: string;
   edit?: string;
-  uke?: string;
+  officialSite?: string;
 };
 
 function SubmissionsPage() {
-  const { station, edit, uke } = Route.useSearch();
+  const { station, edit, officialSite } = Route.useSearch();
   const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissions");
 
   if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
@@ -22,10 +22,10 @@ function SubmissionsPage() {
   return (
     <RequireAuth>
       <SubmissionForm
-        key={`${station}|${edit}|${uke}`}
+        key={`${station}|${edit}|${officialSite}`}
         stationId={Number.isSafeInteger(stationId) && stationId > 0 ? stationId : null}
         submissionId={edit === undefined || edit === "" ? null : edit}
-        registerStationId={uke ?? null}
+        registerSiteId={officialSite ?? null}
       />
     </RequireAuth>
   );
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_layout/submission/")({
   validateSearch: (search: Record<string, unknown>): SubmissionSearch => ({
     station: search.station as string | undefined,
     edit: search.edit as string | undefined,
-    uke: typeof search.uke === "string" || typeof search.uke === "number" ? String(search.uke) : undefined,
+    officialSite: typeof search.officialSite === "string" || typeof search.officialSite === "number" ? String(search.officialSite) : undefined,
   }),
   staticData: {
     titleKey: "items.submitStation",

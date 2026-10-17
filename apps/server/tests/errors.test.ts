@@ -1,16 +1,7 @@
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
 
-import {
-  DetailedErrorResponse,
-  type ErrorCode,
-  ErrorResponse,
-  MALFORMED_MULTIPART_MESSAGE,
-  ValidationError,
-  callerFaultResponse,
-  errors,
-  isStillReferenced,
-} from "../src/errors.js";
+import { ErrorResponse, MALFORMED_MULTIPART_MESSAGE, callerFaultResponse, errors, isStillReferenced } from "../src/errors.js";
 
 function databaseError(code: string, query = "insert into records values (1)"): postgres.PostgresError {
   const Constructor = postgres.PostgresError as unknown as new (data: { code: string; message: string; query: string }) => postgres.PostgresError;
@@ -18,9 +9,6 @@ function databaseError(code: string, query = "insert into records values (1)"): 
 }
 
 describe("ErrorResponse", () => {
-  it.each(Object.keys(errors) as ErrorCode[])("preserves the documented %s status and message", (code) => {
-    expect(new ErrorResponse(code)).toMatchObject({ code, ...errors[code], name: "ErrorResponse" });
-  });
   it("preserves a caller-specific message and the original error cause", () => {
     const cause = new Error("database unavailable");
     expect(new ErrorResponse("FAILED_TO_CREATE", { message: "Creation failed", cause })).toMatchObject({
@@ -32,27 +20,6 @@ describe("ErrorResponse", () => {
   });
   it("uses the documented message for an empty override", () => {
     expect(new ErrorResponse("NOT_FOUND", { message: "" }).message).toBe(errors.NOT_FOUND.message);
-  });
-});
-
-describe("ValidationError", () => {
-  it("retains field errors in a 400 validation response", () => {
-    const details = [{ field: "name", validationMessage: "Required" }];
-    expect(new ValidationError(details)).toMatchObject({ code: "VALIDATION_ERROR", statusCode: 400, details });
-  });
-  it("allows an empty details collection", () => {
-    expect(new ValidationError([]).details).toEqual([]);
-  });
-});
-
-describe("DetailedErrorResponse", () => {
-  it("retains domain-specific missing-record details", () => {
-    const details = [{ field: "stationIds", ids: [3, 7] }];
-    expect(new DetailedErrorResponse("BAD_REQUEST", details, { message: "Missing items" })).toMatchObject({
-      statusCode: 400,
-      details,
-      message: "Missing items",
-    });
   });
 });
 

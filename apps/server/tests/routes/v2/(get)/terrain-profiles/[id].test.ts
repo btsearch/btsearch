@@ -6,7 +6,7 @@ import { readUserId } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 describe("getTerrainProfileRoute", () => {
-  it.each(["pending", "failed", "cancelled"])("serializes a %s profile and sends polling headers only while pending", async (status) => {
+  it.each(["pending", "failed"])("serializes a %s profile and sends polling headers only while pending", async (status) => {
     dbMock.enqueueFor("select", "countries", []);
     redisMock.get.mockResolvedValue(
       JSON.stringify({
@@ -35,16 +35,16 @@ describe("getTerrainProfileRoute", () => {
       candidates: [],
       propagation: null,
     });
-    expect(redisMock.get).toHaveBeenCalledWith(`terrain:profile:v1:${readUserId}`);
+    expect(redisMock.get).toHaveBeenCalledWith(`terrain:profile:v2:${readUserId}`);
     if (status === "pending") expect(response.headers).toMatchObject({ "retry-after": "2", "x-retry-after": "2" });
     else expect(response.headers).not.toHaveProperty("retry-after");
   });
 
   it.each(["expired", "hidden"])("hides a %s profile", async (kind) => {
-    dbMock.enqueueFor("select", "countries", kind === "hidden" ? [{ code: "PL" }] : []);
+    dbMock.enqueueFor("select", "countries", kind === "hidden" ? [{ code: "PL", isVisible: false }] : []);
     const app = await createRouteHarness(getTerrainProfileRoute);
     expect((await app.inject({ url: `/terrain-profiles/${readUserId}` })).statusCode).toBe(404);
-    if (kind === "hidden") expect(redisMock.get).not.toHaveBeenCalled();
+    if (kind === "hidden") expect(redisMock.get).not.toHaveBeenCalledWith(expect.stringMatching(/^terrain:/));
   });
 
   it.each(["not-a-uuid", `${readUserId}?include=invalid`])("rejects malformed requests before reading profiles: %s", async (path) => {

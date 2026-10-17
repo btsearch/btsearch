@@ -3,19 +3,11 @@ import { memo, useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { LabelList, Rectangle, ReferenceLine, useYAxisScale } from "recharts";
 
-import type { PermitSnapshot } from "../api";
-import type { BandComparator } from "../lib/bandOrder";
-import { operatorColor, operatorDataKey, operatorSeries } from "../lib/series";
+import type { SnapshotBand, SnapshotRow } from "../lib/chartData";
 import * as BarChartImport from "@/components/evilcharts/charts/bar-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 
 export type SnapshotMetric = "permits" | "stations";
-export type SnapshotBand = {
-  id: number;
-  name: string;
-  rat: string;
-  rows: PermitSnapshot["rows"];
-};
 
 type SnapshotChartDatum = { operator: string; all: number; delta: number; deltaBar: number; deltaLabel: string; color: string };
 type SnapshotBarShapeProps = ComponentProps<typeof Rectangle> & {
@@ -66,28 +58,6 @@ const SNAPSHOT_LAYOUT = {
 const DELTA_TONE_CLASS_NAMES = { positive: "fill-emerald-700 dark:fill-emerald-400", negative: "fill-red-600 dark:fill-red-400" } as const;
 const EXPORT_COLORS = { operator: "#d4d4d8", baseline: "#52525b", positive: "#34d399", negative: "#f87171" } as const;
 
-export function buildSnapshotBands(rows: PermitSnapshot["rows"] | undefined, compareBands: BandComparator): SnapshotBand[] {
-  const bands = new Map<string, SnapshotBand>();
-  const operatorOrder = new Map(operatorSeries((rows ?? []).map((row) => row.operator)).map((series, index) => [series.key, index]));
-
-  for (const row of rows ?? []) {
-    const existing = bands.get(row.band.name) ?? { id: row.band.id, name: row.band.name, rat: row.band.rat, rows: [] };
-    existing.rows.push(row);
-    bands.set(row.band.name, existing);
-  }
-
-  return [...bands.values()]
-    .map((band) => ({
-      ...band,
-      rows: [...band.rows].sort(
-        (a, b) =>
-          (operatorOrder.get(operatorDataKey(a.operator)) ?? Number.MAX_SAFE_INTEGER) -
-            (operatorOrder.get(operatorDataKey(b.operator)) ?? Number.MAX_SAFE_INTEGER) || a.operator.name.localeCompare(b.operator.name),
-      ),
-    }))
-    .sort(compareBands);
-}
-
 function formatWholeNumber(value: unknown, locale: string): string {
   const number = Number(value);
   return Number.isFinite(number) ? number.toLocaleString(locale) : String(value);
@@ -104,9 +74,9 @@ function formatPercent(value: number, locale: string): string {
   return `${value.toLocaleString(locale, { maximumFractionDigits })}%`;
 }
 
-function getMetricValues(row: PermitSnapshot["rows"][number], metric: SnapshotMetric, locale: string) {
-  const all = metric === "permits" ? row.permits : row.unique_stations;
-  const delta = metric === "permits" ? row.permits_delta : row.unique_stations_delta;
+function getMetricValues(row: SnapshotRow, metric: SnapshotMetric, locale: string) {
+  const all = metric === "permits" ? row.permits : row.sites;
+  const delta = metric === "permits" ? row.added.permits : row.added.sites;
   const absoluteDelta = Math.abs(delta);
   const deltaTone = delta < 0 ? "negative" : "positive";
   const deltaLabel =
@@ -261,7 +231,7 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
   const { data, config, valueAxis } = useMemo(() => {
     const values = band.rows.map((row) => ({
       operator: row.operator.name,
-      color: operatorColor(row.operator),
+      color: row.operator.color,
       ...getMetricValues(row, metric, i18n.language),
     }));
     const axis = getValueAxis(values, isExport);
@@ -277,8 +247,8 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
   }, [band.rows, i18n.language, isExport, metric, t]);
 
   const chartMinWidth = Math.max(320, data.length * (layout.barSize * 2 + layout.barGap + 14) + 72);
-  const allBarShape = useMemo(() => createSnapshotBarShape(`snapshot-${patternPrefix}-${band.id}-all`, "solid"), [band.id, patternPrefix]);
-  const deltaBarShape = useMemo(() => createSnapshotBarShape(`snapshot-${patternPrefix}-${band.id}-delta`, "hatched"), [band.id, patternPrefix]);
+  const allBarShape = useMemo(() => createSnapshotBarShape(`snapshot-${patternPrefix}-all`, "solid"), [patternPrefix]);
+  const deltaBarShape = useMemo(() => createSnapshotBarShape(`snapshot-${patternPrefix}-delta`, "hatched"), [patternPrefix]);
 
   const chart = (
     <EvilBarChart

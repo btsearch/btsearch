@@ -1,19 +1,20 @@
-import type { Region } from "@openbts/shared/contract";
+import type { OfficialLocation, OfficialLocationInclude, Region } from "@openbts/shared/contract";
 import { keepPreviousData, queryOptions, skipToken } from "@tanstack/react-query";
 
 import { COORDINATE_DIGITS, formatCoordinate } from "../model/changes";
 import { EDIT_LIMITS } from "../model/validate";
 import { editingKeys } from "./keys";
 import type { MapLocationRecord } from "@/features/map/api";
-import { fetchApiData, fetchV2Data } from "@/lib/api";
+import { fetchOfficialLocations } from "@/features/official/api";
+import { fetchV2Data } from "@/lib/api";
 import type { PlacePoint } from "@/lib/geo/geocoding";
-import type { UkeLocationWithPermits } from "@/types/station";
 
 export type PickerLocation = MapLocationRecord;
 export type PickerStation = PickerLocation["stations"][number];
 
 const PICKER_PAGE_SIZE = 500;
 const PICKER_INCLUDE = "stations";
+const REGISTER_INCLUDE: readonly OfficialLocationInclude[] = ["sites", "sites.permits", "sites.permits.sectors"];
 const PICKER_STALE_TIME = 1000 * 60 * 2;
 const REGION_AT_STALE_TIME = 1000 * 60 * 30;
 const COORDINATE_SCALE = 10 ** COORDINATE_DIGITS;
@@ -48,10 +49,10 @@ async function fetchRegionAt(point: PlacePoint, signal?: AbortSignal): Promise<R
   return regions[0] ?? null;
 }
 
-function fetchRegisterLocations(bounds: string, wantsAzimuths: boolean, signal?: AbortSignal): Promise<UkeLocationWithPermits[]> {
-  const params = new URLSearchParams({ bounds, limit: String(PICKER_PAGE_SIZE) });
-  if (wantsAzimuths) params.set("azimuths", "true");
-  return fetchApiData<UkeLocationWithPermits[]>(`uke/locations?${params.toString()}`, { signal });
+async function fetchRegisterLocations(bbox: string, countryCode: string | null, signal?: AbortSignal): Promise<OfficialLocation[]> {
+  const countryCodes = countryCode === null ? undefined : [countryCode];
+  const page = await fetchOfficialLocations({ bbox, countryCodes, include: [...REGISTER_INCLUDE], limit: PICKER_PAGE_SIZE }, signal);
+  return page.data;
 }
 
 export function pickerLocationsQueryOptions(bbox: string, includeEmpty: boolean, wantsAzimuths = false) {
@@ -74,10 +75,10 @@ export function regionAtQueryOptions(point: PlacePoint | null) {
   });
 }
 
-export function registerLocationsQueryOptions(bounds: string, wantsAzimuths: boolean) {
+export function registerLocationsQueryOptions(bbox: string, countryCode: string | null) {
   return queryOptions({
-    queryKey: editingKeys.registerLocations(bounds, wantsAzimuths),
-    queryFn: bounds === "" ? skipToken : ({ signal }) => fetchRegisterLocations(bounds, wantsAzimuths, signal),
+    queryKey: editingKeys.registerLocations(bbox, countryCode),
+    queryFn: bbox === "" ? skipToken : ({ signal }) => fetchRegisterLocations(bbox, countryCode, signal),
     staleTime: PICKER_STALE_TIME,
     placeholderData: keepPreviousData,
   });

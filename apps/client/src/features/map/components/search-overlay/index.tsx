@@ -1,3 +1,4 @@
+import type { MicrowaveLink, OfficialSite } from "@openbts/shared/contract";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import {
@@ -25,11 +26,9 @@ import { useMapKeybinds } from "../../hooks/useMapKeybinds";
 import { useSearchState } from "../../hooks/useSearchState";
 import {
   type StationSearchHit,
-  type UkeSearchPermitStation,
-  type UkeSearchRadioline,
   isRejectedSearchQuery,
+  officialSearchQueryOptions,
   parseGpsCoordinates,
-  searchUkePermits,
   stationSearchQueryOptions,
 } from "../../searchApi";
 import { MapCursorInfo } from "../mapCursorInfo";
@@ -54,7 +53,6 @@ import type { StationSource } from "@/types/station";
 
 const MAP_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includes("map"));
 const MAP_SEARCH_MODE_STORAGE_KEY = "map:search:affectMap";
-const UKE_SEARCH_STALE_TIME = 1000 * 60 * 5;
 const EMPTY_RESULTS: never[] = [];
 const PANEL_EXPANDED = { height: "auto", opacity: 1 } as const;
 const PANEL_COLLAPSED = { height: 0, opacity: 0 } as const;
@@ -77,9 +75,9 @@ function saveMapSearchMode(mode: MapSearchMode): void {
 type MapSearchOverlayProps = {
   locationCount: number;
   totalCount: number;
-  radioLineCount?: number;
-  radioLineTotalCount?: number;
-  isRadioLinesFetching?: boolean;
+  microwaveLinkCount?: number;
+  microwaveLinkTotalCount?: number;
+  isMicrowaveLinksFetching?: boolean;
   filters: MapFilters;
   mapCountries: MapCountries;
   zoom?: number;
@@ -88,8 +86,8 @@ type MapSearchOverlayProps = {
   onFiltersChange: (update: MapFiltersChange) => void;
   onLocationSelect?: (lat: number, lon: number) => void;
   onStationSelect?: (station: StationSearchHit) => void;
-  onUkeStationSelect?: (station: UkeSearchPermitStation) => void;
-  onRadiolineSelect?: (radioline: UkeSearchRadioline) => void;
+  onOfficialSiteSelect?: (site: OfficialSite) => void;
+  onMicrowaveLinkSelect?: (microwaveLink: MicrowaveLink) => void;
   onToggleHeatmap?: () => void;
   onTogglePlannedMeasurements?: () => void;
   onFilterQueryChange?: (q: string | undefined) => void;
@@ -122,9 +120,9 @@ function SearchPanelFrame({ children }: { children: ReactNode }) {
 export const MapSearchOverlay = memo(function MapSearchOverlay({
   locationCount,
   totalCount,
-  radioLineCount = 0,
-  radioLineTotalCount = 0,
-  isRadioLinesFetching = false,
+  microwaveLinkCount = 0,
+  microwaveLinkTotalCount = 0,
+  isMicrowaveLinksFetching = false,
   filters,
   mapCountries,
   zoom,
@@ -133,8 +131,8 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   onFiltersChange,
   onLocationSelect,
   onStationSelect,
-  onUkeStationSelect,
-  onRadiolineSelect,
+  onOfficialSiteSelect,
+  onMicrowaveLinkSelect,
   onToggleHeatmap,
   onTogglePlannedMeasurements,
   onFilterQueryChange,
@@ -150,11 +148,10 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
 
   const { preferences, updatePreferences } = usePreferences();
   const { lookups } = useMapLookups();
-  const isUkeSource = filters.source === "uke";
-  const { isRegisterOnScreen } = mapCountries;
+  const isOfficialSource = filters.source === "official";
   const supportsMapMode = onFilterQueryChange !== undefined;
   const [storedSearchMode, setStoredSearchMode] = useState<MapSearchMode>(loadMapSearchMode);
-  const searchMode = supportsMapMode && !isUkeSource ? storedSearchMode : "results";
+  const searchMode = supportsMapMode && !isOfficialSource ? storedSearchMode : "results";
 
   const {
     query,
@@ -180,13 +177,13 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     removeFilter,
     closeOverlay,
   } = useSearchState({
-    filterKeywords: isUkeSource ? EMPTY_RESULTS : MAP_FILTER_KEYWORDS,
+    filterKeywords: isOfficialSource ? EMPTY_RESULTS : MAP_FILTER_KEYWORDS,
     parseFilters,
     resultsEnabled: searchMode === "results",
   });
 
   function handleSearchModeChange(mode: MapSearchMode) {
-    if (mode === "map" && (!supportsMapMode || isUkeSource)) return;
+    if (mode === "map" && (!supportsMapMode || isOfficialSource)) return;
     setStoredSearchMode(mode);
     saveMapSearchMode(mode);
     if (mode === "map") {
@@ -200,8 +197,8 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
 
   function handleFiltersChange(update: MapFiltersChange) {
     const nextFilters = typeof update === "function" ? update(filters) : update;
-    if (supportsMapMode && nextFilters.source === "uke" && storedSearchMode === "map") onFilterQueryChange?.(undefined);
-    if (nextFilters.source === "uke" && isFocused && query.trim() !== "" && (isMobile || !showFilters)) openOverlay(true, false);
+    if (supportsMapMode && nextFilters.source === "official" && storedSearchMode === "map") onFilterQueryChange?.(undefined);
+    if (nextFilters.source === "official" && isFocused && query.trim() !== "" && (isMobile || !showFilters)) openOverlay(true, false);
     onFiltersChange(update);
   }
 
@@ -210,9 +207,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const gpsPoint = gpsCoords === null ? null : { latitude: gpsCoords.lat, longitude: gpsCoords.lng };
   const resultsQueryEnabled = searchMode === "results" && activeOverlay === "results" && debouncedQuery.trim().length > 0;
   const canSearchInternalStations = onStationSelect !== undefined;
-  const canSearchUke = onUkeStationSelect !== undefined || onRadiolineSelect !== undefined;
-  const shouldSearchStations = resultsQueryEnabled && !isUkeSource && canSearchInternalStations;
-  const shouldSearchUke = resultsQueryEnabled && isUkeSource && canSearchUke;
+  const canSearchOfficial = onOfficialSiteSelect !== undefined || onMicrowaveLinkSelect !== undefined;
+  const shouldSearchStations = resultsQueryEnabled && !isOfficialSource && canSearchInternalStations;
+  const shouldSearchOfficial = resultsQueryEnabled && isOfficialSource && canSearchOfficial;
 
   const gpsPlaceQuery = useQuery({
     ...placeAtQueryOptions(gpsPoint, i18n.language),
@@ -241,19 +238,17 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     placeholderData: keepPreviousData,
   });
 
-  const ukeQuery = useQuery({
-    queryKey: ["uke-search", debouncedQuery, filters.source],
-    queryFn: () => searchUkePermits(debouncedQuery),
-    enabled: shouldSearchUke,
-    staleTime: UKE_SEARCH_STALE_TIME,
+  const officialQuery = useQuery({
+    ...officialSearchQueryOptions(debouncedQuery),
+    enabled: shouldSearchOfficial,
     placeholderData: keepPreviousData,
   });
 
   const locationResults = shouldSearchLocations ? (locationQuery.data ?? EMPTY_RESULTS) : EMPTY_RESULTS;
   const locationSource = locationResults.at(0)?.source ?? null;
-  const stationResults = isUkeSource ? EMPTY_RESULTS : (stationQuery.data?.hits ?? EMPTY_RESULTS);
-  const permitResults = isUkeSource ? (ukeQuery.data?.stations ?? EMPTY_RESULTS) : EMPTY_RESULTS;
-  const radiolineResults = isUkeSource ? (ukeQuery.data?.radiolines ?? EMPTY_RESULTS) : EMPTY_RESULTS;
+  const stationResults = isOfficialSource ? EMPTY_RESULTS : (stationQuery.data?.hits ?? EMPTY_RESULTS);
+  const officialSiteResults = isOfficialSource ? (officialQuery.data?.sites ?? EMPTY_RESULTS) : EMPTY_RESULTS;
+  const microwaveLinkResults = isOfficialSource ? (officialQuery.data?.microwaveLinks ?? EMPTY_RESULTS) : EMPTY_RESULTS;
   const builtSearchResults = useMemo(
     () =>
       buildSearchResultOptions({
@@ -262,13 +257,13 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
         locationResults,
         locationSource,
         stationResults,
-        permitResults,
-        radiolineResults,
+        officialSiteResults,
+        microwaveLinkResults,
         capabilities: {
           location: onLocationSelect !== undefined,
           station: onStationSelect !== undefined,
-          permit: onUkeStationSelect !== undefined,
-          radioline: onRadiolineSelect !== undefined,
+          officialSite: onOfficialSiteSelect !== undefined,
+          microwaveLink: onMicrowaveLinkSelect !== undefined,
         },
       }),
     [
@@ -277,11 +272,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       locationResults,
       locationSource,
       onLocationSelect,
-      onRadiolineSelect,
+      onMicrowaveLinkSelect,
       onStationSelect,
-      onUkeStationSelect,
-      permitResults,
-      radiolineResults,
+      onOfficialSiteSelect,
+      officialSiteResults,
+      microwaveLinkResults,
       stationResults,
     ],
   );
@@ -291,13 +286,13 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const autocompleteSearchOptions = useMemo(() => buildAutocompleteOptions(autocompleteOptions), [autocompleteOptions]);
   const showDesktopFilters = showFilters && !isMobile;
   const canShowSearch = !showDesktopFilters;
-  const showAutocomplete = canShowSearch && !isUkeSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
+  const showAutocomplete = canShowSearch && !isOfficialSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
   const showResults = canShowSearch && searchMode === "results" && activeOverlay === "results";
   const isMobileSearchExpanded = mobileExpanded || showAutocomplete || showResults;
   const isMobileSearchCollapsed = isMobile && !isMobileSearchExpanded && !isFocused;
   const showMobileMapContext = isMobileSearchCollapsed && mapContext !== undefined;
   let candidateNavigationOptions: SearchOption[] = EMPTY_RESULTS;
-  if (!isUkeSource && autocompleteOptions.length > 0) candidateNavigationOptions = autocompleteSearchOptions;
+  if (!isOfficialSource && autocompleteOptions.length > 0) candidateNavigationOptions = autocompleteSearchOptions;
   else if (searchMode === "results") candidateNavigationOptions = searchResultOptions;
 
   let navigationOptions = candidateNavigationOptions;
@@ -307,21 +302,21 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const navigation = useSearchNavigation(navigationOptions, listboxId, `${searchMode}:${query}`);
   const hasLocationSearchFailed = shouldSearchLocations && locationQuery.isError;
   const hasStationSearchFailed = shouldSearchStations && stationQuery.isError && !isRejectedSearchQuery(stationQuery.error);
-  const hasUkeSearchFailed = shouldSearchUke && ukeQuery.isError;
+  const hasOfficialSearchFailed = shouldSearchOfficial && officialQuery.isError;
   const failedSources: SearchFailureSource[] = [];
   if (hasLocationSearchFailed) failedSources.push("locations");
   if (hasStationSearchFailed) failedSources.push("stations");
-  if (hasUkeSearchFailed) failedSources.push("uke");
+  if (hasOfficialSearchFailed) failedSources.push("official");
 
   const querySettled = query === debouncedQuery;
   const participatingQueryIsFetching =
     (shouldSearchLocations && locationQuery.fetchStatus === "fetching") ||
     (shouldSearchStations && stationQuery.fetchStatus === "fetching") ||
-    (shouldSearchUke && ukeQuery.fetchStatus === "fetching");
+    (shouldSearchOfficial && officialQuery.fetchStatus === "fetching");
   const hasPlaceholderData =
     (shouldSearchLocations && locationQuery.isPlaceholderData) ||
     (shouldSearchStations && stationQuery.isPlaceholderData) ||
-    (shouldSearchUke && ukeQuery.isPlaceholderData);
+    (shouldSearchOfficial && officialQuery.isPlaceholderData);
   const hasSearchResults = searchResultOptions.length > 0;
   let searchSurfaceState: SearchSurfaceState;
   if (hasSearchResults) {
@@ -352,7 +347,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     const retries: Promise<unknown>[] = [];
     if (hasLocationSearchFailed) retries.push(locationQuery.refetch());
     if (hasStationSearchFailed) retries.push(stationQuery.refetch());
-    if (hasUkeSearchFailed) retries.push(ukeQuery.refetch());
+    if (hasOfficialSearchFailed) retries.push(officialQuery.refetch());
     void Promise.allSettled(retries);
   }
 
@@ -376,13 +371,13 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
         if (!onStationSelect) return;
         onStationSelect(option.result);
         break;
-      case "permit":
-        if (!onUkeStationSelect) return;
-        onUkeStationSelect(option.result);
+      case "official-site":
+        if (!onOfficialSiteSelect) return;
+        onOfficialSiteSelect(option.result);
         break;
-      case "radioline":
-        if (!onRadiolineSelect) return;
-        onRadiolineSelect(option.result);
+      case "microwave-link":
+        if (!onMicrowaveLinkSelect) return;
+        onMicrowaveLinkSelect(option.result);
         break;
     }
     closeOverlay();
@@ -475,8 +470,8 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     }
 
     const updateFilters = getMapFilterKeybindUpdater(key, shiftKey, {
-      operatorIds: listKeybindOperatorIds(lookups, findKeybindCountryCode(filters, mapCountries)),
-      isRegisterOnScreen,
+      operatorIds: listKeybindOperatorIds(lookups, findKeybindCountryCode(filters, mapCountries, lookups?.countries)),
+      capabilities: mapCountries.capabilities,
     });
     if (updateFilters !== undefined) {
       handleFiltersChange(updateFilters);
@@ -490,7 +485,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
         onToggleHeatmap?.();
         return true;
       case "p":
-        if (!isRegisterOnScreen) return false;
+        if (!mapCountries.capabilities.emf) return false;
         onTogglePlannedMeasurements?.();
         return true;
       default:
@@ -516,14 +511,14 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   }
 
   const showFloatingMobileMapControls = isMobile && preferences.navMode === "floating";
-  const activeFilterCount = countActiveMapFilters(filters, lookups?.operators);
+  const activeFilterCount = countActiveMapFilters(filters, lookups?.operators, lookups?.countries);
   const mobileStatsPanel = (
     <MobileStatsPanel
       locationCount={locationCount}
       totalCount={totalCount}
-      radioLineCount={radioLineCount}
-      radioLineTotalCount={radioLineTotalCount}
-      isRadioLinesFetching={isRadioLinesFetching}
+      microwaveLinkCount={microwaveLinkCount}
+      microwaveLinkTotalCount={microwaveLinkTotalCount}
+      isMicrowaveLinksFetching={isMicrowaveLinksFetching}
       showStations={filters.showStations}
       searchMode={statsSearchMode as "bounds" | "search"}
       zoom={zoom}
@@ -586,7 +581,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               onClearSearch={clearSearch}
               onMobileExpand={handleMobileExpand}
               mode={searchMode}
-              showModeControl={supportsMapMode && !isUkeSource}
+              showModeControl={supportsMapMode && !isOfficialSource}
               onModeChange={handleSearchModeChange}
               filterSlot={
                 <>
@@ -664,9 +659,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
           <StationCounter
             locationCount={locationCount}
             totalCount={totalCount}
-            radioLineCount={radioLineCount}
-            radioLineTotalCount={radioLineTotalCount}
-            isRadioLinesFetching={isRadioLinesFetching}
+            microwaveLinkCount={microwaveLinkCount}
+            microwaveLinkTotalCount={microwaveLinkTotalCount}
+            isMicrowaveLinksFetching={isMicrowaveLinksFetching}
             showStations={filters.showStations}
             zoom={zoom}
             source={filters.source}

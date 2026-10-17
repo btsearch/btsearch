@@ -1,9 +1,10 @@
-import { stations, ukeRadiolines, ukeStations } from "@openbts/drizzle";
+import { microwaveLinks, officialSites, stations } from "@openbts/drizzle";
 import type { ListItemsInput } from "@openbts/shared/contract";
 import { and, inArray } from "drizzle-orm";
 
 import { DetailedErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
+import { type OfficialVisibility, microwaveLinkIsPublic, officialLocationIsPublic } from "../official/visibility.js";
 import { stationAreaConditions } from "../stations/read.js";
 import type { UserListMembership } from "./visibility.js";
 
@@ -19,8 +20,8 @@ function notIn(stored: readonly number[], ids: readonly number[] | undefined): n
 export function itemsNotStored(items: ListItemsInput, stored: UserListMembership): ListItemsInput {
   return {
     stationIds: notIn(stored.internal, items.stationIds),
-    officialSiteIds: notIn(stored.uke, items.officialSiteIds),
-    microwaveLinkIds: notIn(stored.radiolines, items.microwaveLinkIds),
+    officialSiteIds: notIn(stored.official, items.officialSiteIds),
+    microwaveLinkIds: notIn(stored.microwaveLinks, items.microwaveLinkIds),
   };
 }
 
@@ -29,7 +30,7 @@ function missingIds(wanted: readonly number[] | undefined, found: readonly { id:
   return [...new Set(wanted).difference(existing)];
 }
 
-export async function assertItemsExist(tx: DbTx, items: ListItemsInput, hiddenCountryCodes: readonly string[]): Promise<void> {
+export async function assertItemsExist(tx: DbTx, items: ListItemsInput, visibility: OfficialVisibility): Promise<void> {
   const { stationIds, officialSiteIds, microwaveLinkIds } = items;
 
   const [stationRows, officialSiteRows, microwaveLinkRows] = await Promise.all([
@@ -37,10 +38,20 @@ export async function assertItemsExist(tx: DbTx, items: ListItemsInput, hiddenCo
       ? tx
           .select({ id: stations.id })
           .from(stations)
-          .where(and(inArray(stations.id, stationIds), ...stationAreaConditions({}, hiddenCountryCodes)))
+          .where(and(inArray(stations.id, stationIds), ...stationAreaConditions({}, visibility.hiddenCountryCodes)))
       : [],
-    officialSiteIds?.length ? tx.select({ id: ukeStations.id }).from(ukeStations).where(inArray(ukeStations.id, officialSiteIds)) : [],
-    microwaveLinkIds?.length ? tx.select({ id: ukeRadiolines.id }).from(ukeRadiolines).where(inArray(ukeRadiolines.id, microwaveLinkIds)) : [],
+    officialSiteIds?.length
+      ? tx
+          .select({ id: officialSites.id })
+          .from(officialSites)
+          .where(and(inArray(officialSites.id, officialSiteIds), officialLocationIsPublic(officialSites.location_id, visibility)))
+      : [],
+    microwaveLinkIds?.length
+      ? tx
+          .select({ id: microwaveLinks.id })
+          .from(microwaveLinks)
+          .where(and(inArray(microwaveLinks.id, microwaveLinkIds), microwaveLinkIsPublic(microwaveLinks.dataset_id, visibility)))
+      : [],
   ]);
 
   const details = [

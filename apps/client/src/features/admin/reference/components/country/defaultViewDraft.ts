@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { CountryView } from "../../types";
+import type { BoundingBox } from "../../types";
 
 export type ViewEdge = "west" | "east" | "south" | "north";
 export type ViewEdgeProblem = "outOfRange" | "northBelowSouth";
@@ -70,11 +70,11 @@ export function isLongitudeEdge(edge: ViewEdge): boolean {
   return edge === "west" || edge === "east";
 }
 
-export function isDrawableView(view: CountryView): boolean {
+export function isDrawableView(view: BoundingBox): boolean {
   return view.west < view.east;
 }
 
-export function isSameView(left: CountryView | null, right: CountryView | null): boolean {
+export function isSameView(left: BoundingBox | null, right: BoundingBox | null): boolean {
   if (left === null || right === null) return left === right;
   return left.west === right.west && left.south === right.south && left.east === right.east && left.north === right.north;
 }
@@ -83,7 +83,7 @@ export function isEmptyViewDraft(draft: ViewDraft): boolean {
   return VIEW_EDGES.every((edge) => draft[edge].trim() === "");
 }
 
-export function roundView(view: CountryView | null): CountryView | null {
+export function roundView(view: BoundingBox | null): BoundingBox | null {
   if (view === null) return null;
 
   return {
@@ -94,7 +94,7 @@ export function roundView(view: CountryView | null): CountryView | null {
   };
 }
 
-export function toPickedView(visibleView: CountryView): CountryView {
+export function toPickedView(visibleView: BoundingBox): BoundingBox {
   return {
     west: roundTo(clampTo(visibleView.west, LONGITUDE_LIMIT), PICKED_DECIMALS),
     south: roundTo(clampTo(visibleView.south, LATITUDE_LIMIT), PICKED_DECIMALS),
@@ -103,7 +103,7 @@ export function toPickedView(visibleView: CountryView): CountryView {
   };
 }
 
-export function toViewDraft(view: CountryView | null): ViewDraft {
+export function toViewDraft(view: BoundingBox | null): ViewDraft {
   const roundedView = roundView(view);
   if (roundedView === null) return EMPTY_DRAFT;
 
@@ -130,7 +130,7 @@ export function findViewProblems(draft: ViewDraft): ViewProblems {
   };
 }
 
-export function parseViewDraft(draft: ViewDraft): CountryView | null {
+export function parseViewDraft(draft: ViewDraft): BoundingBox | null {
   const problems = findViewProblems(draft);
   if (VIEW_EDGES.some((edge) => problems[edge] !== null)) return null;
 

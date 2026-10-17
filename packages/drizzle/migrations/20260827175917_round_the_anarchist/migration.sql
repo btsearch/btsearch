@@ -1,3 +1,0 @@
--- Custom SQL migration file, put your code below! --
-CREATE INDEX "user_lists_stations_internal_gin" ON "user_lists" USING gin (("stations" -> 'internal'));--> statement-breakpoint
-CREATE INDEX "user_lists_stations_uke_gin" ON "user_lists" USING gin (("stations" -> 'uke'));

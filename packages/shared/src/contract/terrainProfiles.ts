@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
-import { TERRAIN_RECEIVER_BOUNDS } from "../terrainProfile.ts";
-import { csvEnumSchema, idSchema } from "./common.ts";
+import { TERRAIN_RECEIVER_HEIGHT_M } from "../terrainProfile.ts";
+import { MAX_LATITUDE, MAX_LONGITUDE, csvEnumSchema, idSchema } from "./common.ts";
 import { emfReportHeadSchema } from "./emf.ts";
 
 export const TERRAIN_PROFILE_STATUSES = ["pending", "ready", "failed", "cancelled"] as const;
@@ -44,13 +44,9 @@ export const TERRAIN_PATH_TYPES = ["lineOfSight", "transHorizon"] as const;
 export type TerrainPathType = (typeof TERRAIN_PATH_TYPES)[number];
 
 const terrainReceiverSchema = z.object({
-  latitude: z.number().min(TERRAIN_RECEIVER_BOUNDS.latitude.min).max(TERRAIN_RECEIVER_BOUNDS.latitude.max),
-  longitude: z.number().min(TERRAIN_RECEIVER_BOUNDS.longitude.min).max(TERRAIN_RECEIVER_BOUNDS.longitude.max),
-  heightMeters: z
-    .number()
-    .min(TERRAIN_RECEIVER_BOUNDS.mountedHeight.min)
-    .max(TERRAIN_RECEIVER_BOUNDS.mountedHeight.max)
-    .describe("Height above the ground"),
+  latitude: z.number().min(-MAX_LATITUDE).max(MAX_LATITUDE),
+  longitude: z.number().min(-MAX_LONGITUDE).max(MAX_LONGITUDE),
+  heightMeters: z.number().min(TERRAIN_RECEIVER_HEIGHT_M.min).max(TERRAIN_RECEIVER_HEIGHT_M.max).describe("Height above the ground"),
 });
 
 const terrainAntennaShape = {
@@ -195,7 +191,10 @@ export const terrainProfileCreateSchema = z
     officialSiteId: idSchema.optional().describe("The id of a site in the official register"),
     receiver: terrainReceiverSchema
       .strict()
-      .describe("Where the signal is received. Must be at least 10 m from the station and no farther than the server allows, 30 km by default"),
+      .describe(
+        "Where the signal is received. Must be inside the `capabilities.terrainProfiles.receiverBounds` of the station's country, " +
+          "at least 10 m from the station and no farther than the server allows, 30 km by default",
+      ),
     antennaKey: z.string().min(1).max(64).optional().describe("If omitted, the antenna pointing closest to the receiver is selected"),
   })
   .strict()

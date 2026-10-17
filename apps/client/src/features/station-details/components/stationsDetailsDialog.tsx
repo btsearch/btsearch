@@ -1,12 +1,14 @@
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { OFFICIAL_SITE_INCLUDES, type OfficialSite, type OfficialSitePermit } from "@openbts/shared/contract";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { stationPermitsQueryOptions, ukeStationQueryOptions } from "../queries";
+import { stationPermitsQueryOptions } from "../queries";
 import { stationRecordQueryOptions } from "../station/api";
 import { StationPanel } from "../station/components/stationPanel";
+import { OfficialSourceCredit } from "./officialSourceCredit";
 import { PermitsList } from "./permitsList";
 import { ShareButton } from "./shareButton";
 import { StationDetailsError } from "./stationDetailsError";
@@ -20,17 +22,17 @@ import {
   StationSourceSwitch,
 } from "./stationDialogShell";
 import { StationInfoCard } from "./stationInfoCard";
-import { UKELogo } from "./ukeLogo";
 import { InlineError, StaleDataNotice } from "@/components/ui/error-state";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps, StationDialogTarget } from "@/features/floating-dialogs/types";
 import { getOfficialSiteMapHash } from "@/features/map/mapLinks";
+import { officialSiteQueryOptions, useOfficialSource } from "@/features/official/queries";
 import { brandsQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import type { StationSource, UkeStation } from "@/types/station";
+import type { StationSource } from "@/types/station";
 
 type StationDialogPanelProps = FloatingDialogPanelFrameProps & {
   stationId: number;
@@ -41,29 +43,31 @@ type StationDialogPanelProps = FloatingDialogPanelFrameProps & {
 
 type StationDetailsDialogPanelProps = StationDialogPanelProps & {
   source: StationSource;
-  ukeStation?: UkeStation;
+  officialSite?: OfficialSite;
   locationId?: number;
   showPhotoPanel?: boolean;
   onContentLayoutChange?: () => void;
 };
 
+const NO_PERMITS: OfficialSitePermit[] = [];
+
 export function StationDetailsDialogPanel({
   source,
-  ukeStation,
+  officialSite,
   locationId,
   showPhotoPanel,
   onContentLayoutChange,
   ...panelProps
 }: StationDetailsDialogPanelProps) {
-  if (source === "uke") return <UkeStationDialogPanel placeholder={ukeStation} {...panelProps} />;
+  if (source === "official") return <OfficialSiteDialogPanel placeholder={officialSite} {...panelProps} />;
   return <StationPanel locationId={locationId} showPhotoPanel={showPhotoPanel} onContentLayoutChange={onContentLayoutChange} {...panelProps} />;
 }
 
-type UkeStationDialogPanelProps = StationDialogPanelProps & {
-  placeholder?: UkeStation;
+type OfficialSiteDialogPanelProps = StationDialogPanelProps & {
+  placeholder?: OfficialSite;
 };
 
-function UkeStationDialogPanel({
+function OfficialSiteDialogPanel({
   stationId,
   placeholder,
   switchedFrom,
@@ -71,33 +75,41 @@ function UkeStationDialogPanel({
   onSwitchStation,
   onStartTerrainProfile,
   ...frameProps
-}: UkeStationDialogPanelProps) {
+}: OfficialSiteDialogPanelProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const queryClient = useQueryClient();
   const { data: settings } = useSettings();
-  const { data: session, isPending: isSessionPending, error: sessionError } = authClient.useSession();
-  const viewerReady = !isSessionPending && !sessionError;
+  const { data: session } = authClient.useSession();
   const userRole = session?.user?.role as string | undefined;
   const isAdmin = userRole === "admin" || userRole === "editor";
   const isLoggedIn = !!session?.user;
 
-  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useQuery(ukeStationQueryOptions(stationId));
-  const { data: operators } = useQuery({ ...operatorsQueryOptions({ viewerId: session?.user.id ?? null }), enabled: viewerReady });
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useQuery(officialSiteQueryOptions(stationId, OFFICIAL_SITE_INCLUDES));
+  const { data: operators, isLoading: isOperatorsLoading } = useQuery(operatorsQueryOptions());
   const { data: brands } = useQuery(brandsQueryOptions());
 
-  const station = data ?? placeholder;
-  const operatorBrand = getOperatorBrand(findOperator(viewerReady ? operators : undefined, station?.operator?.id ?? null), brands);
+  const site = data ?? placeholder;
+  const officialSource = useOfficialSource(site?.sourceKey);
+  const operatorId = site?.operatorId ?? null;
+  const operator = findOperator(operators, operatorId);
+  const operatorBrand = getOperatorBrand(operator, brands);
+  const operatorName = operator?.name ?? t("main:unknownOperator");
+  const isOperatorLoading = operatorId !== null && isOperatorsLoading;
   const showDetailsError = !data && (error !== null || (isFetching && errorUpdateCount > 0));
-  const operatorName = station?.operator?.name ?? t("main:unknownOperator");
-  const location = station?.location;
-  const internalStation = data?.internalStation;
-  const canCreateStation = !!data && !internalStation;
-  const internalTarget: StationDialogTarget | undefined = internalStation ? { source: "internal", id: internalStation.id } : switchedFrom;
+  const siteId = site?.siteId ?? "";
+  const location = site?.location;
+  const shareSourcePrefix = officialSource ? `${officialSource.shortName}: ` : "";
+  const sharePlace = location ? [location.city || t("common:labels.unknownLocation"), location.address].filter(Boolean).join(" ") : "";
+  const internalStationId = data?.stationIds.at(0);
+  const registerSiteId = data !== undefined && internalStationId === undefined ? data.siteId : null;
+  const internalTarget: StationDialogTarget | undefined =
+    internalStationId === undefined ? switchedFrom : { source: "internal", id: internalStationId };
   const sourceSwitch =
-    onSwitchStation && internalTarget ? (
+    onSwitchStation && internalTarget && site && officialSource ? (
       <StationSourceSwitch
-        source="uke"
-        onSwitch={() => onSwitchStation(internalTarget)}
+        source="official"
+        officialLabel={officialSource.shortName}
+        onSwitch={() => onSwitchStation({ ...internalTarget, switchedFrom: { source: "official", id: site.id, officialSite: site } })}
         onPrefetch={() => {
           void queryClient.prefetchQuery(stationRecordQueryOptions(internalTarget.id));
           void queryClient.prefetchQuery(stationPermitsQueryOptions(internalTarget.id));
@@ -113,29 +125,29 @@ function UkeStationDialogPanel({
       sourceSwitch={sourceSwitch}
       enterFrom={switchedFrom ? "right" : undefined}
       heading={
-        station ? (
+        site && !isOperatorLoading ? (
           <StationDialogHeading
             operatorName={operatorName}
             operatorBrand={operatorBrand}
-            stationCode={station.station_id}
+            stationCode={siteId}
             location={location}
-            createdAt={station.createdAt}
-            updatedAt={station.updatedAt}
+            createdAt={site.createdAt}
+            updatedAt={site.updatedAt}
           />
-        ) : isLoading ? (
+        ) : isLoading || isOperatorLoading ? (
           <StationDialogHeadingSkeleton />
         ) : null
       }
       toolbar={
-        station ? (
+        site ? (
           location && (isLoggedIn || onStartTerrainProfile) ? (
             <StationDialogActions
-              source="uke"
-              id={station.id}
-              stationCode={station.station_id}
-              operatorId={station.operator?.id ?? null}
+              source="official"
+              id={site.id}
+              stationCode={siteId}
+              operatorId={operatorId}
               operatorName={operatorName}
-              countryCode={null}
+              countryCode={location.countryCode}
               location={location}
               onStartTerrainProfile={onStartTerrainProfile}
               onClose={onClose}
@@ -146,30 +158,30 @@ function UkeStationDialogPanel({
         ) : null
       }
       actions={
-        station ? (
+        site ? (
           <>
             {location ? (
               <ShareButton
-                title={`${station.station_id} (${operatorName})`}
-                text={`UKE: ${station.station_id} (${operatorName}) - ${location.city || t("common:labels.unknownLocation")}${location.address ? ` ${location.address}` : ""}`}
-                url={`${window.location.origin}/#${getOfficialSiteMapHash(station.id, location)}`}
+                title={`${siteId} (${operatorName})`}
+                text={`${shareSourcePrefix}${siteId} (${operatorName}) - ${sharePlace}`}
+                url={`${window.location.origin}/#${getOfficialSiteMapHash(site.id, location)}`}
                 size="md"
                 className={stationDialogHeaderIconActionClassName}
               />
             ) : null}
-            {canCreateStation && isAdmin ? (
+            {registerSiteId !== null && isAdmin ? (
               <Link
                 to="/admin/stations/$id"
                 params={{ id: "new" }}
-                search={{ uke: station.station_id }}
+                search={{ officialSite: registerSiteId }}
                 className={stationDialogPrimaryActionClassName}
                 onClick={onClose}
               >
                 <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
                 <span className="hidden sm:inline">{t("common:actions.createStation")}</span>
               </Link>
-            ) : canCreateStation && isLoggedIn && settings?.features.submissions ? (
-              <Link to="/submission" search={{ uke: station.station_id }} className={stationDialogPrimaryActionClassName} onClick={onClose}>
+            ) : registerSiteId !== null && isLoggedIn && settings?.features.submissions ? (
+              <Link to="/submission" search={{ officialSite: registerSiteId }} className={stationDialogPrimaryActionClassName} onClick={onClose}>
                 <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
                 <span className="hidden sm:inline">{t("common:actions.createStation")}</span>
               </Link>
@@ -178,7 +190,7 @@ function UkeStationDialogPanel({
         ) : null
       }
     >
-      {station ? (
+      {site ? (
         <div className="px-3 py-4 space-y-6 sm:p-6 sm:space-y-8">
           {showDetailsError ? (
             <InlineError
@@ -194,30 +206,30 @@ function UkeStationDialogPanel({
             </div>
           ) : null}
           <StationInfoCard
-            source="uke"
-            stationCode={station.station_id}
-            operator={{ name: operatorName, mnc: station.operator?.mnc }}
+            source="official"
+            stationCode={siteId}
+            operator={{ name: operatorName, mnc: toV1OperatorMnc(operator) }}
             location={location}
-            emfSite={{ officialSiteId: station.id }}
+            emfSite={{ officialSiteId: site.id }}
             onClose={onClose}
           />
           <section>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t("tabs.permits")}</h3>
-              <Tooltip>
-                <TooltipTrigger className="cursor-help opacity-60 transition-opacity hover:opacity-100">
-                  <UKELogo className="h-3" />
-                  <span className="sr-only">UKE</span>
-                </TooltipTrigger>
-                <TooltipContent>{t("permits.sourceUke")}</TooltipContent>
-              </Tooltip>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                {officialSource ? t("tabs.permits", { source: officialSource.shortName }) : t("tabs.registerPermits")}
+              </h3>
+              {officialSource ? <OfficialSourceCredit sourceKey={officialSource.key} source={officialSource} /> : null}
             </div>
-            <PermitsList permits={station.permits} />
+            <PermitsList
+              permits={site.permits ?? NO_PERMITS}
+              sourceName={officialSource?.shortName ?? null}
+              isExternalLoading={site.permits === undefined}
+            />
           </section>
         </div>
       ) : isLoading ? (
         <div className="px-3 py-4 sm:p-6">
-          <PermitsList permits={[]} isExternalLoading />
+          <PermitsList permits={NO_PERMITS} sourceName={null} isExternalLoading />
         </div>
       ) : error ? (
         <StationDetailsError error={error} onRetry={() => refetch()} isRetrying={isFetching} onClose={onClose} />

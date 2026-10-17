@@ -149,8 +149,9 @@ export function SubmissionChangesCard({
     return sentences;
   }
 
-  const placeSentences = sharedPlace === null ? [] : describeSharedPlace(sharedPlace);
-  const sideEffects = partnerLabel === null ? placeSentences : [...placeSentences, t("review.partnerAzimuths", { station: partnerLabel })];
+  const sideEffects = sharedPlace === null ? [] : describeSharedPlace(sharedPlace);
+  if (partnerLabel !== null) sideEffects.push(t("review.partnerAzimuths", { station: partnerLabel }));
+  if (facts.hasSeveralPartnerStations) sideEffects.push(t("review.severalPartnerStations"));
   const isStationChanged = isPending && (facts.isStationNewer || newerHistory.length > 0);
   const notices: ReactNode[] = [];
 

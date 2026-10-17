@@ -1,3 +1,4 @@
+import { type GeocodedPlaceNames, conventionsFor } from "@openbts/country-packs";
 import { createHash } from "node:crypto";
 
 import { GEOCODING_TIMEOUT_MS } from "./config.js";
@@ -47,9 +48,8 @@ export function pickText(...values: (string | null | undefined)[]): string | nul
   return null;
 }
 
-export function formatRegion(state: string | undefined): string | null {
-  const name = pickText(state?.replace(/^województwo\s+/i, ""));
-  return name ? name.charAt(0).toLocaleUpperCase("pl") + name.slice(1) : null;
+export function normalizePlaceNames(countryCode: string | null, names: GeocodedPlaceNames): GeocodedPlaceNames {
+  return conventionsFor(countryCode?.toUpperCase() ?? null).normalizeGeocodedPlace(names);
 }
 
 export function formatStreetLine(street: string | null, houseNumber: string | null, city: string | null): string | null {

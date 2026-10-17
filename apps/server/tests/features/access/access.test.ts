@@ -25,8 +25,6 @@ describe("actorIdFromRequest", () => {
   it("prefers the authenticated session actor", () => expect(actorIdFromRequest(request(userSession(), { referenceId: "api-user" }))).toBe(userId));
   it("reads the API-key owner when no session exists", () =>
     expect(actorIdFromRequest({ userSession: null, apiToken: { referenceId: "api-user" } } as unknown as FastifyRequest)).toBe("api-user"));
-  it("returns no actor for a guest or publishable key", () =>
-    expect(actorIdFromRequest({ userSession: null, apiToken: null, publishableKey: { id: "public" } } as unknown as FastifyRequest)).toBeNull());
 });
 
 describe("accessFromRequest", () => {
@@ -92,10 +90,6 @@ describe("loadStaffAccess", () => {
       { userId: "editor", role: "editor", grants: [{ countryCode: "PL", isCountryWide: true, isMaintainer: true, regionIds: [1] }] },
       { userId: "unassigned", role: "editor", grants: [] },
     ]);
-  });
-  it("returns an empty collection when no staff exist", async () => {
-    dbMock.enqueueFor("select", "users", []);
-    expect(await loadStaffAccess()).toEqual([]);
   });
 });
 

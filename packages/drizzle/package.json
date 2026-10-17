@@ -9,10 +9,6 @@
       "types": "./schemas/index.ts",
       "default": "./dist/schemas/index.js"
     },
-    "./types": {
-      "types": "./schemas/types.ts",
-      "default": "./dist/schemas/types.js"
-    },
     "./db": {
       "types": "./db.ts",
       "default": "./dist/db.js"

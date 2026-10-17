@@ -128,15 +128,9 @@ if (axiomToken) {
 const transportLogger = new Logger({ transports });
 
 export const logger = {
-  error(...args: Parameters<Logger["error"]>) {
-    return transportLogger.error(...redactLogArguments(args));
-  },
-  info(...args: Parameters<Logger["info"]>) {
-    return transportLogger.info(...redactLogArguments(args));
-  },
-  warn(...args: Parameters<Logger["warn"]>) {
-    return transportLogger.warn(...redactLogArguments(args));
-  },
+  error: (...args: Parameters<Logger["error"]>) => transportLogger.error(...redactLogArguments(args)),
+  info: (...args: Parameters<Logger["info"]>) => transportLogger.info(...redactLogArguments(args)),
+  warn: (...args: Parameters<Logger["warn"]>) => transportLogger.warn(...redactLogArguments(args)),
 };
 
 const FLUSH_TIMEOUT_MS = 3000;

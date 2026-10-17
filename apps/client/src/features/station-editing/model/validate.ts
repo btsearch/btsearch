@@ -1,7 +1,6 @@
-import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
+import { conventionsFor } from "@openbts/country-packs";
 import { isChannelValidForBand } from "@openbts/shared/bandCatalog";
 import type { Band, Operator, StationIdentifierKind } from "@openbts/shared/contract";
-import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS } from "@openbts/shared/operatorUtils";
 
 import { countCellEntries } from "./bodies";
 import { getAreaValue, getRowKind, normalizeText } from "./changes";
@@ -36,10 +35,11 @@ import type {
   SectorDraft,
   TextValues,
 } from "./types";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { toOperatorRef } from "@/features/station-details/station/utils/stations";
 import { shallowEqual } from "@/lib/shallowEqual";
 
 type ValidationContext = {
+  countryCode: string | null;
   bandsById: ReadonlyMap<number, Band>;
   bandPlanIds: ReadonlySet<number> | null;
   countryFeatures: { psc: boolean; bsic: boolean } | null;
@@ -84,16 +84,13 @@ export const NO_EDIT_ERRORS: EditError[] = [];
 
 const NETWORKS_ID_PATTERN = /^\d{1,9}$/;
 const BYTES_PER_MEGABYTE = 1024 * 1024;
-const OWN_NAME_KINDS: readonly StationIdentifierKind[] = ["operatorName"];
 const CATALOG_RATS: Record<Rat, string> = { gsm: "GSM", umts: "UMTS", lte: "LTE", nr: "NR" };
 
 const lastGroups: Record<RowScope, ReadonlyMap<DraftKey, EditError[]>> = { cell: new Map(), sector: new Map() };
 
-export function listIdentifierKinds(operator: Pick<Operator, "primaryPlmn"> | null): readonly StationIdentifierKind[] {
-  const mnc = toV1OperatorMnc(operator);
-  if (mnc === null) return [];
-  if (EXTRA_IDENTIFICATORS_MNCS.includes(mnc)) return IDENTIFIER_KINDS;
-  return MNO_NAME_ONLY_MNCS.includes(mnc) ? OWN_NAME_KINDS : [];
+export function listIdentifierKinds(operator: Operator | null, operatorsById: ReadonlyMap<number, Operator>): readonly StationIdentifierKind[] {
+  if (operator === null) return [];
+  return conventionsFor(operator.countryCode).identifierKinds(toOperatorRef(operator, operatorsById));
 }
 
 function toError(target: FieldTarget, messageKey: string, values?: TextValues, isQuiet = false): EditError {
@@ -175,7 +172,7 @@ function validateOwner(session: EditSession, place: PlaceDraft): EditError[] {
   return [toError(target, "stations:edit.errors.ownerNameLength", { max: EDIT_LIMITS.ownerName })];
 }
 
-function validatePlace(session: EditSession): EditError[] {
+function validatePlace(session: EditSession, context: ValidationContext): EditError[] {
   const { place } = session.draft;
   if (place === null) {
     return session.live === null ? [toError(placeTarget("coordinates"), "stations:edit.errors.coordinatesRequired", undefined, true)] : [];
@@ -185,7 +182,9 @@ function validatePlace(session: EditSession): EditError[] {
   if (normalizeText(place.city).length > EDIT_LIMITS.city) {
     errors.push(toError(placeTarget("city"), "stations:edit.errors.cityTooLong", { max: EDIT_LIMITS.city }));
   }
-  if (hasGenericAddressMarker(place.address)) errors.push(toError(placeTarget("address"), "common:validation.addressOwnWordForbidden"));
+  if (conventionsFor(context.countryCode).validateAddress(place.address) !== null) {
+    errors.push(toError(placeTarget("address"), "common:validation.addressOwnWordForbidden"));
+  }
   if (normalizeText(place.structure.note).length > EDIT_LIMITS.structureNote) {
     errors.push(toError(placeTarget("structureNote"), "stations:edit.errors.structureNoteTooLong", { max: EDIT_LIMITS.structureNote }));
   }
@@ -378,7 +377,7 @@ export function validateDraft(session: EditSession, context: ValidationContext):
 
   const errors = [
     ...validateStation(session),
-    ...validatePlace(session),
+    ...validatePlace(session, context),
     ...validateSectors(session.draft.sectors),
     ...RAT_ORDER.flatMap((rat) => validateRat(session, context, rat)),
   ];

@@ -12,7 +12,7 @@ import type {
   TerrainSelectedAntenna,
   TerrainWarning,
 } from "@openbts/shared/contract";
-import { calculateBearing, calculateDistance } from "@openbts/shared/radiolinesUtils";
+import { calculateBearing, calculateDistance } from "@openbts/shared/geo";
 import { ANTENNA_AZIMUTH_TOLERANCE_DEG } from "@openbts/shared/terrainProfile";
 import { createHash, randomUUID } from "node:crypto";
 
@@ -63,7 +63,7 @@ const USABLE_FREQUENCY_MHZ = { min: 30, max: 6000 };
 const ANTENNA_WARNINGS: Partial<Record<TerrainWarningCode, TerrainWarning>> = {
   SI2PEM_REPORT_UNAVAILABLE: "emfReportUnavailable",
   SI2PEM_REPORT_PARSE_FAILED: "emfReportUnreadable",
-  UKE_ANTENNA_FALLBACK: "antennaFromPermit",
+  PERMIT_ANTENNA_FALLBACK: "antennaFromPermit",
   NETWORKS_SHARING_DATA: "antennaFromSharedNetwork",
 };
 
@@ -374,7 +374,7 @@ function schedule(id: string, resolved?: ResolvedStationWithFallbacks): void {
 
 function toStationRef(body: TerrainProfileCreate): TerrainProfileRequest["station"] {
   if (body.stationId !== undefined) return { source: "internal", id: body.stationId };
-  if (body.officialSiteId !== undefined) return { source: "uke", id: body.officialSiteId };
+  if (body.officialSiteId !== undefined) return { source: "official", id: body.officialSiteId };
   throw new ErrorResponse("BAD_REQUEST");
 }
 
@@ -395,10 +395,18 @@ export async function createTerrainProfile(
   if (body.antennaKey !== undefined) request.antennaKey = body.antennaKey;
 
   const resolved = await resolveTerrainStation(request.station);
-  const distance = calculateDistance(resolved.station.latitude, resolved.station.longitude, request.receiver.latitude, request.receiver.longitude);
+  const { south, north, west, east } = resolved.receiverBounds;
+  const { latitude, longitude } = request.receiver;
+  if (latitude < south || latitude > north || longitude < west || longitude > east) {
+    throw new ErrorResponse("BAD_REQUEST", {
+      message: `The receiver must be between latitudes ${south} and ${north} and longitudes ${west} and ${east}.`,
+    });
+  }
+
+  const distance = calculateDistance(resolved.station.latitude, resolved.station.longitude, latitude, longitude);
   if (distance < TERRAIN_PROFILE_MIN_DISTANCE_M || distance > TERRAIN_PROFILE_MAX_DISTANCE_M) {
     throw new ErrorResponse("BAD_REQUEST", {
-      message: `The receiver must be between ${TERRAIN_PROFILE_MIN_DISTANCE_M} and ${TERRAIN_PROFILE_MAX_DISTANCE_M} metres from the station.`,
+      message: `The receiver must be between ${TERRAIN_PROFILE_MIN_DISTANCE_M} and ${TERRAIN_PROFILE_MAX_DISTANCE_M} meters from the station.`,
     });
   }
 
@@ -453,7 +461,7 @@ export function toTerrainProfile(stored: StoredTerrainProfile, include: readonly
     createdAt: stored.createdAt,
     expiresAt: stored.expiresAt,
     stationId: station.source === "internal" ? station.id : null,
-    officialSiteId: station.source === "uke" ? station.id : null,
+    officialSiteId: station.source === "internal" ? null : station.id,
     receiver,
     antenna: stored.antenna,
     report: stored.report,

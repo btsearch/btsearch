@@ -1,9 +1,10 @@
+import { conventionsFor } from "@openbts/country-packs";
 import { locations } from "@openbts/drizzle";
-import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
 import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { defineScope } from "../../../../features/access/scope.js";
 import { STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
@@ -15,8 +16,8 @@ const locationsUpdateSchema = createUpdateSchema(locations)
   .omit(STRUCTURE_COLUMNS)
   .strict()
   .superRefine((data, ctx) => {
-    if (hasGenericAddressMarker(data.address))
-      ctx.addIssue({ code: "custom", message: "Address must not contain variants of własny", path: ["address"] });
+    const refusal = data.address ? conventionsFor(LEGACY_COUNTRY_CODE).validateAddress(data.address) : null;
+    if (refusal !== null) ctx.addIssue({ code: "custom", message: refusal, path: ["address"] });
   });
 const locationsSelectSchema = createSelectSchema(locations).omit(STRUCTURE_COLUMNS);
 const schemaRoute = {

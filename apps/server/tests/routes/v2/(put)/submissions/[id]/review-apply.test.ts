@@ -456,7 +456,7 @@ describe("submission approval application", () => {
     );
     expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "stations")).toBe(false);
     expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "submissions")).toBe(false);
-    expect(whereQuery("stations", "select").params).toEqual(["REVIEWED-12", 8, 12]);
+    expect(whereQuery("stations", "select", 1).params).toEqual(["REVIEWED-12", 8, 12]);
   });
 
   it("refuses removal of a sector while an undeleted cell still references it", async () => {

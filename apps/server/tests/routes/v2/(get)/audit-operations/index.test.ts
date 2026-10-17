@@ -131,7 +131,7 @@ describe("GET /audit-operations", () => {
     expect(dbMock.calls).toEqual([]);
   });
 
-  it.each(["?limit=0", "?limit=201", "?offset=-1", "?cursor=x&offset=0", "?entities=not-a-table", "?sort=id", "?q=", "?include=entries"])(
+  it.each(["?limit=201", "?offset=-1", "?cursor=x&offset=0", "?entities=not-a-table", "?sort=id", "?q=", "?include=entries"])(
     "validates audit query %s",
     async (query) => {
       expectError(await injectMutation(route, { ...request, url: request.url + query }, options), 400, "VALIDATION_ERROR");

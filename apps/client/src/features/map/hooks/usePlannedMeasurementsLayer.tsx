@@ -6,7 +6,7 @@ import { createRoot } from "react-dom/client";
 import { PemPopupContent } from "../components/pemPopupContent";
 import { PLANNED_PEM_LAYER_ID, PLANNED_PEM_SOURCE_ID } from "../constants";
 import { type MapLookups, getOperatorLook, useMapLookups } from "../data/mapLookups";
-import { listRegisterOperators } from "../data/mapRequests";
+import { listCapableOperators } from "../data/mapRequests";
 import { useMapQueryHousekeeping } from "./useMapQueryHousekeeping";
 import { onBeforeStyleChange } from "@/components/ui/map";
 import { MAP_PLANNED_MEASUREMENTS_FAMILY, type MapPlannedMeasurement, mapPlannedMeasurementsQueryOptions } from "@/features/si2pem/api";
@@ -121,11 +121,11 @@ export function usePlannedMeasurementsLayer({
 
   useMapQueryHousekeeping({ bounds: bbox, isMoving, queryFamilies: PLANNED_MEASUREMENT_QUERY_FAMILIES });
 
-  const registerOperators = listRegisterOperators(operatorIds, lookups?.operators);
-  const registerOperatorIds = registerOperators?.map((operator) => operator.id) ?? NO_OPERATOR_IDS;
+  const emfOperators = listCapableOperators("emf", operatorIds, lookups);
+  const emfOperatorIds = emfOperators?.map((operator) => operator.id) ?? NO_OPERATOR_IDS;
   const { data: measurements } = useQuery({
-    ...mapPlannedMeasurementsQueryOptions(bbox, registerOperatorIds),
-    enabled: enabled && registerOperators !== null && !isMoving,
+    ...mapPlannedMeasurementsQueryOptions(bbox, emfOperatorIds),
+    enabled: enabled && emfOperators !== null && !isMoving,
     placeholderData: keepPreviousData,
   });
 

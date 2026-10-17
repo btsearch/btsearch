@@ -86,7 +86,7 @@ function PreviewLineRow({ line, isTicked, onTickedChange }: PreviewLineRowProps)
     <li className="border-t border-border/60">
       <label
         htmlFor={tickId}
-        className={cn("flex min-h-9.5 items-center gap-2.5 px-1 py-1 text-[13px] leading-[18px]", isChange ? "cursor-pointer" : null)}
+        className={cn("flex min-h-9.5 items-center gap-2.5 px-1 py-1 text-[13px] leading-4.5", isChange ? "cursor-pointer" : null)}
       >
         <Checkbox id={tickId} checked={isTicked} onCheckedChange={(checked) => onTickedChange(checked === true)} disabled={!isChange} />
         <span className={cn(VALUE_CLASS, "text-muted-foreground")}>{text.formatPart(toDegreesPart(line.current))}</span>
@@ -105,7 +105,7 @@ function PreviewBody({ preview, draft, onApply }: PreviewBodyProps) {
   const [tickedIds, setTickedIds] = useState<ReadonlySet<string>>(() => new Set(listChangeIds(lines)));
   const titles: Record<AzimuthSource, string> = {
     emf: t("edit.azimuths.preview.emfTitle"),
-    register: t("edit.azimuths.preview.registerTitle"),
+    register: t("edit.azimuths.preview.registerTitle", { source: fetched.source === "register" ? fetched.sourceName : "" }),
     partner: t("edit.azimuths.preview.partnerTitle", { brand: partnerName ?? "" }),
   };
 
@@ -147,7 +147,7 @@ function PreviewBody({ preview, draft, onApply }: PreviewBodyProps) {
 export function AzimuthPreviewDialog({ preview, draft, isOpen, onOpenChange, onApply }: AzimuthPreviewDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-110">
         {preview === null ? null : <PreviewBody key={preview.token} preview={preview} draft={draft} onApply={onApply} />}
       </DialogContent>
     </Dialog>

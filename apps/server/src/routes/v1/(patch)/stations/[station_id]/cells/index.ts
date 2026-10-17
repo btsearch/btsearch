@@ -142,15 +142,6 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           allModifiedCellIds,
         )
       : Promise.resolve(),
-    // checkLTEClidConsistency(
-    //   station_id,
-    //   effectiveCells.map((cell, index) => ({
-    //     rat: cell.rat,
-    //     details: cell.details as Record<string, unknown> | undefined,
-    //     excludeCellId: cellsData[index]?.cell_id,
-    //   })),
-    //   allModifiedCellIds,
-    // ),
     validateCellBandsInCountry(
       effectiveCells.map((cell, index) => ({ ...cell, rat: cellsData[index]?.rat ?? cell.rat })),
       LEGACY_COUNTRY_CODE,

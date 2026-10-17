@@ -1,5 +1,3 @@
-import type { Band } from "@/types/station";
-
 export const RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"] as const;
 
 export type RatType = (typeof RAT_ORDER)[number];
@@ -40,34 +38,4 @@ function getRatCellSpec(rat: string): RatCellSpec | undefined {
 
 export function ratToGenLabel(rat: string): string | null {
   return getRatCellSpec(rat)?.gen ?? REGISTER_GENERATIONS.get(rat) ?? null;
-}
-
-export function toRegisterRatOption(rat: string): RatOption {
-  if (rat === "IOT" || rat === "iot") return { value: "iot", label: "IoT", gen: ratToGenLabel("IOT") };
-  return { value: rat, label: rat, gen: ratToGenLabel(rat) };
-}
-
-export function listRegisterRatOptions(registerBands: readonly Pick<Band, "rat" | "variant">[]): RatOption[] {
-  const options = new Map<string, RatOption>();
-
-  for (const band of registerBands) {
-    const rat = band.rat === "GSM" && band.variant === "railway" ? "GSM-R" : band.rat;
-    const option = toRegisterRatOption(rat);
-    if (!options.has(option.value)) options.set(option.value, option);
-  }
-
-  return [...options.values()];
-}
-
-export function compareRatsByName(left: string, right: string): number {
-  return left.localeCompare(right);
-}
-
-export function toRegisterRatComparator(registerBands: readonly Pick<Band, "rat">[]): (left: string, right: string) => number {
-  const positions = new Map([...new Set(registerBands.map((band) => band.rat))].map((rat, index) => [rat, index]));
-  return (left, right) => {
-    const leftPosition = positions.get(left) ?? Number.MAX_SAFE_INTEGER;
-    const rightPosition = positions.get(right) ?? Number.MAX_SAFE_INTEGER;
-    return leftPosition - rightPosition || compareRatsByName(left, right);
-  };
 }

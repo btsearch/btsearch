@@ -1,16 +1,17 @@
+import type { OfficialSite } from "@openbts/shared/contract";
 import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from "react";
 
 import { useFloatingDialogStackState } from "../hooks/useFloatingDialogStackState";
 import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload, TerrainProfileDialogPayload } from "../types";
 import { FloatingDialogStack } from "./floatingDialogStack";
-import type { DuplexRadioLink } from "@/features/map/utils";
+import type { DuplexMicrowaveLink } from "@/features/map/utils";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
-import type { StationSource, UkeStation } from "@/types/station";
+import type { StationSource } from "@/types/station";
 
 type FloatingDialogStackContextValue = {
   openStationDialog: (id: number, source: StationSource, locationId?: number) => boolean;
-  openUkePermitDialog: (station: UkeStation) => boolean;
-  openRadioLineDialog: (link: DuplexRadioLink) => boolean;
+  openOfficialSiteDialog: (id: number, officialSite?: OfficialSite) => boolean;
+  openMicrowaveLinkDialog: (link: DuplexMicrowaveLink) => boolean;
   openSI2PEMReportDialog: (payload: SI2PEMReportDialogPayload) => boolean;
   openStationHistoryDialog: (payload: StationHistoryDialogPayload) => boolean;
   openTerrainProfileDialog: (payload: TerrainProfileDialogPayload) => boolean;
@@ -30,8 +31,8 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
   const contextValue = useMemo(
     () => ({
       openStationDialog: stack.openStationDialog,
-      openUkePermitDialog: stack.openUkePermitDialog,
-      openRadioLineDialog: stack.openRadioLineDialog,
+      openOfficialSiteDialog: stack.openOfficialSiteDialog,
+      openMicrowaveLinkDialog: stack.openMicrowaveLinkDialog,
       openSI2PEMReportDialog: stack.openSI2PEMReportDialog,
       openStationHistoryDialog: stack.openStationHistoryDialog,
       openTerrainProfileDialog: stack.openTerrainProfileDialog,
@@ -43,12 +44,12 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
       setTerrainProfileStartHandler,
       stack.closeTerrainProfileDialog,
       stack.focusTerrainProfileDialog,
-      stack.openRadioLineDialog,
+      stack.openMicrowaveLinkDialog,
+      stack.openOfficialSiteDialog,
       stack.openSI2PEMReportDialog,
       stack.openStationHistoryDialog,
       stack.openStationDialog,
       stack.openTerrainProfileDialog,
-      stack.openUkePermitDialog,
     ],
   );
 

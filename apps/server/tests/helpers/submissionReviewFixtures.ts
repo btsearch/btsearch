@@ -1,3 +1,4 @@
+import { conventionsFor } from "@openbts/country-packs";
 import type { NewCellInput } from "@openbts/shared/contract";
 import { getTableName } from "drizzle-orm";
 
@@ -5,6 +6,7 @@ import { DATABASE_RATS } from "../../src/features/stations/serialize.js";
 import type { ProposedSectorRow } from "../../src/features/submissions/serialize.js";
 import { dbMock } from "./boundaries.js";
 import { cellInputs, radioTables, storedCell } from "./cellWriteFixtures.js";
+import { operatorRow, primaryPlmn } from "./operatorFixtures.js";
 import { readDate, readLocation } from "./readFixtures.js";
 import { stationRow } from "./stationFixtures.js";
 import { scriptCountryStamp, submissionId, submissionRow, submitterId } from "./submissionFixtures.js";
@@ -53,7 +55,13 @@ function proposedReviewCell(
 
 export function prepareNewReview(
   inputs: NewCellInput[],
-  options: { withLocation?: boolean; submitter?: boolean; withSector?: boolean; duplicate?: { rat: NewCellInput["rat"]; rows: unknown[] } } = {},
+  options: {
+    withLocation?: boolean;
+    submitter?: boolean;
+    withSector?: boolean;
+    backhaul?: { type: string; speed: number };
+    duplicate?: { rat: NewCellInput["rat"]; rows: unknown[] };
+  } = {},
 ) {
   const withLocation = options.withLocation ?? true;
   const withSector = options.withSector ?? true;
@@ -76,10 +84,10 @@ export function prepareNewReview(
     networks_id: null,
     networks_name: null,
     mno_name: null,
-    uplink_type: null,
-    uplink_speed: null,
+    uplink_type: options.backhaul?.type ?? null,
+    uplink_speed: options.backhaul?.speed ?? null,
     uplink_model: null,
-    changed_fields: ["station_id", "operator_id"],
+    changed_fields: ["station_id", "operator_id", ...(options.backhaul ? ["uplink_type", "uplink_speed"] : [])],
     createdAt: readDate,
     updatedAt: readDate,
   };
@@ -120,7 +128,6 @@ export function prepareNewReview(
   dbMock.query.submissionPhotos.findMany.mockResolvedValue([]);
   dbMock.query.submissionLocationPhotoSelections.findMany.mockResolvedValue([]);
   dbMock.query.users.findFirst.mockResolvedValue({ name: "Reviewer", locale: "en-US" });
-  dbMock.query.ukePermits.findMany.mockResolvedValue([]);
   dbMock.query.locations.findFirst.mockResolvedValue(undefined);
   for (const rat of new Set(inputs.map((input) => input.rat)))
     if (rat !== "nr") dbMock.enqueueFor("select", getTableName(radioTables[rat]), options.duplicate?.rat === rat ? options.duplicate.rows : []);
@@ -141,6 +148,49 @@ export function prepareNewReview(
 }
 
 type PhotoSelection = { station_id: number; location_photo_id: number; is_main: boolean };
+type StationSite = {
+  locationId?: number | null;
+  operatorId?: number;
+  countryCode?: string | null;
+  siblingIds?: number[];
+  stationEnbids?: number[];
+  sameEnbSiblingIds?: number[];
+};
+
+const sharedNetworkId = 5;
+
+function scriptStationSite({
+  locationId = 2,
+  operatorId = 7,
+  countryCode = "PL",
+  siblingIds = [],
+  stationEnbids = [],
+  sameEnbSiblingIds = [],
+}: StationSite = {}): void {
+  const siblings = siblingIds.map((id) => ({ id }));
+  dbMock.enqueueFor("select", "stations", [{ id: 12, locationId, operatorId, countryCode }]);
+  if (locationId === null || conventionsFor(countryCode).sharedSite.copies.length === 0) return;
+
+  dbMock.enqueueFor("select", "stations", siblings);
+  if (siblings.length < 2) return;
+
+  dbMock.enqueueFor("select", "stations", [{ locationCountry: countryCode, operatorCountry: countryCode }]);
+  dbMock.enqueueFor(
+    "select",
+    "lte_cells",
+    stationEnbids.map((enbid) => ({ enbid })),
+  );
+  dbMock.enqueueFor("select", "operators", [operatorRow(operatorId, 26002)], [operatorRow(sharedNetworkId, 26034)]);
+  dbMock.enqueueFor("select", "plmns", [primaryPlmn(operatorId, "26002")], [primaryPlmn(sharedNetworkId, "26034")]);
+  dbMock.enqueueFor("select", "operator_links", [{ operatorId, kind: "jv_member", relatedOperatorId: sharedNetworkId }]);
+  if (stationEnbids.length > 0) {
+    dbMock.enqueueFor(
+      "select",
+      "lte_cells",
+      sameEnbSiblingIds.map((stationId) => ({ stationId })),
+    );
+  }
+}
 
 export function prepareExistingPhotoReview() {
   const scenario = prepareNewReview([], { submitter: true, withSector: false });
@@ -158,7 +208,7 @@ export function writeExistingPhotoReview(
   next: PhotoSelection[],
   photoCount: number,
   options: {
-    siteMnc?: number;
+    site?: StationSite;
     siblingStationId?: number;
     siblingOld?: PhotoSelection[];
     siblingNew?: PhotoSelection[];
@@ -171,9 +221,8 @@ export function writeExistingPhotoReview(
   if (options.siblingStationId) dbMock.enqueueFor("select", "station_photo_selections", options.siblingOld ?? []);
   dbMock.enqueueFor("select", "station_photo_selections", [...next, ...(options.siblingNew ?? [])]);
   dbMock.enqueueFor("update", "stations", []);
-  if (photoCount > 0) dbMock.enqueueFor("select", "stations", [{ locationId: 2, mnc: options.siteMnc ?? null }]);
-  if (options.siblingStationId) dbMock.enqueueFor("select", "stations", [{ id: options.siblingStationId }]);
-  dbMock.enqueueFor("select", "stations", [{ operatorName: "Operator", operatorMnc: options.siteMnc ?? 7 }], []);
+  if (photoCount > 0) scriptStationSite({ siblingIds: options.siblingStationId ? [options.siblingStationId] : [], ...options.site });
+  dbMock.enqueueFor("select", "stations", [{ operatorName: "Operator", operatorMnc: 7 }], []);
   dbMock.enqueueFor("insert", "audit_logs", []);
   dbMock.enqueueFor("update", "submissions", [scenario.approved]);
   dbMock.enqueueFor("select", "audit_logs", []);
@@ -197,9 +246,11 @@ export function writeNewReview(
     lock?: unknown[];
     reviewNote?: string;
     photoCount?: number;
+    site?: StationSite;
   } = {},
 ): void {
   const { submission, station, location, cells, inputs, approved, withLocation, withSector } = scenario;
+  const site = { locationId: withLocation ? 2 : null, ...options.site };
   dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
   dbMock.enqueueFor("select", "submissions", options.lock ?? [submission]);
   if (withLocation) {
@@ -207,6 +258,7 @@ export function writeNewReview(
     dbMock.enqueueFor("insert", "locations", [location]);
   }
   dbMock.enqueueFor("insert", "stations", [station]);
+  if (scenario.proposedStation.uplink_type !== null) scriptStationSite(site);
   dbMock.enqueueFor(
     "select",
     "station_photo_selections",
@@ -217,7 +269,7 @@ export function writeNewReview(
   if (withSector) {
     dbMock.enqueueFor("select", "station_sectors", [], [{ id: 5, azimuth: 90 }]);
     dbMock.enqueueFor("insert", "station_sectors", [{ id: 5 }]);
-    dbMock.enqueueFor("select", "stations", [{ locationId: withLocation ? 2 : null, mnc: null }]);
+    scriptStationSite(site);
   }
   for (const [index, row] of cells.entries()) {
     dbMock.enqueueFor("insert", "cells", options.failCellAt === index ? [] : [row.cell]);
@@ -239,8 +291,7 @@ export function writeNewReview(
   dbMock.enqueueFor("update", "submissions", [{ ...approved, ...(options.reviewNote === undefined ? {} : { review_notes: options.reviewNote }) }]);
   dbMock.enqueueFor("select", "audit_logs", []);
   dbMock.enqueueFor("update", "audit_operations", []);
-  dbMock.enqueueFor("insert", "uke_import_metadata", [{ id: 1 }]);
-  if ((options.photoCount ?? 0) > 0) dbMock.enqueueFor("select", "stations", [{ locationId: withLocation ? 2 : null, mnc: null }]);
+  if ((options.photoCount ?? 0) > 0) scriptStationSite(site);
   scriptCountryStamp({ stationId: 12, regionId: scenario.proposedLocation?.region_id, operatorId: scenario.proposedStation.operator_id });
   if (submission.submitter_id !== null) {
     dbMock.enqueueFor("select", "stations", [{ operatorName: "Operator", operatorMnc: 7 }]);
@@ -337,8 +388,8 @@ export function writeUpdatedCellReview(scenario: ReturnType<typeof prepareUpdate
   serializeReview({ ...scenario, proposedStation: undefined, proposedCells: [scenario.proposed] });
 }
 
-export function prepareCombinedUpdatedReview() {
-  const scenario = prepareNewReview([cellInputs.gsm, cellInputs.lte, cellInputs.nr], { submitter: true });
+export function prepareCombinedUpdatedReview(options: { backhaul?: { type: string; speed: number } } = {}) {
+  const scenario = prepareNewReview([cellInputs.gsm, cellInputs.lte, cellInputs.nr], { submitter: true, ...options });
   const submission = { ...scenario.submission, type: "update" as const, station_id: 12 };
   const location = { ...scenario.location, city: "Reviewed city", address: null };
   const station = { ...scenario.station, station_id: "REVIEWED-12", operator_id: 8, notes: "Reviewed site", location };
@@ -347,7 +398,7 @@ export function prepareCombinedUpdatedReview() {
     station_id: station.station_id,
     operator_id: 8,
     notes: station.notes,
-    changed_fields: ["station_id", "operator_id", "notes"],
+    changed_fields: ["station_id", "operator_id", "notes", ...(options.backhaul ? ["uplink_type", "uplink_speed"] : [])],
   };
   const proposedLocation = { ...scenario.proposedLocation!, city: location.city, address: null, changed_fields: ["city", "address"] };
   const currentGsm = storedCell({ ...cellInputs.gsm, sectorId: 5, notes: "Live note" }, 31, 12);
@@ -397,16 +448,17 @@ export function writeCombinedUpdatedReview(
     occupiedDeletedSector?: boolean;
     siblingStationId?: number;
     siblingAssignedCells?: { id: number; sectorId: number | null }[];
+    site?: StationSite;
   } = {},
 ): void {
+  const site = { operatorId: 8, siblingIds: options.siblingStationId ? [options.siblingStationId] : [], ...options.site };
   dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
   dbMock.enqueueFor("select", "submissions", [scenario.submission]);
   dbMock.enqueueFor("select", "station_photo_selections", [], []);
   dbMock.enqueueFor("update", "locations", [scenario.location]);
-  dbMock.enqueueFor("select", "stations", options.duplicateStation ? [{ id: 99 }] : [], [
-    { locationId: 2, mnc: options.siblingStationId ? 26002 : null },
-  ]);
-  if (options.siblingStationId) dbMock.enqueueFor("select", "stations", [{ id: options.siblingStationId }]);
+  dbMock.enqueueFor("select", "stations", options.duplicateStation ? [{ id: 99 }] : []);
+  if (scenario.proposedStation.uplink_type !== null) scriptStationSite(site);
+  scriptStationSite(site);
   dbMock.enqueueFor("select", "stations", [{ operatorName: "New operator", operatorMnc: options.siblingStationId ? 26002 : 8 }], []);
   dbMock.enqueueFor("update", "stations", [scenario.station], []);
   dbMock.enqueueFor(

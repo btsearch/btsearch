@@ -3,10 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { StatsHistoryRow, StatsOperator, StatsStationsHistoryRow } from "../api";
-import { type BandComparator, useRegisterBandComparator } from "../lib/bandOrder";
-import { operatorDataKey, operatorSeries } from "../lib/series";
-import { statsHistoryQueryOptions, statsStationsHistoryQueryOptions } from "../queries";
+import type { BandHistory, OperatorPoint } from "../lib/chartData";
+import { type StatisticsOperator, operatorDataKey, operatorSeries } from "../lib/series";
+import { type Granularity, permitHistoryByBandQueryOptions, permitHistoryByOperatorQueryOptions } from "../queries";
 import type { ChartType } from "./chartTypeContext";
 import { ChartTypeToggle } from "./chartTypeToggle";
 import type { Series } from "./statChart";
@@ -23,18 +22,19 @@ interface ChartData {
 }
 
 interface BandChartData extends ChartData {
+  key: string;
   bandName: string;
 }
 
-function buildChartData(rows: { date: string; operator: StatsOperator; unique_stations: number }[]): ChartData {
+function buildChartData(points: readonly OperatorPoint[]): ChartData {
   const dateMap = new Map<string, Record<string, string | number>>();
-  const operatorSet = new Map<number, StatsOperator>();
+  const operatorSet = new Map<number, StatisticsOperator>();
 
-  for (const row of rows) {
-    if (!operatorSet.has(row.operator.id)) operatorSet.set(row.operator.id, row.operator);
-    const existing = dateMap.get(row.date) ?? { date: row.date };
-    existing[operatorDataKey(row.operator)] = row.unique_stations;
-    dateMap.set(row.date, existing);
+  for (const point of points) {
+    if (!operatorSet.has(point.operator.id)) operatorSet.set(point.operator.id, point.operator);
+    const existing = dateMap.get(point.date) ?? { date: point.date };
+    existing[operatorDataKey(point.operator)] = point.value;
+    dateMap.set(point.date, existing);
   }
 
   const series = operatorSeries(operatorSet.values());
@@ -55,34 +55,25 @@ function buildChartData(rows: { date: string; operator: StatsOperator; unique_st
   return { chartData, series };
 }
 
-function useBandCharts(historyData: StatsHistoryRow[] | undefined, compareBands: BandComparator): BandChartData[] {
+function useBandCharts(bands: BandHistory[] | undefined, operatorId: number | undefined): BandChartData[] {
   return useMemo(() => {
-    if (!historyData?.length) return [];
+    if (!bands?.length) return [];
 
-    const bandGroups = new Map<string, StatsHistoryRow[]>();
-    for (const row of historyData) {
-      const group = bandGroups.get(row.band.name) ?? [];
-      group.push(row);
-      bandGroups.set(row.band.name, group);
-    }
-
-    return [...bandGroups.values()]
-      .sort((a, b) => compareBands(a[0].band, b[0].band))
-      .map((rows) => ({
-        bandName: rows[0].band.name,
-        ...buildChartData(rows),
-      }));
-  }, [historyData, compareBands]);
+    return bands.flatMap((band) => {
+      const points = operatorId === undefined ? band.points : band.points.filter((point) => point.operator.id === operatorId);
+      return points.length === 0 ? [] : [{ key: band.key, bandName: band.name, ...buildChartData(points) }];
+    });
+  }, [bands, operatorId]);
 }
 
-function useOperatorChart(stationsData: StatsStationsHistoryRow[] | undefined): ChartData {
+function useOperatorChart(points: OperatorPoint[] | undefined): ChartData {
   return useMemo(() => {
-    if (!stationsData?.length) return { chartData: [], series: [] };
-    return buildChartData(stationsData);
-  }, [stationsData]);
+    if (!points?.length) return { chartData: [], series: [] };
+    return buildChartData(points);
+  }, [points]);
 }
 
-function BandHistoryCard({ band, chartType, granularity }: { band: BandChartData; chartType: ChartType; granularity: "monthly" | "daily" }) {
+function BandHistoryCard({ band, chartType, granularity }: { band: BandChartData; chartType: ChartType; granularity: Granularity }) {
   const isDaily = granularity === "daily";
 
   return (
@@ -111,7 +102,7 @@ function OperatorHistoryCard({
   chartData: ChartData["chartData"];
   series: ChartData["series"];
   chartType: ChartType;
-  granularity: "monthly" | "daily";
+  granularity: Granularity;
 }) {
   const { t } = useTranslation("statistics");
   const isDaily = granularity === "daily";
@@ -137,35 +128,34 @@ export function HistoryChart({ operators }: { operators?: Pick<Operator, "id" | 
   const { t } = useTranslation("statistics");
   const { t: tCommon } = useTranslation("common");
   const [operatorId, setOperatorId] = useState<number | undefined>();
-  const [granularity, setGranularity] = useState<"monthly" | "daily">("monthly");
+  const [granularity, setGranularity] = useState<Granularity>("monthly");
   const [viewMode, setViewMode] = useState<ViewMode>("by-band");
   const [chartType, setChartType] = useState<ChartType>("line");
   const [, startTransition] = useTransition();
 
   const {
-    data: historyData,
+    data: bandHistory,
     isLoading: bandLoading,
     isLoadingError: isBandLoadError,
     isFetching: isBandFetching,
     refetch: refetchBand,
   } = useQuery({
-    ...statsHistoryQueryOptions({ operator_id: operatorId, granularity }),
+    ...permitHistoryByBandQueryOptions(granularity),
     enabled: viewMode === "by-band",
   });
   const {
-    data: stationsData,
-    isLoading: stationsLoading,
-    isLoadingError: isStationsLoadError,
-    isFetching: isStationsFetching,
-    refetch: refetchStations,
+    data: operatorHistory,
+    isLoading: operatorLoading,
+    isLoadingError: isOperatorLoadError,
+    isFetching: isOperatorFetching,
+    refetch: refetchOperator,
   } = useQuery({
-    ...statsStationsHistoryQueryOptions({ operator_id: operatorId, granularity }),
+    ...permitHistoryByOperatorQueryOptions(granularity),
     enabled: viewMode === "by-operator",
   });
-  const isLoading = viewMode === "by-band" ? bandLoading : stationsLoading;
-  const compareBands = useRegisterBandComparator();
-  const bandCharts = useBandCharts(viewMode === "by-band" ? historyData : undefined, compareBands);
-  const operatorChart = useOperatorChart(viewMode === "by-operator" ? stationsData : undefined);
+  const isLoading = viewMode === "by-band" ? bandLoading : operatorLoading;
+  const bandCharts = useBandCharts(viewMode === "by-band" ? bandHistory : undefined, operatorId);
+  const operatorChart = useOperatorChart(viewMode === "by-operator" ? operatorHistory : undefined);
 
   const operatorItems = useMemo(
     () => [{ value: "all", label: tCommon("labels.allOperators") }, ...(operators?.map((op) => ({ value: String(op.id), label: op.name })) ?? [])],
@@ -189,7 +179,7 @@ export function HistoryChart({ operators }: { operators?: Pick<Operator, "id" | 
   );
 
   const isEmpty = viewMode === "by-band" ? bandCharts.length === 0 : operatorChart.chartData.length === 0;
-  const hasLoadError = viewMode === "by-band" ? isBandLoadError : isStationsLoadError;
+  const hasLoadError = viewMode === "by-band" ? isBandLoadError : isOperatorLoadError;
 
   function renderContent() {
     if (isLoading) {
@@ -222,8 +212,8 @@ export function HistoryChart({ operators }: { operators?: Pick<Operator, "id" | 
       return (
         <div className="relative border border-border p-4">
           <ErrorState
-            onRetry={() => (viewMode === "by-band" ? refetchBand() : refetchStations())}
-            isRetrying={viewMode === "by-band" ? isBandFetching : isStationsFetching}
+            onRetry={() => (viewMode === "by-band" ? refetchBand() : refetchOperator())}
+            isRetrying={viewMode === "by-band" ? isBandFetching : isOperatorFetching}
           />
         </div>
       );
@@ -241,7 +231,7 @@ export function HistoryChart({ operators }: { operators?: Pick<Operator, "id" | 
       return (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {bandCharts.map((band) => (
-            <BandHistoryCard key={band.bandName} band={band} chartType={chartType} granularity={granularity} />
+            <BandHistoryCard key={band.key} band={band} chartType={chartType} granularity={granularity} />
           ))}
         </div>
       );
@@ -289,11 +279,7 @@ export function HistoryChart({ operators }: { operators?: Pick<Operator, "id" | 
           ) : null}
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="w-20 shrink-0 text-sm text-muted-foreground sm:w-auto">{t("filters.granularity")}</span>
-            <Select
-              value={granularity}
-              onValueChange={(v) => startTransition(() => setGranularity(v as "monthly" | "daily"))}
-              items={granularityItems}
-            >
+            <Select value={granularity} onValueChange={(v) => startTransition(() => setGranularity(v as Granularity))} items={granularityItems}>
               <SelectTrigger className="h-8 min-w-0 flex-1 sm:w-30 sm:flex-none">
                 <SelectValue />
               </SelectTrigger>

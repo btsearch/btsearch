@@ -1,60 +1,59 @@
 import { ArrowDown01Icon, ArrowUpRight01Icon, DocumentCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { OfficialPermit, OfficialPermitSite, OfficialSitePermit } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { DEVICE_REGISTRY_DATASET, getPermitKindLook, groupPermitsByRat, hasDeviceRegistryListing, listPermitSites } from "../officialPermits";
 import { stationPermitsQueryOptions } from "../queries";
-import { groupPermitsByUkeStation } from "../utils";
 import { StationLink } from "./stationLink";
-import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { registerBandsQueryOptions } from "@/features/map/api";
-import { compareRatsByName, toRegisterRatComparator } from "@/features/shared/rat";
+import { toOfficialRatComparator } from "@/features/official/labels";
+import { officialBandLabelsQueryOptions } from "@/features/official/queries";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
-import type { PhysicalStation, UkeStation, UkeStationPermit } from "@/types/station";
-
-function groupPermitsByRat(permits: UkeStationPermit[], compareRats: (left: string, right: string) => number): Map<string, UkeStationPermit[]> {
-  const groups = new Map<string, UkeStationPermit[]>();
-
-  for (const permit of permits) {
-    const rat = permit.band?.rat?.toUpperCase() || "OTHER";
-    const existing = groups.get(rat) ?? [];
-    existing.push(permit);
-    groups.set(rat, existing);
-  }
-
-  for (const [_, groupPermits] of groups) {
-    groupPermits.sort((a, b) => {
-      const valA = Number(a.band?.value ?? 0);
-      const valB = Number(b.band?.value ?? 0);
-      return valA - valB;
-    });
-  }
-
-  return new Map([...groups].sort(([left], [right]) => Number(left === "OTHER") - Number(right === "OTHER") || compareRats(left, right)));
-}
+import type { PhysicalStation } from "@/types/station";
 
 type PermitsListProps = {
   stationId?: number;
-  permits?: UkeStationPermit[];
+  permits?: readonly OfficialSitePermit[];
+  sourceName: string | null;
   isExternalLoading?: boolean;
   physicalStation?: PhysicalStation;
   permitHolderNote?: ReactNode;
 };
 
-export function PermitsList({ stationId, permits: externalPermits, isExternalLoading, physicalStation, permitHolderNote }: PermitsListProps) {
+type PermitSiteLinksProps = {
+  sites: readonly OfficialPermitSite[];
+  sourceName: string | null;
+};
+
+const NO_PERMITS: OfficialPermit[] = [];
+const COMPARE_RATS_BY_NAME = toOfficialRatComparator([]);
+const DATASET_LABEL_KEYS: ReadonlyMap<string, string> = new Map([
+  ["permits", "permits.sourcePermits"],
+  [DEVICE_REGISTRY_DATASET, "permits.sourceDeviceRegistry"],
+]);
+
+export function PermitsList({
+  stationId,
+  permits: externalPermits,
+  sourceName,
+  isExternalLoading,
+  physicalStation,
+  permitHolderNote,
+}: PermitsListProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
-  const { data: compareRats = compareRatsByName } = useQuery({ ...registerBandsQueryOptions(), select: toRegisterRatComparator });
+  const { data: compareRats = COMPARE_RATS_BY_NAME } = useQuery({ ...officialBandLabelsQueryOptions(), select: toOfficialRatComparator });
   const {
-    data: fetchedPermits = [],
+    data: fetchedPermits = NO_PERMITS,
     isLoading,
     isFetching,
     isLoadingError,
@@ -62,10 +61,10 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
     refetch,
   } = useQuery(stationPermitsQueryOptions(externalPermits ? undefined : stationId));
 
-  const permits = externalPermits ?? fetchedPermits;
+  const permits: readonly OfficialSitePermit[] = externalPermits ?? fetchedPermits;
   const permitsByRat = useMemo(() => groupPermitsByRat(permits, compareRats), [permits, compareRats]);
-  const ukeStations = useMemo(() => groupPermitsByUkeStation(fetchedPermits), [fetchedPermits]);
-  const hasDeviceRegistryData = useMemo(() => permits.some((p) => p.source === "device_registry"), [permits]);
+  const permitSites = useMemo(() => listPermitSites(fetchedPermits), [fetchedPermits]);
+  const hasDeviceRegistryData = useMemo(() => hasDeviceRegistryListing(permits), [permits]);
 
   if (isExternalLoading || (!externalPermits && isLoading)) {
     return (
@@ -114,7 +113,7 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
         {staleNotice}
         <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
           <HugeiconsIcon icon={DocumentCodeIcon} className="size-8 mb-2 opacity-20" />
-          <p className="text-sm">{t("permits.noPermits")}</p>
+          <p className="text-sm">{sourceName === null ? t("permits.noRegisterPermits") : t("permits.noPermits", { source: sourceName })}</p>
           {physicalStation ? <PermitHolderNote station={physicalStation} /> : permitHolderNote}
         </div>
       </>
@@ -124,7 +123,7 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
   return (
     <div className="space-y-4">
       {staleNotice}
-      {ukeStations.length > 0 ? <UkeStationLinks stations={ukeStations} /> : null}
+      {permitSites.length > 0 ? <PermitSiteLinks sites={permitSites} sourceName={sourceName} /> : null}
       {Array.from(permitsByRat.entries()).map(([rat, ratPermits]) => (
         <CollapsiblePermitGroup key={rat} rat={rat} ratPermits={ratPermits} t={t} i18n={i18n} showAntennaData={hasDeviceRegistryData} />
       ))}
@@ -132,22 +131,22 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
   );
 }
 
-function UkeStationLinks({ stations }: { stations: UkeStation[] }) {
+function PermitSiteLinks({ sites, sourceName }: PermitSiteLinksProps) {
   const { t } = useTranslation("stationDetails");
-  const { openUkePermitDialog } = useFloatingDialogStack();
+  const { openOfficialSiteDialog } = useFloatingDialogStack();
 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-      <span>{t("permits.ukeStation")}</span>
-      {stations.map((station) => (
+      <span>{sourceName === null ? t("permits.registerStation") : t("permits.sourceStation", { source: sourceName })}</span>
+      {sites.map((site) => (
         <button
-          key={station.id}
+          key={site.id}
           type="button"
-          onClick={() => openUkePermitDialog(station)}
+          onClick={() => openOfficialSiteDialog(site.id, site)}
           className="group inline-flex min-w-0 cursor-pointer items-center gap-1 font-medium text-foreground focus-visible:outline-none"
         >
           <span className="truncate underline-offset-2 group-hover:underline group-focus-visible:underline">
-            {station.location ? [station.location.city, station.location.address].filter(Boolean).join(", ") : station.station_id}
+            {site.location ? [site.location.city, site.location.address].filter(Boolean).join(", ") : site.siteId}
           </span>
           <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
@@ -175,7 +174,7 @@ function PermitHolderNote({ station }: { station: PhysicalStation }) {
 
 type CollapsiblePermitGroupProps = {
   rat: string;
-  ratPermits: UkeStationPermit[];
+  ratPermits: readonly OfficialSitePermit[];
   t: ReturnType<typeof useTranslation<"stationDetails">>["t"];
   i18n: ReturnType<typeof useTranslation>["i18n"];
   showAntennaData?: boolean;
@@ -185,6 +184,30 @@ type SectorValueTooltipProps = {
   label: string;
   children: ReactNode;
 };
+
+function DatasetBadge({ dataset }: { dataset: string }) {
+  const { t } = useTranslation("stationDetails");
+  const labelKey = DATASET_LABEL_KEYS.get(dataset);
+
+  return (
+    <Badge
+      variant="secondary"
+      className={cn(
+        "text-[10px] px-1.5 py-0 font-semibold whitespace-nowrap bg-muted text-muted-foreground",
+        dataset === DEVICE_REGISTRY_DATASET && "ring-1 ring-blue-500/30",
+      )}
+    >
+      {labelKey === undefined ? dataset : t(labelKey)}
+    </Badge>
+  );
+}
+
+function PermitBand({ permit }: { permit: OfficialSitePermit }) {
+  const { t } = useTranslation("stations");
+  const { rat, labelMhz } = permit.label;
+  if (labelMhz !== null) return <span>{labelMhz}</span>;
+  return <span>{rat === null ? "-" : t("cells.unknownBand")}</span>;
+}
 
 function SectorValueTooltip({ label, children }: SectorValueTooltipProps) {
   return (
@@ -224,19 +247,18 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
             </thead>
             <tbody className="divide-y divide-border/50">
               {ratPermits.map((permit) => {
-                const expiryDate = new Date(permit.expiry_date);
-                const isExpired = isPermitExpired(permit.expiry_date);
-                const neverExpires = expiryDate.getFullYear() >= 2099;
+                const expiryText =
+                  permit.expiresOn === null ? t("permits.neverExpires") : new Date(permit.expiresOn).toLocaleDateString(i18n.language);
+                const isExpired = permit.expiresOn !== null && isPermitExpired(permit.expiresOn);
                 const isNew = isRecent(permit.createdAt);
+                const kind = getPermitKindLook(permit.kind);
 
                 return (
                   <tr key={permit.id} className={cn("hover:bg-muted/20 transition-colors")}>
                     <td className={cn("px-4 py-2.5 font-mono font-medium", isNew && "border-l-2 border-l-green-500")}>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span>
-                          {permit.band?.value ? (Number(permit.band.value) === 0 ? t("stations:cells.unknownBand") : permit.band.value) : "-"}
-                        </span>
-                        {permit.band?.variant === "railway" && (
+                        <PermitBand permit={permit} />
+                        {permit.label.variant === "railway" && (
                           <Tooltip>
                             <TooltipTrigger>
                               <span className="inline-flex items-center justify-center size-5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 cursor-help text-xs font-bold">
@@ -248,20 +270,20 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                             </TooltipContent>
                           </Tooltip>
                         )}
-                        {permit.source && <UKESourceBadge source={permit.source} />}
+                        {permit.datasets.map((dataset) => (
+                          <DatasetBadge key={dataset} dataset={dataset} />
+                        ))}
                       </div>
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs">{permit.decision_number}</span>
-                        <Tooltip>
-                          <TooltipTrigger className="font-mono text-[10px] text-muted-foreground cursor-help">
-                            [{permit.decision_type}]
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {permit.decision_type === "zmP" ? t("permits.decisionTypeZmP") : t("permits.decisionTypeP")}
-                          </TooltipContent>
-                        </Tooltip>
+                        <span className="font-mono text-xs">{permit.number ?? "-"}</span>
+                        {kind === undefined ? null : (
+                          <Tooltip>
+                            <TooltipTrigger className="font-mono text-[10px] text-muted-foreground cursor-help">[{kind.code}]</TooltipTrigger>
+                            <TooltipContent>{t(kind.labelKey)}</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                     </td>
                     {showAntennaData && (
@@ -284,14 +306,14 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                                     </SectorValueTooltip>
                                     <span className="text-muted-foreground">/</span>
                                     <SectorValueTooltip label={t("common:labels.antennaHeight")}>
-                                      <span>{sector.antenna_height !== null ? `${sector.antenna_height} m` : "-"}</span>
+                                      <span>{sector.antennaHeightMeters !== null ? `${sector.antennaHeightMeters} m` : "-"}</span>
                                     </SectorValueTooltip>
-                                    {sector.antenna_type && (
+                                    {sector.antennaType && (
                                       <Tooltip>
                                         <TooltipTrigger className="px-1 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-bold uppercase cursor-help">
-                                          {t(`permits.antennaType.${sector.antenna_type}Short`)}
+                                          {t(`permits.antennaType.${sector.antennaType}Short`)}
                                         </TooltipTrigger>
-                                        <TooltipContent>{t(`permits.antennaType.${sector.antenna_type}`)}</TooltipContent>
+                                        <TooltipContent>{t(`permits.antennaType.${sector.antennaType}`)}</TooltipContent>
                                       </Tooltip>
                                     )}
                                   </div>
@@ -308,13 +330,13 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                       <div className="flex items-center gap-2">
                         {isExpired ? (
                           <>
-                            <span className="text-destructive font-medium">{expiryDate.toLocaleDateString(i18n.language)}</span>
+                            <span className="text-destructive font-medium">{expiryText}</span>
                             <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[11px] font-bold uppercase">
                               {t("common:status.expired")}
                             </span>
                           </>
                         ) : (
-                          <span>{neverExpires ? t("permits.neverExpires") : expiryDate.toLocaleDateString(i18n.language)}</span>
+                          <span>{expiryText}</span>
                         )}
                         {isNew && (
                           <Tooltip>

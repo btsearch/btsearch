@@ -141,9 +141,10 @@ export type CellMatchResult = z.infer<typeof cellMatchResultSchema>;
 
 export const officialSiteRefSchema = z.object({
   id: z.number().int(),
-  siteId: z.string().describe("The id the operator uses for the site, as listed in the register"),
-  operatorId: z.number().int(),
-  regionId: z.number().int(),
+  sourceKey: z.string().describe("The key of the source the site comes from, as in `GET /official/sources`"),
+  siteId: z.string().nullable().describe("The id the operator uses for the site, as listed in the register. `null` if the register gives none"),
+  operatorId: z.number().int().nullable().describe("`null` if the register names a licensee that is not mapped to an operator"),
+  regionId: z.number().int().nullable().describe("`null` if the site's location is in no known region"),
   location: z.object({
     latitude: z.number(),
     longitude: z.number(),

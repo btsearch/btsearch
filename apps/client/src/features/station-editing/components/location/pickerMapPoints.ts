@@ -1,4 +1,4 @@
-import { calculateDistance } from "@openbts/shared/radiolinesUtils";
+import { calculateDistance } from "@openbts/shared/geo";
 import type { FeatureCollection } from "geojson";
 
 import { type PickerLocation, type PickerStation, roundCoordinate } from "../../data/places";

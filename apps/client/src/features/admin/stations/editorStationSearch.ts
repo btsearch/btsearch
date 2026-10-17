@@ -1,1 +1,1 @@
-export const EDITOR_STATION_SEARCH = { uke: undefined };
+export const EDITOR_STATION_SEARCH = { officialSite: undefined };

@@ -29,7 +29,7 @@ describe("DELETE /operators", () => {
   it("applies and audits the documented operator mutation", async () => {
     scriptAudit();
     dbMock.query.operators.findFirst.mockResolvedValue(row);
-    for (const table of ["stations", "uke_stations", "proposed_stations"]) dbMock.enqueueFor("select", table, []);
+    for (const table of ["stations", "official.sites", "proposed_stations"]) dbMock.enqueueFor("select", table, []);
     dbMock.enqueueFor("select", "operator_links", [], []);
     dbMock.enqueueFor("select", "plmns", []);
     dbMock.enqueueFor("select", "stats_snapshots", [{ value: 0 }]);
@@ -49,13 +49,13 @@ describe("DELETE /operators", () => {
 
   it.each([
     { table: "stations", message: "Cannot delete an operator that still has stations" },
-    { table: "uke_stations", message: "Cannot delete an operator that still has official sites and permits" },
+    { table: "official.sites", message: "Cannot delete an operator that still has official sites and permits" },
     { table: "operator_links", message: "Cannot delete a shared network that still has member operators" },
     { table: "proposed_stations", message: "Cannot delete an operator that a pending submission still names" },
   ])("refuses deletion while $table refers to the operator", async ({ table, message }) => {
     scriptAudit();
     dbMock.query.operators.findFirst.mockResolvedValue(row);
-    for (const name of ["stations", "uke_stations", "proposed_stations"]) dbMock.enqueueFor("select", name, table === name ? [{ id: 1 }] : []);
+    for (const name of ["stations", "official.sites", "proposed_stations"]) dbMock.enqueueFor("select", name, table === name ? [{ id: 1 }] : []);
     dbMock.enqueueFor("select", "operator_links", [], table === "operator_links" ? [{ id: 1 }] : []);
     dbMock.enqueueFor("select", "plmns", []);
     dbMock.enqueueFor("select", "stats_snapshots", [{ value: 0 }]);

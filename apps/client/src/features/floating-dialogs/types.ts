@@ -1,9 +1,10 @@
+import type { OfficialSite } from "@openbts/shared/contract";
 import type { CSSProperties, HTMLAttributes, ReactNode, Ref } from "react";
 
 import type { FloatingDialogRect } from "./geometry";
-import type { DuplexRadioLink } from "@/features/map/utils";
+import type { DuplexMicrowaveLink } from "@/features/map/utils";
 import type { EmfReport, EmfSite, EmfSitePlace } from "@/features/station-details/station/emf/types";
-import type { StationSource, UkeStation } from "@/types/station";
+import type { StationSource } from "@/types/station";
 
 export function assertNever(value: never): never {
   throw new Error(`Unexpected floating dialog value: ${String(value)}`);
@@ -45,7 +46,7 @@ export type StationDialogTarget = {
   id: number;
   source: StationSource;
   locationId?: number;
-  ukeStation?: UkeStation;
+  officialSite?: OfficialSite;
   switchedFrom?: StationDialogTarget;
 };
 
@@ -58,7 +59,7 @@ export type TerrainProfileDialogPayload = {
 
 export type FloatingDialogOpenRequest =
   | ({ kind: "station" } & StationDialogTarget)
-  | { kind: "radioline"; link: DuplexRadioLink }
+  | { kind: "microwave-link"; link: DuplexMicrowaveLink }
   | ({ kind: "si2pem-report"; openRequestId: number } & SI2PEMReportDialogPayload)
   | ({ kind: "station-history" } & StationHistoryDialogPayload)
   | ({ kind: "terrain-profile" } & TerrainProfileDialogPayload);

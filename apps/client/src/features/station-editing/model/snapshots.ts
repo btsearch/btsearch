@@ -18,6 +18,7 @@ import {
   DEFAULT_NR_MODE,
   RAT_FIELDS,
   RAT_ORDER,
+  TAC_RATS,
   carriesAreaCode,
   computeCellId,
   getAreaCodeField,
@@ -74,6 +75,7 @@ const PROPOSED_SECTOR_PREFIX = "q";
 const STORED_SECTOR_KEY = /^sector-(\d+)$/;
 const SA_FIRST_RANK = 0;
 const NSA_RANK = 1;
+const PER_CELL: AreaCode = { mode: "perCell" };
 
 export function newDraftKey(): DraftKey {
   return `${NEW_ROW_PREFIX}${nanoid()}`;
@@ -240,17 +242,47 @@ function groupCellsByRat(cells: readonly CellDraft[]): CellDraft[] {
   return RAT_ORDER.flatMap((rat) => cells.filter((cell) => cell.rat === rat));
 }
 
+function deriveAreaCode(cells: readonly CellDraft[], rat: Rat): AreaCode {
+  const field = getAreaCodeField(rat);
+  const values = cells.flatMap((cell) => (cell.rat === rat && !cell.isDeleted && carriesAreaCode(cell) ? [getCellNumber(cell, field)] : []));
+  const [first = null] = values;
+  return new Set(values).size > 1 ? PER_CELL : { mode: "shared", value: first };
+}
+
 function deriveAreaCodes(cells: readonly CellDraft[]): Record<Rat, AreaCode> {
   const areaCodes = createSharedAreaCodes();
-
-  for (const rat of RAT_ORDER) {
-    const field = getAreaCodeField(rat);
-    const values = cells.flatMap((cell) => (cell.rat === rat && !cell.isDeleted && carriesAreaCode(cell) ? [getCellNumber(cell, field)] : []));
-    const [first = null] = values;
-    areaCodes[rat] = new Set(values).size > 1 ? { mode: "perCell" } : { mode: "shared", value: first };
-  }
-
+  for (const rat of RAT_ORDER) areaCodes[rat] = deriveAreaCode(cells, rat);
   return areaCodes;
+}
+
+function copySharedAreaCode(cell: CellDraft, areaCode: AreaCode): CellDraft {
+  const field = getAreaCodeField(cell.rat);
+  if (areaCode.mode === "perCell" || !carriesAreaCode(cell) || getCellNumber(cell, field) === areaCode.value) return cell;
+
+  const numbers = { ...cell.numbers };
+  numbers[field] = areaCode.value;
+  return { ...cell, numbers };
+}
+
+function splitSharedTacs(snapshot: StationSnapshot): StationSnapshot {
+  const sharedRats = TAC_RATS.filter((rat) => snapshot.areaCodes[rat].mode === "shared");
+  if (sharedRats.length === 0) return snapshot;
+
+  const areaCodes = { ...snapshot.areaCodes };
+  for (const rat of sharedRats) areaCodes[rat] = PER_CELL;
+  const cells = snapshot.cells.map((cell) => (sharedRats.includes(cell.rat) ? copySharedAreaCode(cell, snapshot.areaCodes[cell.rat]) : cell));
+  return { ...snapshot, cells, areaCodes };
+}
+
+function shareAgreeingTacs(snapshot: StationSnapshot): StationSnapshot {
+  const perCellRats = TAC_RATS.filter((rat) => snapshot.areaCodes[rat].mode === "perCell");
+  const areaCodes = { ...snapshot.areaCodes };
+  for (const rat of perCellRats) areaCodes[rat] = deriveAreaCode(snapshot.cells, rat);
+  return perCellRats.every((rat) => areaCodes[rat].mode === "perCell") ? snapshot : { ...snapshot, areaCodes };
+}
+
+export function applyTacRule(snapshot: StationSnapshot, hoistedTac: boolean): StationSnapshot {
+  return hoistedTac ? shareAgreeingTacs(snapshot) : splitSharedTacs(snapshot);
 }
 
 function isIdentifierKind(kind: string): kind is StationIdentifierKind {

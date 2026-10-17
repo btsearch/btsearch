@@ -27,9 +27,9 @@ export function getNewLteTac(row: BatchRow): number | null {
   return getRowNumbers(row).tac ?? null;
 }
 
-function toConflictTarget(row: BatchRow): ConflictTarget {
+function toConflictTarget(row: BatchRow, hoistedTac: boolean): ConflictTarget {
   const numbers = getRowNumbers(row);
-  return { row, numbers, newCellKey: row.action === "create" ? getNewCellKey(row, numbers) : null, newTac: getNewLteTac(row) };
+  return { row, numbers, newCellKey: row.action === "create" ? getNewCellKey(row, numbers) : null, newTac: hoistedTac ? getNewLteTac(row) : null };
 }
 
 function findDifferingField(left: RowNumbers, right: RowNumbers): CellNumberField | null {
@@ -56,8 +56,8 @@ function listRivals(target: ConflictTarget, targets: readonly ConflictTarget[]):
   });
 }
 
-export function findConflicts(activeRows: readonly BatchRow[]): ReadonlyMap<number, RowConflict> {
-  const targets = activeRows.map(toConflictTarget);
+export function findConflicts(activeRows: readonly BatchRow[], hoistedTac: boolean): ReadonlyMap<number, RowConflict> {
+  const targets = activeRows.map((row) => toConflictTarget(row, hoistedTac));
   const conflicts = new Map<number, RowConflict>();
 
   for (const target of targets) {

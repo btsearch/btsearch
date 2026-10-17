@@ -6,12 +6,12 @@ import { onBeforeStyleChange } from "@/components/ui/map";
 import {
   PICKER_CIRCLE_LAYER_ID,
   PICKER_LAYER_IDS,
+  PICKER_REGISTER_CIRCLE_LAYER_ID,
+  PICKER_REGISTER_LAYER_IDS,
+  PICKER_REGISTER_SOURCE_ID,
+  PICKER_REGISTER_SYMBOL_LAYER_ID,
   PICKER_SOURCE_ID,
   PICKER_SYMBOL_LAYER_ID,
-  PICKER_UKE_CIRCLE_LAYER_ID,
-  PICKER_UKE_LAYER_IDS,
-  PICKER_UKE_SOURCE_ID,
-  PICKER_UKE_SYMBOL_LAYER_ID,
 } from "@/features/map/constants";
 import { syncPieImages } from "@/features/map/pieChart";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
@@ -47,10 +47,10 @@ const PLACE_LAYERS: LayerSet = {
   layerIds: PICKER_LAYER_IDS,
 };
 const REGISTER_LAYERS: LayerSet = {
-  sourceId: PICKER_UKE_SOURCE_ID,
-  circleLayerId: PICKER_UKE_CIRCLE_LAYER_ID,
-  symbolLayerId: PICKER_UKE_SYMBOL_LAYER_ID,
-  layerIds: PICKER_UKE_LAYER_IDS,
+  sourceId: PICKER_REGISTER_SOURCE_ID,
+  circleLayerId: PICKER_REGISTER_CIRCLE_LAYER_ID,
+  symbolLayerId: PICKER_REGISTER_SYMBOL_LAYER_ID,
+  layerIds: PICKER_REGISTER_LAYER_IDS,
 };
 const NO_FEATURES: FeatureCollection = { type: "FeatureCollection", features: [] };
 const POINT_RADIUS = 6;

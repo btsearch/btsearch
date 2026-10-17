@@ -53,7 +53,7 @@ export const proposedLocation: typeof proposedLocations.$inferSelect = {
   updatedAt: proposalDate,
 };
 
-export type ProposedCellView = {
+type ProposedCellView = {
   cell: typeof proposedCells.$inferSelect;
   gsm: Omit<typeof proposedGSMCells.$inferSelect, "proposed_cell_id"> | null;
   umts: Omit<typeof proposedUMTSCells.$inferSelect, "proposed_cell_id"> | null;

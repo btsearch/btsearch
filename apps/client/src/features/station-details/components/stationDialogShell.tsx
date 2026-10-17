@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
-import { isTerrainProfileAvailable } from "@/features/terrain-profile/availability";
+import { countriesQueryOptions } from "@/features/shared/lookups";
+import { findTerrainReceiverBounds } from "@/features/terrain-profile/availability";
 import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
@@ -174,11 +176,12 @@ export function StationDialogHeading({
 
 type StationSourceSwitchProps = {
   source: StationSource;
+  officialLabel: string;
   onSwitch: () => void;
   onPrefetch?: () => void;
 };
 
-export function StationSourceSwitch({ source, onSwitch, onPrefetch }: StationSourceSwitchProps) {
+export function StationSourceSwitch({ source, officialLabel, onSwitch, onPrefetch }: StationSourceSwitchProps) {
   const reduceMotion = useReducedMotion() === true;
   const [selected, setSelected] = useState(source);
   const switchSource = useEffectEvent(onSwitch);
@@ -189,7 +192,7 @@ export function StationSourceSwitch({ source, onSwitch, onPrefetch }: StationSou
     return () => window.clearTimeout(timeoutId);
   }, [reduceMotion, selected, source]);
 
-  return <SourceSwitch source={selected} onSourceChange={setSelected} onSwitchIntent={onPrefetch} />;
+  return <SourceSwitch source={selected} officialLabel={officialLabel} onSourceChange={setSelected} onSwitchIntent={onPrefetch} />;
 }
 
 export function StationDialogHeadingSkeleton() {
@@ -251,11 +254,14 @@ export function StationDialogActions({
   onStartTerrainProfile,
   onClose,
 }: StationDialogActionsProps) {
+  const { data: countries } = useQuery({ ...countriesQueryOptions(), enabled: onStartTerrainProfile !== undefined });
+  const receiverBounds = findTerrainReceiverBounds(countryCode, countries);
+
   return (
     <>
       <AddToListPopover
         stationId={source === "internal" ? id : undefined}
-        ukeStationId={source === "uke" ? id : undefined}
+        officialSiteId={source === "official" ? id : undefined}
         size="md"
         className={stationDialogInlineActionClassName}
         showLabel
@@ -268,7 +274,7 @@ export function StationDialogActions({
         className={stationDialogInlineActionClassName}
         labelClassName={stationDialogInlineActionLabelClassName}
       />
-      {onStartTerrainProfile && location && isTerrainProfileAvailable(source, countryCode) ? (
+      {onStartTerrainProfile && location && receiverBounds !== null ? (
         <TerrainProfileAnalyzeButton
           target={{
             source,
@@ -280,6 +286,7 @@ export function StationDialogActions({
             longitude: location.longitude,
             city: location.city ?? null,
             address: location.address ?? null,
+            receiverBounds,
           }}
           onStart={(target) => {
             onStartTerrainProfile(target);

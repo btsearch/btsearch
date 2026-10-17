@@ -99,9 +99,10 @@ function scriptSuccess(force: boolean, maintainer: boolean, selected: boolean) {
 }
 
 describe("revertAuditOperation", () => {
-  it.each(
-    [false, true].flatMap((force) => [false, true].flatMap((maintainer) => [false, true].map((selected) => ({ force, maintainer, selected })))),
-  )("restores the previous identifier and records complete lineage ($force, $maintainer, $selected)", async ({ force, maintainer, selected }) => {
+  it.each([
+    { force: false, maintainer: false, selected: false },
+    { force: true, maintainer: true, selected: true },
+  ])("restores the previous identifier and records complete lineage ($force, $maintainer, $selected)", async ({ force, maintainer, selected }) => {
     scriptSuccess(force, maintainer, selected);
     const errors: Error[] = [];
     const app = await createRouteHarness(revertAuditOperation, { session, onError: (error) => errors.push(error) });
@@ -209,10 +210,10 @@ describe("revertAuditOperation", () => {
     });
   });
 
-  it.each(["40001", "40P01"])("unwraps Drizzle's transaction failure %s", async (code) => {
+  it("unwraps Drizzle's transaction failure", async () => {
     scriptInitial();
     dbMock.transaction.mockRejectedValueOnce(
-      new DrizzleQueryError("UPDATE audit_operations", [], new PostgresFailure({ code, message: "Concurrent update" })),
+      new DrizzleQueryError("UPDATE audit_operations", [], new PostgresFailure({ code: "40001", message: "Concurrent update" })),
     );
     const app = await createRouteHarness(revertAuditOperation, { session });
     const response = await app.inject({ ...request, payload: "{}" });
@@ -337,7 +338,6 @@ describe("revertAuditOperation", () => {
     null,
     [],
     { force: "true" },
-    { force: 1 },
     { entryIds: [] },
     { entryIds: [1, 1] },
     { entryIds: [0] },

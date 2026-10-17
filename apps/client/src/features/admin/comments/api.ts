@@ -73,7 +73,3 @@ export function approveComment(commentId: string): Promise<Comment> {
 export function sendCommentBackToQueue(commentId: string): Promise<Comment> {
   return updateComment(commentId, RETURN_TO_QUEUE);
 }
-
-export function updateCommentText(commentId: string, content: string): Promise<Comment> {
-  return updateComment(commentId, { content });
-}

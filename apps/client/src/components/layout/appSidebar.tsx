@@ -1,5 +1,6 @@
 import { GitBranchIcon, Login01Icon, Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import React, { type ComponentProps, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ import { GoogleAd } from "@/components/ui/google-ad";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { usePageSectionsList } from "@/contexts/pageSections";
 import { useReferenceAccess } from "@/features/admin/reference/access/useReferenceAccess";
+import { countriesQueryOptions } from "@/features/shared/lookups";
 import { useSettings } from "@/hooks/useSettings";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
 import { APP_NAME } from "@/lib/api";
@@ -48,9 +50,10 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const { data: session, isPending } = authClient.useSession();
   const { data: settings } = useSettings();
   const { canOpenCountries } = useReferenceAccess();
+  const { data: countries } = useQuery(countriesQueryOptions());
   const { visible: isWCO, isMacOS } = useWindowControlsOverlay();
 
-  const navItems = useMemo(() => translateNav(navMainConfig, t), [t]);
+  const navItems = useMemo(() => translateNav(navMainConfig, t, countries), [t, countries]);
   const infoNavItems = useMemo(() => translateNav(infoNavConfig, t), [t]);
   const showAuth = !!(session?.user && settings?.features.submissions);
   const authNavItems = useMemo(() => (showAuth ? translateNav(authNavConfig, t) : []), [t, showAuth]);

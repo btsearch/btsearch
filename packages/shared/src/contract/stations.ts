@@ -1,6 +1,5 @@
 import { z } from "zod/v4";
 
-import { hasGenericAddressMarker } from "../addressValidation.ts";
 import { csvBandIdsSchema } from "./bands.ts";
 import { CELL_RATS, cellSchema } from "./cells.ts";
 import {
@@ -171,12 +170,8 @@ const locationWriteShape = {
   address: z.string().trim().nullable().optional(),
   structure: structureInputSchema.optional().describe(STRUCTURE_INPUT_NOTE),
 };
-const GENERIC_ADDRESS_ISSUE = { path: ["address"], message: "Address must not contain variants of własny" };
 
-export const locationCreateSchema = z
-  .object(locationWriteShape)
-  .strict()
-  .refine((location) => !hasGenericAddressMarker(location.address), GENERIC_ADDRESS_ISSUE);
+export const locationCreateSchema = z.object(locationWriteShape).strict();
 export type LocationCreate = z.infer<typeof locationCreateSchema>;
 
 export const locationUpdateSchema = z
@@ -187,8 +182,7 @@ export const locationUpdateSchema = z
   .refine((patch) => (patch.latitude === undefined) === (patch.longitude === undefined), {
     path: ["longitude"],
     message: "latitude and longitude must be sent together",
-  })
-  .refine((patch) => !hasGenericAddressMarker(patch.address), GENERIC_ADDRESS_ISSUE);
+  });
 export type LocationUpdate = z.infer<typeof locationUpdateSchema>;
 
 const STATUSES_DEFAULT_NOTE = "Matches stations with one of these statuses. If omitted, `active` and `awaitingCells` stations are matched";

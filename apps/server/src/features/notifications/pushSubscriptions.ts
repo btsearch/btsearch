@@ -8,7 +8,7 @@ import db from "../../database/psql.js";
 
 const pushSubscriptionSelectSchema = createSelectSchema(pushSubscriptions, {
   preferences: z.object({
-    ukeUpdates: z.boolean().optional(),
+    officialDataUpdates: z.boolean().optional(),
     submissionUpdates: z.boolean().optional(),
     newSubmission: z.boolean().optional(),
     stationWatches: z.boolean().optional(),
@@ -25,7 +25,7 @@ export function toPushSubscription(row: PushSubscriptionRow): PushSubscription {
   return {
     id: row.id,
     topics: {
-      officialDataUpdates: preferences.ukeUpdates === true,
+      officialDataUpdates: preferences.officialDataUpdates === true,
       submissionUpdates: preferences.submissionUpdates !== false,
       newSubmissions: preferences.newSubmission !== false,
       stationWatches: preferences.stationWatches !== false,
@@ -36,7 +36,7 @@ export function toPushSubscription(row: PushSubscriptionRow): PushSubscription {
 
 export function toStoredPreferences(topics: Partial<PushTopics>): PushSubscriptionRow["preferences"] {
   const preferences: PushSubscriptionRow["preferences"] = {};
-  if (topics.officialDataUpdates !== undefined) preferences.ukeUpdates = topics.officialDataUpdates;
+  if (topics.officialDataUpdates !== undefined) preferences.officialDataUpdates = topics.officialDataUpdates;
   if (topics.submissionUpdates !== undefined) preferences.submissionUpdates = topics.submissionUpdates;
   if (topics.newSubmissions !== undefined) preferences.newSubmission = topics.newSubmissions;
   if (topics.stationWatches !== undefined) preferences.stationWatches = topics.stationWatches;

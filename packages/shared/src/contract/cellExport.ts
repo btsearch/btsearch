@@ -28,7 +28,9 @@ const OPERATORS_NOTE =
   "Exports only the cells of these operators. For a shared network, the cells of its members are exported too. Comma-separated ids";
 const SUPPORTS_IOT_NOTE = "`true` exports only LTE cells that support IoT and NR cells that support RedCap. `false` leaves those cells out";
 const INCLUDE_IOT_NOTE = "`true` adds LTE IoT and NR RedCap cells to the selected RATs. `supportsIot`, when present, still filters the result";
-const NR_SEPARATELY_NOTE = "Only applies to `format=ntm`. If `true`, non-standalone NR cells are written with the TAC of the station's LTE cells";
+const NR_SEPARATELY_NOTE =
+  "Only applies to `format=ntm`. If `true`, non-standalone NR cells are written with the TAC of the station's LTE cells. " +
+  "In countries where the LTE cells of one station can have different TACs, the TAC is written as unknown unless all of them have the same one";
 
 function templateNote(cells: string, rat: CLFDescriptionTemplateRat): string {
   const placeholders: readonly string[] = CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT[rat];

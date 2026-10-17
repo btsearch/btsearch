@@ -1,7 +1,15 @@
 import { z } from "zod/v4";
 
 import { GEOCODING_SEARCH_LIMIT } from "./config.js";
-import { GeocodingProviderError, createResultId, describePlace, fetchProviderJson, formatRegion, getStatusCooldownMs, pickText } from "./provider.js";
+import {
+  GeocodingProviderError,
+  createResultId,
+  describePlace,
+  fetchProviderJson,
+  getStatusCooldownMs,
+  normalizePlaceNames,
+  pickText,
+} from "./provider.js";
 import type { GeocodingKind, GeocodingProvider, GeocodingResult } from "./types.js";
 
 const GEOAPIFY_API_URL = "https://api.geoapify.com/v1/geocode";
@@ -46,16 +54,18 @@ const RESULT_KINDS: Partial<Record<string, GeocodingKind>> = {
 
 function toGeocodingResult(result: GeoapifyResult): GeocodingResult | null {
   const kind = RESULT_KINDS[result.result_type ?? ""] ?? "place";
+  const countryCode = pickText(result.country_code);
+  const names = normalizePlaceNames(countryCode, { region: pickText(result.state), municipality: pickText(result.municipality) });
   const address = {
     street: pickText(result.street),
     houseNumber: pickText(result.housenumber),
     postcode: pickText(result.postcode),
     city: pickText(result.city, result.town, result.village, result.hamlet),
-    municipality: pickText(result.municipality),
+    municipality: names.municipality,
     county: pickText(result.county),
-    region: formatRegion(result.state),
+    region: names.region,
     country: pickText(result.country),
-    countryCode: pickText(result.country_code),
+    countryCode,
   };
   const name = pickText(kind === "region" ? address.region : null, result.address_line1, result.name, result.formatted);
   if (!name) return null;

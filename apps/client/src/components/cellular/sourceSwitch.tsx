@@ -11,14 +11,12 @@ export const SOURCE_SWITCH_SLIDE_MS = 200;
 const SOURCE_OPTIONS = [
   {
     source: "internal",
-    labelKey: "dialog.sourceDatabase",
     icon: Database02Icon,
     indicatorClassName: "translate-x-0 bg-emerald-700",
     hoverClassName: "hover:text-emerald-700 dark:hover:text-emerald-400",
   },
   {
-    source: "uke",
-    labelKey: "dialog.sourceUke",
+    source: "official",
     icon: File02Icon,
     indicatorClassName: "translate-x-full bg-violet-600",
     hoverClassName: "hover:text-violet-600 dark:hover:text-violet-400",
@@ -27,6 +25,7 @@ const SOURCE_OPTIONS = [
 
 type SourceSwitchProps = {
   source: StationSource;
+  officialLabel: string;
   onSourceChange: (source: StationSource) => void;
   onSwitchIntent?: () => void;
   alwaysLabeled?: boolean;
@@ -37,8 +36,16 @@ function preventFocusOnPress(event: MouseEvent) {
   event.preventDefault();
 }
 
-export function SourceSwitch({ source, onSourceChange, onSwitchIntent, alwaysLabeled = false, keepsFocusInPlace = false }: SourceSwitchProps) {
+export function SourceSwitch({
+  source,
+  officialLabel,
+  onSourceChange,
+  onSwitchIntent,
+  alwaysLabeled = false,
+  keepsFocusInPlace = false,
+}: SourceSwitchProps) {
   const { t } = useTranslation(["stationDetails", "main"]);
+  const labels: Record<StationSource, string> = { internal: t("dialog.sourceDatabase"), official: officialLabel };
   const selectedOption = SOURCE_OPTIONS.find((option) => option.source === source) ?? SOURCE_OPTIONS[0];
 
   return (
@@ -72,7 +79,7 @@ export function SourceSwitch({ source, onSourceChange, onSwitchIntent, alwaysLab
             )}
           >
             <HugeiconsIcon icon={option.icon} className="size-3" aria-hidden="true" />
-            <span className={alwaysLabeled ? undefined : "sr-only sm:not-sr-only"}>{t(option.labelKey)}</span>
+            <span className={alwaysLabeled ? undefined : "sr-only sm:not-sr-only"}>{labels[option.source]}</span>
           </button>
         );
       })}

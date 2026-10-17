@@ -1,3 +1,4 @@
+import { SI2PEM_NAME_TO_PLMN } from "@openbts/country-packs";
 import { operators, regions } from "@openbts/drizzle";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify";
@@ -5,7 +6,7 @@ import { SI2PEMClient, type SI2PEMExtendedBaseStationProperties, SI2PEM_WFS_FEAT
 import z from "zod";
 
 import { ErrorResponse } from "../../../../errors.ts";
-import { ENTITY_TO_MNC, MNC_TO_ENTITY, fetchOperatorsMap } from "../../../../features/pem/entities.ts";
+import { fetchOperatorsMap, mncToSi2pemName, si2pemNameToMnc } from "../../../../features/pem/entities.ts";
 import { attachInternalStationIds } from "../../../../features/pem/internalStations.ts";
 import { toSI2PEMFileUrl } from "../../../../features/pem/si2pemValues.ts";
 import { VOIVODESHIP_TO_TERYT_PREFIX, fetchRegion, fetchRegionsMap } from "../../../../features/pem/voivodeships.ts";
@@ -64,7 +65,7 @@ const schemaRoute = {
     station_id: z.string().optional(),
     operator: z
       .string()
-      .refine((v) => Object.hasOwn(ENTITY_TO_MNC, v))
+      .refine((v) => Object.hasOwn(SI2PEM_NAME_TO_PLMN, v))
       .optional(),
     region: z.coerce.number().int().positive().optional(),
   }),
@@ -97,12 +98,12 @@ type InactiveStationProperties = SI2PEMExtendedBaseStationProperties & {
 };
 
 async function toPEMItems(features: ParsedWmsFeature[], region: PEMItem["region"]): Promise<PEMItem[]> {
-  const operatorsMap = await fetchOperatorsMap(features.map((f) => ENTITY_TO_MNC[f.operatorName]));
+  const operatorsMap = await fetchOperatorsMap(features.map((f) => si2pemNameToMnc(f.operatorName)));
   const items: UnmatchedPEMItem[] = features.map(({ operatorName, ...f }) => ({
     ...f,
     id: null,
     region,
-    operator: operatorsMap.get(ENTITY_TO_MNC[operatorName] ?? 0) ?? null,
+    operator: operatorsMap.get(si2pemNameToMnc(operatorName) ?? 0) ?? null,
     report_url: null,
   }));
   return attachInternalStationIds(items);
@@ -152,7 +153,7 @@ async function handleBoundsMode(bbox: [number, number, number, number], mncs: nu
 
   const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const recent = parsed.filter((f) => f.date && new Date(f.date.to) >= oneMonthAgo);
-  const filtered = mncs?.length ? recent.filter((f) => mncs.includes(ENTITY_TO_MNC[f.operatorName] ?? 0)) : recent;
+  const filtered = mncs?.length ? recent.filter((f) => mncs.includes(si2pemNameToMnc(f.operatorName) ?? 0)) : recent;
   const data = await toPEMItems(filtered, null);
 
   return { totalCount: data.length, data };
@@ -223,7 +224,7 @@ async function handleInactiveStationsMode(
   });
 
   const filteredByOperator = operatorName ? parsed.filter((f) => f.operatorName === operatorName) : parsed;
-  const filtered = mncs?.length ? filteredByOperator.filter((f) => mncs.includes(ENTITY_TO_MNC[f.operatorName] ?? 0)) : filteredByOperator;
+  const filtered = mncs?.length ? filteredByOperator.filter((f) => mncs.includes(si2pemNameToMnc(f.operatorName) ?? 0)) : filteredByOperator;
   const toTime = (v: string | null | undefined) => {
     const t = new Date(v ?? "").getTime();
     return Number.isNaN(t) ? 0 : t;
@@ -249,7 +250,7 @@ async function handlePaginationMode(
   operatorName: string | undefined,
   regionName: string | undefined,
 ): Promise<ResBody> {
-  const entityName = operatorName ?? (mncs?.length === 1 ? (MNC_TO_ENTITY[mncs[0]!] ?? "") : "");
+  const entityName = operatorName ?? (mncs?.length === 1 ? (mncToSi2pemName(mncs[0]!) ?? "") : "");
 
   let json;
   try {
@@ -265,16 +266,15 @@ async function handlePaginationMode(
     throw new ErrorResponse("INTERNAL_SERVER_ERROR");
   }
 
-  const results =
-    mncs && mncs.length > 1 ? json.results.filter((r) => mncs.includes(ENTITY_TO_MNC[r.base_station.operator ?? ""] ?? 0)) : json.results;
+  const results = mncs && mncs.length > 1 ? json.results.filter((r) => mncs.includes(si2pemNameToMnc(r.base_station.operator) ?? 0)) : json.results;
 
   const [operatorsMap, regionsMap] = await Promise.all([
-    fetchOperatorsMap(results.map((r) => ENTITY_TO_MNC[r.base_station.operator ?? ""])),
+    fetchOperatorsMap(results.map((r) => si2pemNameToMnc(r.base_station.operator))),
     fetchRegionsMap(results.map((r) => capitalize(r.base_station.voivodeship))),
   ]);
 
   const items: UnmatchedPEMItem[] = results.map((result) => {
-    const mnc = ENTITY_TO_MNC[result.base_station.operator];
+    const mnc = si2pemNameToMnc(result.base_station.operator);
     const region = capitalize(result.base_station.voivodeship);
     const from = si2pemDateToISO(result.date_from);
     const to = si2pemDateToISO(result.date_to);
