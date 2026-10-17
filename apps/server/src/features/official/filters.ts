@@ -1,6 +1,6 @@
 import { officialLocations, officialPermits, officialSites, officialSources, regions, stations, stationsPermits } from "@openbts/drizzle";
 import type { OfficialLocationListQuery, OfficialPermitKind, OfficialRatFilter, officialSiteFilterShape } from "@openbts/shared/contract";
-import { type AnyColumn, type SQL, type SQLWrapper, and, eq, exists, gte, inArray, or, sql } from "drizzle-orm";
+import { type AnyColumn, type SQL, type SQLWrapper, and, eq, exists, gte, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { unique } from "../../lib/collections.js";
@@ -8,7 +8,7 @@ import { operatedBy, outsideCountriesOf } from "../operators/sharing.js";
 import { containsPattern } from "../search/text.js";
 import { bboxCondition, stationAreaConditions } from "../stations/read.js";
 import type { OfficialPermitRow } from "./serialize.js";
-import { type OfficialVisibility, officialLocationIsPublic } from "./visibility.js";
+import { type OfficialVisibility, officialSourceIsPublic } from "./visibility.js";
 
 type SiteFilterQuery = Pick<OfficialLocationListQuery, keyof typeof officialSiteFilterShape> & { keepOtherCountries?: boolean };
 type AreaFilterQuery = Pick<OfficialLocationListQuery, "bbox" | "countryCodes" | "regionIds" | "sourceKeys">;
@@ -63,9 +63,10 @@ export function hasMatchingPermit(condition: SQL): SQL {
 
 export function officialAreaConditions(query: AreaFilterQuery, visibility: OfficialVisibility): SQL[] {
   const conditions: SQL[] = [];
-  const isPublic = officialLocationIsPublic(officialLocations.id, visibility);
+  const fromPublicSource = officialSourceIsPublic(officialLocations.source_id, visibility);
 
-  if (isPublic) conditions.push(isPublic);
+  if (fromPublicSource) conditions.push(fromPublicSource);
+  if (visibility.hiddenCountryCodes.length > 0) conditions.push(notInArray(regions.countryCode, [...visibility.hiddenCountryCodes]));
   if (query.bbox) conditions.push(bboxCondition(officialLocations.point, query.bbox));
   if (query.regionIds) conditions.push(inArray(officialLocations.region_id, query.regionIds));
   if (query.countryCodes) conditions.push(inArray(regions.countryCode, query.countryCodes));

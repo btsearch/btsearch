@@ -21,9 +21,7 @@ import {
 import { signInAs } from "../../../../../helpers/officialFixtures.js";
 
 const request = { method: "GET" as const, url: "/official/permits" };
-const PUBLIC_LOCATION =
-  'exists select "public_location"."id" from "public_location" where (("public_location"."id" = "official"."locations"."id") ' +
-  'and ("public_location"."source_id" in ($1)))';
+const PUBLIC_LOCATION = '"official"."locations"."source_id" in ($1)';
 const LINKED = 'exists select "stations_permits"."id" from "stations_permits" where "stations_permits"."permit_id" = "official"."permits"."id"';
 
 function listed(id: number, key: string | null = null) {

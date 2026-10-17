@@ -25,9 +25,7 @@ import {
 import { signInAs } from "../../../../../helpers/officialFixtures.js";
 
 const request = { method: "GET" as const, url: "/official/locations" };
-const PUBLIC_LOCATION =
-  'exists select "public_location"."id" from "public_location" where (("public_location"."id" = "official"."locations"."id") ' +
-  'and ("public_location"."source_id" in ($1)))';
+const PUBLIC_LOCATION = '"official"."locations"."source_id" in ($1)';
 const MATCHING_SITE =
   'exists select "official"."sites"."id" from "official"."sites" where (("official"."sites"."location_id" = "official"."locations"."id") and ';
 
@@ -68,7 +66,7 @@ describe("GET /official/locations", () => {
 
     await injectMutation(route, request);
 
-    expect(renderedWhere("official.locations").sql).toContain("and (false))");
+    expect(renderedWhere("official.locations").sql).toBe("false");
   });
 
   it("leaves out the locations in a country hidden from a guest", async () => {
@@ -78,7 +76,7 @@ describe("GET /official/locations", () => {
     await injectMutation(route, request);
 
     const where = renderedWhere("official.locations");
-    expect(where.sql).toContain('not exists select "hidden_region"."id" from "hidden_region"');
+    expect(where.sql).toContain('"regions"."country_code" not in ($2)');
     expect(where.params).toEqual([1, "XX"]);
   });
 
