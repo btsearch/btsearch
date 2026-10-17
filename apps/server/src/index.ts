@@ -240,6 +240,6 @@ if (cluster.isPrimary) {
     if (message !== STOP_WORKER_MESSAGE || isStopping) return;
 
     isStopping = true;
-    void app.fastify.close().finally(() => process.exit(0));
+    void app.drain().finally(() => process.exit(0));
   });
 }

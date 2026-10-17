@@ -1,10 +1,6 @@
 upstream sora_backend {
     zone sora_backend 64k;
-    least_conn;
-    server 127.0.0.1:3031 max_fails=3 fail_timeout=10s;
-    server 127.0.0.1:3032 max_fails=3 fail_timeout=10s;
-    server 127.0.0.1:3033 max_fails=3 fail_timeout=10s;
-    server 127.0.0.1:3034 max_fails=3 fail_timeout=10s;
+    server 127.0.0.1:3030;
     keepalive 64;
 }
 
@@ -177,7 +173,7 @@ server {
     }
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
         proxy_http_version 1.1;

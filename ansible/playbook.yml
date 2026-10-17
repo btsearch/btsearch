@@ -484,8 +484,6 @@
         jump: DROP
         comment: "openbts: block external access"
       loop:
-        - "3000"
-        - "3031:3034"
         - "6379"
       notify: Save iptables rules
 
@@ -499,9 +497,18 @@
         ip_version: ipv6
         comment: "openbts: block external access"
       loop:
-        - "3000"
-        - "3031:3034"
         - "6379"
+      notify: Save iptables rules
+
+    - name: Block external access to Swarm ingress ports
+      shell: >-
+        iptables -C DOCKER-USER -i {{ ansible_default_ipv4.interface }} -p tcp -m conntrack --ctorigdstport {{ item }} --ctdir ORIGINAL -j DROP
+        || (iptables -I DOCKER-USER -i {{ ansible_default_ipv4.interface }} -p tcp -m conntrack --ctorigdstport {{ item }} --ctdir ORIGINAL -j DROP && echo inserted)
+      register: ingress_port_rule
+      changed_when: "'inserted' in ingress_port_rule.stdout"
+      loop:
+        - "3001"
+        - "3030"
       notify: Save iptables rules
 
     - name: Display generated credentials

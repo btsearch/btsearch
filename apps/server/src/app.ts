@@ -13,6 +13,7 @@ import {
 } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import type { $ZodIssue } from "zod/v4/core";
 
 import { dlogger } from "./config.js";
@@ -88,6 +89,8 @@ const CORS_OPTIONS = {
   maxAge: 86400,
 };
 
+const DRAIN_DELAY_MS = 5_000;
+
 function getUnionBranchIssues(params: unknown): $ZodIssue[][] | undefined {
   if (typeof params !== "object" || params === null || !("errors" in params)) return undefined;
   const errors = (params as { errors?: unknown }).errors;
@@ -98,12 +101,14 @@ function getUnionBranchIssues(params: unknown): $ZodIssue[][] | undefined {
 export default class App {
   fastify: FastifyZodInstance;
   dlogger: debug.Debugger;
+  private isDraining = false;
 
   constructor() {
     this.dlogger = dlogger.extend("app");
     this.fastify = Fastify({
       logger: false,
       trustProxy: true,
+      return503OnClosing: false,
       genReqId: () => randomUUID(),
     }).withTypeProvider<ZodTypeProvider>();
     this.fastify.setValidatorCompiler(validatorCompiler);
@@ -138,6 +143,10 @@ export default class App {
     this.fastify.addHook("onRequest", OnRequestHook);
     this.fastify.addHook("preHandler", PreHandlerHook);
     this.fastify.addHook("onSend", OnSendHook);
+    this.fastify.addHook("onSend", async (_req, res, payload) => {
+      if (this.isDraining) res.header("connection", "close");
+      return payload;
+    });
     this.fastify.addHook("onRoute", (route) => recordRoutePattern(route.url));
     registerRateLimit(this.fastify);
     this.fastify.setErrorHandler((error, req, res) => {
@@ -279,5 +288,11 @@ export default class App {
       await flushLogs();
       process.exit(1);
     }
+  }
+
+  public async drain(): Promise<void> {
+    this.isDraining = true;
+    await delay(DRAIN_DELAY_MS);
+    await this.fastify.close();
   }
 }
