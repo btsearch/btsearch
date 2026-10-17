@@ -15,8 +15,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Update a location",
   description:
-    "Updates a location and returns it. A location is shared by all stations at that location, so the change applies to every one of them, " +
-    "and each station gets a new `updatedAt`. " +
+    "The change applies to every station at the location, and each of them gets a new `updatedAt`. " +
     "If you change the coordinates without sending `regionId`, the region is determined again from the new coordinates. " +
     "As an editor you need access to the location's region and, when you move it, to the region it moves to.",
   params: locationParamsSchema,
@@ -28,13 +27,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400:
-    "The request did not pass validation, or `structure.ownerId` refers to an owner that does not exist " +
-    "or belongs to a different country than the location.",
-  403:
-    "A permission is missing, or your editor access does not cover the location or the place it moves to. " +
-    "Editors can also get this response when the location does not exist.",
-  404: "The location does not exist.",
+  400: "`structure.ownerId` refers to an owner that does not exist or belongs to a different country than the location.",
+  403: "Your editor access does not cover the place the location moves to. Editors can also get this response when the location does not exist.",
   409: "Another location already exists at the new coordinates.",
 };
 type ReqBody = { Body: LocationUpdate };

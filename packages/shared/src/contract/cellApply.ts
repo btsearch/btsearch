@@ -8,8 +8,7 @@ export const MAX_STATIONS_PER_APPLY = 50;
 
 const CHANGES_NOTE =
   "Every cell created or updated here is marked as confirmed. In countries where all LTE cells of a station share one TAC, " +
-  "a new or changed LTE TAC is also applied to the station's other LTE cells, so the changes for one station can contain only one such TAC. " +
-  "In other countries every cell keeps the TAC you send and the station's other cells are left as they are";
+  "a new or changed LTE TAC is also applied to the station's other LTE cells, so the changes for one station can contain only one such TAC";
 const WRITTEN_NOTE =
   "The cells written to the station: first the created cells, then the updated cells, both in the order sent, " +
   "then, in countries where all LTE cells of a station share one TAC, the other LTE cells that received the TAC";
@@ -33,7 +32,7 @@ export type CellApplyChange = z.infer<typeof cellApplyChangeSchema>;
 
 export const cellApplySchema = z
   .object({
-    stationId: idSchema.describe("The station whose cells are created and updated. A station can be listed once per request"),
+    stationId: idSchema.describe("A station can be listed once per request"),
     cells: cellChangeList(cellApplyChangeSchema, "request").min(1).describe(CHANGES_NOTE),
   })
   .strict();

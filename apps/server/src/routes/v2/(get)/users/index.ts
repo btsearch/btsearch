@@ -24,10 +24,7 @@ const cursorIdSchema = z.uuid();
 const schemaRoute = {
   summary: "Search users",
   description:
-    "Returns the users that match your filters, each with their id, username, name and image. " +
-    "Editors have to send `q` with at least 2 characters, or `ids`. " +
-    "An administrator signed in with a session can also list all users without a filter, search email addresses with `q`, " +
-    "filter by `roles` and `isBanned`, and request `include=account`. " +
+    "An administrator signed in with a session can list all users without a filter. " +
     "With an OAuth token, an administrator is treated like an editor.",
   querystring: userListQuerySchema,
   response: {
@@ -35,12 +32,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400:
-    "A query parameter or the cursor is invalid. Also returned when `q` is shorter than 2 characters " +
-    "and you are not an administrator signed in with a session.",
-  403:
-    "You do not have permission to search users. Also returned when you send `include=account`, `roles` or `isBanned`, " +
-    "or neither `q` nor `ids`, and you are not an administrator signed in with a session.",
+  400: "The `cursor` is invalid, or `q` is shorter than 2 characters and you are not an administrator signed in with a session.",
+  403: "You sent `include=account`, `roles` or `isBanned`, or neither `q` nor `ids`, and you are not an administrator signed in with a session.",
 };
 type ReqQuery = { Querystring: UserListQuery };
 

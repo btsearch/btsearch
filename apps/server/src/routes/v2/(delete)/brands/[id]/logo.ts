@@ -13,7 +13,7 @@ import type { EmptyResponse, Route } from "../../../../../interfaces/routes.inte
 
 const schemaRoute = {
   summary: "Delete a brand's logo",
-  description: "Removes the brand's logo and deletes the file. Returns 204 even if the brand has no logo.",
+  description: "Returns 204 even if the brand has no logo.",
   params: brandParamsSchema,
   response: { 204: noContentSchema },
 };
@@ -55,10 +55,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 const removeBrandLogo: Route<ReqParams, void> = {
   url: "/brands/:id/logo",
   method: "DELETE",
-  config: {
-    permissions: ["update:brands"],
-    errorReasons: { 404: "The brand does not exist." },
-  },
+  config: { permissions: ["update:brands"] },
   schema: schemaRoute,
   handler,
 };

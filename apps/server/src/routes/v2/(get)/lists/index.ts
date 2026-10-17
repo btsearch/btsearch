@@ -22,22 +22,15 @@ const cursorSchema = z.object({ id: z.number().int() });
 const schemaRoute = {
   summary: "List your lists",
   description:
-    "Returns your own lists, newest first. Administrators can set `owners=all` to get everyone's lists, " +
-    "and add `ownerIds` to get only the lists of those users. " +
-    "Both need the `read_all:user_lists` permission. If you send either of them without it, you get a 403, whatever else you ask for. " +
-    "`ownerIds` only works together with `owners=all`. " +
-    "`isPublic` keeps only the public lists or only the private ones. " +
-    "`q` matches part of the list name. " +
-    "`stationIds`, `officialSiteIds` and `microwaveLinkIds` each keep only lists that contain at least one of the given ids. " +
-    "Stations in countries you cannot access are left out of `itemCounts` and `items`, " +
-    "and so are official sites and microwave links of sources that are hidden from you.",
+    "Returns lists newest first. `owners=all` and `ownerIds` need the `read_all:user_lists` permission. " +
+    "If you send either of them without it, you get a 403, whatever else you ask for.",
   querystring: listListQuerySchema,
   response: {
     200: listListSchema,
   },
 };
 const errorReasons = {
-  400: "The request is invalid, or `ownerIds` was sent without `owners=all`.",
+  400: "`ownerIds` was sent without `owners=all`.",
   403: "Lists are disabled, or you sent `owners=all` or `ownerIds` without being an administrator.",
 };
 const OWNER_FILTER_REFUSAL = "Only an administrator can filter lists by owner";

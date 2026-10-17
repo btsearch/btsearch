@@ -12,16 +12,15 @@ import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "Delete a submission",
   description:
-    "Deletes a submission along with its proposed changes and its uploaded photos. " +
+    "Deletes a submission along with its uploaded photos. " +
     "You can delete your own submission while it is pending, and administrators can delete any submission at any time. " +
     "Deleting a submission that was already accepted does not revert its changes, and photos it published stay.",
   params: submissionParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  400: "The id is invalid, or the submission has already been reviewed and you are not an administrator.",
+  400: "The submission has already been reviewed and you are not an administrator.",
   403: "Submissions are disabled, or the submission is not yours and you are not an administrator.",
-  404: "The submission does not exist.",
   409: "The submission was reviewed while your request was being processed.",
 };
 type ReqParams = { Params: z.infer<typeof submissionParamsSchema> };

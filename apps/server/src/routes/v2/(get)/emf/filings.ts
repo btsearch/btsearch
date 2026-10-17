@@ -11,10 +11,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "List EMF filings",
   description:
-    "Returns the filings operators submitted for their installations. Each one says who filed it, when it was registered and published, " +
-    "what its reference number is, and links to the installation document and the attached report. " +
-    "SI2PEM is the only register connected so far. `capabilities.emf` in `GET /countries` tells you which countries the data covers. " +
-    "Use this to browse filings across sites. For the reports of a single site, use `GET /emf/reports`. " +
+    "Returns the filings operators submitted for their installations. For the reports of a single site, use `GET /emf/reports`. " +
     "Each combination of operator and region is a separate request to SI2PEM, so at most 16 combinations are allowed.",
   querystring: emfFilingListQuerySchema,
   response: {

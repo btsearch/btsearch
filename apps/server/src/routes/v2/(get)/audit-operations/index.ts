@@ -12,17 +12,11 @@ import { unique } from "../../../../lib/collections.js";
 const schemaRoute = {
   summary: "List audit operations",
   description:
-    "Returns audit operations, newest first by default. " +
-    "The entries of each operation are not included, so get a single operation to see them.\n\n" +
-    "Administrators get all operations. Maintainers only get operations whose `countryCode` is a country they maintain, " +
-    "so operations without a `countryCode` are never returned to them. " +
+    "The entries of each operation are not included. Get the operation by id to see them.\n\n" +
+    "Maintainers only get operations whose `countryCode` is a country they maintain, so never one without a `countryCode`. " +
     "For maintainers, `countryCodes` only narrows the list down, and a country they do not maintain returns nothing instead of an error.\n\n" +
     "`entities`, `actions`, `stationIds` and `q` are matched against the same entry, " +
-    "so an operation is returned when one of its entries matches all of them. " +
-    "Use either `cursor` or `offset`, not both.\n\n" +
-    "With `include=stations`, each operation also has `stations`: the id, site id and operator of the stations in its `stationIds`, " +
-    "as they are now. Stations that no longer exist and stations in countries you cannot access are left out, " +
-    "and maintainers only get stations in the countries they maintain, so `stations` can be shorter than `stationIds`.",
+    "so an operation is returned when one of its entries matches all of them.",
   querystring: auditOperationListQuerySchema,
   response: {
     200: auditOperationListSchema,

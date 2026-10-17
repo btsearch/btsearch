@@ -15,8 +15,7 @@ import { deletePhotoFiles } from "../../../../utils/photoFiles.js";
 
 const schemaRoute = {
   summary: "Delete a location",
-  description:
-    "Deletes a location together with its photos. You can only delete a location that has no stations left, " + "and inactive stations count too.",
+  description: "Deletes a location together with its photos.",
   params: locationParamsSchema,
   response: { 204: noContentSchema },
 };
@@ -51,7 +50,7 @@ const deleteLocation: Route<ReqParams, void> = {
   config: {
     permissions: ["delete:locations"],
     scope: defineScope<ReqParams>((req) => ({ locationIds: [req.params.id] })),
-    errorReasons: { 404: "The location does not exist.", 409: "The location still has stations. Inactive stations count too." },
+    errorReasons: { 409: "The location still has stations. Inactive stations count too." },
   },
   schema: schemaRoute,
   handler,

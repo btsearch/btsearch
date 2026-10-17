@@ -16,8 +16,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 const schemaRoute = {
   summary: "Update an official source",
   description:
-    "Switches a source's scheduled imports or its visibility. The two are independent: `isEnabled` only pauses or resumes the schedule, " +
-    "and `isVisible` only decides whether public responses include the data that has been imported. " +
+    "Switches a source's scheduled imports or its visibility. " +
     "Everything else about a source is defined in the server's code and cannot be changed here.",
   params: officialSourceParamsSchema,
   body: officialSourceUpdateSchema,
@@ -28,7 +27,6 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  404: "The source does not exist.",
   409: "The source's terms do not allow its data to be published (`isRedistributable` is `false`), so it cannot be made visible.",
 };
 type ReqBody = { Body: OfficialSourceUpdate };

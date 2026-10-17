@@ -16,9 +16,6 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Update a band",
-  description:
-    "Updates a band. A band cannot move to another technology, so a new `code` has to be a 3GPP catalogue code of the same technology. " +
-    "When you change `code`, the duplex mode follows the catalogue, and so does `labelMhz` unless you send it.",
   params: bandParamsSchema,
   body: bandUpdateSchema,
   response: {
@@ -28,8 +25,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, `code` is not in the 3GPP catalogue, it is an uplink-only band, or it belongs to another technology than the band.",
-  404: "The band does not exist.",
+  400: "`code` is not in the 3GPP catalogue, it is an uplink-only band, or it belongs to another technology than the band.",
   409: "The change would make this band a duplicate of another one, or another band already uses this `name`.",
 };
 type ReqBody = { Body: BandUpdate };

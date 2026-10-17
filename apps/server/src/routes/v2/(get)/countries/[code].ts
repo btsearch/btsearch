@@ -15,10 +15,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Get a country",
-  description:
-    "Returns a country by its code. " +
-    "A hidden country (`isVisible` is `false`) is only returned to administrators and to editors with a grant in that country. " +
-    "`capabilities.official` and `capabilities.microwaveLinks` depend on the official sources you can see.",
+  description: "`capabilities.official` and `capabilities.microwaveLinks` depend on the official sources you can see.",
   params: countryParamsSchema,
   querystring: z.object({}).strict(),
   response: {
@@ -45,10 +42,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const getCountry: Route<ReqParams, Country> = {
   url: "/countries/:code",
   method: "GET",
-  config: {
-    allowGuestAccess: true,
-    errorReasons: { 404: "The country does not exist, or it is hidden and you cannot access it." },
-  },
+  config: { allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

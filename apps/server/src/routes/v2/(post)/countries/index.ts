@@ -16,9 +16,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Create a country",
-  description:
-    "Creates a country. By default it starts hidden (`isVisible` is `false`) and closed to contributions (`contributions` is `closed`). " +
-    "Its band plan starts empty, so add bands to it before anyone saves cells in that country.",
+  description: "The band plan of a new country is empty, so add bands to it before anyone saves cells in that country.",
   body: countryCreateSchema,
   response: {
     201: z.object({

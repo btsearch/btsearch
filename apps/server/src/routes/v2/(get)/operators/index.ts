@@ -15,8 +15,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "List operators",
   description:
-    "Returns all operators, ordered by country, then by `sortPriority` (operators without one come last), then by name. " +
-    "Operators in hidden countries are only included for administrators and for editors with a grant in that country. " +
+    "Operators are ordered by country, then by `sortPriority` (operators without one come last), then by name. " +
     "A shared network is an operator like any other, and its members are the operators whose `links` point to it.",
   querystring: operatorListQuerySchema,
   response: {

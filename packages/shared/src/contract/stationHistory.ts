@@ -1,9 +1,8 @@
 import { z } from "zod/v4";
 
 import { AUDIT_SOURCES } from "../audit.ts";
-import { UNKNOWN_BAND_NOTE } from "./bands.ts";
 import { CELL_RATS } from "./cells.ts";
-import { LIMIT_NOTE, cursorSchema, pagingSchema, userRefSchema } from "./common.ts";
+import { cursorSchema, pagingSchema, userRefSchema } from "./common.ts";
 import { photoUrlsSchema } from "./photos.ts";
 import { sectorSchema } from "./stations.ts";
 
@@ -54,7 +53,6 @@ export const STATION_HISTORY_CELL_FIELDS = [
   "supportsRedCap",
 ] as const;
 
-const VALUE_NOTE = "`null` if it was not set";
 const REVERT_CALLER_NOTE = "if you are not allowed to revert changes to this station";
 
 const historyValueSchema = z.union([z.string(), z.number(), z.boolean()]).nullable();
@@ -63,8 +61,8 @@ export type StationHistoryValue = z.infer<typeof historyValueSchema>;
 function valueChangeSchema<const T extends readonly [string, ...string[]]>(fields: T) {
   return z.object({
     field: z.enum(fields).describe("The name of the field in the v2 API"),
-    from: historyValueSchema.describe(`The value before the change, as the v2 API returns it, or ${VALUE_NOTE}`),
-    to: historyValueSchema.describe(`The value after the change, or ${VALUE_NOTE}`),
+    from: historyValueSchema.describe("As the v2 API returns it"),
+    to: historyValueSchema.describe("As the v2 API returns it"),
   });
 }
 
@@ -77,14 +75,14 @@ export type StationHistoryLocation = z.infer<typeof stationHistoryLocationSchema
 
 const locationRefChangeSchema = z.object({
   field: z.literal("location"),
-  from: stationHistoryLocationSchema.nullable().describe("The location the station was at before the change, or `null` if it had none"),
-  to: stationHistoryLocationSchema.nullable().describe("The location the station is at after the change, or `null` if it has none"),
+  from: stationHistoryLocationSchema.nullable(),
+  to: stationHistoryLocationSchema.nullable(),
 });
 
 const sectorRefChangeSchema = z.object({
   field: z.literal("sector"),
-  from: sectorSchema.nullable().describe("The cell's sector as it was at that time, or `null` if it had none"),
-  to: sectorSchema.nullable().describe("The cell's sector after the change, as it was at that time, or `null` if it has none"),
+  from: sectorSchema.nullable().describe("The cell's sector as it was at that time"),
+  to: sectorSchema.nullable().describe("The cell's sector after the change, as it was at that time"),
 });
 
 const azimuthSchema = z.number().int().nullable();
@@ -141,7 +139,7 @@ export const stationHistorySectorsChangeSchema = z.object({
 export const stationHistoryCellSchema = z.object({
   id: z.number().int(),
   rat: z.enum(CELL_RATS),
-  bandId: z.number().int().nullable().describe(UNKNOWN_BAND_NOTE),
+  bandId: z.number().int().nullable(),
   cid: z.number().int().nullable().describe("Only set for GSM and UMTS cells"),
   clid: z.number().int().nullable().describe("Only set for LTE and NR cells"),
   fields: z
@@ -185,18 +183,18 @@ export const stationHistoryChangeSchema = z.discriminatedUnion("kind", [
 export type StationHistoryChange = z.infer<typeof stationHistoryChangeSchema>;
 
 export const stationHistoryItemSchema = z.object({
-  id: z.number().int().describe("The id of the saved change. It is the id that `GET /audit-operations/{id}` takes"),
+  id: z.number().int().describe("The id that `GET /audit-operations/{id}` takes"),
   createdAt: z.iso.datetime(),
   source: z.enum(AUDIT_SOURCES).describe("`api`: a person, through the site or the API. `import`: an automatic import. `system`: a server job"),
-  author: userRefSchema.nullable().describe("The author of the change. `null` unless you are a staff member, and for changes that no person made"),
-  isRevert: z.boolean().describe("Whether this change reverted an earlier one"),
+  author: userRefSchema.nullable().describe("`null` unless you are a staff member, and for changes that no person made"),
+  isRevert: z.boolean(),
   changes: z.array(stationHistoryChangeSchema).min(1).describe("The parts of the change that affect this station"),
 });
 export type StationHistoryItem = z.infer<typeof stationHistoryItemSchema>;
 
 export const stationHistoryQuerySchema = z
   .object({
-    limit: z.coerce.number<number>().int().min(1).max(STATION_HISTORY_LIMIT.max).default(STATION_HISTORY_LIMIT.default).describe(LIMIT_NOTE),
+    limit: z.coerce.number<number>().int().min(1).max(STATION_HISTORY_LIMIT.max).default(STATION_HISTORY_LIMIT.default),
     cursor: cursorSchema.optional(),
   })
   .strict();

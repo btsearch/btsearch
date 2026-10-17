@@ -15,13 +15,7 @@ import { logger } from "../../../../utils/logger.js";
 
 const schemaRoute = {
   summary: "Create a role grant",
-  description:
-    "Creates a grant that gives a user the `editor` or `maintainer` role in one country. " +
-    "An `editor` grant can be limited to some regions with `regionIds`, or cover the whole country with `null`. " +
-    "A `maintainer` grant always covers the whole country. " +
-    "Maintainers can also manage the `editor` grants of their country and read and revert its audit operations. " +
-    "If the user is not an editor yet, this also makes them one. " +
-    "Administrators can create any grant. Maintainers can only create `editor` grants in a country they maintain.",
+  description: "If the user is not an editor yet, this also makes them one.",
   body: roleGrantCreateSchema,
   response: {
     201: z.object({
@@ -30,9 +24,9 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, the user or the country does not exist, or one of the regions is not in the grant's country.",
+  400: "The user or the country does not exist, or one of the regions is not in the grant's country.",
   403: "You need to be an administrator or a maintainer of the grant's country. Only administrators can create `maintainer` grants.",
-  409: "The user is an administrator and already has access everywhere, or they already have a grant with this role in this country.",
+  409: "The user is an administrator, or already has a grant with this role in this country.",
 };
 type ReqBody = { Body: RoleGrantCreate };
 

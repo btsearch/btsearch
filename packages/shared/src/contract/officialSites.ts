@@ -4,8 +4,6 @@ import { BAND_VARIANTS } from "./bands.ts";
 import {
   CURSOR_OR_OFFSET_ISSUE,
   INCLUDE_NOTE,
-  INCLUDE_TOTAL_NOTE,
-  LIMIT_NOTE,
   MAX_ID,
   booleanQuerySchema,
   countryCodeSchema,
@@ -75,21 +73,15 @@ const PERMIT_KIND_NOTE =
   "More values may be added, so expect values you do not know";
 const SOURCE_KEY_NOTE = "The key of the source the record comes from, as in `GET /official/sources`";
 const SOURCE_KEYS_FILTER_NOTE = "Matches records of these sources. Comma-separated source keys";
-const RAT_NOTE = "The technology, in lower case. `null` if the register names none";
-const LABEL_MHZ_NOTE = "The nominal frequency of the band in MHz, as the register names it. `null` if it names none";
+const LABEL_MHZ_NOTE = "The nominal frequency of the band in MHz, as the register names it";
 const VARIANT_NOTE = "`railway` for a band set aside for railways, such as GSM-R, and `commercial` for every other band";
 const LABEL_NAME_NOTE = "The label as people write it, for example `LTE 800` or `GSM-R 900`. `null` without a technology or a frequency";
-const AZIMUTH_NOTE =
-  "The antenna direction in degrees, as the register publishes it. A value of 360 is passed on as it is, " +
-  "and `null` means the register gives no direction";
-const SITE_ID_NOTE = "The id the operator uses for the site, as the register lists it. `null` if the register gives none";
-const SITE_OPERATOR_NOTE = "The operator of the site. `null` if the register names a licensee that is not mapped to an operator";
+const AZIMUTH_NOTE = "The antenna direction in degrees, as the register publishes it. A value of 360 is passed on as it is";
+const SITE_ID_NOTE = "The id the operator uses for the site, as the register lists it";
 const STATION_IDS_NOTE =
   "The stations in this database that are linked to one of the site's permits. " +
-  "Stations in countries you cannot access are left out. Inactive stations come after the others, and both groups are ordered by id";
-const PERMIT_STATION_IDS_NOTE =
-  "Only returned with `include=stations`. The stations in this database that are linked to the permit, ordered by id. " +
-  "Stations in countries you cannot access are left out";
+  "Inactive stations come after the others, and both groups are ordered by id";
+const PERMIT_STATION_IDS_NOTE = "Only returned with `include=stations`. The stations in this database that are linked to the permit, ordered by id";
 const SITE_UPDATED_NOTE =
   "When the site last changed. An import dates a change by the file it read, so a site imported for the first time " +
   "from an older file can have an `updatedAt` earlier than its `createdAt`";
@@ -110,12 +102,9 @@ const OPERATORS_FILTER_NOTE = "Matches sites of these operators. For a shared ne
 const LIST_FILTER_NOTE =
   "Matches only the official sites on this list. The list must be public or your own, unless you have the `read_all:user_lists` permission";
 const KEEP_OTHER_COUNTRIES_NOTE = `${KEEP_OTHER_COUNTRIES_LEAD}. Sites in any other country match whatever their operator is. Has no effect without \`operatorIds\``;
-const SORT_NOTE = "The field to sort by, with a leading `-` for descending order. A `cursor` only works with the `sort` it was returned for";
 const SITE_SORT_NOTE =
-  "The field to sort by, with a leading `-` for descending order. " +
   "`relevance` returns the best matches for `q` first: an exact site id, then a site id that contains the text, " +
-  "then a permit number, then the place. Defaults to `relevance` when you send `q`, and to `-id` otherwise. " +
-  "A `cursor` only works with the `sort` it was returned for";
+  "then a permit number, then the place. Defaults to `relevance` when you send `q`, and to `-id` otherwise";
 
 const csvSiteIdsSchema = csvSchema
   .pipe(z.array(z.string().min(1).max(SITE_ID_MAX_LENGTH)).min(1).max(100))
@@ -127,7 +116,7 @@ const csvBandLabelsSchema = csvSchema
 export const officialPermitKindSchema = z.enum(OFFICIAL_PERMIT_KINDS).describe(PERMIT_KIND_NOTE);
 
 export const officialPermitLabelSchema = z.object({
-  rat: z.enum(OFFICIAL_RATS).nullable().describe(RAT_NOTE),
+  rat: z.enum(OFFICIAL_RATS).nullable(),
   labelMhz: z.number().int().nullable().describe(LABEL_MHZ_NOTE),
   variant: z.enum(BAND_VARIANTS).nullable().describe(VARIANT_NOTE),
   name: z.string().nullable().describe(LABEL_NAME_NOTE),
@@ -144,21 +133,21 @@ export type OfficialBandLabel = z.infer<typeof officialBandLabelSchema>;
 export const officialPermitSectorSchema = z.object({
   id: z.number().int(),
   azimuth: z.number().int().nullable().describe(AZIMUTH_NOTE),
-  elevation: z.number().int().nullable().describe("The antenna tilt in degrees, as the register publishes it. `null` if it gives none"),
-  antennaHeightMeters: z.number().nullable().describe("The antenna height in meters, as the register publishes it. `null` if it gives none"),
-  antennaType: z.enum(OFFICIAL_ANTENNA_TYPES).nullable().describe("Whether the antenna is indoors or outdoors. `null` if the register does not say"),
+  elevation: z.number().int().nullable().describe("The antenna tilt in degrees, as the register publishes it"),
+  antennaHeightMeters: z.number().nullable(),
+  antennaType: z.enum(OFFICIAL_ANTENNA_TYPES).nullable(),
 });
 export type OfficialPermitSector = z.infer<typeof officialPermitSectorSchema>;
 
 const officialPermitShape = {
   id: z.number().int(),
-  officialSiteId: z.number().int().describe("The official site the permit belongs to"),
+  officialSiteId: z.number().int(),
   sourceKey: z.string().describe(SOURCE_KEY_NOTE),
-  number: z.string().nullable().describe("The permit's number, as the register writes it. `null` if the register gives none"),
-  kind: officialPermitKindSchema.nullable().describe("What the record is. `null` if the register does not say"),
+  number: z.string().nullable().describe("The permit's number, as the register writes it"),
+  kind: officialPermitKindSchema.nullable(),
   expiresOn: daySchema.nullable().describe("The last day the permit is valid. `null` if it does not expire, or if the register does not say"),
   label: officialPermitLabelSchema.describe("The band the permit is for, as the register names it"),
-  datasets: z.array(z.string()).describe("The keys of the source's datasets that list the permit. A permit can be listed by more than one dataset"),
+  datasets: z.array(z.string()).describe("The keys of the source's datasets that list the permit"),
   createdAt: z.iso.datetime().describe("When the permit was first imported"),
   updatedAt: z.iso.datetime(),
   sectors: z.array(officialPermitSectorSchema).optional().describe(INCLUDE_NOTE),
@@ -170,8 +159,8 @@ export type OfficialSitePermit = z.infer<typeof officialSitePermitSchema>;
 const officialLocationShape = {
   id: z.number().int(),
   sourceKey: z.string().describe(SOURCE_KEY_NOTE),
-  countryCode: countryCodeSchema.describe("The country the location is in"),
-  regionId: z.number().int().nullable().describe("`null` if the location is in no known region"),
+  countryCode: countryCodeSchema,
+  regionId: z.number().int().nullable(),
   city: z.string().nullable(),
   address: z.string().nullable(),
   latitude: z.number(),
@@ -188,7 +177,7 @@ export const officialSiteSchema = z.object({
   id: z.number().int(),
   sourceKey: z.string().describe(SOURCE_KEY_NOTE),
   siteId: z.string().nullable().describe(SITE_ID_NOTE),
-  operatorId: z.number().int().nullable().describe(SITE_OPERATOR_NOTE),
+  operatorId: z.number().int().nullable(),
   locationId: z.number().int(),
   stationIds: z.array(z.number().int()).describe(STATION_IDS_NOTE),
   createdAt: z.iso.datetime().describe("When the site was first imported"),
@@ -264,11 +253,11 @@ export const officialLocationListQuerySchema = z
     keepOtherCountries: booleanQuerySchema.optional().describe(KEEP_OTHER_COUNTRIES_NOTE),
     ...officialAreaFilterShape,
     include: csvEnumSchema(OFFICIAL_LOCATION_INCLUDES).optional(),
-    sort: z.enum(LOCATION_SORTS).default("-id").describe(SORT_NOTE),
-    limit: z.coerce.number<number>().int().min(1).max(MAX_LOCATION_LIST_LIMIT).default(50).describe(LIMIT_NOTE),
+    sort: z.enum(LOCATION_SORTS).default("-id"),
+    limit: z.coerce.number<number>().int().min(1).max(MAX_LOCATION_LIST_LIMIT).default(50),
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
@@ -299,10 +288,10 @@ export const officialSiteListQuerySchema = z
     ...officialAreaFilterShape,
     include: csvEnumSchema(OFFICIAL_SITE_INCLUDES).optional(),
     sort: z.enum(OFFICIAL_SITE_SORTS).optional().describe(SITE_SORT_NOTE),
-    limit: z.coerce.number<number>().int().min(1).max(MAX_OFFICIAL_SITE_LIST_LIMIT).default(50).describe(LIMIT_NOTE),
+    limit: z.coerce.number<number>().int().min(1).max(MAX_OFFICIAL_SITE_LIST_LIMIT).default(50),
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
@@ -352,11 +341,11 @@ export const officialPermitListQuerySchema = z
       .describe("Matches permits listed by a dataset with one of these keys. Comma-separated"),
     ...officialAreaFilterShape,
     include: csvEnumSchema(OFFICIAL_PERMIT_INCLUDES).optional(),
-    sort: z.enum(OFFICIAL_PERMIT_SORTS).default("-id").describe(SORT_NOTE),
+    sort: z.enum(OFFICIAL_PERMIT_SORTS).default("-id"),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);

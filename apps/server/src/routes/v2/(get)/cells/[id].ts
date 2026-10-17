@@ -10,7 +10,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Get a cell",
-  description: "Returns a single cell. Cells of inactive stations are returned too, even though `GET /cells` leaves them out by default.",
+  description: "Cells of inactive stations are returned too, even though `GET /cells` leaves them out by default.",
   params: cellParamsSchema,
   querystring: cellQuerySchema,
   response: {
@@ -33,11 +33,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const getCell: Route<RequestData, ListedCell> = {
   url: "/cells/:id",
   method: "GET",
-  config: {
-    permissions: ["read:cells"],
-    allowGuestAccess: true,
-    errorReasons: { 404: "The cell does not exist, or its station is in a country you cannot access." },
-  },
+  config: { permissions: ["read:cells"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

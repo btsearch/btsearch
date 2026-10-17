@@ -30,8 +30,8 @@ export const officialStatisticsSchema = z.object({
   locations: countSchema,
   permits: countSchema,
   microwaveLinks: countSchema,
-  permitsImportedAt: z.iso.datetime().nullable().describe("When permits were last imported, or `null` if never"),
-  microwaveLinksImportedAt: z.iso.datetime().nullable().describe("When microwave links were last imported, or `null` if never"),
+  permitsImportedAt: z.iso.datetime().nullable(),
+  microwaveLinksImportedAt: z.iso.datetime().nullable(),
 });
 export type OfficialStatistics = z.infer<typeof officialStatisticsSchema>;
 
@@ -44,7 +44,7 @@ export const countryStatisticsSchema = z.object({
   }),
   cells: countSchema.describe("The number of cells on stations of any status"),
   locations: countSchema.describe("The number of locations, with or without stations"),
-  updatedAt: z.iso.datetime().nullable().describe("When a station in the country was last updated, or `null` if it has no stations"),
+  updatedAt: z.iso.datetime().nullable().describe("When a station in the country was last updated"),
   official: officialStatisticsSchema.nullable().describe("Totals from the official register, or `null` if the country has none"),
 });
 export type CountryStatistics = z.infer<typeof countryStatisticsSchema>;
@@ -75,15 +75,15 @@ export type StationBreakdownQuery = z.infer<typeof stationBreakdownQuerySchema>;
 
 const documentedCellsSchema = z.object({
   total: countSchema.describe("The number of cells on active stations"),
-  withPci: countSchema.describe("The number of those cells that have a PCI"),
+  withPci: countSchema,
 });
 
 export const countryCompletenessSchema = z.object({
   countryCode: countryCodeSchema,
   stations: z.object({
     total: countSchema.describe("The number of active stations"),
-    withSectors: countSchema.describe("The number of active stations with at least one sector"),
-    withIdentifiers: countSchema.describe("The number of active stations with at least one identifier"),
+    withSectors: countSchema,
+    withIdentifiers: countSchema,
   }),
   cells: z.object({
     lte: documentedCellsSchema,
@@ -96,11 +96,11 @@ const changeSchema = z.number().int();
 
 export const statisticsHistoryPointSchema = z.object({
   countryCode: countryCodeSchema,
-  snapshotOn: daySchema.describe("The day the snapshot was taken"),
-  stations: countSchema.describe("The number of stations of any status"),
-  cells: countSchema.describe("The number of cells on those stations"),
-  sectors: countSchema.describe("The number of sectors on those stations"),
-  identifiers: countSchema.describe("The number of identifiers on those stations"),
+  snapshotOn: daySchema,
+  stations: countSchema.describe("Stations of any status"),
+  cells: countSchema,
+  sectors: countSchema,
+  identifiers: countSchema,
   cellsWithPci: countSchema.describe("The number of LTE and NR cells that have a PCI"),
   added: z
     .object({
@@ -126,7 +126,7 @@ export type StatisticsHistoryQuery = z.infer<typeof statisticsHistoryQuerySchema
 
 export const analyzerUsagePointSchema = z.object({
   startsOn: daySchema.describe("The UTC day, or the first day of the month with `interval=month`"),
-  count: countSchema.describe("How many times the log analyzer was used in that day or month"),
+  count: countSchema,
 });
 export type AnalyzerUsagePoint = z.infer<typeof analyzerUsagePointSchema>;
 
@@ -150,7 +150,7 @@ export const permitBreakdownRowSchema = z.object({
   labelMhz: z.number().int().nullable().describe(`The nominal frequency of the band in MHz. ${LABEL_NOTE}`),
   variant: z.enum(BAND_VARIANTS).nullable().describe(VARIANT_NOTE),
   sites: countSchema.describe("The number of official sites with at least one permit in the group"),
-  permits: countSchema.describe("The number of permits in the group"),
+  permits: countSchema,
 });
 export type PermitBreakdownRow = z.infer<typeof permitBreakdownRowSchema>;
 
@@ -164,13 +164,13 @@ export type PermitBreakdownQuery = z.infer<typeof permitBreakdownQuerySchema>;
 
 export const permitHistoryPointSchema = z.object({
   countryCode: countryCodeSchema.describe("The country of the operators"),
-  snapshotOn: daySchema.describe("The day the snapshot was taken"),
+  snapshotOn: daySchema,
   operatorId: z.number().int().nullable().describe("`null` if `groupBy` does not include `operator`"),
   rat: z.enum(OFFICIAL_RATS).nullable().describe(LABEL_NOTE),
   labelMhz: z.number().int().nullable().describe(`The nominal frequency of the band in MHz. ${LABEL_NOTE}`),
   variant: z.enum(BAND_VARIANTS).nullable().describe(VARIANT_NOTE),
   sites: countSchema.describe("The number of official sites with at least one permit in the group"),
-  permits: countSchema.describe("The number of permits in the group"),
+  permits: countSchema,
   added: z
     .object({
       sites: changeSchema,

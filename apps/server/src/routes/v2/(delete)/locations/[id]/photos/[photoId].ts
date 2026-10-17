@@ -21,10 +21,8 @@ const schemaRoute = {
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  403:
-    "A permission is missing, or your editor access does not cover every location that uses the photo. " +
-    "Editors can also get this response when the location does not exist.",
-  404: "The location does not exist, or it has no photo with this id.",
+  403: "Your editor access does not cover every location that uses the photo. Editors can also get this response when the location does not exist.",
+  404: "The location has no photo with this id.",
 };
 type ReqParams = { Params: z.infer<typeof locationPhotoParamsSchema> };
 

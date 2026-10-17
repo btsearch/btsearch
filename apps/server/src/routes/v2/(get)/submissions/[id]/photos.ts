@@ -27,7 +27,7 @@ const schemaRoute = {
 };
 const errorReasons = {
   403: "Submissions are disabled.",
-  404: "The submission does not exist, or you are not allowed to read it.",
+  404: "You are not allowed to read the submission.",
 };
 type ReqParams = { Params: z.infer<typeof submissionParamsSchema> };
 

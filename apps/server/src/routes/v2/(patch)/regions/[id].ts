@@ -15,9 +15,6 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Update a region",
-  description:
-    "Updates a region's `code`, `name` or `isoCode`. `code` and `name` must be unique within the country. " +
-    "An `isoCode` must start with the country's code and be unique across all regions. You cannot move a region to another country.",
   params: regionParamsSchema,
   body: regionUpdateSchema,
   response: {
@@ -27,8 +24,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, or `isoCode` does not start with the code of the region's country.",
-  404: "The region does not exist.",
+  400: "`isoCode` does not start with the code of the region's country.",
   409: "The country already has a region with this code or name, or another region already has this `isoCode`.",
 };
 type ReqBody = { Body: RegionUpdate };

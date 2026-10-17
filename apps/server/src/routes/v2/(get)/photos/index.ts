@@ -17,21 +17,7 @@ import { encodeCursor, resolveOffset } from "../../../../lib/cursor.js";
 
 const schemaRoute = {
   summary: "List photos",
-  description:
-    "Returns the photo gallery, which only contains photos that at least one station shows. " +
-    "`statuses`, `operatorIds` and `isMain` filter on those stations, and unless you send `statuses`, " +
-    "only active stations and stations awaiting cells count. " +
-    "If an operator in `operatorIds` is a shared network, the photos shown by its members' stations are returned too.\n\n" +
-    "`operatorIds` normally filters every country. Send `keepOtherCountries=true` to filter only the countries its operators belong to. " +
-    "Photos in every other country then match whichever operator's station shows them, so you can filter one country by operator " +
-    "and still get every photo of the others.\n\n" +
-    "`q` is plain text without keywords. It is matched against the city, the address, the region's name and code, the photo's note " +
-    "and the site ids of the stations showing the photo.\n\n" +
-    "`createdAfter` filters by the time a photo was uploaded, and `takenAfter` by the time it was taken. " +
-    "For photos without a known date, `takenAfter` and sorting by `takenAt` use the upload time instead.\n\n" +
-    "Photos in countries you cannot access are left out. " +
-    "An author's `name` is `null` when their profile is not public, " +
-    "unless you are signed in as an editor or an administrator, or you are the author yourself.",
+  description: "Only photos that at least one station shows are returned.",
   querystring: photoListQuerySchema,
   response: {
     200: photoListSchema,

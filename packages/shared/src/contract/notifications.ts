@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-import { INCLUDE_TOTAL_NOTE, booleanQuerySchema, cursorSchema, instantSchema, limitSchema, pagingSchema, userRefSchema } from "./common.ts";
+import { booleanQuerySchema, cursorSchema, instantSchema, limitSchema, pagingSchema, userRefSchema } from "./common.ts";
 import { SUBMISSION_ACTIONS } from "./submissions.ts";
 
 export const NOTIFICATION_TYPES = [
@@ -19,13 +19,12 @@ export const PUSH_TOPICS = ["officialDataUpdates", "submissionUpdates", "newSubm
 export type PushTopic = (typeof PUSH_TOPICS)[number];
 
 const countSchema = z.number().int().nonnegative();
-const SITE_NOTE = "`null` if nothing is known about it";
 const SITE_OPERATOR_NOTE =
-  "The operator of the station or site. If the station or site does not exist yet or no longer exists, " +
-  "this is the operator that was stored with the notification, as long as it can still be matched to an operator. `null` if there is none";
+  "If the station or site does not exist yet or no longer exists, " +
+  "this is the operator that was stored with the notification, as long as it can still be matched to an operator";
 const SITE_LOCATION_NOTE =
-  "Where the station or site is, so you can point to it on a map. If it has no location of its own, for example because it no longer exists, " +
-  "this is the position that was stored with the notification. `null` if no position is known";
+  "If the station or site has no location of its own, for example because it no longer exists, " +
+  "this is the position that was stored with the notification";
 
 export const notificationSiteSchema = z.object({
   id: z
@@ -41,25 +40,22 @@ export type NotificationSite = z.infer<typeof notificationSiteSchema>;
 
 export const notificationSubmissionSchema = z.object({
   id: z.uuid(),
-  action: z
-    .enum(SUBMISSION_ACTIONS)
-    .nullable()
-    .describe("What the submission asks for: to add a station, change one or deactivate one. `null` if unknown"),
+  action: z.enum(SUBMISSION_ACTIONS).nullable().describe("What the submission asks for: to add a station, change one or deactivate one"),
 });
 
 const notificationShape = {
   isRead: z.boolean(),
-  readAt: z.iso.datetime().nullable().describe("When the notification was marked as read, or `null` if it is unread"),
+  readAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime().describe("The time of the newest event in the notification. Marking the notification as read does not change it"),
   count: z.number().int().positive().describe("The number of events merged into this notification"),
 };
-const stationPart = { station: notificationSiteSchema.nullable().describe(SITE_NOTE) };
+const stationPart = { station: notificationSiteSchema.nullable() };
 const submissionPart = {
   submission: notificationSubmissionSchema
     .nullable()
-    .describe("The submission the notification is about. Always `null` for `submissionPhotoUploadFailed`, where the submission has been deleted"),
-  station: notificationSiteSchema.nullable().describe(`The station the submission is about, or ${SITE_NOTE}`),
+    .describe("Always `null` for `submissionPhotoUploadFailed`, where the submission has been deleted"),
+  station: notificationSiteSchema.nullable(),
 };
 
 export const submissionReviewedNotificationSchema = z.object({
@@ -69,8 +65,8 @@ export const submissionReviewedNotificationSchema = z.object({
     .describe("Sent to the submitter when a reviewer accepts the submission and its changes are written, or rejects it"),
   ...notificationShape,
   ...submissionPart,
-  reviewer: userRefSchema.nullable().describe("The user who reviewed the submission, or `null` if unknown"),
-  reviewNote: z.string().nullable().describe("The reviewer's note for the submitter, or `null` if there is none"),
+  reviewer: userRefSchema.nullable(),
+  reviewNote: z.string().nullable(),
 });
 
 export const submissionCreatedNotificationSchema = z.object({
@@ -78,7 +74,7 @@ export const submissionCreatedNotificationSchema = z.object({
   type: z.literal("submissionCreated").describe("Sent to staff when a submission is waiting for review"),
   ...notificationShape,
   ...submissionPart,
-  submitter: userRefSchema.nullable().describe("The user who sent the submission, or `null` if unknown"),
+  submitter: userRefSchema.nullable(),
 });
 
 export const submissionPhotoUploadFailedNotificationSchema = z.object({
@@ -139,10 +135,10 @@ export const notificationParamsSchema = z.object({ id: z.uuid() });
 
 export const notificationListQuerySchema = z
   .object({
-    isRead: booleanQuerySchema.optional().describe("`true` returns only read notifications, `false` only unread ones"),
+    isRead: booleanQuerySchema.optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict();
 export type NotificationListQuery = z.infer<typeof notificationListQuerySchema>;
@@ -162,7 +158,7 @@ export const notificationsReadQuerySchema = z
 export type NotificationsReadQuery = z.infer<typeof notificationsReadQuerySchema>;
 
 export const pushTopicsSchema = z.object({
-  officialDataUpdates: z.boolean().describe("Whether to send a push after new official register data has been imported. Disabled by default"),
+  officialDataUpdates: z.boolean().describe("Whether to send a push after new official register data has been imported"),
   submissionUpdates: z
     .boolean()
     .describe("Whether to send a push when one of your submissions is approved, rejected, or deleted because its photos were not uploaded"),
@@ -173,7 +169,7 @@ export type PushTopics = z.infer<typeof pushTopicsSchema>;
 
 export const pushSubscriptionSchema = z.object({
   id: z.uuid(),
-  topics: pushTopicsSchema.describe("The kinds of push notification this subscription receives"),
+  topics: pushTopicsSchema,
   createdAt: z.iso.datetime(),
 });
 export type PushSubscription = z.infer<typeof pushSubscriptionSchema>;
@@ -206,8 +202,7 @@ export const pushSubscriptionUpdateSchema = z
     topics: pushTopicsSchema
       .partial()
       .strict()
-      .refine((topics) => Object.keys(topics).length > 0, { message: "At least one topic is required" })
-      .describe("The topics to change. Omitted topics keep their current setting"),
+      .refine((topics) => Object.keys(topics).length > 0, { message: "At least one topic is required" }),
   })
   .strict();
 export type PushSubscriptionUpdate = z.infer<typeof pushSubscriptionUpdateSchema>;

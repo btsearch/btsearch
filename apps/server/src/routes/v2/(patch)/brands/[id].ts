@@ -57,7 +57,7 @@ const updateBrand: Route<RequestData, Brand> = {
   method: "PATCH",
   config: {
     permissions: ["update:brands"],
-    errorReasons: { 404: "The brand does not exist.", 409: "Another brand already uses this `slug`." },
+    errorReasons: { 409: "Another brand already uses this `slug`." },
   },
   schema: schemaRoute,
   handler,

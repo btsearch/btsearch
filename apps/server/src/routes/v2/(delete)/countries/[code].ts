@@ -14,7 +14,7 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete a country",
-  description: "Deletes a country together with its band plan and the statistics history kept for it.",
+  description: "The country's band plan and the statistics history kept for it are deleted with it.",
   params: countryParamsSchema,
   response: { 204: noContentSchema },
 };
@@ -59,10 +59,7 @@ const deleteCountry: Route<ReqParams, void> = {
   method: "DELETE",
   config: {
     permissions: ["delete:countries"],
-    errorReasons: {
-      404: "The country does not exist.",
-      409: "The country still has regions, operators, role grants or structure owners.",
-    },
+    errorReasons: { 409: "The country still has regions, operators, role grants or structure owners." },
   },
   schema: schemaRoute,
   handler,

@@ -17,8 +17,7 @@ import { readUploadedFile } from "../../../../../utils/image.js";
 const schemaRoute = {
   summary: "Upload a brand's logo",
   description:
-    "Uploads a logo for the brand and replaces the one it had. The old file is deleted and the new logo gets a new `url`. " +
-    "SVG files are kept as SVG. They are minified and stripped of scripts, but never converted to a bitmap. " +
+    "SVG files stay SVG: they are minified and stripped of scripts. " +
     "PNG and WebP images are stored as WebP and scaled down to fit within 768 by 128 pixels.",
   params: brandParamsSchema,
   response: {
@@ -29,9 +28,8 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The `id` is invalid, the request is not multipart or has no file, or the file is larger than 512 KB or not an SVG, PNG or WebP image. " +
+    "The request is not multipart or has no file, or the file is larger than 512 KB or not an SVG, PNG or WebP image. " +
     "An SVG also needs a `viewBox` or a width and height in pixels, and a PNG or WebP image has to be at least 48 pixels high.",
-  404: "The brand does not exist.",
 };
 type ReqParams = { Params: z.infer<typeof brandParamsSchema> };
 

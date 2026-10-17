@@ -13,9 +13,8 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 const schemaRoute = {
   summary: "Add cells to a station",
   description:
-    "Creates one or more cells on a station. Either all of them are created, or none. " +
+    "Either all of the cells are created, or none. " +
     "The first cell turns a station that is awaiting cells into an active one, and users who watch the station are notified. " +
-    "Use `sectorId` to put a cell on one of the station's sectors. " +
     "`sectorKey` does not work here, because this endpoint cannot create sectors.",
   params: stationParamsSchema,
   querystring: cellQuerySchema,
@@ -28,12 +27,9 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request did not pass validation, or a cell cannot be created as sent. For example, its band is not in the country's band plan " +
-    "or belongs to another technology, or `sectorId` is not one of the station's sectors. The `message` tells you what is wrong.",
-  403:
-    "A permission is missing, or your editor access does not cover the station's country or region. " +
-    "Editors also get this response when the station does not exist.",
-  404: "The station does not exist.",
+    "A cell cannot be created as sent. For example, its band is not in the country's band plan or belongs to another technology, " +
+    "or `sectorId` is not one of the station's sectors.",
+  403: "Editors also get this response when the station does not exist.",
   409:
     "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
     "or an LTE cell on an active station with the same `enbid` and `clid`. " +

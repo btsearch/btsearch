@@ -12,13 +12,9 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Get current totals per country",
   description:
-    "Returns the current totals of each country, sorted by country code. " +
-    "You get every country you can access, or only those in `countryCodes`, and a country without data comes back with zeros. " +
-    "`stations` is split by status. `cells` counts the cells of all those stations, and `locations` counts every location, " +
-    "with or without stations. `updatedAt` is the last time a station in the country was updated. " +
-    "`official` counts the locations, permits and microwave links of the official sources you can see. " +
-    "Locations and permits count in the country the location is in, microwave links in the country of their source. " +
-    "The numbers are cached for 10 minutes, so a recent change may not show up yet.",
+    "Countries are sorted by code, and a country without data comes back with zeros. " +
+    "In `official`, locations and permits count in the country the location is in, microwave links in the country of their source. " +
+    "The numbers are cached for 10 minutes.",
   querystring: statisticsQuerySchema,
   response: {
     200: z.object({

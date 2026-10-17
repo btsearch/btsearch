@@ -16,8 +16,7 @@ const createdSchema = z.object({ data: locationSchema });
 const schemaRoute = {
   summary: "Create a location",
   description:
-    "Creates a location at the given coordinates. If a location already exists at exactly these coordinates, it is returned unchanged " +
-    "with 200 instead of creating a new one, and the other fields you sent are ignored. " +
+    "If a location already exists at exactly these coordinates, it is returned with 200 and the other fields you sent are ignored. " +
     "As an editor you need access to the region of the coordinates.",
   body: locationCreateSchema,
   response: {
@@ -27,7 +26,7 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request did not pass validation, no region could be determined from the coordinates and you did not send `regionId`, " +
+    "No region could be determined from the coordinates and you did not send `regionId`, " +
     "or `structure.ownerId` refers to an owner that does not exist or belongs to a different country than the location.",
   409: "Another request created a location at the same coordinates while yours was being processed.",
 };

@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-import { UNKNOWN_BAND_NOTE, bandSchema } from "./bands.ts";
+import { bandSchema } from "./bands.ts";
 import { INCLUDE_NOTE } from "./common.ts";
 
 export const CELL_RATS = ["gsm", "umts", "lte", "nr"] as const;
@@ -37,16 +37,16 @@ export const CELL_FIELD_NOTES = {
   supportsRedCap: "Whether the cell supports RedCap (reduced-capability NR devices)",
 } as const;
 
-const SWITCHED_OFF_NOTE = "`null` if unknown, and always `null` while the site has it disabled";
+const SWITCHED_OFF_NOTE = "Always `null` while the site has it disabled";
 const identifierSchema = z.number().int().nullable();
 
 const cellShape = {
   id: z.number().int(),
   stationId: z.number().int(),
-  bandId: z.number().int().nullable().describe(UNKNOWN_BAND_NOTE),
-  sectorId: z.number().int().nullable().describe("The sector the cell is attached to, or `null` if it has none"),
+  bandId: z.number().int().nullable(),
+  sectorId: z.number().int().nullable(),
   cellType: z.enum(CELL_TYPES).nullable(),
-  isConfirmed: z.boolean().describe("Whether the cell is marked as confirmed. Only editors can set it"),
+  isConfirmed: z.boolean().describe("Only editors can set it"),
   notes: z.string().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
@@ -68,7 +68,7 @@ export const umtsCellSchema = z.object({
   lac: identifierSchema.describe(CELL_FIELD_NOTES.lac),
   rnc: identifierSchema.describe(CELL_FIELD_NOTES.rnc),
   cid: identifierSchema.describe(CELL_FIELD_NOTES.cid),
-  longCid: identifierSchema.describe("The long cell id, equal to `rnc * 65536 + cid`. `null` if `rnc` is unknown"),
+  longCid: identifierSchema.describe("The long cell id, equal to `rnc * 65536 + cid`"),
   psc: identifierSchema.describe(`Primary scrambling code, 0 to ${PSC_MAX}. ${SWITCHED_OFF_NOTE}`),
   uarfcn: identifierSchema.describe(CELL_FIELD_NOTES.uarfcn),
 });
@@ -79,7 +79,7 @@ export const lteCellSchema = z.object({
   tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
   enbid: identifierSchema.describe(CELL_FIELD_NOTES.enbid),
   clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
-  eci: identifierSchema.describe("The E-UTRAN cell identity, equal to `enbid * 256 + clid`. `null` if `enbid` is unknown"),
+  eci: identifierSchema.describe("The E-UTRAN cell identity, equal to `enbid * 256 + clid`"),
   pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
   earfcn: identifierSchema.describe(CELL_FIELD_NOTES.earfcn),
   supportsIot: z.boolean().describe(CELL_FIELD_NOTES.supportsIot),
@@ -93,7 +93,7 @@ export const nrCellSchema = z.object({
   gnbid: identifierSchema.describe(CELL_FIELD_NOTES.gnbid),
   gnbidLength: identifierSchema.describe(CELL_FIELD_NOTES.gnbidLength),
   clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
-  nci: identifierSchema.describe("The NR cell identity, made up of `gnbid` and `clid`. `null` if either is unknown"),
+  nci: identifierSchema.describe("The NR cell identity, made up of `gnbid` and `clid`"),
   pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
   arfcn: identifierSchema.describe(CELL_FIELD_NOTES.arfcn),
   supportsRedCap: z.boolean().describe(CELL_FIELD_NOTES.supportsRedCap),

@@ -30,10 +30,6 @@ const validationErrorSchema = z.object({
 });
 const schemaRoute = {
   summary: "Revert an audit operation",
-  description:
-    "Reverts the changes an operation made and records the revert as a new operation. " +
-    "You need to be an administrator, or a maintainer of the country the operation belongs to. " +
-    "Without `force`, nothing is reverted if any of the affected data has changed since the operation.",
   params: auditOperationParamsSchema,
   body: auditRevertSchema,
   response: {
@@ -52,15 +48,13 @@ const errorBodies = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, the operation has already been reverted, or none of the selected entries can be reverted. " +
+    "The operation has already been reverted, or none of the selected entries can be reverted. " +
     "In the last case `details` explains why each entry was skipped.",
   403: "You are neither an administrator nor a maintainer, or the operation touches data that is no longer in a country you maintain.",
   404: "The operation does not exist, or it does not belong to a country you maintain.",
   409:
-    "The data has changed since the operation, and `details` lists every conflict. " +
-    "Send `force` to revert anyway: newer values are overwritten, entries that can no longer be applied are skipped, " +
-    "and references to records that are gone are left empty. " +
-    "A revert can still fail with 409 when the data changes while it is being applied.",
+    "The data has changed since the operation, and `details` lists every conflict. Send `force` to revert anyway. " +
+    "Even with `force`, a revert can fail with 409 when the data changes while it is being applied.",
 };
 type RequestData = { Params: z.infer<typeof auditOperationParamsSchema>; Body: AuditRevert };
 

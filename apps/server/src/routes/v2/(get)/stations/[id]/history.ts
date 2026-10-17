@@ -11,9 +11,8 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 const schemaRoute = {
   summary: "List a station's history",
   description:
-    "Returns the changes made to a station, newest first. " +
     "Changes to the location the station stands on are included as well, starting from the moment the station was created. " +
-    "A page can contain fewer items than `limit` even when there are more, so keep reading until `nextCursor` is `null`.",
+    "A page can contain fewer items than `limit` even when there are more.",
   params: stationParamsSchema,
   querystring: stationHistoryQuerySchema,
   response: {
@@ -33,7 +32,6 @@ const getStationHistory: Route<RequestData, StationHistoryList> = {
   config: {
     permissions: ["read:stations"],
     allowGuestAccess: true,
-    errorReasons: { 404: "The station does not exist, or it is in a country you cannot access." },
   },
   schema: schemaRoute,
   handler,

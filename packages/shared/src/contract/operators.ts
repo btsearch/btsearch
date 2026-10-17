@@ -14,11 +14,10 @@ const operatorShortCodeSchema = z.string().trim().min(1).max(16);
 const operatorSortPrioritySchema = z.number().int().min(1).max(1000);
 const plmnCodeSchema = z.string().regex(/^[1-9]\d{4,5}$/, "Must be a three-digit MCC followed by a two- or three-digit MNC");
 
-const PLMN_ROLE_NOTE =
-  "The code's role for the operator. At most one code is `primary`, and it is also returned as `primaryPlmn`. Every other code is `secondary`";
-const LINK_KIND_NOTE = "The kind of link. `jvMember` makes the operator a member of the shared network in `operatorId`";
+const PLMN_ROLE_NOTE = "At most one code is `primary`, and it is also returned as `primaryPlmn`";
+const LINK_KIND_NOTE = "`jvMember` makes the operator a member of the shared network in `operatorId`";
 const BRAND_NOTE = "The brand whose logo and color represent the operator";
-const OPERATOR_NAME_NOTE = "The operator's name. Must be unique within the country";
+const OPERATOR_NAME_NOTE = "Must be unique within the country";
 const LEGAL_NAME_NOTE = "The registered name of the company behind the operator";
 const SHORT_CODE_NOTE = "A short label for the operator, for places where the name does not fit";
 const SORT_PRIORITY_NOTE = "Position among the country's main operators, lowest first. `null` for all other operators";
@@ -40,15 +39,12 @@ export type OperatorLink = z.infer<typeof operatorLinkSchema>;
 export const operatorSchema = z.object({
   id: z.number().int(),
   countryCode: countryCodeSchema,
-  brandId: z.number().int().nullable().describe(`${BRAND_NOTE}, or \`null\` if the operator has none`),
+  brandId: z.number().int().nullable().describe(BRAND_NOTE),
   name: z.string(),
   legalName: z.string().describe(LEGAL_NAME_NOTE),
-  shortCode: z.string().nullable().describe(`${SHORT_CODE_NOTE}. \`null\` if the operator has none`),
+  shortCode: z.string().nullable().describe(SHORT_CODE_NOTE),
   sortPriority: z.number().int().nullable().describe(SORT_PRIORITY_NOTE),
-  primaryPlmn: z
-    .string()
-    .nullable()
-    .describe("The `plmn` of the entry in `plmns` whose `role` is `primary`, repeated for convenience. To change it, send `plmns`"),
+  primaryPlmn: z.string().nullable().describe("The `plmn` of the entry in `plmns` whose `role` is `primary`. To change it, send `plmns`"),
   plmns: z.array(plmnSchema).describe("The operator's network codes"),
   links: z.array(operatorLinkSchema).describe("The shared networks this operator is a member of"),
 });

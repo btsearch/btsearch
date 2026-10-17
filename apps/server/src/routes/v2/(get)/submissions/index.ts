@@ -20,20 +20,15 @@ import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "List submissions",
   description:
-    "Returns your own submissions by default. Set `submitters=all` to list everyone's, which only editors and administrators can do. " +
-    "An editor only gets submissions whose station or proposed location is in a country or region their grant covers. " +
-    "A new station proposed without a location counts for editors whose grant covers the operator's whole country. " +
-    "`submitterIds` only works together with `submitters=all`. " +
-    "`q` matches the start of a submission id or any part of the station's site id. " +
-    "`include=station` adds the station a submission changes, and `include=station.location` adds it together with the location it is at now. " +
-    "`station` is `null` if the submission has no station yet or the station is in a country you cannot access.",
+    "With `submitters=all`, an editor only gets submissions whose station or proposed location is in a country or region their grant covers. " +
+    "A new station proposed without a location counts for editors whose grant covers the operator's whole country.",
   querystring: submissionListQuerySchema,
   response: {
     200: submissionListSchema,
   },
 };
 const errorReasons = {
-  400: "The request is invalid, or `submitterIds` was sent without `submitters=all`.",
+  400: "`submitterIds` was sent without `submitters=all`.",
   403: "Submissions are disabled, or you asked for `submitters=all` without being an editor or an administrator.",
 };
 type ReqQuery = { Querystring: SubmissionListQuery };

@@ -11,11 +11,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "List a location's photos",
-  description:
-    "Returns every photo uploaded to the location, newest upload first, including photos that no station shows. " +
-    "`selections` lists the stations that show each photo. " +
-    "An author's `name` is `null` when their profile is not public, " +
-    "unless you are signed in as an editor or an administrator, or you are the author yourself.",
+  description: "Returns every photo uploaded to the location, newest upload first, including photos that no station shows.",
   params: photoOwnerParamsSchema,
   querystring: photoQuerySchema,
   response: {
@@ -38,7 +34,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const getLocationPhotos: Route<RequestData, Photo[]> = {
   url: "/locations/:id/photos",
   method: "GET",
-  config: { allowGuestAccess: true, errorReasons: { 404: "The location does not exist, or it is in a country you cannot access." } },
+  config: { allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

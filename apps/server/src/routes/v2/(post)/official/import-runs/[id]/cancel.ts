@@ -14,9 +14,7 @@ import type { JSONBody, Route } from "../../../../../../interfaces/routes.interf
 
 const schemaRoute = {
   summary: "Cancel an import run",
-  description:
-    "Cancels a run that is queued or running and returns it. A queued run never starts. " +
-    "A running run stops before its next slice or step: what it has applied until then stays applied, and nothing is undone.",
+  description: "A running run stops before its next slice or step, and what it has applied until then stays applied.",
   params: importRunParamsSchema,
   response: {
     200: z.object({
@@ -25,8 +23,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  404: "The import run does not exist.",
-  409: "The run has already ended: it is done, it failed or it was cancelled before.",
+  409: "The run has already ended.",
 };
 type ReqParams = { Params: z.infer<typeof importRunParamsSchema> };
 

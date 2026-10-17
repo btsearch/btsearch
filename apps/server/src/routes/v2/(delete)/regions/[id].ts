@@ -11,12 +11,11 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete a region",
-  description: "Deletes a region. Its stored boundary, which is used to find the region for a pair of coordinates, is deleted with it.",
+  description: "The region's stored boundary is deleted with it.",
   params: regionParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  404: "The region does not exist.",
   409:
     "The region still has locations, or an editor's grant is limited to it. " +
     "Locations of the official register and locations proposed in submissions count as well.",

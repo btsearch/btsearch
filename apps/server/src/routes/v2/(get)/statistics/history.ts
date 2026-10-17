@@ -11,12 +11,9 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Get historical totals per country",
   description:
-    "Returns how the totals of each country changed over time, sorted by country and then by day. " +
-    "A snapshot is taken once a day. With `interval=month` (the default) you get the last snapshot of each month, " +
-    "and with `interval=day` all of them. `takenAfter` and `takenBefore` are both inclusive. " +
+    "A snapshot is taken once a day. Points are sorted by country and then by day. " +
     "Snapshots count stations of every status along with their cells, sectors and identifiers, " +
-    "so the numbers can be higher than the active counts in the other statistics. " +
-    "`cellsWithPci` only counts LTE and NR cells. Countries you cannot access are left out.",
+    "so the numbers can be higher than the active counts in the other statistics.",
   querystring: statisticsHistoryQuerySchema,
   response: {
     200: z.object({

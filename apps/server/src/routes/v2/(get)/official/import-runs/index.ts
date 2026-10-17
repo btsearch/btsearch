@@ -10,10 +10,7 @@ const schemaRoute = {
   summary: "List import runs",
   description:
     "Returns the import runs of the official sources, newest first. " +
-    "Each run says what it read and what came of it: its datasets with the error of any that failed, whether a slice was held, " +
-    "and its changes counted by kind. Get a single run to see its slices, its steps and, for a dry run, its report.\n\n" +
-    "A run with the status `done` ran to the end, but one of its datasets can still have failed and one of its slices can still have been held, " +
-    "so look at `datasets` and `hasHeldSlices` as well.",
+    "Get a single run to see its slices, its steps and, for a dry run, its report.",
   querystring: importRunListQuerySchema,
   response: {
     200: importRunListSchema,

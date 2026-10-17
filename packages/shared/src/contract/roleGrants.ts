@@ -38,10 +38,10 @@ export const roleGrantSchema = z.object({
   role: z.enum(GRANT_ROLES).describe(GRANT_ROLE_NOTE),
   countryCode: countryCodeSchema,
   regionIds: z.array(idSchema).nullable().describe("The regions the grant is limited to, or `null` if it covers the whole country"),
-  grantedById: z.uuid().nullable().describe("The user who created the grant. `null` if unknown, for example after that account is deleted"),
+  grantedById: z.uuid().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
-  user: userRefSchema.optional().describe("The user the grant belongs to. Only returned with `include=user`"),
+  user: userRefSchema.optional().describe("Only returned with `include=user`"),
 });
 export type RoleGrant = z.infer<typeof roleGrantSchema>;
 

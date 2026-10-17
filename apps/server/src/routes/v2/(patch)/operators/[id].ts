@@ -16,10 +16,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Update an operator",
-  description:
-    "Updates an operator. `links` lists the shared networks this operator is a member of, " +
-    "so to add or remove a member of a shared network you update the member, not the network. " +
-    "You cannot move an operator to another country.",
+  description: "To add or remove a member of a shared network, update the member's `links`, not the network.",
   params: operatorParamsSchema,
   body: operatorUpdateSchema,
   response: {
@@ -30,9 +27,8 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, or the brand or a linked operator does not exist. Also returned when a link points to the operator itself, " +
+    "The brand or a linked operator does not exist, or a link points to the operator itself, " +
     "to an operator in another country, or to an operator that is already a member of this one.",
-  404: "The operator does not exist.",
   409: "The country already has an operator with this name, or one of the PLMNs already belongs to another operator.",
 };
 type ReqBody = { Body: OperatorUpdate };

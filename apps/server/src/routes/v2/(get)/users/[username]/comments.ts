@@ -18,10 +18,7 @@ import { getRuntimeSettings } from "../../../../../lib/runtimeSettings.js";
 
 const schemaRoute = {
   summary: "List a user's comments",
-  description:
-    "Returns the approved comments a user has written, newest first unless you change `sort`. " +
-    "Comments on stations in countries you cannot access are left out. " +
-    "If the profile is private, only its owner can list the comments. Everyone else gets a 404, including staff.",
+  description: "Only approved comments are listed.",
   params: userParamsSchema,
   querystring: userCommentListQuerySchema,
   response: {
@@ -29,9 +26,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  403:
-    "Comments are disabled. Also returned when your API key or token cannot be used for this endpoint, " +
-    "two-factor authentication still has to be set up, or the endpoint is disabled.",
+  403: "Comments are disabled.",
   404: "No user has this username, or the profile is private and you are not its owner.",
 };
 type ReqParams = { Params: z.infer<typeof userParamsSchema> };

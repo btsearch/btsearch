@@ -31,36 +31,21 @@ const SORT_COLUMNS: Record<SortField<LocationSort>, SortColumn | null> = {
 const schemaRoute = {
   summary: "List locations",
   description:
-    "Returns locations, one page at a time. A location is only returned if at least one of its stations matches the station filters and `q`, " +
-    "which by default means an active station or one awaiting cells. " +
-    "The station filters work as in `GET /stations`, and `q` accepts the same free text and keywords as `GET /search`.\n\n" +
-    "With `include=stations`, each location comes with only the stations that matched. " +
-    "Send `includeEmpty=true` to also get locations without a matching station. This needs the `update:locations` permission " +
-    "and has no effect when you also send a station filter other than `statuses`, or a station or cell keyword in `q`.\n\n" +
-    "`hasStations` looks at whether a location has any station at all, whatever its status and whatever the station filters say. " +
-    "`hasStations=false` returns only the locations without stations. It needs the same permission and works without `includeEmpty`. " +
-    "`hasStations=true` returns only the locations with at least one station.\n\n" +
-    "`editableOnly=true` returns only the locations you can edit, which also needs the `update:locations` permission. " +
-    "An editor gets the locations in the countries and regions their grants cover, and an administrator gets every location.\n\n" +
-    "`operatorIds` normally filters every country. Send `keepOtherCountries=true` to filter only the countries its operators belong to. " +
-    "Stations in every other country then match whatever their operator is, so you can filter one country by operator " +
-    "without hiding the other countries on a map. The other filters still apply everywhere.\n\n" +
-    "Locations in countries you cannot access are left out.",
+    "A location is only returned if at least one of its stations matches the station filters and `q`, " +
+    "unless you send `includeEmpty=true` or `hasStations=false`. " +
+    "`q` accepts the same free text and keywords as `GET /search`. " +
+    "With `include=stations`, each location comes with only the stations that matched.",
   querystring: locationListQuerySchema,
   response: {
     200: locationListSchema,
   },
 };
 const errorReasons = {
-  400:
-    "A query parameter did not pass validation, `q` contains a misspelled keyword or a keyword value that cannot be parsed, " +
-    "or the `cursor` is invalid. A cursor only works with the `sort` it was returned for.",
+  400: "`q` contains a misspelled keyword or a keyword value that cannot be parsed, or the `cursor` is invalid.",
   403:
     "You sent `includeEmpty`, `hasStations=false` or `editableOnly` without the `update:locations` permission, " +
-    "or lists are disabled and you sent `listId`. " +
-    "Also returned when your API key or token cannot be used for this endpoint, two-factor authentication still has to be set up, " +
-    "or the endpoint is disabled.",
-  404: "Only returned when you send `listId`. The list does not exist, or it is a private list you cannot access.",
+    "or lists are disabled and you sent `listId`.",
+  404: "The list in `listId` does not exist, or it is a private list you cannot access.",
 };
 type ReqQuery = { Querystring: LocationListQuery };
 

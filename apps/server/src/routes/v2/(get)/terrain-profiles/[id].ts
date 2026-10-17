@@ -11,13 +11,9 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Get a terrain profile",
   description:
-    "Returns a terrain profile with its current status.\n\n" +
-    "- Poll this endpoint while the status is `pending`, and wait the number of seconds " +
-    "given in the `Retry-After` and `X-Retry-After` headers between requests.\n" +
-    "- The analysis is done when the status is `ready`, and `result` then holds its outcome.\n" +
-    "- If the status is `failed`, `failure` tells you why. An analysis that takes longer than the time limit, one minute by default, fails.\n" +
-    "- The status `cancelled` means the profile was stopped with `DELETE /terrain-profiles/{id}`.\n\n" +
-    "A profile is kept for an hour after its last change, as shown in `expiresAt`, and is then deleted.",
+    "While the status is `pending`, wait the number of seconds in the `Retry-After` and `X-Retry-After` headers before polling again. " +
+    "An analysis that takes longer than the time limit, one minute by default, fails. " +
+    "The status `cancelled` means the profile was stopped with `DELETE /terrain-profiles/{id}`.",
   params: terrainProfileParamsSchema,
   querystring: terrainProfileQuerySchema,
   response: {
@@ -27,11 +23,9 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  404: "The profile does not exist or has expired. Also returned when you cannot access any country that has terrain profiles.",
-  429:
-    "You can make up to 120 requests per minute to this path, and reading and cancelling profiles count together. " +
-    "The weekly quota of your API key applies as well.",
-  503: "The rate limit counter is unavailable. Try again later.",
+  404: "The profile does not exist or has expired, or you cannot access any country that has terrain profiles.",
+  429: "Reading and cancelling profiles share a limit of 120 requests per minute.",
+  503: "The rate limit counter is unavailable.",
 };
 type RequestData = { Params: z.infer<typeof terrainProfileParamsSchema>; Querystring: TerrainProfileQuery };
 

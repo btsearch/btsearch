@@ -18,12 +18,7 @@ const schemaRoute = {
   summary: "List a station's comments",
   description:
     "Returns the approved comments on a station, newest first, all in one response. " +
-    "If you are signed in or use an API key, your own comments that are still `pending` are included as well. " +
-    "Moderators can send `includePending=true` to also get the comments of other users that are still `pending`, " +
-    "for example to approve them with `PATCH /comments/{id}`. " +
-    "A moderator is an administrator, or an editor whose grant covers the station. " +
-    "An author's `name` is `null` when their profile is not public, " +
-    "unless you are signed in as an editor or an administrator, or you are the author yourself.",
+    "If you are signed in or use an API key, your own comments that are still `pending` are included as well.",
   params: stationCommentsParamsSchema,
   querystring: stationCommentsQuerySchema,
   response: {
@@ -33,11 +28,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  403:
-    "Comments are disabled, or you sent `includePending=true` without being a moderator of this station. " +
-    "Also returned when your API key or token cannot be used for this endpoint, " +
-    "two-factor authentication still has to be set up, or the endpoint is disabled.",
-  404: "The station does not exist, or it is in a country you cannot access.",
+  403: "Comments are disabled, or you sent `includePending=true` without being a moderator of this station.",
 };
 type RequestData = { Params: z.infer<typeof stationCommentsParamsSchema>; Querystring: StationCommentsQuery };
 

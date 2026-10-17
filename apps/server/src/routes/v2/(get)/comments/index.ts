@@ -18,9 +18,7 @@ import { encodeCursor, resolveOffset } from "../../../../lib/cursor.js";
 const schemaRoute = {
   summary: "List comments for moderation",
   description:
-    "Returns comments from all stations, both pending and approved. " +
     "Administrators get every comment, and editors only get comments on stations in a country or region their grant covers. " +
-    "`q` matches the comment text or the station's site id. " +
     "This endpoint keeps working while comments are disabled.",
   querystring: commentListQuerySchema,
   response: {

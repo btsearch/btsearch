@@ -11,22 +11,16 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "List EMF measurements",
   description:
-    "Returns electromagnetic field measurements across sites, each with its site, dates, status, laboratory and a link to the report " +
-    "if there is one. SI2PEM is the only register connected so far. " +
-    "`capabilities.emf` in `GET /countries` tells you which countries the data covers.\n\n" +
-    "Without `bbox` the list comes from SI2PEM's register and shows planned measurements unless you ask for other `statuses`. " +
-    "Each combination of status, operator and region is a separate request to SI2PEM, so at most 16 combinations are allowed.\n\n" +
-    "With `bbox` the list comes from SI2PEM's map layer instead, which only has planned measurements. " +
-    "Those rows have no `id` or `regionId`, there is one row per site, and measurements that ended more than 30 days ago are left out.",
+    "Without `bbox`, each combination of status, operator and region is a separate request to SI2PEM, " +
+    "so at most 16 combinations are allowed.\n\n" +
+    "With `bbox`, rows have no `regionId`, there is one row per site, and measurements that ended more than 30 days ago are left out.",
   querystring: emfMeasurementListQuerySchema,
   response: {
     200: emfMeasurementListSchema,
   },
 };
 const errorReasons = {
-  400:
-    "A query parameter or the cursor is invalid. Also returned when the area in `bbox` contains too many measurements, " +
-    "in which case you should request a smaller area.",
+  400: "The `cursor` is invalid, or the area in `bbox` contains too many measurements and you should request a smaller one.",
   404: "You cannot access any of the countries this data covers.",
   503: SI2PEM_UNAVAILABLE_REASON,
 };

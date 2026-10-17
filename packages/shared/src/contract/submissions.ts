@@ -1,11 +1,9 @@
 import { z } from "zod/v4";
 
-import { UNKNOWN_BAND_NOTE } from "./bands.ts";
 import { BSIC_MAX, CELL_FIELD_NOTES, CELL_RATS, CELL_TYPES, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, NR_MODES, PSC_MAX } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
-  INCLUDE_TOTAL_NOTE,
   MAX_ID,
   booleanQuerySchema,
   countryCodeSchema,
@@ -79,7 +77,7 @@ const sectorKeySchema = z
   .regex(/^[A-Za-z0-9_-]{1,64}$/, "Must be 1 to 64 letters, digits, dashes or underscores")
   .refine((key) => !/^sector-\d+$/.test(key), { message: "This key is reserved for existing sectors" });
 
-const IDENTIFIER_VALUE_NOTE = "The new value. `null` removes the identifier. A `networksId` must be a number of up to 9 digits";
+const IDENTIFIER_VALUE_NOTE = "A `networksId` must be a number of up to 9 digits";
 
 const stationIdentifierChangeSchema = z
   .object({
@@ -100,8 +98,7 @@ const backhaulChangeSchema = z
   })
   .strict();
 
-const BACKHAUL_INPUT_NOTE =
-  "How the station is connected to the operator's network. Omitted fields are left unchanged, and `null` removes the backhaul";
+const BACKHAUL_INPUT_NOTE = "How the station is connected to the operator's network";
 
 export const stationChangeInputSchema = z
   .object({
@@ -123,8 +120,8 @@ export type StationChangeInput = z.infer<typeof stationChangeInputSchema>;
 
 export const stationEditInputSchema = stationChangeInputSchema
   .extend({
-    status: z.enum(STATION_STATUSES).optional().describe("Editors only. Sets the status of an existing station"),
-    isConfirmed: z.boolean().optional().describe("Editors only. Whether the station is confirmed"),
+    status: z.enum(STATION_STATUSES).optional(),
+    isConfirmed: z.boolean().optional(),
   })
   .strict();
 export type StationEditInput = z.infer<typeof stationEditInputSchema>;
@@ -133,7 +130,7 @@ export const newStationInputSchema = stationChangeInputSchema
   .extend({
     siteId: z.string().trim().min(1).max(16).describe(STATION_SITE_ID_NOTE),
     operatorId: idSchema,
-    isConfirmed: z.boolean().optional().describe("Whether the station is confirmed. Defaults to `true`"),
+    isConfirmed: z.boolean().optional().describe("Defaults to `true`"),
   })
   .strict()
   .refine((station) => !station.backhaul || station.backhaul.medium !== undefined, {
@@ -166,9 +163,6 @@ const locationChangeShape = {
   longitude: longitudeSchema.optional(),
   move: z.enum(LOCATION_MOVES).optional().describe(LOCATION_MOVE_INPUT_NOTE),
 };
-const SUBMITTED_STRUCTURE_NOTE =
-  `${STRUCTURE_INPUT_NOTE}. ${MOVED_STATION_NOTE}. ` +
-  "To propose an owner that is not in the list of structure owners yet, send its name in `ownerName` instead of an `ownerId`";
 const COORDINATES_TOGETHER_ISSUE = { path: ["longitude"], message: "latitude and longitude must be sent together" };
 const MOVE_NEEDS_COORDINATES_ISSUE = { path: ["move"], message: "move needs latitude and longitude" };
 
@@ -188,7 +182,7 @@ export const locationChangeInputSchema = z
 export type LocationChangeInput = z.infer<typeof locationChangeInputSchema>;
 
 export const submittedLocationInputSchema = z
-  .object({ ...locationChangeShape, structure: submittedStructureInputSchema.optional().describe(SUBMITTED_STRUCTURE_NOTE) })
+  .object({ ...locationChangeShape, structure: submittedStructureInputSchema.optional().describe(`${STRUCTURE_INPUT_NOTE}. ${MOVED_STATION_NOTE}`) })
   .strict()
   .refine(hasBothCoordinatesOrNone, COORDINATES_TOGETHER_ISSUE)
   .refine(movesOnlyWithCoordinates, MOVE_NEEDS_COORDINATES_ISSUE);
@@ -218,7 +212,7 @@ export const sectorChangeInputSchema = z.union([
 ]);
 export type SectorChangeInput = z.infer<typeof sectorChangeInputSchema>;
 
-const SECTOR_ID_NOTE = "One of the station's sectors to attach the cell to. `null` detaches the cell from its sector";
+const SECTOR_ID_NOTE = "One of the station's sectors to attach the cell to";
 const SECTOR_KEY_NOTE = "The `key` of a sector created in the same request, to attach the cell to it. Use either `sectorId` or `sectorKey`";
 
 const cellPlacementShape = {
@@ -231,15 +225,17 @@ const { sectorKey: _sectorKey, ...cellReferenceShape } = cellPlacementShape;
 const SECTOR_KEY_OR_ID = { path: ["sectorKey"], message: "Use either sectorId or sectorKey" };
 const createAction = { action: z.literal("create") };
 
-const BAND_ID_NOTE = "The cell's band. It must be a band of the cell's technology that is in the country's band plan";
-const UNKNOWN_NOTE = "`null` if unknown";
+const BAND_ID_NOTE = "Must be a band of the cell's technology that is in the country's band plan";
 const NR_MODE_NOTE = `${CELL_FIELD_NOTES.mode}. A non-standalone cell cannot have \`tac\`, \`gnbid\`, \`clid\` or RedCap support`;
 const gnbidLengthSchema = z.number().int().min(GNBID_MIN_LENGTH).max(GNBID_MAX_LENGTH).optional().describe(CELL_FIELD_NOTES.gnbidLength);
 
 const newCellShape = {
   bandId: idSchema.describe(BAND_ID_NOTE),
   ...cellPlacementShape,
-  isConfirmed: z.boolean().optional().describe("Editors only. Whether the cell is confirmed. Defaults to `false`"),
+  isConfirmed: z
+    .boolean()
+    .optional()
+    .describe("Defaults to `false`. Ignored unless an administrator, or an editor whose grant covers the change, sends it"),
 };
 
 export const newGsmCellSchema = z
@@ -257,8 +253,8 @@ export const newUmtsCellSchema = z
     ...newCellShape,
     rat: z.literal("umts"),
     lac: identifierSchema.describe(CELL_FIELD_NOTES.lac),
-    rnc: knownOrNullSchema.describe(`${CELL_FIELD_NOTES.rnc}. ${UNKNOWN_NOTE}`),
-    cid: knownOrNullSchema.describe(`${CELL_FIELD_NOTES.cid}. ${UNKNOWN_NOTE}, which is only allowed if \`rnc\` is \`null\` too`),
+    rnc: knownOrNullSchema.describe(CELL_FIELD_NOTES.rnc),
+    cid: knownOrNullSchema.describe(`${CELL_FIELD_NOTES.cid}. Can only be \`null\` if \`rnc\` is \`null\` too`),
     psc: pscSchema,
     uarfcn: identifierSchema.describe(CELL_FIELD_NOTES.uarfcn),
   })
@@ -268,8 +264,8 @@ export const newLteCellSchema = z
     ...newCellShape,
     rat: z.literal("lte"),
     tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
-    enbid: knownOrNullSchema.describe(`${CELL_FIELD_NOTES.enbid}. ${UNKNOWN_NOTE}`),
-    clid: knownOrNullSchema.describe(`${CELL_FIELD_NOTES.clid}. ${UNKNOWN_NOTE}, which is only allowed if \`enbid\` is \`null\` too`),
+    enbid: knownOrNullSchema.describe(CELL_FIELD_NOTES.enbid),
+    clid: knownOrNullSchema.describe(`${CELL_FIELD_NOTES.clid}. Can only be \`null\` if \`enbid\` is \`null\` too`),
     pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
     earfcn: identifierSchema.describe(CELL_FIELD_NOTES.earfcn),
     supportsIot: z.boolean().optional().describe(CELL_FIELD_NOTES.supportsIot),
@@ -335,10 +331,7 @@ export const cellUpdateChangeSchema = z
 
 const cellDeleteChangeSchema = z.object({ action: z.literal("delete"), id: idSchema }).strict();
 
-const SUBMITTED_CELL_NOTE =
-  "One cell change. A `create` adds a cell, an `update` changes the cell in `id`, and a `delete` removes it. " +
-  "An `update` needs at least one field besides `id`, and it can be a field you set to `null`. " +
-  "An update that names only the `id` is rejected with 400, because a submission cannot confirm a cell";
+const SUBMITTED_CELL_NOTE = "An `update` needs at least one field besides `id`, which can be a field you set to `null`";
 
 function namesFieldToChange(cell: { action: string }): boolean {
   if (cell.action !== "update") return true;
@@ -376,8 +369,8 @@ export type SubmittedCellInput = z.infer<typeof submittedCellInputSchema>;
 
 const cellUpdateEditSchema = cellUpdateChangeSchema
   .extend({
-    isConfirmed: z.boolean().optional().describe("Editors only. Whether the cell is confirmed"),
-    stationId: idSchema.optional().describe("Editors only. Moves the cell to another station and clears its sector"),
+    isConfirmed: z.boolean().optional(),
+    stationId: idSchema.optional().describe("Moves the cell to another station and clears its sector"),
   })
   .strict();
 
@@ -386,7 +379,7 @@ export const cellUpdateSchema = z
     bandId: idSchema.optional().describe(BAND_ID_NOTE),
     ...cellReferenceShape,
     ...cellRadioUpdateShape,
-    isConfirmed: z.boolean().optional().describe("Whether the cell is confirmed"),
+    isConfirmed: z.boolean().optional(),
     stationId: idSchema.optional().describe("Moves the cell to another station and clears its sector"),
   })
   .strict()
@@ -404,7 +397,7 @@ const REMOVE_PHOTOS_NOTE = "Photos the station should no longer show. Only allow
 const photoPicksShape = {
   selectIds: z.array(photoIdSchema).max(50).optional().describe(SELECT_PHOTOS_NOTE),
   removeIds: z.array(photoIdSchema).max(50).optional().describe(REMOVE_PHOTOS_NOTE),
-  mainPhotoId: photoIdSchema.optional().describe("The photo to make the station's main photo. Must be one of `selectIds`"),
+  mainPhotoId: photoIdSchema.optional().describe("Must be one of `selectIds`"),
 };
 
 function checkPhotoPicks(photos: { selectIds?: string[]; removeIds?: string[]; mainPhotoId?: string }, ctx: z.RefinementCtx): void {
@@ -445,11 +438,11 @@ export function cellChangeList<T extends z.ZodType<CellChangeInput>>(cellSchema:
 }
 
 const LOCATION_CHANGE_NOTE =
-  "The location fields to set. Without coordinates, they edit the location the station is at, which it shares with the other stations there. " +
-  "With coordinates, the station moves as `move` says. A new station needs `latitude` and `longitude`";
+  "Without coordinates, the fields edit the location the station is at, which it shares with the other stations there. " +
+  "With coordinates, the station moves as `move` says. A location sent for a new station needs `latitude` and `longitude`";
 
 const submissionContentShape = {
-  station: stationChangeInputSchema.optional().describe("The station fields to set. A new station needs `siteId` and `operatorId`"),
+  station: stationChangeInputSchema.optional().describe("A new station needs `siteId` and `operatorId`"),
   location: submittedLocationInputSchema.optional().describe(LOCATION_CHANGE_NOTE),
   sectors: z.array(sectorChangeInputSchema).max(MAX_SECTOR_CHANGES).optional().describe(SECTOR_LIMITS_NOTE),
   cells: cellChangeList(cellChangeInputSchema, "submission").optional(),
@@ -457,7 +450,7 @@ const submissionContentShape = {
 
 const SUBMISSION_ACTION_NOTE =
   "What the submission asks for: `create` adds a new station, `update` changes the station in `stationId`, and `delete` deactivates it";
-const STATION_ID_INPUT_NOTE = "The station to update or delete. Required for `update` and `delete`, and not allowed for `create`";
+const STATION_ID_INPUT_NOTE = "Required for `update` and `delete`, and not allowed for `create`";
 
 export const submissionCreateSchema = z
   .object({
@@ -465,7 +458,7 @@ export const submissionCreateSchema = z
       .enum(SUBMISSION_ACTIONS)
       .describe(`${SUBMISSION_ACTION_NOTE}. A \`create\` needs \`station\`, and a \`delete\` carries no changes, only a \`note\``),
     stationId: idSchema.optional().describe(STATION_ID_INPUT_NOTE),
-    origin: z.enum(SUBMISSION_ORIGINS).optional().describe("Where the change comes from. Defaults to `manual`"),
+    origin: z.enum(SUBMISSION_ORIGINS).optional().describe("Defaults to `manual`"),
     note: noteSchema.nullable().optional().describe("A note for the editor who reviews the submission"),
     station: submissionContentShape.station,
     location: submissionContentShape.location,
@@ -514,14 +507,13 @@ export type SubmissionCreate = z.infer<typeof submissionCreateSchema>;
 export const MAX_SUBMISSIONS_PER_REQUEST = 50;
 export const submissionCreateManySchema = z.array(submissionCreateSchema).min(1).max(MAX_SUBMISSIONS_PER_REQUEST);
 
-const REVIEW_NOTE_INPUT_NOTE =
-  "The reviewer's note for the submitter. Only administrators and editors whose grant covers the submission can set it. `null` clears it";
+const REVIEW_NOTE_INPUT_NOTE = "The reviewer's note for the submitter. Only administrators and editors whose grant covers the submission can set it";
 const EXPECTED_UPDATED_AT_NOTE =
   "The `updatedAt` of the submission as you last saw it. If the submission has changed since then, the request fails with 409";
 
 export const submissionUpdateSchema = z
   .object({
-    note: noteSchema.nullable().optional().describe("The submitter's note for the reviewer. `null` clears it"),
+    note: noteSchema.nullable().optional().describe("The submitter's note for the reviewer"),
     reviewNote: noteSchema.nullable().optional().describe(REVIEW_NOTE_INPUT_NOTE),
     ...submissionContentShape,
     photos: submissionPhotoPicksInputSchema.optional(),
@@ -598,18 +590,18 @@ export const sectorChangeSchema = z.object({
 export type SectorChange = z.infer<typeof sectorChangeSchema>;
 
 const CELL_CHANGE_ID_NOTE = "The id of the change itself, as opposed to `id`, the cell it applies to";
-const CELL_SECTOR_ID_NOTE = "The existing sector the change attaches the cell to, or `null`";
-const CELL_SECTOR_KEY_NOTE = "The `key` of the entry in `sectors` the change attaches the cell to, or `null`";
+const CELL_SECTOR_ID_NOTE = "The existing sector the change attaches the cell to";
+const CELL_SECTOR_KEY_NOTE = "The `key` of the entry in `sectors` the change attaches the cell to";
 const SECTOR_CLEARED_NOTE =
   "`true` if the change detaches the cell from its sector. If it is `false` and `sectorId` and `sectorKey` are `null`, the sector does not change";
-const DISABLED_CODE_NOTE = "`null` if unknown, and always `null` while the site has it disabled";
+const DISABLED_CODE_NOTE = "Always `null` while the site has it disabled";
 
 export const cellChangeSchema = z.object({
   changeId: z.number().int().describe(CELL_CHANGE_ID_NOTE),
   action: z.enum(SUBMISSION_ACTIONS),
   id: z.number().int().nullable().describe("The cell that is updated or deleted. `null` for a new cell"),
   rat: z.enum(CELL_RATS).nullable(),
-  bandId: z.number().int().nullable().describe(UNKNOWN_BAND_NOTE),
+  bandId: z.number().int().nullable(),
   sectorId: z.number().int().nullable().describe(CELL_SECTOR_ID_NOTE),
   sectorKey: z.string().nullable().describe(CELL_SECTOR_KEY_NOTE),
   isSectorCleared: z.boolean().describe(SECTOR_CLEARED_NOTE),
@@ -650,8 +642,7 @@ const CELL_CHANGES_NOTE =
   "The cell changes. Each entry only has the radio fields of its technology, and a `delete` has none. " +
   "For an `update`, the band, type, notes and radio fields hold the values the cell will have, not only the ones that change";
 const ANNOUNCED_COUNT_NOTE =
-  "The number of photos the submitter said they would upload, as sent in `photos.uploadCount`. `0` if they announced none. " +
-  "If it is higher than `uploadedCount`, announced photos are still missing. " +
+  "The number of photos the submitter said they would upload, as sent in `photos.uploadCount`. " +
   "It goes back to `0` when the uploaded photos of a rejected submission are deleted";
 
 export const submissionChangesSchema = z.object({
@@ -676,14 +667,13 @@ const SUBMISSION_STATION_NOTE = "The station the submission changes. For a `crea
 const SUBMISSION_COUNTRY_NOTE =
   "The country the submission is about. It comes from the proposed location if there is one, " +
   "otherwise from the station's location, the proposed operator or the station's operator, in that order. " +
-  "It is stored when the submission is created or edited, so it does not change if the station moves to another country later. " +
-  "`null` if the country is unknown";
+  "It is stored when the submission is created or edited, so it does not change if the station moves to another country later";
 const INCLUDED_STATION_NOTE =
   "Only returned with `include=station` or `include=station.location`. " +
   "`null` if the submission has no station yet or the station is in a country you cannot access";
 const INCLUDED_STATION_LOCATION_NOTE =
   "Only returned with `include=station.location`. The location the station is at now. " +
-  "What a pending submission proposes is in `changes.location`, not here. `null` for a station without a location";
+  "What a pending submission proposes is in `changes.location`, not here";
 
 export const submissionStationSchema = stationBaseSchema.extend({
   location: stationLocationSchema.nullable().optional().describe(INCLUDED_STATION_LOCATION_NOTE),
@@ -698,12 +688,12 @@ export const submissionSchema = z.object({
   stationId: z.number().int().nullable().describe(SUBMISSION_STATION_NOTE),
   countryCode: countryCodeSchema.nullable().describe(SUBMISSION_COUNTRY_NOTE),
   note: z.string().nullable().describe("The submitter's note for the reviewer"),
-  reviewNote: z.string().nullable().describe("The reviewer's note for the submitter"),
+  reviewNote: z.string().nullable(),
   submitter: userRefSchema.nullable().describe("`null` if the submitter's account was deleted"),
-  reviewer: userRefSchema.nullable().describe("The user who reviewed the submission. `null` until it is reviewed"),
+  reviewer: userRefSchema.nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
-  reviewedAt: z.iso.datetime().nullable().describe("`null` until the submission is reviewed"),
+  reviewedAt: z.iso.datetime().nullable(),
   changes: submissionChangesSchema,
   station: submissionStationSchema.nullable().optional().describe(INCLUDED_STATION_NOTE),
 });
@@ -738,7 +728,7 @@ const MAIN_PHOTO_NOTE = "Makes this the main photo of the submission, in place o
 export const submissionPhotoUpdateSchema = z
   .object({
     note: z.string().trim().max(100).nullable().optional(),
-    takenAt: instantSchema.nullable().optional().describe("When the photo was taken. It cannot be in the future. `null` clears it"),
+    takenAt: instantSchema.nullable().optional().describe("Cannot be in the future"),
     isMain: z.literal(true).optional().describe(MAIN_PHOTO_NOTE),
   })
   .strict()
@@ -762,7 +752,7 @@ const REGIONS_FILTER_NOTE = "Filters by the region of the station's location or 
 export const submissionListQuerySchema = z
   .object({
     submitters: z.enum(SUBMISSION_SUBMITTERS).default("mine").describe(SUBMITTERS_NOTE),
-    submitterIds: csvUuidsSchema.optional().describe("Filters by submitter. Only allowed with `submitters=all`. Comma-separated UUIDs"),
+    submitterIds: csvUuidsSchema.optional().describe("Only allowed with `submitters=all`. Comma-separated UUIDs"),
     statuses: csvEnumSchema(SUBMISSION_STATUSES).optional(),
     actions: csvEnumSchema(SUBMISSION_ACTIONS).optional(),
     countryCodes: csvCountryCodesSchema.optional().describe("Filters by `countryCode`. Comma-separated two-letter country codes"),
@@ -770,12 +760,12 @@ export const submissionListQuerySchema = z
     regionIds: csvIdsSchema.optional().describe(REGIONS_FILTER_NOTE),
     q: z.string().trim().min(1).max(100).optional().describe("Matches the start of a submission id or any part of the station's site id"),
     createdAfter: instantSchema.optional().describe("Only submissions created at or after this time"),
-    sort: z.enum(SUBMISSION_SORTS).default("-createdAt").describe("The field to sort by, with a leading `-` for descending order"),
+    sort: z.enum(SUBMISSION_SORTS).default("-createdAt"),
     include: submissionIncludeSchema.optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);

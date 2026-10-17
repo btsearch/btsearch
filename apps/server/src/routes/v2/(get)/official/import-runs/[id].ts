@@ -10,11 +10,6 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "Get an import run",
-  description:
-    "Returns one import run with everything it has recorded so far: the slices it handled, each with its outcome, record counts, " +
-    "changes and skipped records; the steps it took after the slices; and the held slices it was told to apply.\n\n" +
-    "A dry run undoes what it did, so it lists no slices and no steps. What it would have changed is in `dryRunReport`, " +
-    "which is kept for seven days.",
   params: importRunParamsSchema,
   querystring: z.object({}).strict(),
   response: {
@@ -37,7 +32,6 @@ const getImportRun: Route<ReqParams, ImportRunDetail> = {
   method: "GET",
   config: {
     permissions: ["read:official_import"],
-    errorReasons: { 404: "The import run does not exist." },
   },
   schema: schemaRoute,
   handler,

@@ -11,17 +11,13 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete a notification",
-  description:
-    "Deletes one of your notifications. You get 204 even when the notification does not exist or is not yours, " +
-    "so it is safe to repeat the request.",
+  description: "You get 204 even when the notification does not exist or is not yours, so it is safe to repeat the request.",
   params: notificationParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys are not accepted here, so use a session or an OAuth token.",
-  403:
-    "The OAuth token does not have the `profile` scope. " +
-    "Also returned when two-factor authentication still has to be set up or the endpoint is disabled.",
+  401: "API keys are not accepted here.",
+  403: "The OAuth token does not have the `profile` scope.",
   404: null,
 };
 type ReqParams = { Params: z.infer<typeof notificationParamsSchema> };

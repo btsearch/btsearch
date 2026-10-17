@@ -2,7 +2,6 @@ import { z } from "zod/v4";
 
 import {
   CURSOR_OR_OFFSET_ISSUE,
-  INCLUDE_TOTAL_NOTE,
   MAX_LATITUDE,
   MAX_LONGITUDE,
   booleanQuerySchema,
@@ -109,7 +108,7 @@ export const searchMatchSchema = z.object({
       "The field the free text was found in. `networksId`, `networksName` and `operatorName` are kinds of the station's `identifiers`, " +
         "`cid`, `longCid`, `enbid`, `eci`, `gnbid` and `nci` belong to one of its cells, and `city` and `address` to its location",
     ),
-  value: z.string().describe("The value of that field"),
+  value: z.string(),
   type: z
     .enum(SEARCH_MATCH_TYPES)
     .describe(
@@ -134,14 +133,11 @@ export const searchQuerySchema = z
     sort: z
       .enum(SEARCH_SORTS)
       .default("relevance")
-      .describe(
-        "The field to sort by, with a leading `-` for descending order. " +
-          "`relevance` returns the best matches first, or the newest stations if `q` contains only keywords",
-      ),
+      .describe("`relevance` returns the best matches first, or the newest stations if `q` contains only keywords"),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);

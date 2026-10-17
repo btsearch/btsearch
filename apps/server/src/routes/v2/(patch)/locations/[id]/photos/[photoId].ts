@@ -15,7 +15,6 @@ import type { JSONBody, Route } from "../../../../../../interfaces/routes.interf
 
 const schemaRoute = {
   summary: "Update a location photo",
-  description: "Updates the note or date of a photo and returns the photo. Send `null` to clear a field. Fields you leave out are not changed.",
   params: locationPhotoParamsSchema,
   body: photoUpdateSchema,
   response: {
@@ -25,11 +24,9 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, or `takenAt` is in the future.",
-  403:
-    "A permission is missing, or your editor access does not cover the location's country or region. " +
-    "Editors also get this response when the location does not exist.",
-  404: "The location does not exist, or it has no photo with this id.",
+  400: "`takenAt` is in the future.",
+  403: "Editors also get this response when the location does not exist.",
+  404: "The location has no photo with this id.",
 };
 type RequestData = { Params: z.infer<typeof locationPhotoParamsSchema>; Body: PhotoUpdate };
 

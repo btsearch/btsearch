@@ -13,15 +13,12 @@ import { logger } from "../../../../utils/logger.js";
 
 const schemaRoute = {
   summary: "Delete a role grant",
-  description:
-    "Deletes the grant. If it was the user's last grant, they stop being an editor. " +
-    "Administrators can delete any grant. Maintainers can only delete `editor` grants in a country they maintain.",
+  description: "If it was the user's last grant, they stop being an editor.",
   params: roleGrantParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
   403: "You need to be an administrator or a maintainer of the grant's country. Only administrators can delete `maintainer` grants.",
-  404: "The grant does not exist.",
 };
 type ReqParams = { Params: z.infer<typeof roleGrantParamsSchema> };
 

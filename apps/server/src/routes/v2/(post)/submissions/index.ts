@@ -22,21 +22,16 @@ import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "Create submissions",
   description:
-    "Creates one pending submission for each change in the request, up to 50, and returns them in the same order. " +
-    "Nothing in the data changes yet. Every submission waits for an editor to review it. " +
-    "`origin` is only a label and does not change that.\n\n" +
+    "Creates one pending submission for each change in the request and returns them in the same order.\n\n" +
     "The request is all or nothing, so if one change fails, none of them is saved. " +
     "When a request fails because of one change, `details[0].field` in the error is that change's position in the request, " +
-    "starting at 0. For an invalid value it is the full path, such as `0/cells/1/pci` for change 0, cell 1. " +
-    "Countries that are closed to contributions do not accept submissions.\n\n" +
+    "starting at 0. For an invalid value it is the full path, such as `0/cells/1/pci` for change 0, cell 1.\n\n" +
     "Changes prepared from a phone log carry `origin` set to `analyzer`, and you can submit 100 of them in any 32 hours. " +
     "Each change in the request counts as one, however many cells it changes. " +
     "`limits.analyzerChanges` on `GET /me` tells you how many you have left.\n\n" +
-    "If the owner of a structure is not in the list of structure owners yet, send its name in `location.structure.ownerName` " +
-    "instead of an `ownerId`, when `features.structureOwnerProposals` on `GET /settings` is enabled. " +
-    "A name that matches an existing owner is allowed even when proposals are disabled. " +
-    "A new owner is only added to the list when the submission is accepted.\n\n" +
-    "Upload photos afterwards with `POST /submissions/{id}/photos`, and use `photos.uploadCount` to say how many are coming. " +
+    "A new owner name in `location.structure.ownerName` requires `features.structureOwnerProposals` on `GET /settings` to be enabled. " +
+    "A name that matches an existing owner is allowed even when proposals are disabled.\n\n" +
+    "Upload photos afterwards with `POST /submissions/{id}/photos`, and announce how many in `photos.uploadCount`. " +
     "A new station without cells needs at least one photo. " +
     "If you announce photos and none is uploaded within 10 minutes, the submission is deleted when it is a new station without cells " +
     "or an update with no other changes, and you get a notification about it.",
@@ -49,25 +44,20 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, or a change cannot be accepted as it is. Typical cases are an update that changes nothing, " +
+    "A change cannot be accepted as it is. Typical cases are an update that changes nothing, " +
     "a new station whose site id the operator already uses, a new station with neither cells nor photos, " +
-    "or a band that is not in the country's band plan. " +
-    "A cell update that names only the cell's `id` is rejected too, because it needs at least one field to change, " +
-    "which can be a field set to `null`. That error points at the cell, for example `0/cells/1` for change 0, cell 1, " +
-    "and nothing in the request is saved or counted towards the limit on analyzer changes.",
+    "or a band that is not in the country's band plan.",
   403:
     "Submissions are disabled, or one of the changes is in a country that is closed to contributions. " +
     "Those reasons do not identify a change. Also returned when a change proposes a new structure owner while proposals are disabled, " +
     "with `details[0].field` pointing at its owner name, for example `0/location/structure/ownerName`.",
-  404:
-    "A station you referenced does not exist, is `inactive`, or is in a country you cannot access. " +
-    "Also returned when a cell you referenced is not on that station.",
+  404: "A station you referenced does not exist or is `inactive`, or a cell you referenced is not on that station.",
   409:
     "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
     "or an LTE cell on an active station with the same `enbid` and `clid`. " +
     "Also returned when the station already has an LTE or NR cell with the same `pci` on the same band.",
   429:
-    "You are sending too many requests, or this request would take you past 100 changes with `origin` set to `analyzer` in 32 hours. " +
+    "This request would take you past 100 changes with `origin` set to `analyzer` in 32 hours. " +
     "Editors and administrators are exempt from that limit, except when they use an API key. " +
     "When it is the reason, the `message` is `At most 100 analyzer changes in 32 hours`, " +
     "and `X-Retry-After` is the number of seconds until the oldest change that counts is 32 hours old. " +

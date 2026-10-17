@@ -14,9 +14,7 @@ const schemaRoute = {
   description:
     "Returns the photos a station shows, which are picked from the photos of its location. " +
     "The main photo comes first, followed by the others from oldest to newest. " +
-    "`selections` lists every station that shows a photo, not just this one. " +
-    "An author's `name` is `null` when their profile is not public, " +
-    "unless you are signed in as an editor or an administrator, or you are the author yourself.",
+    "`selections` lists every station that shows a photo, not just this one.",
   params: photoOwnerParamsSchema,
   querystring: photoQuerySchema,
   response: {
@@ -39,7 +37,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const getStationPhotos: Route<RequestData, Photo[]> = {
   url: "/stations/:id/photos",
   method: "GET",
-  config: { allowGuestAccess: true, errorReasons: { 404: "The station does not exist, or it is in a country you cannot access." } },
+  config: { allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

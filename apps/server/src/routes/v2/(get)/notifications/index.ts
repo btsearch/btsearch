@@ -20,21 +20,17 @@ const cursorIdSchema = z.uuid();
 const schemaRoute = {
   summary: "List notifications",
   description:
-    "Returns your notifications, most recently updated first. " +
+    "The most recently updated notifications come first. " +
     "Repeated events of the same type about the same station are merged into one notification for as long as it is unread. " +
-    "Its `count` goes up and it moves back to the top of the list.\n\n" +
-    "A notification has no link of its own. To point to a map, use the `location` of its `station` or `officialSite`. " +
-    "It stays available after the station or site is gone, as do the `siteId` and `operatorId` that were stored with the notification.",
+    "Its `count` goes up and it moves back to the top of the list.",
   querystring: notificationListQuerySchema,
   response: {
     200: notificationListSchema,
   },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys are not accepted here, so use a session or an OAuth token.",
-  403:
-    "The OAuth token does not have the `profile` scope. " +
-    "Also returned when two-factor authentication still has to be set up or the endpoint is disabled.",
+  401: "API keys are not accepted here.",
+  403: "The OAuth token does not have the `profile` scope.",
 };
 type ReqQuery = { Querystring: NotificationListQuery };
 

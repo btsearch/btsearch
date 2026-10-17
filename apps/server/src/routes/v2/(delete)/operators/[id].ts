@@ -11,12 +11,11 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete an operator",
-  description: "Deletes an operator together with its PLMNs, its memberships in shared networks and the statistics history kept for it.",
+  description: "The operator's PLMNs, its memberships in shared networks and the statistics history kept for it are deleted with it.",
   params: operatorParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  404: "The operator does not exist.",
   409:
     "The operator still has stations or sites in the official register, or a pending submission names it. " +
     "A shared network cannot be deleted while it still has members.",

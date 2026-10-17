@@ -3,7 +3,6 @@ import { z } from "zod/v4";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
-  INCLUDE_TOTAL_NOTE,
   booleanQuerySchema,
   csvEnumSchema,
   csvIdsSchema,
@@ -34,9 +33,9 @@ const LIST_NOTIFICATIONS_NOTE =
   "Whether the owner is notified about changes to the stations and official sites on the list, as if watching each of them";
 
 export const listItemsSchema = z.object({
-  stationIds: z.array(z.number().int()).describe("Ids of the stations on the list. Stations in countries you cannot access are omitted"),
-  officialSiteIds: z.array(z.number().int()).describe("Ids of the sites in the official register that are on the list"),
-  microwaveLinkIds: z.array(z.number().int()).describe("Ids of the microwave links in the official register that are on the list"),
+  stationIds: z.array(z.number().int()),
+  officialSiteIds: z.array(z.number().int()),
+  microwaveLinkIds: z.array(z.number().int()),
 });
 export type ListItems = z.infer<typeof listItemsSchema>;
 
@@ -57,9 +56,9 @@ export const listSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   isPublic: z.boolean().describe(LIST_PUBLIC_NOTE),
-  isOwner: z.boolean().describe("Whether the list is yours"),
+  isOwner: z.boolean(),
   notificationsEnabled: z.boolean().nullable().describe(`${LIST_NOTIFICATIONS_NOTE}. \`null\` unless the list is yours`),
-  itemCounts: listItemCountsSchema.describe("The number of items of each kind on the list"),
+  itemCounts: listItemCountsSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   owner: userRefSchema.optional().describe("Only returned with `include=owner`"),
@@ -81,13 +80,8 @@ export const listListQuerySchema = z
       .enum(LIST_OWNERS)
       .default("mine")
       .describe("`mine` returns your own lists. `all` returns the lists of all users and requires an administrator"),
-    ownerIds: csvUuidsSchema
-      .optional()
-      .describe(
-        "Filters by owner. Requires an administrator, like `owners=all`, and anyone else who sends it gets a 403. " +
-          "Only allowed with `owners=all`. Comma-separated UUIDs",
-      ),
-    isPublic: booleanQuerySchema.optional().describe("`true` matches public lists, `false` matches private ones"),
+    ownerIds: csvUuidsSchema.optional().describe("Requires an administrator and is only allowed with `owners=all`. Comma-separated UUIDs"),
+    isPublic: booleanQuerySchema.optional(),
     q: z.string().trim().min(1).max(100).optional().describe("Matches part of the list's name"),
     stationIds: csvIdsSchema.optional().describe("Only lists that contain at least one of these stations. Comma-separated ids"),
     officialSiteIds: csvIdsSchema
@@ -100,7 +94,7 @@ export const listListQuerySchema = z
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
@@ -115,8 +109,8 @@ export type ListList = z.infer<typeof listListSchema>;
 const listItemsInputSchema = z
   .object({
     stationIds: itemIdsSchema.optional(),
-    officialSiteIds: itemIdsSchema.optional().describe("Ids of sites in the official register"),
-    microwaveLinkIds: itemIdsSchema.optional().describe("Ids of microwave links in the official register"),
+    officialSiteIds: itemIdsSchema.optional(),
+    microwaveLinkIds: itemIdsSchema.optional(),
   })
   .strict();
 export type ListItemsInput = z.infer<typeof listItemsInputSchema>;
@@ -127,7 +121,7 @@ export const listCreateSchema = z
     description: listDescriptionSchema.nullable().optional(),
     isPublic: z.boolean().optional().describe(`${LIST_PUBLIC_NOTE}. Defaults to \`false\``),
     notificationsEnabled: z.boolean().optional().describe(`${LIST_NOTIFICATIONS_NOTE}. Defaults to \`false\``),
-    items: listItemsInputSchema.optional().describe("The items to put on the list. Every id must exist"),
+    items: listItemsInputSchema.optional().describe("Every id must exist"),
   })
   .strict();
 export type ListCreate = z.infer<typeof listCreateSchema>;
@@ -152,10 +146,8 @@ export const listUpdateSchema = z
     items: listItemsInputSchema
       .optional()
       .describe("Each list of ids you send replaces the stored one. Cannot be combined with `addItems` or `removeItems`"),
-    addItems: listItemsInputSchema.optional().describe("Items to add to the list. Every id must exist. Cannot be combined with `items`"),
-    removeItems: listItemsInputSchema
-      .optional()
-      .describe("Items to remove from the list. Ids that are not on the list are ignored. Cannot be combined with `items`"),
+    addItems: listItemsInputSchema.optional().describe("Every id must exist. Cannot be combined with `items`"),
+    removeItems: listItemsInputSchema.optional().describe("Ids that are not on the list are ignored. Cannot be combined with `items`"),
   })
   .strict()
   .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE)

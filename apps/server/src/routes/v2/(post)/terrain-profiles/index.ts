@@ -16,15 +16,10 @@ const profileResponseSchema = z.object({ data: terrainProfileSchema });
 const schemaRoute = {
   summary: "Create a terrain profile",
   description:
-    "Starts a line-of-sight analysis between one antenna of a station and a receiver location, and returns the profile right away. " +
-    "The analysis runs in the background, so a new profile has the status `pending`. Poll `GET /terrain-profiles/{id}` until the status " +
-    "changes. While it is pending, the `Retry-After` and `X-Retry-After` headers tell you how many seconds to wait before the next request.\n\n" +
-    "You get 201 when a new analysis was started. You get 200 when the same station, antenna and receiver were requested within the last " +
-    "hour, and the response is that earlier profile, which can be pending or ready. Failed and cancelled profiles are never reused.\n\n" +
-    "Send either `stationId` or `officialSiteId`, not both. An `antennaKey` the station does not have is not rejected here. " +
-    "The profile is created and then fails with the reason `antennaNotFound`. " +
-    "The antenna and elevation data connected so far only cover some countries. The station has to be in one where " +
-    "`capabilities.terrainProfiles` in `GET /countries` is not `null`, and the receiver inside its `receiverBounds`.",
+    "Send either `stationId` or `officialSiteId`, not both. An `antennaKey` the station does not have is not rejected: " +
+    "the profile is created and then fails with the reason `antennaNotFound`.\n\n" +
+    "While the profile is `pending`, the `Retry-After` and `X-Retry-After` headers tell you how many seconds to wait " +
+    "before polling `GET /terrain-profiles/{id}`. Failed and cancelled profiles are never reused.",
   querystring: terrainProfileQuerySchema,
   body: terrainProfileCreateSchema,
   response: {
@@ -34,15 +29,15 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, the receiver is outside the `receiverBounds` of the station's country, " +
-    "or it is closer than 10 m to the station or farther than 30 km, which is the default maximum.",
+    "The receiver is outside the `receiverBounds` of the station's country, closer than 10 m to the station, " +
+    "or farther than the maximum distance, 30 km by default.",
   404:
-    "The station or official site does not exist or has no location, or it is in a country where `capabilities.terrainProfiles` is `null`. " +
-    "Also returned when you cannot access any country that has terrain profiles.",
+    "The station or official site does not exist, has no location or is in a country where `capabilities.terrainProfiles` is `null`, " +
+    "or you cannot access any country that has terrain profiles.",
   429:
     "You can start up to 15 new profiles every 5 minutes. Requests that return an existing profile do not count, and editors and " +
-    "administrators have no limit unless they use an API key. The general rate limits apply as well.",
-  503: "The rate limit counter is unavailable, so a new profile cannot be started right now. Try again later.",
+    "administrators have no limit unless they use an API key.",
+  503: "The rate limit counter is unavailable, so a new profile cannot be started.",
 };
 type RequestData = { Querystring: TerrainProfileQuery; Body: TerrainProfileCreate };
 

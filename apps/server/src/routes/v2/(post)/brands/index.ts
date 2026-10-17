@@ -13,7 +13,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Create a brand",
-  description: "Creates a brand without a logo. Upload one afterwards with `PUT /brands/{id}/logo`.",
+  description: "A new brand has no logo. Upload one with `PUT /brands/{id}/logo`.",
   body: brandCreateSchema,
   response: {
     201: z.object({

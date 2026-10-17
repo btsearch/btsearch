@@ -16,7 +16,6 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 const schemaRoute = {
   summary: "Upload photos to a location",
   description:
-    "Uploads one or more photos to a location and returns them, with you as their author. " +
     "If one file is invalid, none of the files in the request is saved. " +
     "Photos are re-encoded on the server, which removes their metadata, including the GPS position. " +
     "New photos belong to the location and are not shown on any station until they are selected for it, " +
@@ -31,12 +30,9 @@ const schemaRoute = {
 const errorReasons = {
   400:
     "The request is not `multipart/form-data` or contains no file, a `takenAts` value is not a valid date or is in the future, " +
-    "or a file was not accepted. Files must be readable images of at most 20 MB, at least 640 by 480 pixels (`PHOTO_TOO_SMALL`) " +
+    "or a file was not accepted. Files must be readable images of at least 640 by 480 pixels (`PHOTO_TOO_SMALL`) " +
     "and not too blurry (`PHOTO_TOO_BLURRY`).",
-  403:
-    "A permission is missing, or your editor access does not cover the location's country or region. " +
-    "Editors also get this response when the location does not exist.",
-  404: "The location does not exist.",
+  403: "Editors also get this response when the location does not exist.",
 };
 type ReqParams = { Params: z.infer<typeof photoOwnerParamsSchema> };
 

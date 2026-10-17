@@ -2,6 +2,7 @@ import { noContentSchema, terrainProfileParamsSchema } from "@openbts/shared/con
 import type { FastifyRequest } from "fastify/types/request.js";
 import type { z } from "zod/v4";
 
+import { assertCapabilityVisible } from "../../../../features/countries/visibility.js";
 import { cancelTerrainProfile } from "../../../../features/terrainProfile/profiles.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../interfaces/routes.interface.js";
@@ -9,22 +10,22 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 const schemaRoute = {
   summary: "Cancel a terrain profile",
   description:
-    "Cancels a profile that is still `pending`. Its status becomes `cancelled`, and you can keep reading it until it expires. " +
-    "If the profile is already ready, failed or cancelled, nothing changes and you still get 204. " +
+    "A `pending` profile becomes `cancelled`, and you can keep reading it until it expires. " +
+    "A profile that is already ready, failed or cancelled is left as it is, and you still get 204. " +
     "Profiles have no owner, so anyone who knows the id can cancel one.",
   params: terrainProfileParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  404: "The profile does not exist or has expired.",
-  429:
-    "You can make up to 120 requests per minute to this path, and reading and cancelling profiles count together. " +
-    "The weekly quota of your API key applies as well.",
-  503: "The rate limit counter is unavailable. Try again later.",
+  404: "The profile does not exist or has expired, or you cannot access any country that has terrain profiles.",
+  429: "Reading and cancelling profiles share a limit of 120 requests per minute.",
+  503: "The rate limit counter is unavailable.",
 };
 type ReqParams = { Params: z.infer<typeof terrainProfileParamsSchema> };
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyResponse>) {
+  await assertCapabilityVisible(req, "terrainProfiles");
+
   await cancelTerrainProfile(req.params.id);
   return res.status(204).send();
 }

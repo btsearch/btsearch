@@ -36,7 +36,7 @@ function identifierSchema(max: number) {
 }
 
 function observedValueSchema(max: number) {
-  return identifierSchema(max).nullable().optional().describe("Omit it or send `null` if the log does not have it");
+  return identifierSchema(max).nullable().optional();
 }
 
 export const observedGsmCellSchema = z
@@ -101,9 +101,7 @@ export const observedCellSchema = z.discriminatedUnion("rat", [
 ]);
 export type ObservedCell = z.infer<typeof observedCellSchema>;
 
-export const cellMatchBodySchema = z
-  .object({ cells: z.array(observedCellSchema).min(1).max(CELL_MATCH_LIMIT).describe("The cells a phone saw, as read from its log") })
-  .strict();
+export const cellMatchBodySchema = z.object({ cells: z.array(observedCellSchema).min(1).max(CELL_MATCH_LIMIT) }).strict();
 export type CellMatchBody = z.infer<typeof cellMatchBodySchema>;
 
 export const cellMatchQuerySchema = z.object({ include: csvEnumSchema(CELL_MATCH_INCLUDES).optional() }).strict();
@@ -111,8 +109,8 @@ export type CellMatchQuery = z.infer<typeof cellMatchQuerySchema>;
 
 export const cellDifferenceSchema = z.object({
   field: z.enum(CELL_DIFFERENCE_FIELDS),
-  observed: z.number().int().describe("The value in the log"),
-  stored: z.number().int().nullable().describe("The value in the database, or `null` if it has none"),
+  observed: z.number().int(),
+  stored: z.number().int().nullable(),
 });
 export type CellDifference = z.infer<typeof cellDifferenceSchema>;
 
@@ -127,10 +125,10 @@ export const cellMatchResultSchema = z.object({
   match: z.enum(CELL_MATCHES).describe(MATCH_NOTE),
   reason: z.enum(CELL_MATCH_REASONS).nullable().describe("Why nothing was found. `null` unless `match` is `none`"),
   stationId: z.number().int().nullable().describe("The station the cell or its base station was found on. `null` if `match` is `none`"),
-  cellId: z.number().int().nullable().describe("The stored cell. `null` if `match` is `station` or `none`"),
+  cellId: z.number().int().nullable().describe("`null` if `match` is `station` or `none`"),
   isShared: z.boolean().describe("Whether the station belongs to a partner in a shared network rather than to the operator in the log"),
   differences: z.array(cellDifferenceSchema).describe(DIFFERENCES_NOTE),
-  nrIdentity: nrIdentitySchema.nullable().describe("NR only. The gNBID and cell id used to look up the cell, or `null` if the cell has none"),
+  nrIdentity: nrIdentitySchema.nullable().describe("NR only. The gNBID and cell id used to look up the cell"),
   officialSiteIds: z
     .array(z.number().int())
     .max(OFFICIAL_SITES_PER_CELL)
@@ -142,9 +140,9 @@ export type CellMatchResult = z.infer<typeof cellMatchResultSchema>;
 export const officialSiteRefSchema = z.object({
   id: z.number().int(),
   sourceKey: z.string().describe("The key of the source the site comes from, as in `GET /official/sources`"),
-  siteId: z.string().nullable().describe("The id the operator uses for the site, as listed in the register. `null` if the register gives none"),
+  siteId: z.string().nullable().describe("The id the operator uses for the site, as listed in the register"),
   operatorId: z.number().int().nullable().describe("`null` if the register names a licensee that is not mapped to an operator"),
-  regionId: z.number().int().nullable().describe("`null` if the site's location is in no known region"),
+  regionId: z.number().int().nullable(),
   location: z.object({
     latitude: z.number(),
     longitude: z.number(),

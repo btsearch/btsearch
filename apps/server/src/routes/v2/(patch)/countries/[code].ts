@@ -17,11 +17,6 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Update a country",
-  description:
-    "Updates a country. `isVisible` and `contributions` are two independent settings. " +
-    "Setting `isVisible` to `false` hides the country. A hidden country and everything in it, such as its regions, operators and stations, " +
-    "are only returned to administrators and to editors with a grant in that country. " +
-    "Setting `contributions` to `closed` stops the country from accepting submissions.",
   params: countryParamsSchema,
   body: countryUpdateSchema,
   response: {
@@ -65,10 +60,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateCountry: Route<RequestData, Country> = {
   url: "/countries/:code",
   method: "PATCH",
-  config: {
-    permissions: ["update:countries"],
-    errorReasons: { 404: "The country does not exist." },
-  },
+  config: { permissions: ["update:countries"] },
   schema: schemaRoute,
   handler,
 };

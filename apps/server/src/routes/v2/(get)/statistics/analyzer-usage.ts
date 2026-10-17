@@ -10,10 +10,8 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Get log analyzer usage per day or month",
   description:
-    "Returns how often the log analyzer was used, sorted by day. Every analysis adds one to the count of its UTC day, " +
-    "and a call to `POST /cells/match` is one analysis. " +
-    "With `interval=month` the days of each month are added up and `startsOn` is the first day of that month. " +
-    "Days and months without any use are left out, and `usedAfter` and `usedBefore` are both inclusive. " +
+    "Points are sorted by day. Every analysis adds one to the count of its UTC day, and a call to `POST /cells/match` is one analysis. " +
+    "Days and months without any use are left out. " +
     "Unlike the other statistics, this one covers the whole site and is not split by country.",
   querystring: analyzerUsageQuerySchema,
   response: {

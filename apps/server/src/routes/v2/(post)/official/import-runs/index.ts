@@ -14,11 +14,8 @@ const schemaRoute = {
   description:
     "Queues an import run for a source and returns it. The run starts as soon as the importer is free, " +
     "so poll `GET /official/import-runs/{id}` to follow it.\n\n" +
-    "Without `datasetIds` the run reads every enabled dataset of the source. Name a dataset to read it while it is paused. " +
+    "Name a dataset in `datasetIds` to read it while it is paused. " +
     "A source's own `isEnabled` only stops the schedule, so you can start a run for a source that is switched off.\n\n" +
-    "To apply a slice that an earlier run held, name it in `approvals` with the release that run read. " +
-    "If the source has published another release since then, the slice is held again.\n\n" +
-    "The request is refused while the source has a queued or running run of the same kind, so wait until that one has ended. " +
     "A `remap` run cannot be started here: `PATCH /official/licensees/{id}` queues it.",
   body: importRunCreateSchema,
   response: {
@@ -29,7 +26,7 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, the source does not exist, a dataset does not belong to the source, " +
+    "The source does not exist, a dataset does not belong to the source, " +
     "the source has no enabled dataset and you named none, " +
     "or an approval names a dataset the run does not read or a release that does not cover its slice.",
   409: "The source already has a run of this kind that is queued or running.",

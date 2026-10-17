@@ -15,9 +15,7 @@ const schemaRoute = {
   summary: "List bands",
   description:
     "Returns all bands in one response, sorted by technology and then by `labelMhz`. " +
-    "Use `countryCodes` to get only the bands in the band plan of those countries. " +
-    "Countries that do not exist or that you cannot access match no bands. " +
-    "`number`, `downlinkKhz` and `uplinkKhz` come from the 3GPP catalogue, so a band without a `code` has none of them.",
+    "Countries in `countryCodes` that do not exist or that you cannot access match no bands.",
   querystring: bandListQuerySchema,
   response: {
     200: z.object({

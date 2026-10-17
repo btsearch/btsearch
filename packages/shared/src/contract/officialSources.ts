@@ -2,7 +2,6 @@ import { z } from "zod/v4";
 
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
-  LIMIT_NOTE,
   booleanQuerySchema,
   countryCodeSchema,
   csvCountryCodesSchema,
@@ -85,9 +84,7 @@ const RELEASE_SHA256_NOTE =
   "A release is the file, or the set of files, that the authority puts out together. " +
   "This is the SHA-256 hash that identifies its content, as 64 hexadecimal characters";
 const SOURCE_ENABLED_NOTE = "Whether imports of the source run on schedule. A run you start yourself is not affected";
-const SOURCE_VISIBLE_NOTE =
-  "Whether public responses include the source's data. It can only be `true` for a source whose terms allow redistribution, " +
-  "and the data stays hidden while the country it is in is hidden";
+const SOURCE_VISIBLE_NOTE = "Whether public responses include the source's data. It can only be `true` for a source whose terms allow redistribution";
 const DATASET_ENABLED_NOTE =
   "Whether the dataset is imported. `false` pauses this dataset alone: scheduled imports leave it out, " +
   "and so does a run you start without naming its datasets";
@@ -124,22 +121,19 @@ const LICENSEE_BRAND_NOTE =
 
 export const officialDatasetSliceSchema = z.object({
   key: z.string().describe(SLICE_KEY_NOTE),
-  importedAt: z.iso.datetime().nullable().describe("When the slice was last imported, or `null` if never"),
-  releaseSha256: z.string().nullable().describe(`The release that was imported last, or \`null\` if none is recorded. ${RELEASE_SHA256_NOTE}`),
+  importedAt: z.iso.datetime().nullable().describe("When the slice was last imported"),
+  releaseSha256: z.string().nullable().describe(`The release that was imported last. ${RELEASE_SHA256_NOTE}`),
 });
 export type OfficialDatasetSlice = z.infer<typeof officialDatasetSliceSchema>;
 
 export const officialDatasetSchema = z.object({
   id: idSchema,
-  sourceKey: z.string().describe("The key of the source the dataset belongs to"),
-  key: z.string().describe("The dataset's key, unique within its source"),
+  sourceKey: z.string(),
+  key: z.string().describe("Unique within its source"),
   layer: z
     .enum(OFFICIAL_LAYERS)
     .describe("What the dataset holds: `sites` for official sites with their permits, `microwaveLinks` for microwave links"),
-  importedAt: z.iso
-    .datetime()
-    .nullable()
-    .describe("When the dataset was last imported: the latest `importedAt` of its slices. `null` if it has never been imported"),
+  importedAt: z.iso.datetime().nullable().describe("When the dataset was last imported: the latest `importedAt` of its slices"),
   isEnabled: z.boolean().optional().describe(`${DATASET_ENABLED_NOTE}. ${ADMINISTRATORS_ONLY_NOTE}`),
   checkEveryHours: z.number().int().positive().optional().describe(`${CHECK_EVERY_HOURS_NOTE}. ${ADMINISTRATORS_ONLY_NOTE}`),
   nextCheckAt: z.iso
@@ -166,21 +160,18 @@ export const officialDatasetSchema = z.object({
 export type OfficialDataset = z.infer<typeof officialDatasetSchema>;
 
 export const officialSourceSchema = z.object({
-  key: z.string().describe("A unique key for the source. It identifies the source in paths and filters"),
+  key: z.string().describe("Identifies the source in paths and filters"),
   countryCode: countryCodeSchema.describe("The country of the authority that publishes the source"),
   shortName: z.string().describe("A short name for the authority, for places where the full name does not fit"),
   authority: z.string().describe("The full name of the authority that publishes the data"),
   homepageUrl: z.string().describe("The authority's website"),
   license: z.string().describe("The license the data is published under, as the authority states it"),
   attribution: z.string().describe("The credit to show wherever the source's data is shown"),
-  coverageNote: z.string().nullable().describe("What the source leaves out, to show next to the attribution. `null` if there is nothing to say"),
+  coverageNote: z.string().nullable().describe("What the source leaves out, to show next to the attribution"),
   isVisible: z.boolean().describe(SOURCE_VISIBLE_NOTE),
   isEnabled: z.boolean().optional().describe(`${SOURCE_ENABLED_NOTE}. ${ADMINISTRATORS_ONLY_NOTE}`),
-  isRedistributable: z
-    .boolean()
-    .optional()
-    .describe(`Whether the source's terms allow its data to be published. If not, the source can never be visible. ${ADMINISTRATORS_ONLY_NOTE}`),
-  datasets: z.array(officialDatasetSchema).describe("The parts of the source that are downloaded and imported on their own"),
+  isRedistributable: z.boolean().optional().describe(`Whether the source's terms allow its data to be published. ${ADMINISTRATORS_ONLY_NOTE}`),
+  datasets: z.array(officialDatasetSchema),
 });
 export type OfficialSource = z.infer<typeof officialSourceSchema>;
 
@@ -229,10 +220,7 @@ export type ImportRunSkipCount = z.infer<typeof importRunSkipCountSchema>;
 export const importRunDatasetSchema = z.object({
   datasetId: idSchema,
   datasetKey: z.string(),
-  error: z
-    .string()
-    .nullable()
-    .describe("Why the dataset failed in this run: its files could not be found, downloaded or read. `null` if it did not fail"),
+  error: z.string().nullable().describe("Why the dataset failed in this run: its files could not be found, downloaded or read"),
 });
 export type ImportRunDataset = z.infer<typeof importRunDatasetSchema>;
 
@@ -258,13 +246,13 @@ export const importRunSchema = z.object({
         "which can still include failed datasets (`datasets`) and held slices (`hasHeldSlices`). " +
         "`failed`: it stopped with `error`. `cancelled`: an administrator stopped it",
     ),
-  error: z.string().nullable().describe("Why the run failed, or `null` if it has not failed"),
+  error: z.string().nullable(),
   attempt: z
     .number()
     .int()
     .nonnegative()
     .describe("How many times the run has been started. More than 1 means it was picked up again. A run that would need a sixth start fails instead"),
-  requester: userRefSchema.nullable().describe("The user who asked for the run. `null` for a scheduled run and for one queued from the command line"),
+  requester: userRefSchema.nullable().describe("`null` for a scheduled run and for one queued from the command line"),
   remap: importRunRemapSchema.nullable().describe("What a `remap` run changes. `null` for every other kind"),
   datasets: z.array(importRunDatasetSchema).describe("The datasets the run reads. Empty for a `remap` and a `relink` run"),
   hasHeldSlices: z.boolean().describe("Whether the run held at least one slice instead of applying it. Always `false` for a dry run"),
@@ -272,13 +260,13 @@ export const importRunSchema = z.object({
     .array(importRunChangeCountSchema)
     .describe("What the run changed, counted by kind. Kinds without a change are left out, and the list is empty for a dry run"),
   createdAt: z.iso.datetime().describe("When the run was queued"),
-  startedAt: z.iso.datetime().nullable().describe("When the run first started, or `null` if it has not started yet"),
+  startedAt: z.iso.datetime().nullable().describe("When the run first started"),
   claimedAt: z.iso.datetime().nullable().describe("When the run was last picked up. It is later than `startedAt` after the run was picked up again"),
   heartbeatAt: z.iso
     .datetime()
     .nullable()
     .describe("When the run last reported that it is still working. A running run that stays silent for 10 minutes is picked up again"),
-  finishedAt: z.iso.datetime().nullable().describe("When the run ended, whatever its status. `null` while it is queued or running"),
+  finishedAt: z.iso.datetime().nullable().describe("When the run ended, whatever its status"),
 });
 export type ImportRun = z.infer<typeof importRunSchema>;
 
@@ -299,7 +287,7 @@ export const importRunStepSchema = z.object({
   step: z.enum(IMPORT_RUN_STEPS),
   startedAt: z.iso.datetime().nullable(),
   finishedAt: z.iso.datetime().nullable().describe("`null` while the step is running, and when it failed"),
-  error: z.string().nullable().describe("Why the step failed, or `null` if it has not failed"),
+  error: z.string().nullable(),
 });
 export type ImportRunStep = z.infer<typeof importRunStepSchema>;
 
@@ -372,7 +360,7 @@ export const importRunListQuerySchema = z
     sourceKeys: csvSourceKeysSchema.optional(),
     kinds: csvEnumSchema(IMPORT_RUN_KINDS).optional(),
     statuses: csvEnumSchema(IMPORT_RUN_STATUSES).optional(),
-    isDryRun: booleanQuerySchema.optional().describe("`true` returns only dry runs, `false` only runs that are not"),
+    isDryRun: booleanQuerySchema.optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
   })
@@ -425,13 +413,13 @@ export type ImportRunCreate = z.infer<typeof importRunCreateSchema>;
 
 export const licenseeSchema = z.object({
   id: idSchema,
-  sourceKey: z.string().describe("The key of the source that names the licensee"),
+  sourceKey: z.string(),
   name: z.string().describe("A short form of the name, without the company's legal form"),
   legalName: z.string().describe("The licensee's name as the source publishes it"),
   operatorId: idSchema
     .nullable()
     .describe(`${LICENSEE_OPERATOR_NOTE}. While it is \`null\`, the official sites and permits published under this name are not imported`),
-  brandId: idSchema.nullable().describe(`${LICENSEE_BRAND_NOTE}. \`null\` if it has none`),
+  brandId: idSchema.nullable().describe(LICENSEE_BRAND_NOTE),
 });
 export type Licensee = z.infer<typeof licenseeSchema>;
 
@@ -441,11 +429,9 @@ export const licenseeListQuerySchema = z
   .object({
     ids: csvIdsSchema.optional().describe("Returns only the licensees with these ids. Comma-separated ids"),
     sourceKeys: csvSourceKeysSchema.optional(),
-    hasOperator: booleanQuerySchema.optional().describe("`false` returns only the licensees without an operator, `true` only those with one"),
-    hasMicrowaveLinks: booleanQuerySchema
-      .optional()
-      .describe("`true` returns only the licensees that hold at least one microwave link, `false` only those that hold none"),
-    limit: z.coerce.number<number>().int().min(1).max(MAX_LICENSEE_LIST_LIMIT).default(50).describe(LIMIT_NOTE),
+    hasOperator: booleanQuerySchema.optional(),
+    hasMicrowaveLinks: booleanQuerySchema.optional(),
+    limit: z.coerce.number<number>().int().min(1).max(MAX_LICENSEE_LIST_LIMIT).default(50),
     cursor: cursorSchema.optional(),
   })
   .strict();
@@ -466,7 +452,7 @@ export const licenseeUpdateSchema = z
         `${LICENSEE_OPERATOR_NOTE}. It is set at once for a licensee without an operator. ` +
           "For a licensee that has one, another operator or `null` queues a `remap` run instead of changing the licensee",
       ),
-    brandId: idSchema.nullable().optional().describe(`${LICENSEE_BRAND_NOTE}. \`null\` removes it`),
+    brandId: idSchema.nullable().optional().describe(LICENSEE_BRAND_NOTE),
     isDryRun: z
       .boolean()
       .optional()
@@ -485,6 +471,6 @@ export type LicenseeUpdate = z.infer<typeof licenseeUpdateSchema>;
 
 export const licenseeUpdateAnswerSchema = z.object({
   data: licenseeSchema,
-  importRun: importRunSchema.nullable().describe("The import run the request queued: a `replay` or a `remap`. `null` if it queued none"),
+  importRun: importRunSchema.nullable().describe("The import run the request queued: a `replay` or a `remap`"),
 });
 export type LicenseeUpdateAnswer = z.infer<typeof licenseeUpdateAnswerSchema>;

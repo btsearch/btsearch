@@ -12,11 +12,7 @@ import { firstPartyOnlyHook } from "../../../../middlewares/firstParty.middlewar
 const schemaRoute = {
   summary: "Search for places",
   description:
-    "Returns up to 5 places that match `q`. It is meant for the site's own forms.\n\n" +
-    "Only the site itself can use this endpoint.\n\n" +
-    "The search is forwarded to an external geocoding provider, and `source` tells you which provider the results came from. " +
-    "If the providers do not support the requested `language`, the results are in English. Results are cached for a day. " +
-    "The list is empty if the server has no geocoding provider configured.",
+    "Returns up to 5 places that match `q`. Results are cached for a day. " + "The list is empty if the server has no geocoding provider configured.",
   querystring: geocodingSearchQuerySchema,
   response: {
     200: z.object({
@@ -25,11 +21,9 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  403:
-    "The request did not come from the site itself. Also returned when your API key or token cannot be used for this endpoint, " +
-    "two-factor authentication still has to be set up, or the endpoint is disabled.",
+  403: "The request did not come from the site itself.",
   429: "You can make up to 20 searches per minute. Editors and administrators have no limit.",
-  503: "Every geocoding provider failed and there is no cached result to fall back on, or the rate limit counter is unavailable. Try again later.",
+  503: "Every geocoding provider failed and there is no cached result to fall back on, or the rate limit counter is unavailable.",
 };
 type ReqQuery = { Querystring: GeocodingSearchQuery };
 

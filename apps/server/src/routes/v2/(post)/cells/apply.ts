@@ -11,12 +11,9 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Create and update cells on several stations",
   description:
-    "Creates and updates cells on up to 50 stations in one request. Use this to save what a log analysis confirmed. " +
-    "Everything is saved in a single transaction, so a failed request changes nothing. " +
+    "A failed request changes nothing. " +
     "The first cell turns a station that is awaiting cells into an active one, and users who watch a station are notified. " +
-    "As an editor you need access to every station in the request.\n\n" +
-    "Every cell you list is marked as confirmed, so an update that names only the cell's `id` confirms that cell and changes nothing else. " +
-    "The whole request is recorded as one audit operation, and `operationId` is its id.\n\n" +
+    "An update that names only the cell's `id` confirms that cell and changes nothing else.\n\n" +
     "When a request fails because of one station, `details[0].field` in the error is that station's position in the request, " +
     "starting at 0. For an invalid value it is the full path, such as `0/cells/1/pci` for station 0, cell 1.",
   body: cellApplyManySchema,
@@ -26,12 +23,12 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request did not pass validation, or a cell cannot be saved as sent. For example, its band is not in the country's band plan " +
+    "A cell cannot be saved as sent. For example, its band is not in the country's band plan " +
     "or belongs to another technology, the same cell identifiers appear twice in the request, " +
     "or the changes for one station contain more than one new LTE TAC in a country where all LTE cells of a station share one TAC. " +
     "The `message` tells you what is wrong.",
   403:
-    "A permission is missing, or your editor access does not cover every station in the request. " +
+    "Your editor access does not cover every station in the request. " +
     "Editors also get this response when none of the stations exist. This response does not say which station it is about.",
   404: "One of the stations does not exist, or a cell you want to update does not belong to the station it is listed under.",
   409:

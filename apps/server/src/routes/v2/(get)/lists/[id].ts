@@ -14,13 +14,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Get a list",
-  description:
-    "Returns one list. Guests and other users can only read lists that are public. " +
-    "A private list is only returned to its owner and to administrators. " +
-    "Asking for `include=owner` on someone else's list also needs an administrator. " +
-    "`notificationsEnabled` is `null` unless the list is yours. " +
-    "Stations in countries you cannot access are left out of `itemCounts` and `items`, " +
-    "and so are official sites and microwave links of sources that are hidden from you.",
+  description: "Asking for `include=owner` on someone else's list needs an administrator.",
   params: listParamsSchema,
   querystring: listQuerySchema,
   response: {
@@ -31,7 +25,7 @@ const schemaRoute = {
 };
 const errorReasons = {
   403: "Lists are disabled, or you asked for `include=owner` on someone else's list without being an administrator.",
-  404: "The list does not exist, or it is private and not yours.",
+  404: "The list is private and not yours.",
 };
 type RequestData = { Params: z.infer<typeof listParamsSchema>; Querystring: ListQuery };
 

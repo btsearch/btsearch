@@ -12,7 +12,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "List brands",
-  description: "Returns all brands in one response, sorted by name. `logo.url` is a path from the site root, not from the API base path.",
+  description: "Brands are sorted by name.",
   querystring: z.object({}).strict(),
   response: {
     200: z.object({

@@ -14,10 +14,6 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Create a band",
   description:
-    "Creates a band from the 3GPP catalogue. " +
-    "You cannot invent a band, so `code` has to be a catalogue code such as `E-GSM900`, `VIII`, `B3` or `n78`. " +
-    "The technology, duplex mode and frequency ranges are taken from the catalogue, and so is `labelMhz` if you leave it out. " +
-    "Each catalogue band can exist once per `variant`, which defaults to `commercial`. " +
     "A new band is not in any country's band plan yet, so add it with `PUT /countries/{code}/bands/{bandId}` before cells there can use it.",
   body: bandCreateSchema,
   response: {
@@ -27,7 +23,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, `code` is not in the 3GPP catalogue, or it is an uplink-only band, which cannot hold cells.",
+  400: "`code` is not in the 3GPP catalogue, or it is an uplink-only band, which cannot hold cells.",
   409: "This catalogue band already exists with the same `variant`, or another band already uses this `name`.",
 };
 type ReqBody = { Body: BandCreate };

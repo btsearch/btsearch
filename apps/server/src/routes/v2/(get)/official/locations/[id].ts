@@ -9,10 +9,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "Get an official location",
-  description:
-    "Returns a single location of an official register. The site filters never hide the location itself. " +
-    "They only select which sites are included with `include=sites`, and `rats` and `bandLabels` also select their permits. " +
-    "With `keepOtherCountries=true`, `operatorIds` is only applied if the location is in a country its operators belong to.",
+  description: "The site filters never hide the location itself. They only select which sites are included with `include=sites`.",
   params: officialLocationParamsSchema,
   querystring: officialLocationQuerySchema,
   response: {
@@ -22,12 +19,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  403:
-    "Lists are disabled and you sent `listId`. Also returned when your API key or token cannot be used for this endpoint, " +
-    "two-factor authentication still has to be set up, or the endpoint is disabled.",
-  404:
-    "The location does not exist, its source is hidden, or it is in a country you cannot access. " +
-    "Also returned when the list in `listId` does not exist or is a private list you cannot access.",
+  403: "Lists are disabled and you sent `listId`.",
+  404: "Also returned when the list in `listId` does not exist or is a private list you cannot access.",
 };
 type RequestData = { Params: z.infer<typeof officialLocationParamsSchema>; Querystring: OfficialLocationQuery };
 

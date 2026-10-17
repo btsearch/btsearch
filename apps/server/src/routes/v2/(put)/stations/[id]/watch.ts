@@ -12,16 +12,14 @@ import type { EmptyResponse, Route } from "../../../../../interfaces/routes.inte
 const schemaRoute = {
   summary: "Watch a station",
   description:
-    "Starts watching a station. " +
-    "You are then notified when its cells change, an approved submission adds photos to it, " +
+    "You are notified when the station's cells change, an approved submission adds photos to it, " +
     "a comment on it is approved or its official permits change. " +
     "Watching a station you already watch changes nothing and returns 204 as well.",
   params: stationParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys cannot be used here, because a watch belongs to a user account.",
-  404: "The station does not exist, or it is in a country you cannot access.",
+  401: "API keys cannot be used here, because a watch belongs to a user account.",
 };
 type ReqParams = { Params: z.infer<typeof stationParamsSchema> };
 

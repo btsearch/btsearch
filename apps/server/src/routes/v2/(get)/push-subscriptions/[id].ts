@@ -23,10 +23,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys are not accepted here, so use a session or an OAuth token.",
-  403:
-    "The OAuth token does not have the `profile` scope. " +
-    "Also returned when two-factor authentication still has to be set up or the endpoint is disabled.",
+  401: "API keys are not accepted here.",
+  403: "The OAuth token does not have the `profile` scope.",
   404: "The subscription does not exist or is not yours.",
 };
 type ReqParams = { Params: z.infer<typeof pushSubscriptionParamsSchema> };

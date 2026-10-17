@@ -11,18 +11,13 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Mark all notifications as read",
-  description:
-    "Marks all your unread notifications as read. " +
-    "With `updatedBefore`, only notifications last updated at or before that time are marked. Send the time you loaded the list, " +
-    "so that notifications that arrived or changed after that stay unread.",
+  description: "Send the time you loaded the list as `updatedBefore`, so that notifications that arrived or changed after that stay unread.",
   querystring: notificationsReadQuerySchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys are not accepted here, so use a session or an OAuth token.",
-  403:
-    "The OAuth token does not have the `profile` scope. " +
-    "Also returned when two-factor authentication still has to be set up or the endpoint is disabled.",
+  401: "API keys are not accepted here.",
+  403: "The OAuth token does not have the `profile` scope.",
 };
 type ReqQuery = { Querystring: NotificationsReadQuery };
 

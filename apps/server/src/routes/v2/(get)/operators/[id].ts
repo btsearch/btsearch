@@ -35,10 +35,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const getOperator: Route<ReqParams, Operator> = {
   url: "/operators/:id",
   method: "GET",
-  config: {
-    allowGuestAccess: true,
-    errorReasons: { 404: "The operator does not exist, or it is in a country you cannot access." },
-  },
+  config: { allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

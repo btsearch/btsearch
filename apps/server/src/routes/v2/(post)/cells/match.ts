@@ -11,7 +11,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Match cells from a phone log",
   description:
-    "Compares cells seen by a phone with the database and tells you, for each one, whether the cell or at least its base station is known. " +
+    "Tells you, for each cell a phone saw, whether the cell or at least its base station is known. " +
     "Nothing is changed. The request is only counted in the log analyzer usage statistics. " +
     "Cells are only matched against active stations, and networks or stations in countries you cannot access are reported as unknown. " +
     "You can send 30 requests per minute. Signed in as an editor you can send 120, and administrators are not limited. " +

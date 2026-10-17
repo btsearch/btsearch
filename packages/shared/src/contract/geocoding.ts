@@ -13,17 +13,13 @@ const languageSchema = z
   .regex(/^[a-z]{2}$/, "Must be a two-letter language code in lower case")
   .default("en");
 
-const LANGUAGE_NOTE =
-  "The language of the returned names, as a two-letter code such as `de`. English is used if the geocoding providers do not support it";
+const LANGUAGE_NOTE = "The language of the returned names. English is used if the geocoding providers do not support it";
 
 export const geocodedPlaceSchema = z.object({
   id: z.string().describe("An opaque id that tells the results apart. It is not an id in the database"),
-  source: z.enum(GEOCODING_SOURCES).describe("The geocoding provider the place came from"),
+  source: z.enum(GEOCODING_SOURCES),
   name: z.string().describe("The main label of the place, such as a street with a house number or the name of a city"),
-  description: z
-    .string()
-    .nullable()
-    .describe("A second label that says where the place is, such as its postcode, city and country. `null` if there is nothing to add to `name`"),
+  description: z.string().nullable().describe("A second label that says where the place is, such as its postcode, city and country"),
   kind: z
     .enum(GEOCODING_KINDS)
     .describe(
@@ -39,7 +35,7 @@ export const geocodedPlaceSchema = z.object({
     city: z.string().nullable(),
     municipality: z.string().nullable(),
     county: z.string().nullable(),
-    region: z.string().nullable().describe("The name of the state, province or similar division, taken from the geocoding provider"),
+    region: z.string().nullable().describe("The state, province or similar division"),
     country: z.string().nullable(),
     countryCode: countryCodeSchema.nullable(),
   }),
@@ -48,8 +44,8 @@ export type GeocodedPlace = z.infer<typeof geocodedPlaceSchema>;
 
 export const geocodingSearchQuerySchema = z
   .object({
-    q: z.string().trim().min(3).max(200).describe("The address or place name to search for"),
-    countryCodes: csvCountryCodesSchema.optional().describe("Limits the search to these countries. Comma-separated two-letter country codes"),
+    q: z.string().trim().min(3).max(200),
+    countryCodes: csvCountryCodesSchema.optional(),
     language: languageSchema.describe(LANGUAGE_NOTE),
   })
   .strict();

@@ -14,9 +14,7 @@ import type { JSONBody, Route } from "../../../../../../interfaces/routes.interf
 
 const schemaRoute = {
   summary: "Add a band to a country's band plan",
-  description:
-    "Adds the band to the country's band plan and returns the entry. The request has no body, and nothing changes if the band is already " +
-    "in the plan. Cells in that country can use any band in the plan.",
+  description: "Nothing changes if the band is already in the plan.",
   params: countryBandParamsSchema,
   response: {
     200: z.object({
@@ -59,10 +57,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const putCountryBand: Route<ReqParams, CountryBand> = {
   url: "/countries/:code/bands/:bandId",
   method: "PUT",
-  config: {
-    permissions: ["update:countries"],
-    errorReasons: { 404: "The country or the band does not exist." },
-  },
+  config: { permissions: ["update:countries"] },
   schema: schemaRoute,
   handler,
 };

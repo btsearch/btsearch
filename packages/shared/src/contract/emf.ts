@@ -3,8 +3,6 @@ import { z } from "zod/v4";
 import { CELL_RATS } from "./cells.ts";
 import {
   CURSOR_OR_OFFSET_ISSUE,
-  INCLUDE_TOTAL_NOTE,
-  LIMIT_NOTE,
   MAX_ID,
   booleanQuerySchema,
   csvEnumSchema,
@@ -50,16 +48,14 @@ export type EmfSiteReference = {
 };
 
 const siteReferenceShape = {
-  stationId: idQuerySchema.optional().describe("The id of a station in the database"),
-  officialSiteId: idQuerySchema.optional().describe("The id of a site in the official register"),
+  stationId: idQuerySchema.optional(),
+  officialSiteId: idQuerySchema.optional(),
   siteId: siteIdQuerySchema
     .optional()
     .describe("The operator's site id, for a station that is not in the database. Requires `latitude` and `longitude`"),
   latitude: latitudeQuerySchema.optional(),
   longitude: longitudeQuerySchema.optional(),
-  operatorId: idQuerySchema
-    .optional()
-    .describe("The operator of the site, used together with `siteId`. `GET /emf/reports` needs it to find the operator's filings"),
+  operatorId: idQuerySchema.optional().describe("Used together with `siteId`. `GET /emf/reports` needs it to find the operator's filings"),
 };
 const SITE_REFERENCE_ISSUE = { message: "Send one of: stationId, officialSiteId, or siteId with latitude and longitude" };
 
@@ -73,12 +69,12 @@ function namesOneSite(query: EmfSiteReference): boolean {
 export const emfReportSchema = z.object({
   kind: z.enum(EMF_REPORT_KINDS).describe("`measurement` for a report of a measurement, `filing` for the report an operator attached to a filing"),
   url: z.url(),
-  measuredOn: daySchema.nullable().describe("The day of the measurement. `null` for a filing"),
-  registeredOn: daySchema.nullable().describe("The day the filing was registered. `null` for a measurement"),
-  publishedAt: z.iso.datetime().nullable().describe("When the filing was published. `null` for a measurement"),
-  laboratoryName: z.string().nullable().describe("The laboratory that made the measurement. `null` if it is not known, and for a filing"),
-  filerName: z.string().nullable().describe("The company that submitted the filing. `null` for a measurement"),
-  installationDocumentUrl: z.url().nullable().describe("The installation document attached to the filing, if any. `null` for a measurement"),
+  measuredOn: daySchema.nullable().describe("`null` for a filing"),
+  registeredOn: daySchema.nullable().describe("`null` for a measurement"),
+  publishedAt: z.iso.datetime().nullable().describe("`null` for a measurement"),
+  laboratoryName: z.string().nullable().describe("`null` for a filing, and when the laboratory is not known"),
+  filerName: z.string().nullable().describe("`null` for a measurement"),
+  installationDocumentUrl: z.url().nullable().describe("`null` for a measurement"),
   hasAntennaTable: z.boolean().describe("`true` for a laboratory report, the only kind that `GET /emf/antennas` reads"),
 });
 export type EmfReport = z.infer<typeof emfReportSchema>;
@@ -88,7 +84,7 @@ export type EmfReportListQuery = z.infer<typeof emfReportListQuerySchema>;
 
 export const emfAntennaBandSchema = z.object({
   label: z.string().nullable().describe("The band as it appears in the report, for example `LTE1800`"),
-  rat: z.enum(CELL_RATS).nullable().describe("`null` if the technology cannot be told from the report"),
+  rat: z.enum(CELL_RATS).nullable(),
   frequencyMhz: z.number(),
   eirpWatts: z.number().nullable(),
   tiltRange: z.object({ min: z.number(), max: z.number() }).nullable().describe("The tilt range given in the report, in degrees"),
@@ -97,7 +93,7 @@ export const emfAntennaBandSchema = z.object({
 export type EmfAntennaBand = z.infer<typeof emfAntennaBandSchema>;
 
 export const emfAntennaSchema = z.object({
-  rowNumber: z.number().int().nullable().describe("The row's number in the report's table"),
+  rowNumber: z.number().int().nullable(),
   pageNumber: z.number().int(),
   model: z.string().nullable(),
   manufacturer: z.string().nullable(),
@@ -110,13 +106,15 @@ export type EmfAntenna = z.infer<typeof emfAntennaSchema>;
 
 export const emfReportHeadSchema = z.object({
   url: z.url(),
-  measuredOn: daySchema.nullable().describe("The day of the measurement. `null` if the register does not give it"),
-  laboratoryName: z.string().nullable().describe("The laboratory that made the measurement. `null` if it is not known"),
+  measuredOn: daySchema.nullable(),
+  laboratoryName: z.string().nullable(),
 });
 export type EmfReportHead = z.infer<typeof emfReportHeadSchema>;
 
 export const emfAntennaReportSchema = z.object({
-  report: emfReportHeadSchema.nullable().describe("The report the antennas were read from, or `null` if the site has no laboratory report"),
+  report: emfReportHeadSchema
+    .nullable()
+    .describe("The report the antennas were read from, or `null` if the site has no laboratory report or the station has no location"),
   antennas: z.array(emfAntennaSchema).describe("Empty when the report has no antenna table that could be read"),
 });
 export type EmfAntennaReport = z.infer<typeof emfAntennaReportSchema>;
@@ -132,8 +130,8 @@ export type EmfAntennaQuery = z.infer<typeof emfAntennaQuerySchema>;
 
 const emfSiteShape = {
   siteId: z.string().nullable(),
-  operatorId: z.number().int().nullable().describe("The operator matched to the company SI2PEM names, or `null` if there is no match"),
-  stationId: z.number().int().nullable().describe("The station in the database with this site id and operator, or `null` if there is none"),
+  operatorId: z.number().int().nullable().describe("The operator matched to the company SI2PEM names"),
+  stationId: z.number().int().nullable().describe("The station with this site id and operator"),
 };
 const emfPlaceShape = {
   location: z.object({
@@ -142,7 +140,7 @@ const emfPlaceShape = {
     city: z.string().nullable(),
     address: z.string().nullable(),
   }),
-  regionId: z.number().int().nullable().describe("The region matched to the one SI2PEM names, or `null` if there is no match"),
+  regionId: z.number().int().nullable().describe("The region matched to the one SI2PEM names"),
 };
 const emfIncludeShape = {
   operator: operatorSchema.nullable().optional().describe("Only returned with `include=operator`"),
@@ -150,7 +148,7 @@ const emfIncludeShape = {
 };
 
 export const emfMeasurementSchema = z.object({
-  id: z.number().int().nullable().describe("The measurement's number in SI2PEM. `null` for rows requested with `bbox`, where SI2PEM provides none"),
+  id: z.number().int().nullable().describe("The measurement's number in SI2PEM. `null` for rows requested with `bbox`"),
   ...emfSiteShape,
   status: z.enum(EMF_MEASUREMENT_STATUSES),
   startsOn: daySchema.nullable(),
@@ -173,7 +171,7 @@ export type EmfInactiveSite = z.infer<typeof emfInactiveSiteSchema>;
 export const emfFilingSchema = z.object({
   ...emfSiteShape,
   siteName: z.string().nullable(),
-  filerName: z.string().nullable().describe("The company that submitted the filing, or the site's operator if SI2PEM names no filer"),
+  filerName: z.string().nullable().describe("Falls back to the site's operator if SI2PEM names no filer"),
   publishedAt: z.iso.datetime(),
   registeredOn: daySchema.nullable(),
   referenceNumber: z.string().nullable(),
@@ -184,19 +182,11 @@ export const emfFilingSchema = z.object({
 });
 export type EmfFiling = z.infer<typeof emfFilingSchema>;
 
-const emfOffsetSchema = z.coerce
-  .number<number>()
-  .int()
-  .min(0)
-  .max(EMF_OFFSET_LIMIT)
-  .describe(
-    `The number of items to skip. It can be as high as ${EMF_OFFSET_LIMIT.toLocaleString("en-US")}, so you can jump straight to the last page. ` +
-      "Cannot be combined with `cursor`",
-  );
+const emfOffsetSchema = z.coerce.number<number>().int().min(0).max(EMF_OFFSET_LIMIT).describe("Cannot be combined with `cursor`");
 const pagingShape = {
   cursor: cursorSchema.optional(),
   offset: emfOffsetSchema.optional(),
-  includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+  includeTotal: booleanQuerySchema.optional(),
 };
 const CSV_IDS_NOTE = "Comma-separated ids";
 const REGISTER_ORDER_NOTE = "SI2PEM's register accepts one value per request, so results for several values are returned one group after another";
@@ -214,19 +204,13 @@ export const emfMeasurementListQuerySchema = z
           "Defaults to `planned`, the only status available with `bbox`",
       ),
     operatorIds: csvIdsSchema.optional().describe(`${CSV_IDS_NOTE}. ${REGISTER_ORDER_NOTE}`),
-    regionIds: csvIdsSchema.optional().describe(`${CSV_IDS_NOTE}. Cannot be combined with \`bbox\`, where SI2PEM does not provide the region`),
+    regionIds: csvIdsSchema.optional().describe(`${CSV_IDS_NOTE}. Cannot be combined with \`bbox\``),
     siteId: siteIdFilterSchema.optional(),
     bbox: bboxSchema
       .optional()
       .describe("Bounding box as `west,south,east,north` in degrees. If set, the list comes from SI2PEM's map layer instead of its register"),
     include: csvEnumSchema(EMF_INCLUDES).optional(),
-    limit: z.coerce
-      .number<number>()
-      .int()
-      .min(1)
-      .max(1000)
-      .default(50)
-      .describe(`${LIMIT_NOTE}. At most ${EMF_REGISTER_PAGE_LIMIT} without \`bbox\``),
+    limit: z.coerce.number<number>().int().min(1).max(1000).default(50).describe(`At most ${EMF_REGISTER_PAGE_LIMIT} without \`bbox\``),
     ...pagingShape,
   })
   .strict()
@@ -261,7 +245,7 @@ export const emfInactiveSiteListQuerySchema = z
     regionIds: csvIdsSchema.optional(),
     siteId: siteIdFilterSchema.optional(),
     include: csvEnumSchema(EMF_INCLUDES).optional(),
-    limit: z.coerce.number<number>().int().min(1).max(1000).default(50).describe(LIMIT_NOTE),
+    limit: z.coerce.number<number>().int().min(1).max(1000).default(50),
     ...pagingShape,
   })
   .strict()
@@ -280,7 +264,7 @@ export const emfFilingListQuerySchema = z
     regionIds: csvIdsSchema.optional(),
     siteId: siteIdFilterSchema.optional(),
     include: csvEnumSchema(EMF_INCLUDES).optional(),
-    limit: z.coerce.number<number>().int().min(1).max(EMF_REGISTER_PAGE_LIMIT).default(50).describe(LIMIT_NOTE),
+    limit: z.coerce.number<number>().int().min(1).max(EMF_REGISTER_PAGE_LIMIT).default(50),
     ...pagingShape,
   })
   .strict()

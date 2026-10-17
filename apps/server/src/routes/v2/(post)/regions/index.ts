@@ -14,9 +14,6 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Create a region",
-  description:
-    "Creates a region in a country. `code` and `name` must be unique within the country. " +
-    "If you send an `isoCode`, it must start with the country's code and be unique across all regions.",
   body: regionCreateSchema,
   response: {
     201: z.object({
@@ -25,7 +22,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, the country does not exist, or `isoCode` does not start with the country's code.",
+  400: "The country does not exist, or `isoCode` does not start with the country's code.",
   409: "The country already has a region with this code or name, or another region already has this `isoCode`.",
 };
 type ReqBody = { Body: RegionCreate };

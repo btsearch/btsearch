@@ -9,7 +9,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Get a station",
-  description: "Returns a single station. Inactive stations are returned too, even though `GET /stations` leaves them out by default.",
+  description: "Inactive stations are returned too, even though `GET /stations` leaves them out by default.",
   params: stationParamsSchema,
   querystring: stationQuerySchema,
   response: {
@@ -30,7 +30,6 @@ const getStation: Route<RequestData, Station> = {
   config: {
     permissions: ["read:stations"],
     allowGuestAccess: true,
-    errorReasons: { 404: "The station does not exist, or it is in a country you cannot access." },
   },
   schema: schemaRoute,
   handler,

@@ -14,17 +14,13 @@ const schemaRoute = {
   summary: "Deactivate a station",
   description:
     "Deactivates a station instead of deleting it. Its status becomes `inactive`, and its cells, photos, comments and history are kept. " +
-    "`GET /stations` leaves inactive stations out unless you ask for them with `statuses`, but you can still get one by id, " +
-    "and `PATCH /stations/{id}` with `station.status` reactivates it. " +
+    "`PATCH /stations/{id}` with `station.status` reactivates it. " +
     "A station that stays inactive and unchanged for six months is deleted permanently, along with its cells.",
   params: stationParamsSchema,
   response: { 204: noContentSchema.describe("The station is inactive now. Also returned if it already was, in which case nothing changes.") },
 };
 const errorReasons = {
-  403:
-    "A permission is missing, or your editor access does not cover the station's country or region. " +
-    "Editors also get this response when the station does not exist.",
-  404: "The station does not exist.",
+  403: "Editors also get this response when the station does not exist.",
 };
 type RequestData = { Params: z.infer<typeof stationParamsSchema> };
 

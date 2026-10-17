@@ -2,13 +2,10 @@ import { z } from "zod/v4";
 
 export const countryCodeSchema = z.string().regex(/^[A-Z]{2}$/, "Must be a two-letter country code in upper case");
 
-export const LIMIT_NOTE = "The maximum number of items to return";
-export const INCLUDE_TOTAL_NOTE = "Set to `true` to include `paging.total`, the total number of matching items";
-
 export const pagingSchema = z.object({
-  limit: z.number().int().positive().describe("The page size that was used"),
-  nextCursor: z.string().nullable().describe("Pass it as `cursor` to get the next page. `null` on the last page"),
-  total: z.number().int().nonnegative().optional().describe("The total number of matching items. Only returned with `includeTotal=true`"),
+  limit: z.number().int().positive(),
+  nextCursor: z.string().nullable(),
+  total: z.number().int().nonnegative().optional().describe("Only returned with `includeTotal=true`"),
 });
 export type Paging = z.infer<typeof pagingSchema>;
 
@@ -82,15 +79,10 @@ export const bboxSchema = csvSchema
   .describe("Bounding box as `west,south,east,north` in degrees. West may be greater than east for a box that crosses the 180th meridian");
 export type Bbox = z.infer<typeof bboxSchema>;
 
-export const limitSchema = z.coerce.number<number>().int().min(1).max(200).default(50).describe(LIMIT_NOTE);
-export const cursorSchema = z.string().min(1).max(512).describe("The `paging.nextCursor` of the previous page. Omit it to get the first page");
+export const limitSchema = z.coerce.number<number>().int().min(1).max(200).default(50);
+export const cursorSchema = z.string().min(1).max(512);
 export const OFFSET_LIMIT = 100_000;
-export const offsetSchema = z.coerce
-  .number<number>()
-  .int()
-  .min(0)
-  .max(OFFSET_LIMIT)
-  .describe("The number of items to skip. Cannot be combined with `cursor`");
+export const offsetSchema = z.coerce.number<number>().int().min(0).max(OFFSET_LIMIT).describe("Cannot be combined with `cursor`");
 
 export const CURSOR_OR_OFFSET_ISSUE = { path: ["offset"], error: "Use either cursor or offset" };
 

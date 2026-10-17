@@ -15,7 +15,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Create a structure owner",
   description:
-    "Creates a structure owner. An owner with a `countryCode` can only be used on locations in that country, " +
+    "An owner with a `countryCode` can only be used on locations in that country, " +
     "so leave it out for a company that owns structures in several countries. " +
     "Administrators can create any owner. Editors can only create an owner for a country they have a grant in: " +
     "it needs a `countryCode` of such a country, and it cannot have a `brandId` or an `operatorId`.",
@@ -27,10 +27,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, the country, brand or operator does not exist, or the operator belongs to a different country than the owner.",
-  403:
-    "You need to be an administrator, or an editor with a grant in the owner's country. " +
-    "Only administrators can create an owner without a `countryCode`, or with a `brandId` or an `operatorId`.",
+  400: "The country, brand or operator does not exist, or the operator belongs to a different country than the owner.",
+  403: "Only administrators can create an owner without a `countryCode`, or with a `brandId` or an `operatorId`.",
   409:
     "An owner with the same `name`, compared case-insensitively, already exists in that country or among the owners without a country. " +
     "Also returned when the operator already has an owner entry.",

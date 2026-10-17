@@ -12,7 +12,7 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 const schemaRoute = {
   summary: "Delete a comment",
   description:
-    "Deletes a comment along with the photos attached to it. " +
+    "The photos attached to the comment are deleted with it. " +
     "You need to be the author or a moderator, which means an administrator or an editor whose grant covers the comment's station. " +
     "This endpoint keeps working while comments are disabled.",
   params: commentParamsSchema,
@@ -20,7 +20,6 @@ const schemaRoute = {
 };
 const errorReasons = {
   403: "You need to be the author or a moderator.",
-  404: "The comment does not exist.",
 };
 type ReqParams = { Params: z.infer<typeof commentParamsSchema> };
 

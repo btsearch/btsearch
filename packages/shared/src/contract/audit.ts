@@ -3,7 +3,6 @@ import { z } from "zod/v4";
 import { AUDIT_ENTITIES, AUDIT_OPERATION_KINDS, AUDIT_OPS, AUDIT_SOURCES } from "../audit.ts";
 import {
   CURSOR_OR_OFFSET_ISSUE,
-  INCLUDE_TOTAL_NOTE,
   MAX_ID,
   booleanQuerySchema,
   countryCodeSchema,
@@ -62,23 +61,20 @@ const auditOffsetSchema = z.coerce
   .int()
   .min(0)
   .max(MAX_ID)
-  .describe("The number of operations to skip. It can reach any depth, so you can jump straight to the last page. Cannot be combined with `cursor`");
+  .describe("Can reach any depth, so you can jump straight to the last page. Cannot be combined with `cursor`");
 
 const storedMetadataSchema = z.record(z.string(), z.unknown()).nullable().describe("Returned as stored, without renaming its keys");
 
-const REVERTS_NOTE = "The operation this one reverts, or `null` if this operation is not a revert";
-const REVERTED_BY_NOTE = "The operation that reverted this one. `null` if this operation has not been reverted, or only in part";
+const REVERTED_BY_NOTE = "`null` if this operation has not been reverted, or only in part";
 const RECORD_ID_NOTE =
   "The id of the changed row, a number or a UUID depending on the table. " +
   "`null` for entries that cover a set of rows, such as a station's sectors or photo selection, and for the settings";
-const ENTRY_STATION_NOTE = "The station the change belongs to, or `null` if it does not belong to one";
 const STORED_KEYS_NOTE =
   "Its keys are the server's field names for the table. Most are the database column names, " +
   "but some are camelCase, such as `brandId` for the column `brand_id`";
 const OPERATION_STATIONS_NOTE =
   "Only returned with `include=stations`, which only the list of operations takes. The stations in `stationIds` as they are now. " +
-  "Stations that no longer exist and stations in countries you cannot access are left out, " +
-  "and maintainers only get stations in the countries they maintain";
+  "Stations that no longer exist are left out, and maintainers only get stations in the countries they maintain";
 
 export const auditCountSchema = z.object({
   entity: z.enum(AUDIT_ENTITIES),
@@ -95,9 +91,7 @@ export type AuditOperationStation = z.infer<typeof auditOperationStationSchema>;
 
 export const auditOperationSchema = z.object({
   id: idSchema,
-  kind: z
-    .enum(AUDIT_OPERATION_KINDS)
-    .describe("What the operation did, for example `submission.approve`. `revert` marks an operation that reverts another one"),
+  kind: z.enum(AUDIT_OPERATION_KINDS),
   source: z.enum(AUDIT_SOURCES).describe("`api`: a person, through the site or the API. `import`: an automatic import. `system`: a server job"),
   clientKey: z.uuid().nullable().describe("Set when the client grouped several requests into this one operation"),
   actor: userRefSchema.nullable().describe("The user the change is attributed to, for example the submitter of an approved submission"),
@@ -105,12 +99,12 @@ export const auditOperationSchema = z.object({
   ipAddress: z.string().nullable().describe("`null` if you are a country maintainer"),
   userAgent: z.string().nullable().describe("`null` if you are a country maintainer"),
   metadata: storedMetadataSchema,
-  revertsOperationId: idSchema.nullable().describe(REVERTS_NOTE),
+  revertsOperationId: idSchema.nullable(),
   revertedByOperationId: idSchema.nullable().describe(REVERTED_BY_NOTE),
   countryCode: countryCodeSchema.nullable().describe("Set when all changes in the operation belong to the same country"),
-  entryCount: z.number().int().nonnegative().describe("The number of entries the operation recorded"),
+  entryCount: z.number().int().nonnegative(),
   counts: z.array(auditCountSchema).describe("The entries counted per table and action"),
-  stationIds: z.array(idSchema).describe("The stations the operation's entries belong to"),
+  stationIds: z.array(idSchema),
   stations: z.array(auditOperationStationSchema).optional().describe(OPERATION_STATIONS_NOTE),
   createdAt: z.iso.datetime(),
 });
@@ -121,12 +115,12 @@ export const auditEntrySchema = z.object({
   entity: z.enum(AUDIT_ENTITIES).describe("The name of the database table that holds the row"),
   action: z.enum(AUDIT_OPS),
   recordId: z.string().nullable().describe(RECORD_ID_NOTE),
-  stationId: idSchema.nullable().describe(ENTRY_STATION_NOTE),
+  stationId: idSchema.nullable(),
   oldValues: z.unknown().nullable().describe(`The row before the change, as stored. ${STORED_KEYS_NOTE}`),
   newValues: z.unknown().nullable().describe(`The row after the change, as stored. ${STORED_KEYS_NOTE}`),
   metadata: storedMetadataSchema,
-  isRevertible: z.boolean().describe("Whether the entry can still be reverted"),
-  revertReason: z.enum(AUDIT_REVERT_REASONS).nullable().describe("Why the entry cannot be reverted, or `null` if it can"),
+  isRevertible: z.boolean(),
+  revertReason: z.enum(AUDIT_REVERT_REASONS).nullable(),
   createdAt: z.iso.datetime(),
 });
 export type AuditEntry = z.infer<typeof auditEntrySchema>;
@@ -141,7 +135,7 @@ export type AuditOperationLink = z.infer<typeof auditOperationLinkSchema>;
 export const auditOperationDetailSchema = auditOperationSchema.extend({
   entries: z.array(auditEntrySchema),
   isRevertible: z.boolean().describe("Whether at least one entry can still be reverted"),
-  revertsOperation: auditOperationLinkSchema.nullable().describe(REVERTS_NOTE),
+  revertsOperation: auditOperationLinkSchema.nullable(),
   revertedByOperation: auditOperationLinkSchema.nullable().describe(REVERTED_BY_NOTE),
 });
 export type AuditOperationDetail = z.infer<typeof auditOperationDetailSchema>;
@@ -172,15 +166,12 @@ export const auditOperationListQuerySchema = z
       .refine((value) => !value.includes("\u0000"), { message: "Must not contain a null character" })
       .optional()
       .describe("A number matches a record id or a station id. Any other text matches a record id or text in an entry's metadata"),
-    sort: z
-      .enum(AUDIT_OPERATION_SORTS)
-      .default("-createdAt")
-      .describe("The field to sort by, with a leading `-` for descending order. A `cursor` only works with the `sort` it was returned for"),
+    sort: z.enum(AUDIT_OPERATION_SORTS).default("-createdAt"),
     include: csvEnumSchema(AUDIT_OPERATION_INCLUDES).optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: auditOffsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
@@ -200,7 +191,7 @@ export const auditRevertSchema = z
       .max(MAX_REVERT_ENTRIES)
       .refine((ids) => new Set(ids).size === ids.length, { message: "Entry ids must be unique" })
       .optional()
-      .describe("The entries to revert. If omitted, the whole operation is reverted"),
+      .describe("If omitted, the whole operation is reverted"),
     force: z
       .boolean()
       .optional()
@@ -214,7 +205,7 @@ export type AuditRevert = z.infer<typeof auditRevertSchema>;
 
 export const auditRevertSkippedSchema = z.object({
   entryId: idSchema,
-  reason: z.enum([...AUDIT_REVERT_REASONS, ...AUDIT_CONFLICT_KINDS]).describe("Why the entry was not reverted"),
+  reason: z.enum([...AUDIT_REVERT_REASONS, ...AUDIT_CONFLICT_KINDS]),
   message: z.string().nullable(),
 });
 
@@ -226,12 +217,12 @@ export const auditRevertSkippedFieldSchema = z.object({
 
 export const auditRevertResultSchema = z.object({
   operation: auditOperationSchema.describe("The new operation that records the revert"),
-  revertedEntryIds: z.array(idSchema).describe("The entries that were reverted"),
-  skipped: z.array(auditRevertSkippedSchema).describe("The entries that were not reverted, each with the reason"),
+  revertedEntryIds: z.array(idSchema),
+  skipped: z.array(auditRevertSkippedSchema),
   skippedFields: z
     .array(auditRevertSkippedFieldSchema)
     .describe("The references that a forced revert left empty because the record they pointed to no longer exists"),
-  affectedStationIds: z.array(idSchema).describe("The stations whose data the revert changed"),
+  affectedStationIds: z.array(idSchema),
 });
 export type AuditRevertResult = z.infer<typeof auditRevertResultSchema>;
 
@@ -240,13 +231,17 @@ export const auditRevertConflictSchema = z.object({
   entity: z.enum(AUDIT_ENTITIES).describe("The name of the database table that holds the row"),
   action: z.enum(AUDIT_OPS),
   recordId: z.string().nullable().describe(RECORD_ID_NOTE),
-  stationId: idSchema.nullable().describe(ENTRY_STATION_NOTE),
+  stationId: idSchema.nullable(),
   kind: z
     .enum(AUDIT_CONFLICT_KINDS)
     .describe(
       "The kind of conflict. `stale`: the record has changed since the operation. `missing`: the record no longer exists. " +
-        "`exists`: a record with the same id already exists. `fk_missing`: a record it refers to no longer exists. " +
-        "`referenced`: other records still refer to what the revert would remove",
+        "`exists`: a record with the same id already exists. `unique_violation`: another record now holds a unique value " +
+        "the revert would restore, named in `constraint` when known. `fk_missing`: a record it refers to no longer exists. " +
+        "`referenced`: other records still refer to what the revert would remove. " +
+        "`station_without_cells`: the revert would leave an active station without cells. " +
+        "`concurrent_modification`: the data changed while the revert was being applied, so try again. " +
+        "`already_absent` only appears as a `reason` in `skipped`: what the revert would remove is already gone",
     ),
   message: z.string(),
   fields: z
@@ -257,6 +252,6 @@ export const auditRevertConflictSchema = z.object({
     .array(z.object({ table: z.string(), count: z.number().int().nonnegative() }))
     .optional()
     .describe("For `referenced`: what still refers to the record, with the number of rows"),
-  constraint: z.string().optional().describe("The name of the database constraint involved, if one is known"),
+  constraint: z.string().optional().describe("The name of the database constraint involved"),
 });
 export type AuditRevertConflict = z.infer<typeof auditRevertConflictSchema>;

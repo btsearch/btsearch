@@ -15,10 +15,8 @@ import { getRuntimeSettings } from "../../../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "Update a submission photo",
   description:
-    "Updates the note or date of an uploaded photo, or makes it the main photo, and returns the photo. " +
-    "This only works while the submission is pending. " +
-    "You need to be the submitter, an administrator, or an editor whose grant covers everything the submission touches. " +
-    "Setting `isMain` takes the main mark away from every other photo of the submission, uploaded or selected.",
+    "Only works while the submission is pending. " +
+    "You need to be the submitter, an administrator, or an editor whose grant covers everything the submission touches.",
   params: submissionPhotoParamsSchema,
   body: submissionPhotoUpdateSchema,
   response: {
@@ -28,9 +26,9 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, `takenAt` is in the future, or the submission is no longer pending.",
-  403: "You are not allowed to change this submission. Also returned when submissions are disabled.",
-  404: "The submission does not exist, or it has no uploaded photo with this id.",
+  400: "`takenAt` is in the future, or the submission is no longer pending.",
+  403: "You are not allowed to change this submission, or submissions are disabled.",
+  404: "The submission has no uploaded photo with this id.",
 };
 type RequestData = { Params: z.infer<typeof submissionPhotoParamsSchema>; Body: SubmissionPhotoUpdate };
 

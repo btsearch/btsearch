@@ -12,13 +12,7 @@ import { getRuntimeSettings } from "../../../lib/runtimeSettings.js";
 
 const schemaRoute = {
   summary: "Get the site settings",
-  description:
-    "Returns the site-wide settings. " +
-    "This endpoint stays open to guests even when sign-in is required everywhere, and it cannot be disabled. " +
-    "Everyone gets `isMaintenanceMode`, `isSignInRequired`, `features` and the `announcement` if it is enabled. " +
-    "While maintenance mode is enabled, only administrators signed in with a session cookie can use other endpoints. " +
-    "Administrators signed in with a session cookie also get `access`, and the `announcement` even if it is not enabled. " +
-    "With an API key or an OAuth token, an administrator gets the same response as everyone else.",
+  description: "With an API key or an OAuth token, an administrator gets the same response as everyone else.",
   querystring: z.object({}).strict(),
   response: {
     200: z.object({

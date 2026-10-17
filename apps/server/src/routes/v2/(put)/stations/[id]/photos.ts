@@ -20,9 +20,7 @@ const schemaRoute = {
   summary: "Replace a station's photos",
   description:
     "Sets which photos of its location a station shows, and which one is the main photo. " +
-    "The list you send replaces the current selection. " +
-    "A photo you leave out is no longer shown by this station, but it stays with the location. " +
-    "Without `mainPhotoId` the station has no main photo. Returns the photos the station shows after the change.",
+    "A photo you leave out is no longer shown by this station, but it stays with the location.",
   params: photoOwnerParamsSchema,
   body: stationPhotosReplaceSchema,
   response: {
@@ -32,11 +30,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request did not pass validation, or one of the photos in `photoIds` does not belong to the station's location.",
-  403:
-    "A permission is missing, or your editor access does not cover the station's country or region. " +
-    "Editors also get this response when the station does not exist.",
-  404: "The station does not exist.",
+  400: "One of the photos in `photoIds` does not belong to the station's location.",
+  403: "Editors also get this response when the station does not exist.",
 };
 type RequestData = { Params: z.infer<typeof photoOwnerParamsSchema>; Body: StationPhotosReplace };
 

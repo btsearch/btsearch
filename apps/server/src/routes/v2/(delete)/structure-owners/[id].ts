@@ -56,7 +56,6 @@ const deleteStructureOwner: Route<ReqParams, void> = {
   config: {
     permissions: ["delete:structure_owners"],
     errorReasons: {
-      404: "The structure owner does not exist.",
       409: "The owner is still used by a location, or a pending submission refers to it.",
     },
   },

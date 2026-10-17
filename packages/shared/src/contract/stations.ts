@@ -6,8 +6,6 @@ import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
   INCLUDE_NOTE,
-  INCLUDE_TOTAL_NOTE,
-  LIMIT_NOTE,
   bboxSchema,
   booleanQuerySchema,
   countryCodeSchema,
@@ -77,7 +75,7 @@ export type Sector = z.infer<typeof sectorSchema>;
 export const backhaulSchema = z.object({
   medium: z.enum(BACKHAUL_MEDIUMS).describe("How the station is connected to the operator's network"),
   speedMbps: z.number().int().nullable(),
-  model: z.string().nullable().describe("The model of the microwave link. `null` if unknown, and always `null` for other mediums"),
+  model: z.string().nullable().describe("The model of the microwave link. Always `null` for other mediums"),
   updatedAt: z.iso.datetime(),
 });
 export type Backhaul = z.infer<typeof backhaulSchema>;
@@ -98,7 +96,7 @@ const locationShape = {
   regionId: z.number().int(),
   city: z.string().nullable(),
   address: z.string().nullable(),
-  structure: structureSchema.describe("The structure the antennas are mounted on and who owns it. Each field is `null` if unknown"),
+  structure: structureSchema.describe("The structure the antennas are mounted on and who owns it"),
   latitude: z.number(),
   longitude: z.number(),
   createdAt: z.iso.datetime(),
@@ -112,7 +110,7 @@ export type StationLocation = z.infer<typeof stationLocationSchema>;
 export const STATION_SITE_ID_NOTE = "The id the operator uses for the station, unique among the operator's stations";
 const HOST_STATION_NOTE =
   "The station that hosts this one in a shared network: another member's station at the same location, " +
-  "which holds the official permits while this station has none. `null` if there is none";
+  "which holds the official permits while this station has none";
 const STATION_STATUS_NOTE =
   "`awaitingCells`: the station has no cells yet. " +
   "`inactive`: the station was deactivated, and it is deleted permanently after six months without changes";
@@ -121,10 +119,10 @@ const stationOwnShape = {
   id: z.number().int(),
   siteId: z.string().describe(STATION_SITE_ID_NOTE),
   operatorId: z.number().int().nullable(),
-  locationId: z.number().int().nullable().describe("`null` for a station without a location"),
+  locationId: z.number().int().nullable(),
   hostStationId: z.number().int().nullable().describe(HOST_STATION_NOTE),
   status: z.enum(STATION_STATUSES).describe(STATION_STATUS_NOTE),
-  isConfirmed: z.boolean().describe("Whether the station is marked as confirmed. Only editors can change it"),
+  isConfirmed: z.boolean().describe("Only editors can change it"),
   notes: z.string().nullable(),
   identifiers: z.array(stationIdentifierSchema).describe("Other ids and names of the station. Only the kinds that are set are listed"),
   createdAt: z.iso.datetime(),
@@ -231,11 +229,8 @@ const LISTED_KEEP_OTHER_COUNTRIES_NOTE =
   `${KEEP_OTHER_COUNTRIES_LEAD}. Stations in any other country match whatever their operator is, ` +
   "and a station without a location counts as being in its operator's country. Has no effect without `operatorIds`";
 const HAS_PHOTOS_FILTER_NOTE = "`true` matches stations that show at least one photo, `false` matches stations that show none";
-const HAS_SECTORS_FILTER_NOTE =
-  "`true` matches stations with at least one sector, `false` matches stations with none. An omnidirectional sector counts too";
-const IS_CONFIRMED_FILTER_NOTE =
-  "`true` matches stations that are marked as confirmed, `false` matches stations that are not. " +
-  "It checks the station's own `isConfirmed`, not that of its cells";
+const HAS_SECTORS_FILTER_NOTE = "An omnidirectional sector counts too";
+const IS_CONFIRMED_FILTER_NOTE = "Checks the station's own `isConfirmed`, not that of its cells";
 const STATION_STRUCTURE_TYPES_NOTE =
   "Matches stations at a location with one of these structure types. " +
   `Use \`${UNKNOWN_STRUCTURE_TYPE}\` to match locations whose structure type is not known. A station without a location never matches. ` +
@@ -244,7 +239,6 @@ const EDITABLE_ONLY_REACH_NOTE =
   "If your grants cover all of one country and only some regions of another, a single request returns exactly those, " +
   "which `countryCodes` and `regionIds` cannot express together";
 const EDITABLE_STATIONS_NOTE =
-  "If `true`, only the stations you can edit are returned. " +
   "Administrators get every station, and editors only get stations in a country or region their grant covers. " +
   "A station without a location counts for editors whose grant covers the operator's whole country. " +
   `${EDITABLE_ONLY_REACH_NOTE}. Requires the \`update:stations\` permission`;
@@ -261,19 +255,17 @@ export const listedStationFilterShape = {
 export const stationQuerySchema = z.object({ include: csvEnumSchema(STATION_INCLUDES).optional() }).strict();
 export type StationQuery = z.infer<typeof stationQuerySchema>;
 
-const SORT_NOTE = "The field to sort by, with a leading `-` for descending order. A `cursor` only works with the `sort` it was returned for";
-
 export const stationListQuerySchema = z
   .object({
     ...stationFilterShape,
     ...listedStationFilterShape,
     ...areaFilterShape,
     include: csvEnumSchema(STATION_INCLUDES).optional(),
-    sort: z.enum(STATION_SORTS).default("-id").describe(SORT_NOTE),
+    sort: z.enum(STATION_SORTS).default("-id"),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
@@ -301,12 +293,10 @@ const INCLUDE_EMPTY_NOTE =
   "If `true`, locations without a matching station are returned too. Requires the `update:locations` permission. " +
   "Has no effect together with a station filter other than `statuses`, or with a station or cell keyword in `q`";
 const HAS_STATIONS_NOTE =
-  "`true` matches locations that have at least one station, `false` matches locations that have none. " +
   "A station of any status counts, whichever station filters you send. " +
   "`false` requires the `update:locations` permission, does not need `includeEmpty`, " +
   "and returns nothing together with a station filter other than `statuses` or a station or cell keyword in `q`";
 const EDITABLE_LOCATIONS_NOTE =
-  "If `true`, only the locations you can edit are returned. " +
   "Administrators get every location, and editors only get locations in a country or region their grant covers. " +
   `${EDITABLE_ONLY_REACH_NOTE}. Requires the \`update:locations\` permission`;
 
@@ -320,13 +310,13 @@ export const locationListQuerySchema = z
     structureOwnerIds: csvIdsSchema.optional(),
     editableOnly: booleanQuerySchema.optional().describe(EDITABLE_LOCATIONS_NOTE),
     include: csvEnumSchema(LOCATION_INCLUDES).optional(),
-    sort: z.enum(LOCATION_SORTS).default("-id").describe(SORT_NOTE),
+    sort: z.enum(LOCATION_SORTS).default("-id"),
     includeEmpty: booleanQuerySchema.optional().describe(INCLUDE_EMPTY_NOTE),
     hasStations: booleanQuerySchema.optional().describe(HAS_STATIONS_NOTE),
-    limit: z.coerce.number<number>().int().min(1).max(MAX_LOCATION_LIST_LIMIT).default(50).describe(LIMIT_NOTE),
+    limit: z.coerce.number<number>().int().min(1).max(MAX_LOCATION_LIST_LIMIT).default(50),
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);

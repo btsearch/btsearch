@@ -10,15 +10,12 @@ import type { EmptyResponse, Route } from "../../../../../../interfaces/routes.i
 
 const schemaRoute = {
   summary: "Watch an official site",
-  description:
-    "Starts watching an official site. You are then notified when permits are added to it or removed from it. " +
-    "Watching a site you already watch changes nothing and returns 204 as well.",
+  description: "You are notified when permits are added to the site or removed from it.",
   params: officialSiteParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys cannot be used here, because a watch belongs to a user account.",
-  404: "The site does not exist, its source is hidden, or it is in a country you cannot access.",
+  401: "API keys cannot be used here, because a watch belongs to a user account.",
 };
 type ReqParams = { Params: z.infer<typeof officialSiteParamsSchema> };
 

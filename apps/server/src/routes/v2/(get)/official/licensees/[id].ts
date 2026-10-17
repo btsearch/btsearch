@@ -11,9 +11,6 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "Get a licensee",
-  description:
-    "Returns one licensee of an official source. " +
-    "A licensee of a hidden source, or of a source in a country you cannot access, is only returned to administrators.",
   params: licenseeParamsSchema,
   querystring: z.object({}).strict(),
   response: {
@@ -38,7 +35,6 @@ const getLicensee: Route<ReqParams, Licensee> = {
   config: {
     permissions: ["read:microwave_links"],
     allowGuestAccess: true,
-    errorReasons: { 404: "The licensee does not exist, or its source is hidden from you." },
   },
   schema: schemaRoute,
   handler,

@@ -11,17 +11,12 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete a cell",
-  description:
-    "Deletes a cell. If it was the last cell of an active station, the station goes back to awaiting cells. " +
-    "Users who watch the station are notified.",
+  description: "If it was the last cell of an active station, the station goes back to awaiting cells. Users who watch the station are notified.",
   params: cellParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  403:
-    "A permission is missing, or your editor access does not cover the cell's station. " +
-    "Editors also get this response when the cell does not exist.",
-  404: "The cell does not exist.",
+  403: "Your editor access does not cover the cell's station. Editors also get this response when the cell does not exist.",
 };
 type RequestData = { Params: z.infer<typeof cellParamsSchema> };
 

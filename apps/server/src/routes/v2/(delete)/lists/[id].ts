@@ -14,13 +14,13 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete a list",
-  description: "Deletes a list. You need to be the owner or an administrator.",
+  description: "You need to be the owner or an administrator.",
   params: listParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
   403: "Lists are disabled, or the list is not yours and you are not an administrator.",
-  404: "The list does not exist, or it is private and not yours.",
+  404: "The list is private and not yours.",
 };
 type ReqParams = { Params: z.infer<typeof listParamsSchema> };
 

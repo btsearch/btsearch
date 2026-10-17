@@ -27,7 +27,7 @@ export const brandSchema = z.object({
   slug: z.string().describe(SLUG_NOTE),
   name: z.string(),
   color: z.string().describe(`${COLOR_NOTE}, in upper case`),
-  logo: brandLogoSchema.nullable().describe("The brand's logo, or `null` if none has been uploaded"),
+  logo: brandLogoSchema.nullable(),
 });
 export type Brand = z.infer<typeof brandSchema>;
 

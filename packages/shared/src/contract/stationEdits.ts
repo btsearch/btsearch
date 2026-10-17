@@ -19,7 +19,7 @@ import {
 const STATUS_FOLLOWS_CELLS =
   "Adding the first cell makes an `awaitingCells` station `active`, and removing the last cell makes it `awaitingCells` again. " +
   "A `status` sent in `station` takes precedence";
-const SECTOR_CHANGES_NOTE = `Sectors that are not listed stay as they are. ${SECTOR_LIMITS_NOTE}, and a sector can only be deleted once no cell is attached to it`;
+const SECTOR_CHANGES_NOTE = `${SECTOR_LIMITS_NOTE}, and a sector can only be deleted once no cell is attached to it`;
 
 export const stationCreateSchema = z
   .object({

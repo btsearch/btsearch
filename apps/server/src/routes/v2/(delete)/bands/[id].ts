@@ -12,7 +12,7 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete a band",
-  description: "Deletes the band and removes it from every country's band plan.",
+  description: "The band is also removed from every country's band plan.",
   params: bandParamsSchema,
   response: { 204: noContentSchema },
 };
@@ -40,7 +40,6 @@ const deleteBand: Route<ReqParams, void> = {
   config: {
     permissions: ["delete:bands"],
     errorReasons: {
-      404: "The band does not exist.",
       409: "The band is still used by cells or submissions.",
     },
   },

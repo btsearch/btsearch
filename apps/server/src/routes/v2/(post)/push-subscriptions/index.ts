@@ -12,7 +12,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Create a push subscription",
   description:
-    "Registers a browser's push subscription for your account. A new subscription has every topic enabled except `officialDataUpdates`. " +
+    "A new subscription has every topic enabled except `officialDataUpdates`. " +
     "If the `endpoint` is already registered, that subscription is updated with the new keys instead of creating a second one, " +
     "and you still get 201. If it was registered by another account, it moves to yours and its topics go back to the defaults. " +
     "You can have up to 20 subscriptions. If you add more, the oldest ones are deleted.",
@@ -24,10 +24,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys are not accepted here, so use a session or an OAuth token.",
-  403:
-    "The OAuth token does not have the `profile` scope. " +
-    "Also returned when two-factor authentication still has to be set up or the endpoint is disabled.",
+  401: "API keys are not accepted here.",
+  403: "The OAuth token does not have the `profile` scope.",
 };
 type ReqBody = { Body: PushSubscriptionCreate };
 

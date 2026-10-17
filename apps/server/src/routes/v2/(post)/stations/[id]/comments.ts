@@ -16,11 +16,8 @@ import { getRuntimeSettings } from "../../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "Add a comment to a station",
   description:
-    "Creates a comment on a station, with up to 5 images. " +
-    "When comment review is enabled, the comment starts as `pending`, " +
-    "and only you and moderators can see it in the station's comments until a moderator approves it. " +
-    "If you can moderate comments for this station yourself, it is approved right away. " +
-    "Images are converted to WebP and scaled down to at most 2048 pixels per side.",
+    "When comment review is enabled, the comment starts as `pending` until a moderator approves it. " +
+    "If you can moderate comments for this station yourself, it is approved right away.",
   params: stationCommentsParamsSchema,
   response: {
     201: z.object({
@@ -30,11 +27,9 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is not `multipart/form-data`, `content` is empty or longer than 1000 characters, or a file was rejected. " +
-    "You can attach up to 5 images of at most 5 MB each, and an image that is smaller than 640 by 480 pixels " +
-    "or too blurry is rejected with `PHOTO_TOO_SMALL` or `PHOTO_TOO_BLURRY`.",
-  403: "Comments are disabled. Also returned when a permission is missing or two-factor authentication still has to be set up.",
-  404: "The station does not exist, or it is in a country you cannot access.",
+    "The request is not `multipart/form-data`, or a file was rejected. " +
+    "An image that is smaller than 640 by 480 pixels or too blurry is rejected with `PHOTO_TOO_SMALL` or `PHOTO_TOO_BLURRY`.",
+  403: "Comments are disabled.",
 };
 type ReqParams = { Params: z.infer<typeof stationCommentsParamsSchema> };
 

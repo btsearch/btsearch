@@ -19,18 +19,13 @@ const SORT_COLUMNS: Record<SortField<CellSort>, SortColumn | null> = {
 
 const schemaRoute = {
   summary: "List cells",
-  description:
-    "Returns cells across all stations, one page at a time. " +
-    "Cells of inactive stations are left out unless you ask for them with `statuses`. " +
-    "Cells in countries you cannot access are always left out. " +
-    "If an operator in `operatorIds` is a shared network, the cells of its members are returned too.",
   querystring: cellListQuerySchema,
   response: {
     200: cellListSchema,
   },
 };
 const errorReasons = {
-  400: "A query parameter did not pass validation, or the `cursor` is invalid. A cursor only works with the `sort` it was returned for.",
+  400: "The `cursor` is invalid.",
 };
 type ReqQuery = { Querystring: CellListQuery };
 

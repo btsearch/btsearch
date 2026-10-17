@@ -13,7 +13,6 @@ import type { EmptyResponse, Route } from "../../../../../../interfaces/routes.i
 
 const schemaRoute = {
   summary: "Remove a band from a country's band plan",
-  description: "Removes the band from the country's band plan. The band itself is not deleted, but cells in that country can no longer use it.",
   params: countryBandParamsSchema,
   response: { 204: noContentSchema },
 };
@@ -56,7 +55,7 @@ const deleteCountryBand: Route<ReqParams, void> = {
   config: {
     permissions: ["update:countries"],
     errorReasons: {
-      404: "The band does not exist, or it is not in this country's band plan.",
+      404: "The band is not in this country's band plan.",
       409: "Cells in this country still use the band.",
     },
   },

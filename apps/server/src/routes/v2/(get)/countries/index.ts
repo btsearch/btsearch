@@ -16,9 +16,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "List countries",
   description:
-    "Returns all countries, ordered by code. " +
-    "Hidden countries (`isVisible` is `false`) are only included for administrators and for editors with a grant in that country. " +
-    "`contributions` is a separate setting, and a country does not accept submissions while it is `closed`.\n\n" +
+    "Countries are ordered by code. " +
     "`capabilities.official` and `capabilities.microwaveLinks` depend on the official sources you can see, " +
     "so for administrators they also count sources that are still hidden.",
   querystring: z.object({}).strict(),

@@ -16,7 +16,7 @@ const schemaRoute = {
   summary: "Upload photos to a submission",
   description:
     "Uploads photos to a pending submission and returns the ones that were added. Only the submitter can upload. " +
-    "A submission holds up to 10 uploaded photos, and files beyond that are ignored. " +
+    "Files beyond the 10 photos a submission can hold are ignored. " +
     "If one file is invalid, none of the files in the request is saved. " +
     "Photos are re-encoded on the server, which removes their metadata, including the GPS position.",
   params: submissionParamsSchema,
@@ -32,7 +32,6 @@ const errorReasons = {
     "or a file was not accepted. Files must be readable images of at most 20 MB, at least 640 by 480 pixels (`PHOTO_TOO_SMALL`) " +
     "and not too blurry (`PHOTO_TOO_BLURRY`).",
   403: "Submissions or photo uploads are disabled, or you are not the submitter.",
-  404: "The submission does not exist.",
 };
 type ReqParams = { Params: z.infer<typeof submissionParamsSchema> };
 

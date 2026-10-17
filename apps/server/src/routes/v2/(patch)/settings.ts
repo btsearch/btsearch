@@ -12,11 +12,6 @@ import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
 
 const schemaRoute = {
   summary: "Update the site settings",
-  description:
-    "Updates the settings you send and leaves the rest unchanged. " +
-    "The response contains all settings as an administrator sees them, including `access`. " +
-    "Every entry in `access` has to match an existing route, and `access.disabledRoutes` cannot cover the sign-in routes, " +
-    "the settings routes or the health check.",
   body: settingsUpdateSchema,
   response: {
     200: z.object({
@@ -26,9 +21,9 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, an entry in `access` does not match any route, " +
+    "An entry in `access` does not match any route, " +
     "or `access.disabledRoutes` would disable the sign-in routes, the settings routes or the health check.",
-  409: "Another change to the settings is being saved right now. Try again in a moment.",
+  409: "Another change to the settings is being saved right now.",
 };
 type ReqBody = { Body: SettingsUpdate };
 

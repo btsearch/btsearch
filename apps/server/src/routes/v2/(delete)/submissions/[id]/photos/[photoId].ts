@@ -13,15 +13,15 @@ import { getRuntimeSettings } from "../../../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "Delete a submission photo",
   description:
-    "Deletes a photo that was uploaded to a submission. This only works while the submission is pending. " +
+    "Only works while the submission is pending. " +
     "You need to be the submitter, an administrator, or an editor whose grant covers everything the submission touches.",
   params: submissionPhotoParamsSchema,
   response: { 204: noContentSchema },
 };
 const errorReasons = {
-  400: "The id is invalid, or the submission is no longer pending.",
-  403: "You are not allowed to change this submission. Also returned when submissions are disabled.",
-  404: "The submission does not exist, or it has no uploaded photo with this id.",
+  400: "The submission is no longer pending.",
+  403: "You are not allowed to change this submission, or submissions are disabled.",
+  404: "The submission has no uploaded photo with this id.",
 };
 type ReqParams = { Params: z.infer<typeof submissionPhotoParamsSchema> };
 

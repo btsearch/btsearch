@@ -12,11 +12,6 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Update a role grant",
-  description:
-    "Replaces the regions a grant is limited to. Send `null` to make it cover the whole country. " +
-    "A `maintainer` grant always covers the whole country, so it only accepts `null`. " +
-    "The user, role and country of a grant cannot be changed. " +
-    "Administrators can update any grant. Maintainers can only update `editor` grants in a country they maintain.",
   params: roleGrantParamsSchema,
   body: roleGrantUpdateSchema,
   response: {
@@ -26,9 +21,8 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, one of the regions is not in the grant's country, or you sent regions for a `maintainer` grant.",
+  400: "One of the regions is not in the grant's country, or you sent regions for a `maintainer` grant.",
   403: "You need to be an administrator or a maintainer of the grant's country. Only administrators can update `maintainer` grants.",
-  404: "The grant does not exist.",
 };
 type ReqBody = { Body: RoleGrantUpdate };
 type ReqParams = { Params: z.infer<typeof roleGrantParamsSchema> };

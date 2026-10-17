@@ -13,10 +13,7 @@ import type { JSONBody, Route } from "../../../../../../interfaces/routes.interf
 
 const schemaRoute = {
   summary: "List the bands in a country's band plan",
-  description:
-    "Returns the country's band plan, which lists the bands that cells in that country can use. " +
-    "Cells are checked against the plan whenever they are created or changed, directly or through a submission. " +
-    "Add `include=band` to get the full band object in each entry.",
+  description: "Cells are checked against the plan whenever they are created or changed, directly or through a submission.",
   params: countryParamsSchema,
   querystring: countryBandListQuerySchema,
   response: {
@@ -48,10 +45,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const getCountryBands: Route<RequestData, CountryBand[]> = {
   url: "/countries/:code/bands",
   method: "GET",
-  config: {
-    allowGuestAccess: true,
-    errorReasons: { 404: "The country does not exist, or it is hidden and you cannot access it." },
-  },
+  config: { allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

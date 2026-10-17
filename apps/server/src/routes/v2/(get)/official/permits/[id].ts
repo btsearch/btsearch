@@ -9,10 +9,6 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "Get an official permit",
-  description:
-    "Returns a single permit of an official register, whether or not it is linked to a station. " +
-    "Add `include=stations` to see which stations in this database it is linked to, " +
-    "and `include=officialSite,officialSite.location` for its site and where it is.",
   params: officialPermitParamsSchema,
   querystring: officialPermitQuerySchema,
   response: {
@@ -20,9 +16,6 @@ const schemaRoute = {
       data: officialPermitSchema,
     }),
   },
-};
-const errorReasons = {
-  404: "The permit does not exist, its source is hidden, or it is in a country you cannot access.",
 };
 type RequestData = { Params: z.infer<typeof officialPermitParamsSchema>; Querystring: OfficialPermitQuery };
 
@@ -33,7 +26,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const getOfficialPermit: Route<RequestData, OfficialPermit> = {
   url: "/official/permits/:id",
   method: "GET",
-  config: { permissions: ["read:official_permits"], allowGuestAccess: true, errorReasons },
+  config: { permissions: ["read:official_permits"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

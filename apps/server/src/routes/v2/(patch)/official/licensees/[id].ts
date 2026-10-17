@@ -13,16 +13,13 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 const schemaRoute = {
   summary: "Update a licensee",
   description:
-    "Maps a licensee to an operator, or gives a licensee without an operator a brand of its own. " +
     "What happens to `operatorId` depends on the licensee.\n\n" +
-    "If the licensee has no operator, the one you send is saved at once and replaces the licensee's own brand. " +
+    "If the licensee has no operator, the operator you send replaces the licensee's own brand. " +
     "If the source has enabled datasets with the layer `sites`, the request also queues a `replay` import run for them, " +
     "which imports the official sites and permits that were skipped under this name.\n\n" +
-    "If the licensee already has an operator, sending another one, or `null`, does not change the licensee. " +
-    "Its official sites belong to its current operator and have to be moved first, so the request queues a `remap` import run instead. " +
-    "That run is a dry run unless you send `isDryRun: false`, and the licensee only changes once a `remap` run that is not a dry run " +
-    "has completed. With `null`, the permits published under the licensee stop being listed, as for any licensee without an operator.\n\n" +
-    "`brandId` is saved at once. The response has the licensee as it is now in `data` and, beside it, the run the request queued in `importRun`.",
+    "If the licensee already has an operator, its official sites belong to that operator and have to be moved first, " +
+    "so the request queues a `remap` import run. The licensee only changes once a `remap` run that is not a dry run has completed. " +
+    "With `null`, the permits published under the licensee stop being listed, as for any licensee without an operator.",
   params: licenseeParamsSchema,
   body: licenseeUpdateSchema,
   response: {
@@ -30,8 +27,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, or the operator or the brand does not exist.",
-  404: "The licensee does not exist.",
+  400: "The operator or the brand does not exist.",
   409: "You sent a brand for a licensee that has an operator, or the licensee already has a `remap` run that is queued or running.",
 };
 type ReqBody = { Body: LicenseeUpdate };

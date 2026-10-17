@@ -11,8 +11,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "List inactive sites",
   description:
-    "Returns the sites the register marks as no longer active, with the date each one was disabled, most recent first. " +
-    "SI2PEM is the only register connected so far. `capabilities.emf` in `GET /countries` tells you which countries the data covers. " +
+    "Returns the sites the register marks as no longer active, most recently disabled first. " +
     "The full list is fetched from SI2PEM once a day, so a newly disabled site can take up to a day to show up.",
   querystring: emfInactiveSiteListQuerySchema,
   response: {

@@ -15,11 +15,6 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Create an operator",
-  description:
-    "Creates an operator in a country. An operator represents a physical network. " +
-    "Its name must be unique within the country, and a PLMN can only belong to one operator. " +
-    "To make the operator a member of a shared network, add that network to `links`. " +
-    "The shared network is an operator itself and must already exist.",
   body: operatorCreateSchema,
   response: {
     201: z.object({
@@ -28,7 +23,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, the country, the brand or a linked operator does not exist, or a linked operator belongs to another country.",
+  400: "The country, the brand or a linked operator does not exist, or a linked operator belongs to another country.",
   409: "The country already has an operator with this name, or one of the PLMNs already belongs to another operator.",
 };
 type ReqBody = { Body: OperatorCreate };

@@ -15,15 +15,9 @@ import { getRuntimeSettings } from "../../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "Review a submission",
   description:
-    "Approves or rejects a pending submission and returns it. " +
-    "Approving applies all of its changes to the data at once and sets the status to `accepted`. " +
-    "Rejecting changes nothing and sets the status to `rejected`. " +
-    "Approving the removal of a station marks the station `inactive` instead of deleting it. " +
-    "If the submission proposes a new structure owner in `ownerName`, approving it also adds that owner to the list of structure owners " +
-    "for the location's country, unless an owner with that name already exists there or among the owners without a country. " +
-    "The submitter is notified either way, and `note` is saved as the review note.\n\n" +
-    "Editors can only review a submission if their grant covers everything it touches. " +
-    "Send `expectedUpdatedAt` with the `updatedAt` you last saw to make sure nobody changed the submission in the meantime.\n\n" +
+    "Approving applies all of the submission's changes at once, and approving the removal of a station marks it `inactive` " +
+    "instead of deleting it. The submitter is notified either way.\n\n" +
+    "Editors can only review a submission if their grant covers everything it touches.\n\n" +
     "Photos uploaded to a rejected submission are deleted 30 days later.",
   params: submissionParamsSchema,
   body: submissionReviewSchema,
@@ -35,12 +29,12 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, or the submission has already been reviewed. " +
+    "The submission has already been reviewed. " +
     "Approving can also fail because the changes no longer fit the current data, and the message tells you why.",
   403:
-    "You are not an editor or an administrator, or your grant does not cover everything the submission touches. " +
+    "Your grant does not cover everything the submission touches. " +
     "Editors also get this for a submission that does not exist, and everyone gets it while submissions are disabled.",
-  404: "The submission does not exist. Also returned on approval when its station has become `inactive`.",
+  404: "On approval, the submission's station has become `inactive`.",
   409:
     "The submission changed after `expectedUpdatedAt`, or someone else changed or reviewed it while your request was being processed. " +
     "Also returned on approval when a cell or the new station it adds already exists, when it would change a cell's technology, " +

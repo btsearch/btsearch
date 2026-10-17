@@ -15,8 +15,7 @@ const regionCodeSchema = z.string().trim().min(1).max(3);
 const regionNameSchema = z.string().trim().min(1).max(100);
 const regionIsoCodeSchema = z.string().regex(/^[A-Z]{2}-[A-Z0-9]{1,3}$/, "Must be an ISO 3166-2 code, for example US-CA");
 
-const REGION_CODE_NOTE = "A short code for the region. Must be unique within the country";
-const REGION_NAME_NOTE = "The region's name. Must be unique within the country";
+const UNIQUE_IN_COUNTRY_NOTE = "Must be unique within the country";
 const ISO_CODE_NOTE = "ISO 3166-2 code, for example `US-CA`. Must start with the country's code and be unique across all regions";
 const BBOX_NOTE =
   "Returns only the regions whose stored outline touches this bounding box, given as `west,south,east,north` in degrees. " +
@@ -26,7 +25,7 @@ const BBOX_NOTE =
 export const regionSchema = z.object({
   id: z.number().int(),
   countryCode: countryCodeSchema,
-  code: z.string().describe("A short code for the region, unique within its country. The `region:` search keyword accepts it"),
+  code: z.string().describe("A short code, unique within the country. The `region:` search keyword accepts it"),
   name: z.string(),
   isoCode: z.string().nullable().describe("ISO 3166-2 code, for example `US-CA`"),
 });
@@ -55,8 +54,8 @@ export type RegionListQuery = z.infer<typeof regionListQuerySchema>;
 export const regionCreateSchema = z
   .object({
     countryCode: countryCodeSchema,
-    code: regionCodeSchema.describe(REGION_CODE_NOTE),
-    name: regionNameSchema.describe(REGION_NAME_NOTE),
+    code: regionCodeSchema.describe(UNIQUE_IN_COUNTRY_NOTE),
+    name: regionNameSchema.describe(UNIQUE_IN_COUNTRY_NOTE),
     isoCode: regionIsoCodeSchema.nullable().optional().describe(ISO_CODE_NOTE),
   })
   .strict();
@@ -64,9 +63,9 @@ export type RegionCreate = z.infer<typeof regionCreateSchema>;
 
 export const regionUpdateSchema = z
   .object({
-    code: regionCodeSchema.optional().describe(REGION_CODE_NOTE),
-    name: regionNameSchema.optional().describe(REGION_NAME_NOTE),
-    isoCode: regionIsoCodeSchema.nullable().optional().describe(`${ISO_CODE_NOTE}. \`null\` clears it`),
+    code: regionCodeSchema.optional().describe(UNIQUE_IN_COUNTRY_NOTE),
+    name: regionNameSchema.optional().describe(UNIQUE_IN_COUNTRY_NOTE),
+    isoCode: regionIsoCodeSchema.nullable().optional().describe(ISO_CODE_NOTE),
   })
   .strict()
   .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE);

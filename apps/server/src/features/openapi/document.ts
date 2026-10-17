@@ -35,16 +35,20 @@ const API_DESCRIPTION = [
     "with a session cookie. Sign-in, account recovery, the settings endpoints and the health check remain available.",
   "## Responses",
   "Successful responses wrap their payload in `data`. Paginated lists also return `paging`: " +
-    "pass its `nextCursor` as `cursor` to get the next page, and stop when it is `null`.",
+    "pass its `nextCursor` as `cursor` to get the next page, and stop when it is `null`. " +
+    "A cursor only works with the `sort` it came from, and a leading `-` in `sort` means descending order. " +
+    "Most lists also take `includeTotal=true`, which adds `paging.total`.",
+  "Hidden countries and everything in them are left out unless you have access to them, " + "and asking for something in one by id gives 404.",
   "## Errors",
   "Errors always have the same shape: an `errors` array whose entries have a stable `code`, a human-readable `message` and " +
     "sometimes `details`. Rely on the status and the `code` in your code, not on the message.",
-  "Every endpoint lists the errors it can return. Where an endpoint gives a 403 a reason of its own, the general reasons still apply " +
-    "and are not repeated there: a missing permission, an invalid API key, two-factor authentication that still has to be set up, " +
+  "Every endpoint lists the errors it can return. Where an endpoint gives an error a reason of its own, the general reasons for that status " +
+    "still apply and are not repeated there: a 400 can always be a field that did not pass validation, and a 403 a missing permission, " +
+    "an invalid API key, editor access that does not cover the country or region, two-factor authentication that still has to be set up, " +
     "or an endpoint that has been disabled.",
   "## Rate limits",
-  "Requests are rate limited. Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`, " +
-    "so you always know where you stand. API keys also have a weekly quota, reported in `X-Quota-Limit`, `X-Quota-Remaining` and " +
+  "Requests are rate limited. Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. " +
+    "API keys also have a weekly quota, reported in `X-Quota-Limit`, `X-Quota-Remaining` and " +
     "`X-Quota-Reset`. When you go over a limit you get a 429, and `X-Retry-After` tells you how many seconds to wait.",
   "## Idempotency",
   "If you send an `X-Idempotency-Key` header with a POST, a second POST with the same key is rejected with 409 `DUPLICATE_REQUEST` " +

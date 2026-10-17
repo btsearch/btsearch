@@ -14,8 +14,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Create a station",
   description:
-    "Creates a station together with its location, sectors and cells. " +
-    "Everything is saved in a single transaction, so a failed request changes nothing. " +
+    "Creates a station together with its location, sectors and cells. A failed request changes nothing. " +
     "If a location already exists at the coordinates, the station is added to it and the `location` fields you send update that location. " +
     "To send `cells` you also need the `create:cells` permission. " +
     "As an editor you need access to the region of the coordinates, or to the operator's whole country when you leave out `location`.",
@@ -29,9 +28,8 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request did not pass validation, or the station cannot be created as sent. For example, the operator already has a station " +
-    "with this `siteId`, a band is not in the country's band plan, or an operator, region or band does not exist. " +
-    "The `message` tells you what is wrong.",
+    "The station cannot be created as sent. For example, the operator already has a station with this `siteId`, " +
+    "a band is not in the country's band plan, or an operator, region or band does not exist.",
   409:
     "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
     "or an LTE cell on an active station with the same `enbid` and `clid`.",

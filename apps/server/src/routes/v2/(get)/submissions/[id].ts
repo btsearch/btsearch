@@ -14,10 +14,7 @@ import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
 const schemaRoute = {
   summary: "Get a submission",
   description:
-    "Returns one submission with the changes it proposes. " +
-    "You can read it if you are its submitter, an administrator, or an editor whose grant covers at least one station or place it touches. " +
-    "`include=station` adds the station the submission changes, and `include=station.location` adds it together with the location it is at now. " +
-    "`station` is `null` if the submission has no station yet or the station is in a country you cannot access.",
+    "You can read a submission if you are its submitter, an administrator, or an editor whose grant covers at least one station or place it touches.",
   params: submissionParamsSchema,
   querystring: submissionQuerySchema,
   response: {
@@ -28,7 +25,7 @@ const schemaRoute = {
 };
 const errorReasons = {
   403: "Submissions are disabled.",
-  404: "The submission does not exist, or you are not allowed to read it.",
+  404: "You are not allowed to read the submission.",
 };
 type RequestData = { Params: z.infer<typeof submissionParamsSchema>; Querystring: SubmissionQuery };
 

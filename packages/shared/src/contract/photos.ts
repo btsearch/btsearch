@@ -3,7 +3,6 @@ import { z } from "zod/v4";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
-  INCLUDE_TOTAL_NOTE,
   booleanQuerySchema,
   csvCountryCodesSchema,
   csvEnumSchema,
@@ -48,22 +47,21 @@ export const photoUrlsSchema = z.object({
 
 export const photoSelectionSchema = z.object({
   stationId: z.number().int(),
-  isMain: z.boolean().describe("Whether the photo is the station's main photo"),
+  isMain: z.boolean(),
   station: stationBaseSchema.optional().describe("Only returned with `include=selections.station`"),
 });
 export type PhotoSelection = z.infer<typeof photoSelectionSchema>;
 
 export const photoDetailsShape = {
-  width: z.number().int().nullable().describe("Width in pixels of the image at `urls.full`, or `null` if it is not known"),
-  height: z.number().int().nullable().describe("Height in pixels of the image at `urls.full`, or `null` if it is not known"),
+  width: z.number().int().nullable().describe("Width in pixels of the image at `urls.full`"),
+  height: z.number().int().nullable().describe("Height in pixels of the image at `urls.full`"),
   note: z.string().nullable(),
-  takenAt: z.iso.datetime().nullable().describe("When the photo was taken, or `null` if it is not known"),
+  takenAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   author: userRefSchema
     .nullable()
     .describe(
-      "The user who uploaded the photo, or `null` if that account has been deleted. " +
-        "`name` is `null` for private profiles, unless you are the uploader or a staff member",
+      "`null` if the uploader's account has been deleted. " + "`name` is `null` for private profiles, unless you are the uploader or a staff member",
     ),
 };
 
@@ -72,7 +70,7 @@ export const photoSchema = z.object({
   locationId: z.number().int(),
   urls: photoUrlsSchema,
   ...photoDetailsShape,
-  selections: z.array(photoSelectionSchema).describe("The stations that show the photo. Empty if no station shows it"),
+  selections: z.array(photoSelectionSchema).describe("The stations that show the photo"),
   location: stationLocationSchema.optional().describe("Only returned with `include=location`"),
 });
 export type Photo = z.infer<typeof photoSchema>;
@@ -128,15 +126,14 @@ export const photoListQuerySchema = z
       .enum(PHOTO_SORTS)
       .default("-createdAt")
       .describe(
-        "The field to sort by, with a leading `-` for descending order. `createdAt` is the upload time, " +
-          "`takenAt` uses the upload time for photos without a known date, " +
+        "`createdAt` is the upload time, `takenAt` falls back to the upload time for photos without a known date, " +
           "and `siteId` uses the lowest site id among the stations that show the photo",
       ),
     include: photoIncludeSchema.optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
@@ -163,8 +160,8 @@ export const locationPhotoUploadSchema = z.object(photoUploadShape);
 
 export const photoUpdateSchema = z
   .object({
-    note: z.string().trim().max(100).nullable().optional().describe("A short note about the photo. `null` or an empty string clears it"),
-    takenAt: instantSchema.nullable().optional().describe("When the photo was taken. Must not be in the future. `null` clears it"),
+    note: z.string().trim().max(100).nullable().optional().describe("An empty string clears it, like `null`"),
+    takenAt: instantSchema.nullable().optional().describe("Must not be in the future"),
   })
   .strict()
   .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE);
@@ -176,11 +173,8 @@ export const stationPhotosReplaceSchema = z
       .array(photoIdSchema)
       .max(50)
       .refine((ids) => new Set(ids).size === ids.length, { message: "Photo ids must be unique" })
-      .describe("The photos the station shows from now on. Each must belong to the station's location. Send an empty array to show none"),
-    mainPhotoId: photoIdSchema
-      .nullable()
-      .optional()
-      .describe("The station's main photo, which must be one of `photoIds`. If omitted or `null`, the station has no main photo"),
+      .describe("The photos the station shows from now on. Each must belong to the station's location"),
+    mainPhotoId: photoIdSchema.nullable().optional().describe("Must be one of `photoIds`. If omitted or `null`, the station has no main photo"),
   })
   .strict()
   .refine((body) => body.mainPhotoId === undefined || body.mainPhotoId === null || body.photoIds.includes(body.mainPhotoId), {

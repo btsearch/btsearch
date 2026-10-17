@@ -70,7 +70,6 @@ const updateOfficialDataset: Route<RequestData, OfficialDataset> = {
   method: "PATCH",
   config: {
     permissions: ["run:official_import"],
-    errorReasons: { 404: "The dataset does not exist." },
   },
   schema: schemaRoute,
   handler,

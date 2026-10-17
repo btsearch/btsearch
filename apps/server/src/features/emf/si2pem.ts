@@ -8,8 +8,7 @@ const BUSY_RETRY_SECONDS = 10;
 
 export const si2pem = new SI2PEMClient();
 
-export const SI2PEM_UNAVAILABLE_REASON =
-  "SI2PEM is not responding and there is no cached result to fall back on. `Retry-After` tells you how many seconds to wait.";
+export const SI2PEM_UNAVAILABLE_REASON = "SI2PEM is not responding and there is no cached result to fall back on.";
 
 export class ReportReadQueueFullError extends Error {}
 

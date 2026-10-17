@@ -19,7 +19,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Update a list",
   description:
-    "Updates a list and returns it. You need to be the owner or an administrator. " +
+    "You need to be the owner or an administrator. " +
     "Every item you add has to exist. Stations in countries you cannot access count as missing, " +
     "and so do official sites and microwave links of sources that are hidden from you.",
   params: listParamsSchema,
@@ -31,9 +31,9 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "The request is invalid, or some of the items you add do not exist. In that case `details` lists the missing ids.",
+  400: "Some of the items you add do not exist. `details` lists the missing ids.",
   403: "Lists are disabled, or the list is not yours and you are not an administrator.",
-  404: "The list does not exist, or it is private and not yours.",
+  404: "The list is private and not yours.",
   409: "The owner already has another list with this name.",
 };
 type RequestData = { Params: z.infer<typeof listParamsSchema>; Body: ListUpdate };

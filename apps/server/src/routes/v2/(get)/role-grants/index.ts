@@ -20,11 +20,9 @@ const cursorSchema = z.object({ id: z.uuid() });
 const schemaRoute = {
   summary: "List role grants",
   description:
-    "Returns the role grants you are allowed to see. " +
     "You always see your own grants. Administrators see every grant, and maintainers also see all grants in the countries they maintain. " +
     "With an OAuth token, seeing more than your own grants also requires the `update:role_grants` scope. " +
     "`userIds` and `countryCodes` only narrow this down, so grants you cannot see are left out instead of causing an error. " +
-    "A grant whose `regionIds` is `null` covers the whole country. " +
     "With an API key you only ever see the grants of the account the key belongs to.",
   security: SECURITY_FOR_ANY_ACCOUNT_CREDENTIAL,
   querystring: roleGrantListQuerySchema,

@@ -15,7 +15,6 @@ export const BAND_RATS = ["gsm", "umts", "lte", "nr"] as const;
 export type BandRat = (typeof BAND_RATS)[number];
 
 export const UNKNOWN_BAND = "unknown";
-export const UNKNOWN_BAND_NOTE = "`null` if the band is unknown";
 
 const bandFilterEntrySchema = z.union([z.literal(UNKNOWN_BAND), z.coerce.number<string>().int().positive().max(MAX_ID)], {
   error: `Must be a band id or the word ${UNKNOWN_BAND}`,
@@ -32,7 +31,6 @@ export const COUNTRY_BAND_INCLUDES = ["band"] as const;
 
 const khzRangeSchema = z.tuple([z.number().int(), z.number().int()]);
 
-const BAND_RAT_NOTE = "The technology the band belongs to: `gsm`, `umts`, `lte` or `nr`";
 const BAND_CODE_NOTE =
   "A code from the 3GPP catalogue, such as `E-GSM900`, `VIII`, `B3` or `n78`. Uplink-only bands are not accepted. " +
   "The code sets the band's technology, duplex mode and frequency ranges, and an existing band can only change to a code of the same technology";
@@ -44,15 +42,15 @@ const UPLINK_KHZ_NOTE =
 
 export const bandSchema = z.object({
   id: z.number().int(),
-  rat: z.enum(BAND_RATS).describe(BAND_RAT_NOTE),
-  code: z.string().nullable().describe("The band's code in the 3GPP catalogue, such as `E-GSM900`, `VIII`, `B3` or `n78`, or `null` if it has none"),
+  rat: z.enum(BAND_RATS),
+  code: z.string().nullable().describe("The band's code in the 3GPP catalogue, such as `E-GSM900`, `VIII`, `B3` or `n78`"),
   number: z.number().int().nullable().describe("The 3GPP band number, for example `3` for `B3`. `null` for GSM bands and for bands without a `code`"),
   name: z.string(),
-  labelMhz: z.number().int().nullable().describe(`${LABEL_MHZ_NOTE}. \`null\` if it is not set`),
+  labelMhz: z.number().int().nullable().describe(LABEL_MHZ_NOTE),
   duplex: z
     .enum(BAND_DUPLEXES)
     .nullable()
-    .describe("The duplex mode, taken from the 3GPP catalogue for a band with a `code`. `sdl` means downlink only. `null` if it is not set"),
+    .describe("The duplex mode, taken from the 3GPP catalogue for a band with a `code`. `sdl` means downlink only"),
   variant: z.enum(BAND_VARIANTS).describe(BAND_VARIANT_NOTE),
   downlinkKhz: khzRangeSchema
     .nullable()
@@ -66,9 +64,7 @@ export const bandListQuerySchema = z
     countryCodes: csvCountryCodesSchema
       .optional()
       .describe("Returns only the bands in the band plan of these countries. Comma-separated two-letter country codes"),
-    rats: csvEnumSchema(BAND_RATS)
-      .optional()
-      .describe(`Returns only the bands of these technologies. Comma-separated list. Possible values: \`${BAND_RATS.join("`, `")}\``),
+    rats: csvEnumSchema(BAND_RATS).optional(),
   })
   .strict();
 export type BandListQuery = z.infer<typeof bandListQuerySchema>;
@@ -76,7 +72,7 @@ export type BandListQuery = z.infer<typeof bandListQuerySchema>;
 export const bandCreateSchema = z
   .object({
     code: z.string().min(1).max(16).describe(BAND_CODE_NOTE),
-    name: z.string().trim().min(1).max(15).describe("The band's display name. Must be unique across all bands"),
+    name: z.string().trim().min(1).max(15).describe("Must be unique across all bands"),
     variant: z
       .enum(BAND_VARIANTS)
       .optional()

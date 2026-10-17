@@ -15,12 +15,10 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Update a comment",
   description:
-    "Updates a comment and returns it. You can edit the text of your own comment. " +
-    "Moderators can edit any comment, and only they can set `status`. " +
+    "You can edit the text of your own comment, and moderators can edit any comment. " +
     "A moderator is an administrator, or an editor whose grant covers the comment's station. " +
     "While comment review is on, changing the text of your approved comment sets it back to `pending` until a moderator approves it again. " +
     "A moderator's edit does not do that. " +
-    "When a pending comment is approved, users who watch the station are notified. " +
     "This endpoint keeps working while comments are disabled.",
   params: commentParamsSchema,
   body: commentUpdateSchema,
@@ -32,7 +30,6 @@ const schemaRoute = {
 };
 const errorReasons = {
   403: "You need to be the author or a moderator, and only a moderator can set `status`.",
-  404: "The comment does not exist.",
 };
 type RequestData = { Params: z.infer<typeof commentParamsSchema>; Body: CommentUpdate };
 

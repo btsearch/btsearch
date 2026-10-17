@@ -34,7 +34,7 @@ export type SettingsFeatures = z.infer<typeof settingsFeaturesSchema>;
 
 export const settingsAnnouncementSchema = z.object({
   isEnabled: z.boolean(),
-  type: z.enum(ANNOUNCEMENT_TYPES).describe("The severity of the banner"),
+  type: z.enum(ANNOUNCEMENT_TYPES),
   message: z.string(),
 });
 export type SettingsAnnouncement = z.infer<typeof settingsAnnouncementSchema>;
@@ -73,22 +73,16 @@ export const settingsUpdateSchema = z
       .boolean()
       .optional()
       .describe("When `true`, guests are rejected everywhere except the open routes, the sign-in routes and `GET /settings`"),
-    features: settingsFeaturesSchema
-      .partial()
-      .strict()
-      .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE)
-      .optional()
-      .describe("Updates the features you send and leaves the rest unchanged"),
+    features: settingsFeaturesSchema.partial().strict().refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE).optional(),
     announcement: z
       .object({
         isEnabled: z.boolean().optional(),
-        type: z.enum(ANNOUNCEMENT_TYPES).optional().describe("The severity of the banner"),
+        type: z.enum(ANNOUNCEMENT_TYPES).optional(),
         message: z.string().max(ANNOUNCEMENT_MESSAGE_MAX_LENGTH).optional(),
       })
       .strict()
       .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE)
-      .optional()
-      .describe("Updates the fields you send and leaves the rest unchanged"),
+      .optional(),
     access: z
       .object({
         openRoutes: routeRulesSchema

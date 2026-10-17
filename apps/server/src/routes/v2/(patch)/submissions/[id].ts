@@ -23,15 +23,12 @@ const NOTE_FIELDS = new Set(["note", "reviewNote"]);
 const schemaRoute = {
   summary: "Update a submission",
   description:
-    "Updates a submission and returns it. You can change your own submission while it is pending. " +
+    "You can change your own submission while it is pending. " +
     "Administrators, and editors whose grant covers everything the submission touches, can change it as well.\n\n" +
-    "Any of `station`, `location`, `sectors`, `cells` and `photos` you send replaces that part of the submission, " +
-    "and parts you leave out stay as they are. " +
-    "Only those administrators and editors can set `reviewNote`, and it is the only field that can still change after the review. " +
-    "`isConfirmed` on a new cell is also only kept when one of them sends it.\n\n" +
-    "In `location.structure`, `ownerId` and `ownerName` replace each other. Send `ownerName` to propose a new owner or to correct its name, " +
-    "`ownerId` to use an existing owner in its place, or `ownerId: null` to drop both. " +
-    "New owner names require `features.structureOwnerProposals` on `GET /settings` to be enabled. " +
+    "Any of `station`, `location`, `sectors`, `cells` and `photos` you send replaces that part of the submission. " +
+    "`reviewNote` is the only field that can still change after the review. " +
+    "`isConfirmed` on a new cell is only kept when one of those administrators and editors sends it.\n\n" +
+    "A new owner name in `location.structure.ownerName` requires `features.structureOwnerProposals` on `GET /settings` to be enabled. " +
     "A name that resolves to an existing owner, or the unchanged pending name in the same country, is allowed while proposals are disabled.\n\n" +
     "A submission that removes a station has no changes to edit, only its notes.",
   params: submissionParamsSchema,
@@ -44,15 +41,13 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request is invalid, the update would change nothing, or the new content breaks a rule that also applies when creating a submission. " +
-    "Once a submission has been reviewed, only `reviewNote` can be changed. " +
-    "A cell update in `cells` that names only the cell's `id` is rejected as well, because it needs at least one field to change, " +
-    "which can be a field set to `null`. That error points at the cell, for example `cells/1`.",
+    "The update would change nothing, or the new content breaks a rule that also applies when creating a submission. " +
+    "Once a submission has been reviewed, only `reviewNote` can be changed.",
   403:
     "You are not allowed to change this submission or to set `reviewNote`. " +
     "Also returned when submissions are disabled or the change is in a country that is closed to contributions. " +
     "A new structure owner proposal while proposals are disabled points `details[0].field` at `location/structure/ownerName`.",
-  404: "The submission does not exist. Also returned when its station is `inactive` or a cell you referenced is not on that station.",
+  404: "The submission's station is `inactive`, or a cell you referenced is not on that station.",
   409:
     "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
     "or an LTE cell on an active station with the same `enbid` and `clid`. " +

@@ -14,13 +14,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "List regions",
-  description:
-    "Returns all regions, ordered by country and then by name. " +
-    "Regions in hidden countries are only included for administrators and for editors with a grant in that country. " +
-    "If you send `latitude` and `longitude`, you get only the region that point lies in, or an empty list if it lies in none.\n\n" +
-    "If you send `bbox`, you get only the regions whose stored outline touches that box, for example to find out which countries " +
-    "a map is showing. A region without a stored outline never matches. You can combine `bbox` with `countryCodes`, " +
-    "but not with `latitude` and `longitude`.",
+  description: "Regions are ordered by country and then by name. With `bbox` you can find out which countries a map is showing.",
   querystring: regionListQuerySchema,
   response: {
     200: z.object({

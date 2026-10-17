@@ -17,21 +17,15 @@ import { encodeCursor, resolveOffset } from "../../../../lib/cursor.js";
 const schemaRoute = {
   summary: "Search stations",
   description:
-    "Searches stations using free text, keywords, or both in `q`. " +
     "Free text is matched against site ids and other station identifiers, against cell and base-station identifiers if it is a number, " +
     "and against cities and addresses otherwise. Text shorter than 3 characters only finds exact matches, " +
     "and a pair of decimal coordinates (latitude first) finds stations within 1 km.\n\n" +
     "Keywords are written as `name:value`, for example `rat:lte band:1800`, with commas between alternative values " +
     "and quotes around values that contain spaces. There are keywords for the operator and country (`plmn:`, `country:`), " +
     "the station's status and dates (`status:`, `created_after:`), technology and band (`rat:`, `band:`), " +
-    "cell identifiers (`enbid:`, `cid:`) and the place (`city:`, `region:`, `gps:`).\n\n" +
-    "Each result has a `match` that tells you which field the free text was found in. It is `null` if `q` only contains keywords.\n\n" +
-    "Unless you send `statuses` or a `status:` keyword, only active stations and stations awaiting cells are searched, " +
-    "and stations in countries you cannot access are never returned. The other filters work as in `GET /stations`, " +
-    "including `keepOtherCountries`, `structureTypes`, `hasPhotos`, `hasSectors`, `isConfirmed` and `editableOnly`. " +
-    "`isConfirmed` checks the station itself, while the `is_confirmed:` keyword checks its cells.\n\n" +
-    "You can page through roughly 100000 results. After that, `nextCursor` is `null`. " +
-    "To jump straight to a page, send `offset` instead of `cursor`.",
+    "cell identifiers (`enbid:`, `cid:`) and the place (`city:`, `region:`, `gps:`). " +
+    "The `is_confirmed:` keyword checks a station's cells, unlike `isConfirmed`.\n\n" +
+    "You can page through roughly 100000 results. After that, `nextCursor` is `null`.",
   querystring: searchQuerySchema,
   response: {
     200: searchListSchema,
@@ -39,13 +33,10 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "A query parameter did not pass validation, the `cursor` is invalid, or `q` contains a misspelled keyword " +
-    "or a keyword value that cannot be parsed. For a misspelled keyword, the `message` suggests the one you probably meant.",
-  403:
-    "You sent `editableOnly` without the `update:stations` permission, or lists are disabled and you sent `listId`. " +
-    "Also returned when your API key or token cannot be used for this endpoint, " +
-    "two-factor authentication still has to be set up, or the endpoint is disabled.",
-  404: "Only returned when you send `listId`. The list does not exist, or it is a private list you cannot access.",
+    "The `cursor` is invalid, or `q` contains a misspelled keyword or a keyword value that cannot be parsed. " +
+    "For a misspelled keyword, the `message` suggests the one you probably meant.",
+  403: "You sent `editableOnly` without the `update:stations` permission, or lists are disabled and you sent `listId`.",
+  404: "The list in `listId` does not exist, or it is a private list you cannot access.",
 };
 type ReqQuery = { Querystring: SearchQuery };
 

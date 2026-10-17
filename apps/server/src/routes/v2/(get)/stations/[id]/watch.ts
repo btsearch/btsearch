@@ -13,9 +13,6 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "Get a station's watch status",
-  description:
-    "Returns whether you watch a station. Only a watch you set with `PUT /stations/{id}/watch` counts here. " +
-    "You are also notified about stations on your lists that have notifications enabled, but those are not reported as watched.",
   params: stationParamsSchema,
   querystring: z.object({}).strict(),
   response: {
@@ -25,8 +22,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  401: "You are not signed in, or the token you sent is invalid. API keys cannot be used here, because a watch belongs to a user account.",
-  404: "The station does not exist, or it is in a country you cannot access.",
+  401: "API keys cannot be used here, because a watch belongs to a user account.",
 };
 type ReqParams = { Params: z.infer<typeof stationParamsSchema> };
 

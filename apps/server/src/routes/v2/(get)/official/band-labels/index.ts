@@ -10,7 +10,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 const schemaRoute = {
   summary: "List band labels",
   description:
-    "Returns the band labels that official permits are issued for, such as `LTE 800` or `GSM-R 900`, once for each country and source. " +
+    "Returns the band labels that official permits are issued for, once for each country and source. " +
     "A label is listed only while at least one permit you can see uses it. " +
     "Use the list to offer the values of `rats` and `bandLabels` in the other official endpoints.\n\n" +
     "The labels are ordered by technology, newest first (NR, LTE, UMTS, CDMA, GSM, then the others), " +

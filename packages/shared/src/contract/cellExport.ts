@@ -22,10 +22,9 @@ export const CELL_EXPORT_TEMPLATE_PARAMS = {
 const templateSchema = z.string().trim().min(1).max(CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH);
 
 const FORMAT_NOTE =
-  "The file format. `2.0`, `2.1`, `3.0-dec`, `3.0-hex` and `4.0` are CLF versions, of which `2.0` and `3.0-hex` write cell identifiers " +
+  "`2.0`, `2.1`, `3.0-dec`, `3.0-hex` and `4.0` are CLF versions, of which `2.0` and `3.0-hex` write cell identifiers " +
   "in hexadecimal and the others in decimal. `ntm` is the NetMonster format and `netmonitor` the Netmonitor CSV format";
-const OPERATORS_NOTE =
-  "Exports only the cells of these operators. For a shared network, the cells of its members are exported too. Comma-separated ids";
+const OPERATORS_NOTE = "For a shared network, the cells of its members are exported too. Comma-separated ids";
 const SUPPORTS_IOT_NOTE = "`true` exports only LTE cells that support IoT and NR cells that support RedCap. `false` leaves those cells out";
 const INCLUDE_IOT_NOTE = "`true` adds LTE IoT and NR RedCap cells to the selected RATs. `supportsIot`, when present, still filters the result";
 const NR_SEPARATELY_NOTE =
@@ -35,7 +34,7 @@ const NR_SEPARATELY_NOTE =
 function templateNote(cells: string, rat: CLFDescriptionTemplateRat): string {
   const placeholders: readonly string[] = CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT[rat];
   return (
-    `The template for the description of ${cells} cells, up to ${CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH} characters. ` +
+    `The template for the description of ${cells} cells. ` +
     `Defaults to \`${CLF_DESCRIPTION_TEMPLATE_DEFAULTS[rat]}\`. Placeholders: \`{${placeholders.join("}`, `{")}}\``
   );
 }

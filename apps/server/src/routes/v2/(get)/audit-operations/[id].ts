@@ -12,11 +12,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "Get an audit operation",
-  description:
-    "Returns one audit operation with all of its entries. " +
-    "Each entry has the row before and after the change and says whether it can still be reverted. " +
-    "You need to be an administrator, or a maintainer of the country the operation belongs to. " +
-    "Operations without a `countryCode` can only be read by administrators.",
+  description: "Operations without a `countryCode` can only be read by administrators.",
   params: auditOperationParamsSchema,
   response: {
     200: z.object({

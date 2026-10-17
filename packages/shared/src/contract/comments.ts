@@ -3,7 +3,6 @@ import { z } from "zod/v4";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
-  INCLUDE_TOTAL_NOTE,
   booleanQuerySchema,
   csvEnumSchema,
   csvUuidsSchema,
@@ -73,15 +72,13 @@ export const commentListQuerySchema = z
   .object({
     q: z.string().trim().min(1).max(100).optional().describe("Matches part of the comment's text or of the station's site id"),
     authorIds: csvUuidsSchema.optional(),
-    statuses: csvEnumSchema(COMMENT_STATUSES)
-      .optional()
-      .describe(`If omitted, comments in both statuses are returned. Comma-separated list. Possible values: \`${COMMENT_STATUSES.join("`, `")}\``),
-    sort: z.enum(COMMENT_SORTS).default("-createdAt").describe("The field to sort by, with a leading `-` for descending order"),
+    statuses: csvEnumSchema(COMMENT_STATUSES).optional(),
+    sort: z.enum(COMMENT_SORTS).default("-createdAt"),
     include: csvEnumSchema(COMMENT_INCLUDES).optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
-    includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),
+    includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);

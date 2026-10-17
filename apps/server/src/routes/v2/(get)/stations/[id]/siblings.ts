@@ -18,9 +18,7 @@ const schemaRoute = {
     "A sibling is a station at the same location whose operator is another member of a shared network this station's operator belongs to, " +
     "and which has an LTE cell with the same eNBID as one of this station's LTE cells. " +
     "A country can have its own rule for when two eNBIDs count as the same. " +
-    "Active siblings come first, then the others, each group ordered by `id`. " +
-    "The list is empty when there are none, for example when the station has no LTE cells. " +
-    "Each sibling has the same shape as the station from `GET /stations/{id}`, and `include` works the same way.",
+    "Active siblings come first, then the others, each group ordered by `id`.",
   params: stationParamsSchema,
   querystring: stationQuerySchema,
   response: {
@@ -49,7 +47,6 @@ const getStationSiblings: Route<RequestData, Station[]> = {
   config: {
     permissions: ["read:stations"],
     allowGuestAccess: true,
-    errorReasons: { 404: "The station does not exist, or it is in a country you cannot access." },
   },
   schema: schemaRoute,
   handler,

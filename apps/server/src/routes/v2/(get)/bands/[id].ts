@@ -32,7 +32,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const getBand: Route<ReqParams, Band> = {
   url: "/bands/:id",
   method: "GET",
-  config: { allowGuestAccess: true, errorReasons: { 404: "The band does not exist." } },
+  config: { allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

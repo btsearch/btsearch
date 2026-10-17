@@ -13,10 +13,8 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Update a cell",
   description:
-    "Updates the fields you send and returns the cell. If you send `stationId`, the cell moves to that station. " +
     "A station that is left without cells goes back to awaiting cells, and the first cell turns a station that is awaiting cells " +
-    "into an active one. Users who watch the cell's station are notified. " +
-    "As an editor you need access to the cell's station and to the station it moves to.",
+    "into an active one. Users who watch the cell's station are notified.",
   params: cellParamsSchema,
   querystring: cellQuerySchema,
   body: cellUpdateSchema,
@@ -28,13 +26,13 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The request did not pass validation, or the cell cannot be updated as sent. For example, a field does not apply " +
-    "to the cell's technology, its band is not in the country's band plan or belongs to another technology, " +
+    "The cell cannot be updated as sent. For example, a field does not apply to the cell's technology, " +
+    "its band is not in the country's band plan or belongs to another technology, " +
     "or `sectorId` is not one of the station's sectors. The `message` tells you what is wrong.",
   403:
-    "A permission is missing, or your editor access does not cover the cell's station or the station it moves to. " +
+    "Your editor access does not cover the cell's station or the station it moves to. " +
     "Editors can also get this response when the cell does not exist.",
-  404: "The cell does not exist, or the station in `stationId` does not exist.",
+  404: "The cell or the station in `stationId` does not exist.",
   409:
     "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
     "or an LTE cell on an active station with the same `enbid` and `clid`. " +

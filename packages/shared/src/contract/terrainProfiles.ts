@@ -51,22 +51,14 @@ const terrainReceiverSchema = z.object({
 
 const terrainAntennaShape = {
   key: z.string().describe("Stays the same for the same antenna, even after a newer report is published"),
-  source: z
-    .enum(TERRAIN_ANTENNA_SOURCES)
-    .describe("Where the antenna data comes from: `emfReport` for the station's newest laboratory report, `permit` for its permits"),
+  source: z.enum(TERRAIN_ANTENNA_SOURCES).describe("`emfReport` for the station's newest laboratory report, `permit` for its permits"),
   heightMeters: z.number().describe("Height above the ground"),
-  azimuth: z
-    .number()
-    .nullable()
-    .describe("The antenna direction in degrees from north. `360` means an omnidirectional antenna, and `null` that the source gives no direction"),
-  tilt: z.number().nullable().describe("The antenna's tilt in degrees, or `null` if the source gives none"),
-  tiltSource: z
-    .enum(TERRAIN_TILT_SOURCES)
-    .nullable()
-    .describe("Where the tilt comes from: `measured` for the report, `declared` for the permit. `null` if there is no tilt"),
+  azimuth: z.number().nullable().describe("In degrees from north. `360` means an omnidirectional antenna"),
+  tilt: z.number().nullable().describe("In degrees"),
+  tiltSource: z.enum(TERRAIN_TILT_SOURCES).nullable().describe("`measured` for the report, `declared` for the permit"),
   frequencyMhz: z.number(),
-  technology: z.enum(TERRAIN_ANTENNA_TECHNOLOGIES).nullable().describe("The antenna's technology, or `null` if none could be matched"),
-  labelMhz: z.number().int().nullable().describe("The frequency label in MHz, or `null` if none could be matched"),
+  technology: z.enum(TERRAIN_ANTENNA_TECHNOLOGIES).nullable(),
+  labelMhz: z.number().int().nullable().describe("The nominal frequency of the band"),
 };
 
 export const terrainAntennaSchema = z.object(terrainAntennaShape);
@@ -87,7 +79,7 @@ export const terrainSampleSchema = z.object({
   latitude: z.number(),
   longitude: z.number(),
   groundMeters: z.number().describe("Height of the ground above sea level"),
-  surfaceMeters: z.number().nullable().describe("Height of the surface above sea level, including buildings and trees. `null` where it is unknown"),
+  surfaceMeters: z.number().nullable().describe("Height of the surface above sea level, including buildings and trees"),
   sightLineMeters: z.number().describe(SIGHT_LINE_NOTE),
 });
 export type TerrainSample = z.infer<typeof terrainSampleSchema>;
@@ -100,12 +92,12 @@ export const terrainResultSchema = z.object({
       "Whether the ground with its buildings and trees blocks the line between the antennas. Also `blocked` when the receiver lies beyond " +
         "the radio horizon, and `unknown` if the heights of buildings and trees are not available",
     ),
-  distanceMeters: z.number().describe("Distance between the station and the receiver"),
+  distanceMeters: z.number(),
   bearing: z.number().describe("Direction from the station to the receiver, in degrees from north"),
   pathLossDb: z.number().describe("Basic transmission loss along the path, from the ITU-R P.1812 model"),
   referenceFieldStrengthDbuvm: z.number().describe("Field strength at the receiver for a 1 kW transmitter, not for the station's actual power"),
   beamOffset: z.object({
-    azimuth: z.number().nullable().describe("Angle in degrees between the antenna's azimuth and `bearing`. `null` if the antenna has no direction"),
+    azimuth: z.number().nullable().describe("Angle in degrees between the antenna's azimuth and `bearing`"),
     elevation: z
       .number()
       .nullable()
@@ -115,9 +107,9 @@ export const terrainResultSchema = z.object({
     .number()
     .nullable()
     .describe("Distance from the station to the point where the path is most obstructed, or `null` if the path is unobstructed"),
-  samples: z.array(terrainSampleSchema).describe("The points sampled along the path, from the station to the receiver"),
+  samples: z.array(terrainSampleSchema).describe("Ordered from the station to the receiver"),
   elevationData: z.object({
-    source: z.string().describe("The provider of the elevation data"),
+    source: z.string(),
     resolutionMeters: z.number().describe("Distance between two samples"),
   }),
   warnings: z
@@ -132,17 +124,15 @@ export type TerrainResult = z.infer<typeof terrainResultSchema>;
 
 export const terrainPropagationSchema = z.object({
   pathType: z.enum(TERRAIN_PATH_TYPES).describe("`transHorizon` if the receiver lies beyond the radio horizon"),
-  basicTransmissionLossDb: z.number().describe("Basic transmission loss between the antennas. The same value as `result.pathLossDb`, not rounded"),
-  freeSpaceLossDb: z.number().describe("The loss the same distance would have in free space"),
-  diffractionLossDb: z.number().describe("The loss from diffraction over the terrain along the path"),
-  troposcatterLossDb: z.number().describe("The loss of the troposcatter mechanism"),
+  basicTransmissionLossDb: z.number().describe("The same value as `result.pathLossDb`, not rounded"),
+  freeSpaceLossDb: z.number(),
+  diffractionLossDb: z.number(),
+  troposcatterLossDb: z.number(),
   anomalousLossDb: z.number().describe("The loss of anomalous propagation, that is ducting and layer reflection"),
   referenceFieldStrengthDbuvm: z.number().describe("Field strength at the receiver for a 1 kW transmitter, not for the station's actual power"),
-  transmitterHorizonDistanceMeters: z.number().describe("Distance from the station's antenna to its radio horizon"),
-  receiverHorizonDistanceMeters: z.number().describe("Distance from the receiver to its radio horizon"),
-  effectiveEarthRadiusMeters: z
-    .number()
-    .describe("The Earth radius the model used. It is larger than the real radius, to account for radio waves bending in the atmosphere"),
+  transmitterHorizonDistanceMeters: z.number(),
+  receiverHorizonDistanceMeters: z.number(),
+  effectiveEarthRadiusMeters: z.number().describe("Larger than the real radius, to account for radio waves bending in the atmosphere"),
   beta0: z
     .number()
     .describe("The model's `beta0` parameter: the percentage of time in which the lower atmosphere bends radio waves unusually strongly"),
@@ -163,7 +153,7 @@ export const terrainProfileSchema = z.object({
   officialSiteId: z.number().int().nullable().describe("`null` if the profile was requested for a station"),
   receiver: terrainReceiverSchema,
   antenna: terrainSelectedAntennaSchema.nullable().describe("`null` unless the status is `ready`"),
-  report: emfReportHeadSchema.nullable().describe("The laboratory report the antennas were read from, or `null` if there is none"),
+  report: emfReportHeadSchema.nullable().describe("The laboratory report the antennas were read from"),
   result: terrainResultSchema.nullable().describe("`null` unless the status is `ready`"),
   failure: z
     .object({ reason: z.enum(TERRAIN_FAILURE_REASONS), message: z.string() })
@@ -187,8 +177,8 @@ export type TerrainProfileQuery = z.infer<typeof terrainProfileQuerySchema>;
 
 export const terrainProfileCreateSchema = z
   .object({
-    stationId: idSchema.optional().describe("The id of a station in the database"),
-    officialSiteId: idSchema.optional().describe("The id of a site in the official register"),
+    stationId: idSchema.optional(),
+    officialSiteId: idSchema.optional(),
     receiver: terrainReceiverSchema
       .strict()
       .describe(

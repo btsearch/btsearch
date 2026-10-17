@@ -13,14 +13,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "List official sources",
-  description:
-    "Returns the official sources in one response, ordered by key. " +
-    "A source is one register an authority publishes, together with the terms it is published under. " +
-    "Its `datasets` are the parts that are downloaded and imported on their own.\n\n" +
-    "Show `attribution`, and `coverageNote` when it is set, wherever you show a source's data. " +
-    "`importedAt` on each dataset tells you how recent that data is.\n\n" +
-    "You get the visible sources of the countries you can access. " +
-    "Administrators get every source, hidden or not, along with the fields marked as only returned to administrators.",
+  description: "Returns the official sources in one response, ordered by key.",
   querystring: officialSourceListQuerySchema,
   response: {
     200: z.object({

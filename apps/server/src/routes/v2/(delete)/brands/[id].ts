@@ -13,7 +13,6 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 
 const schemaRoute = {
   summary: "Delete a brand",
-  description: "Deletes the brand together with its logo file.",
   params: brandParamsSchema,
   response: { 204: noContentSchema },
 };
@@ -57,10 +56,7 @@ const deleteBrand: Route<ReqParams, void> = {
   method: "DELETE",
   config: {
     permissions: ["delete:brands"],
-    errorReasons: {
-      404: "The brand does not exist.",
-      409: "An operator, a licensee or a structure owner still uses this brand.",
-    },
+    errorReasons: { 409: "An operator, a licensee or a structure owner still uses this brand." },
   },
   schema: schemaRoute,
   handler,

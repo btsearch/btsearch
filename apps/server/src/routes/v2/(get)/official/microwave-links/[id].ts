@@ -9,9 +9,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const schemaRoute = {
   summary: "Get a microwave link",
-  description:
-    "Returns one microwave link from an official source. " +
-    "To get the other links of the same permit, call `GET /official/microwave-links` with its `permitNumbers` and `licenseeIds`.",
+  description: "To get the other links of the same permit, call `GET /official/microwave-links` with its `permitNumbers` and `licenseeIds`.",
   params: microwaveLinkParamsSchema,
   querystring: microwaveLinkQuerySchema,
   response: {
@@ -32,7 +30,6 @@ const getMicrowaveLink: Route<RequestData, MicrowaveLink> = {
   config: {
     permissions: ["read:microwave_links"],
     allowGuestAccess: true,
-    errorReasons: { 404: "The microwave link does not exist, or its source is hidden from you." },
   },
   schema: schemaRoute,
   handler,

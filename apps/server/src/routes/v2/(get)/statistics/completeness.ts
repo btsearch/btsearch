@@ -11,10 +11,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Get data completeness per country",
   description:
-    "Returns how complete the data of each country's active stations is, sorted by country code. " +
-    "`stations.withSectors` and `stations.withIdentifiers` count the active stations that have at least one sector or one identifier. " +
-    "`cells.lte` and `cells.nr` count the LTE and NR cells on active stations and how many of them have a PCI. " +
-    "You get every country you can access, or only those in `countryCodes`, and a country without data comes back with zeros. " +
+    "Covers active stations only. Countries are sorted by code, and a country without data comes back with zeros. " +
     "The numbers are cached for 10 minutes.",
   querystring: statisticsQuerySchema,
   response: {

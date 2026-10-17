@@ -13,9 +13,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   summary: "List structure owners",
-  description:
-    "Returns the structure owners of the countries you can access, sorted by name. " +
-    "Use `countryCodes` to narrow the list to certain countries. Owners that are not tied to a country are always included.",
+  description: "Returns the owners sorted by name.",
   querystring: structureOwnerListQuerySchema,
   response: {
     200: z.object({

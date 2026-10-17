@@ -87,15 +87,15 @@ export const API_ERROR_SCHEMA: JsonObject = {
         type: "object",
         required: ["code", "message"],
         properties: {
-          code: { type: "string", description: "A stable identifier for the kind of error, for example NOT_FOUND. Use this in your code" },
-          message: { type: "string", description: "A human-readable explanation" },
+          code: { type: "string", description: "A stable identifier, for example `NOT_FOUND`" },
+          message: { type: "string" },
           details: {
             type: "array",
-            description: "Extra information that some errors include. Validation errors list the fields that failed",
+            description: "Sent by some errors. A validation error lists the fields that failed",
             items: {
               type: "object",
               properties: {
-                field: { type: "string", description: "The field that failed validation, as a path with `/` between its segments" },
+                field: { type: "string", description: "A path with `/` between its segments" },
                 validationMessage: { type: "string" },
               },
             },

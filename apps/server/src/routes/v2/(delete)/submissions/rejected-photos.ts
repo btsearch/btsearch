@@ -14,9 +14,9 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Delete photos of rejected submissions",
   description:
-    "Deletes the photos that were uploaded to submissions which were later rejected, starting with the oldest rejections. " +
-    "The server does this on its own 30 days after a rejection. Use this endpoint to delete them right away, whatever their age. " +
-    "One request handles up to 500 submissions. If `hasMore` is `true` in the response, call it again. " +
+    "The server deletes them on its own 30 days after a rejection. " +
+    "Use this endpoint to delete them right away, whatever their age, starting with the oldest rejections. " +
+    "One request handles up to 500 submissions. " +
     "It keeps working while submissions are disabled.",
   response: {
     200: z.object({

@@ -19,8 +19,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 const schemaRoute = {
   summary: "Create a list",
   description:
-    "Creates a list and returns it. You can have up to 15 lists, and each of them needs its own name. " +
-    "A new list is private and has notifications turned off unless you set `isPublic` or `notificationsEnabled`. " +
+    "You can have up to 15 lists. " +
     "Every item you add has to exist. Stations in countries you cannot access count as missing, " +
     "and so do official sites and microwave links of sources that are hidden from you.",
   body: listCreateSchema,
@@ -31,9 +30,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400:
-    "The request is invalid, you already have 15 lists (`LIST_LIMIT_REACHED`), or some of the items do not exist. " +
-    "In the last case `details` lists the missing ids.",
+  400: "You already have 15 lists (`LIST_LIMIT_REACHED`), or some of the items do not exist. " + "In the last case `details` lists the missing ids.",
   403: "Lists are disabled.",
   409: "You already have a list with this name.",
 };
