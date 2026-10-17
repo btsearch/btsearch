@@ -141,6 +141,9 @@ services:
       - REDIS_URL=redis://default:${REDIS_PASSWORD}@redis:6379
       - BASE_URL=${BASE_URL:?BASE_URL is required}
       - APP_NAME=${APP_NAME:-OpenBTS}
+      # Authentication and email, loaded through the shared server modules
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - RESEND_API_KEY=${RESEND_API_KEY}
       # AXIOM HQ logging
       - AXIOM_TOKEN=${AXIOM_TOKEN}
       - AXIOM_DATASET=${AXIOM_DATASET:-openbts}
