@@ -23,6 +23,7 @@ beforeEach(() => {
 
 describe("getEmfReports", () => {
   it("keeps valid filing reports when the measurement service fails", async () => {
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("select", "operators", [{ mnc: 26003 }]);
     vi.spyOn(si2pem, "getWmsFeatureInfo").mockRejectedValue(new SI2PEMError(SI2PEM_ERROR_CODES.invalidResponse, "Unavailable measurements"));
@@ -46,6 +47,7 @@ describe("getEmfReports", () => {
   });
 
   it("deduplicates reports by URL, chooses the newest and drops invalid URLs or dates", async () => {
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", []);
     const load = vi.spyOn(si2pem, "getWmsFeatureInfo").mockResolvedValue({
       features: [
@@ -113,6 +115,24 @@ describe("getEmfReports", () => {
     expect(condition.params).toEqual([7, 1]);
     expect(load).not.toHaveBeenCalled();
   });
+
+  it("hides an official site in a country without the EMF capability", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "official.sources", [{ id: 1, countryCode: "GB", isVisible: true }]);
+    dbMock.enqueueFor("select", "official.sites", [{ siteId: "Test", latitude: 52, longitude: 21, mnc: null, countryCode: "GB" }]);
+    const load = vi.spyOn(si2pem, "getWmsFeatureInfo").mockRejectedValue(new Error("Unexpected report lookup"));
+    const app = await createRouteHarness(getEmfReports);
+    expect((await app.inject({ url: "/emf/reports?officialSiteId=7" })).statusCode).toBe(404);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it.each([[[]], [[{ countryCode: "GB" }]]])("hides coordinates outside every country with the EMF capability: %j", async (regions) => {
+    dbMock.enqueueFor("select", "regions", regions);
+    const load = vi.spyOn(si2pem, "getWmsFeatureInfo").mockRejectedValue(new Error("Unexpected report lookup"));
+    const app = await createRouteHarness(getEmfReports);
+    expect((await app.inject({ url: `/emf/reports?${rawSite}` })).statusCode).toBe(404);
+    expect(load).not.toHaveBeenCalled();
+  });
 });
 
 describe("getEmfAntennas", () => {
@@ -138,6 +158,7 @@ describe("getEmfAntennas", () => {
 
   it("counts an uncached report read and returns its metadata when the PDF exceeds the size limit", async () => {
     redisMock.isReady = true;
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", []);
     const reportUrl = new URL("/files/large.pdf", SI2PEM_ENDPOINTS.origin).href;
     vi.spyOn(si2pem, "findLaboratoryReports").mockResolvedValue([
@@ -157,6 +178,7 @@ describe("getEmfAntennas", () => {
 
   it("refreshes the laboratory report list instead of reusing the truncated cache", async () => {
     redisMock.isReady = true;
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", []);
     const newerReportUrl = new URL("/files/newer.pdf", SI2PEM_ENDPOINTS.origin).href;
     const reportUrl = new URL("/files/older.pdf", SI2PEM_ENDPOINTS.origin).href;
@@ -183,6 +205,7 @@ describe("getEmfAntennas", () => {
   });
 
   it("returns cached antenna details without downloading or consuming the report quota", async () => {
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", []);
     const reportUrl = new URL("/files/report.pdf", SI2PEM_ENDPOINTS.origin).href;
     const cached = {
@@ -213,6 +236,7 @@ describe("getEmfAntennas", () => {
   });
 
   it("returns an empty report when no laboratory report exists", async () => {
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", []);
     const load = vi.spyOn(si2pem, "findLaboratoryReports").mockResolvedValue([]);
     const download = vi.spyOn(si2pem, "downloadReport").mockRejectedValue(new Error("Unexpected report download"));
@@ -227,6 +251,7 @@ describe("getEmfAntennas", () => {
   it.each(["https://hostile.example/report.pdf", "https://user:password@si2pem.gov.pl/report.pdf"])(
     "rejects a report URL outside the trusted host: %s",
     async (url) => {
+      dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
       dbMock.enqueueFor("select", "countries", []);
       const download = vi.spyOn(si2pem, "downloadReport").mockRejectedValue(new Error("Unexpected report download"));
       const app = await createRouteHarness(getEmfAntennas);
@@ -236,6 +261,7 @@ describe("getEmfAntennas", () => {
   );
 
   it("reports a busy reader with the short retry window", async () => {
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", []);
     vi.spyOn(si2pem, "findLaboratoryReports").mockRejectedValue(new ReportReadQueueFullError());
     const app = await createRouteHarness(getEmfAntennas);
@@ -415,6 +441,7 @@ describe("EMF country visibility", () => {
     [getEmfFilings, "/emf/filings"],
     [getEmfInactiveSites, "/emf/inactive-sites"],
   ] as const)("hides a route when no country with the EMF capability is visible: %s", async (route, url) => {
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
     dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     const app = await createRouteHarness(route);
     expect((await app.inject({ url })).statusCode).toBe(404);

@@ -24,9 +24,10 @@ import {
 import { StationInfoCard } from "./stationInfoCard";
 import { InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import type { FloatingDialogPanelFrameProps, StationDialogTarget } from "@/features/floating-dialogs/types";
+import { hasCountryCapability } from "@/features/map/data/mapFilters";
 import { getOfficialSiteMapHash } from "@/features/map/mapLinks";
 import { officialSiteQueryOptions, useOfficialSource } from "@/features/official/queries";
-import { brandsQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
+import { brandsQueryOptions, countriesQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
@@ -87,6 +88,7 @@ function OfficialSiteDialogPanel({
   const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useQuery(officialSiteQueryOptions(stationId, OFFICIAL_SITE_INCLUDES));
   const { data: operators, isLoading: isOperatorsLoading } = useQuery(operatorsQueryOptions());
   const { data: brands } = useQuery(brandsQueryOptions());
+  const { data: countries } = useQuery(countriesQueryOptions());
 
   const site = data ?? placeholder;
   const officialSource = useOfficialSource(site?.sourceKey);
@@ -210,7 +212,7 @@ function OfficialSiteDialogPanel({
             stationCode={siteId}
             operator={{ name: operatorName, mnc: toV1OperatorMnc(operator) }}
             location={location}
-            emfSite={{ officialSiteId: site.id }}
+            emfSite={location && hasCountryCapability(countries, location.countryCode, "emf") ? { officialSiteId: site.id } : undefined}
             onClose={onClose}
           />
           <section>

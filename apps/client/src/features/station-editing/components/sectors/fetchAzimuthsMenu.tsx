@@ -90,7 +90,8 @@ export function FetchAzimuthsMenu({ edit, stationId, onFetched }: FetchAzimuthsM
   const partner = findPartnerOperator(operator, lookups.operators);
   const partnerName = getOperatorShortLabel(partner);
   const isNewInEditor = session.kind === "editor" && session.live === null;
-  const hasEmf = siteId !== "" && latitude !== null && longitude !== null && !isNewInEditor;
+  const isEmfCountry = countryCode !== null && lookups.countriesByCode.get(countryCode)?.capabilities.emf === true;
+  const hasEmf = siteId !== "" && latitude !== null && longitude !== null && !isNewInEditor && isEmfCountry;
   const hasPartner = stationId !== null && partner !== null;
 
   function fetchFrom(source: AzimuthSource, official: OfficialSource | null = null) {
