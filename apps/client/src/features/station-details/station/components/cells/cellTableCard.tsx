@@ -3,12 +3,13 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { type CellColumn, type CellTable, getColumnKey } from "../../utils/cells";
+import { type CellColumn, type CellNetworks, type CellTable, getColumnKey } from "../../utils/cells";
 import { type SectorIndex, findCellSector } from "../../utils/sectors";
 import { CellTableRow } from "./cellTableRow";
-import { SharedValueChip } from "./sharedValueChip";
+import { SharedNetworksChip, SharedValueChip } from "./sharedValueChip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { listNetworkMarks } from "@/features/shared/operatorMarks";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { cn } from "@/lib/utils";
@@ -19,14 +20,15 @@ const BAND_HEADER_CELL_CLASS = cn("w-px whitespace-nowrap", HEADER_CELL_CLASS);
 type CellTableCardProps = {
   table: CellTable;
   sectorsById: SectorIndex;
+  networks: CellNetworks;
 };
 
 type ColumnHeaderProps = {
   column: CellColumn;
 };
 
-export function CellTableCard({ table, sectorsById }: CellTableCardProps) {
-  const { t } = useTranslation("common");
+export function CellTableCard({ table, sectorsById, networks }: CellTableCardProps) {
+  const { t } = useTranslation(["common", "stations"]);
   const [open, setOpen] = useState(true);
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
 
@@ -39,11 +41,18 @@ export function CellTableCard({ table, sectorsById }: CellTableCardProps) {
             <span className="font-semibold text-sm">{table.rat}</span>
             <span className="text-xs text-muted-foreground">({t("labels.cells", { count: table.cells.length })})</span>
           </CollapsibleTrigger>
-          {table.sharedValues.length > 0 ? (
+          {table.sharedValues.length > 0 || table.sharedExtraPlmns.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5">
               {table.sharedValues.map((shared) => (
                 <SharedValueChip key={shared.field} label={shared.label} value={shared.value} />
               ))}
+              {table.sharedExtraPlmns.length > 0 ? (
+                <SharedNetworksChip
+                  label={t("stations:edit.cells.networks.alsoFor")}
+                  rat={table.rat}
+                  marks={listNetworkMarks(table.sharedExtraPlmns, networks.operators, networks.brands)}
+                />
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -70,7 +79,7 @@ export function CellTableCard({ table, sectorsById }: CellTableCardProps) {
             </thead>
             <tbody>
               {table.cells.map((cell) => (
-                <CellTableRow key={cell.id} cell={cell} columns={table.columns} sector={findCellSector(cell, sectorsById)} />
+                <CellTableRow key={cell.id} cell={cell} columns={table.columns} sector={findCellSector(cell, sectorsById)} networks={networks} />
               ))}
             </tbody>
           </table>
@@ -87,6 +96,12 @@ function ColumnHeader({ column }: ColumnHeaderProps) {
     return (
       <th scope="col" className={BAND_HEADER_CELL_CLASS}>
         {t("labels.band")}
+      </th>
+    );
+  if (column.kind === "networks")
+    return (
+      <th scope="col" className={HEADER_CELL_CLASS}>
+        {t("stations:edit.cells.columns.networks")}
       </th>
     );
   if (column.kind === "sector")

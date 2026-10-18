@@ -43,6 +43,7 @@ export async function loadNativeExportLines(
   const { stationConditions, rats } = selection;
   const baseConditions = [...stationConditions, ...selection.cellConditions];
   const commonSelect = {
+    cell_pk: cells.id,
     cell_type: cells.type,
     notes: cells.notes,
     station_pk: cells.station_id,
@@ -142,6 +143,7 @@ export async function loadNativeExportLines(
       ? db
           .select({
             station_id: cells.station_id,
+            cell_pk: cells.id,
             nr_type: nrCells.type,
             band_value: bands.value,
             band_duplex: bands.duplex,
@@ -184,5 +186,6 @@ export async function loadNativeExportLines(
     },
     format,
     convertOptions,
+    selection.networks,
   );
 }

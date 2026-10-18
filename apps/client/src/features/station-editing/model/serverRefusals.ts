@@ -99,6 +99,7 @@ const CELL_PATH_FIELDS: Partial<Record<string, EditField>> = {
   isConfirmed: "isConfirmed",
   mode: "mode",
   gnbidLength: "gnbidLength",
+  plmns: "extraPlmns",
 };
 
 function readGroup(match: RegExpExecArray, index: number): string {
@@ -221,6 +222,20 @@ function atSiteSwitch(match: RegExpExecArray, session: EditSession): FieldTarget
   const field = readGroup(match, 1) === "psc" ? "psc" : "bsic";
   const cells = listKeptCells(session).filter((cell) => getCellNumber(cell, field) !== null);
   return cells.length === 0 ? atGeneral() : cells.map((cell) => toCellTarget(session, cell, field));
+}
+
+function atCellsWithNetwork(group: number): TargetFinder {
+  return (match, session) => {
+    const cells = listKeptCells(session).filter((cell) => cell.extraPlmns.includes(readGroup(match, group)));
+    return cells.length === 0 ? atCells() : cells.map((cell) => toCellTarget(session, cell, "extraPlmns"));
+  };
+}
+
+function atRatNamed(group: number): TargetFinder {
+  return (match) => {
+    const rat = RAT_BY_NAME[readGroup(match, group)];
+    return rat === undefined ? atCells() : [{ scope: "cell", rat }];
+  };
 }
 
 function readMessage(match: RegExpExecArray): TextValues {
@@ -389,7 +404,7 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     readValues: (match) => ({ field: readGroup(match, 1) }),
   },
   {
-    pattern: /^A GSM cell with LAC (\d+) and CID (\d+) already exists for this operator$/,
+    pattern: /^A GSM cell with LAC (\d+) and CID (\d+) already exists on one of the cell's networks$/,
     messageKey: "stations:edit.refusals.cellIdentityTaken",
     findTargets: atCellsWith(
       "gsm",
@@ -402,7 +417,7 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     readValues: (match) => ({ fields: "LAC + CID", values: `${readGroup(match, 1)} + ${readGroup(match, 2)}` }),
   },
   {
-    pattern: /^A UMTS cell with RNC (\d+) and CID (\d+) already exists for this operator$/,
+    pattern: /^A UMTS cell with RNC (\d+) and CID (\d+) already exists on one of the cell's networks$/,
     messageKey: "stations:edit.refusals.cellIdentityTaken",
     findTargets: atCellsWith(
       "umts",
@@ -415,7 +430,7 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     readValues: (match) => ({ fields: "RNC + CID", values: `${readGroup(match, 1)} + ${readGroup(match, 2)}` }),
   },
   {
-    pattern: /^An LTE cell with eNBID (\d+) and CLID (\d+) already exists for this operator$/,
+    pattern: /^An LTE cell with eNBID (\d+) and CLID (\d+) already exists on one of the cell's networks$/,
     messageKey: "stations:edit.refusals.cellIdentityTaken",
     findTargets: atCellsWith(
       "lte",
@@ -432,6 +447,25 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     messageKey: "stations:edit.refusals.pciTaken",
     findTargets: atCellsWith(1, [["pci", 2]], "pci"),
     readValues: (match) => ({ pci: Number(readGroup(match, 2)) }),
+  },
+  { pattern: /^Network code (\d+) does not exist$/, messageKey: "stations:edit.refusals.networkGone", findTargets: atCellsWithNetwork(1) },
+  {
+    pattern: /^Network code (\d+) belongs to another country$/,
+    messageKey: "stations:edit.errors.networkOtherCountry",
+    findTargets: atCellsWithNetwork(1),
+    readValues: (match) => ({ code: readGroup(match, 1) }),
+  },
+  {
+    pattern: /^A cell's networks must include the station owner's main code \d+$/,
+    messageKey: "stations:edit.refusals.ownerNetworkMissing",
+    findTargets: atCells,
+  },
+  { pattern: /^This cell cannot broadcast other networks$/, messageKey: "stations:edit.refusals.networksNotTaken", findTargets: atRat("gsm") },
+  {
+    pattern: /^A (\w+) cell can broadcast at most (\d+) networks besides the owner's$/,
+    messageKey: "stations:edit.errors.tooManyNetworks",
+    findTargets: atRatNamed(1),
+    readValues: (match) => ({ rat: readGroup(match, 1), max: Number(readGroup(match, 2)) }),
   },
   { pattern: /^A cell can be changed once per /, messageKey: "stations:edit.refusals.cellListedTwice", findTargets: atCells },
   { pattern: /^No changes detected/, messageKey: "stations:edit.refusals.noChanges", findTargets: () => [{ scope: "general", field: "changes" }] },

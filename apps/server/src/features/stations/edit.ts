@@ -12,12 +12,13 @@ import type { PermissionObject } from "../../plugins/auth/permissions.js";
 import { type OperatorChange, type ScopeRefs, findLocationIdsAt, locationRefs } from "../access/scope.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { auditContextFromRequest, runAuditedOperation } from "../audit/index.js";
-import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../cells/duplicateCheck.js";
+import { checkOwnerCellDuplicates, checkPciDuplicate } from "../cells/duplicateCheck.js";
+import { loadStationNetworkOwner } from "../cells/networkWrites.js";
 import type { PciDuplicateDetails } from "../cells/pciDuplicateSpecs.js";
 import { loadOperatorRefs } from "../operators/ref.js";
 import { type AppliedChange, applyDirectChange, finishDirectChange, getDestinationStationIds } from "../submissions/actions.js";
 import { loadCurrentLocations } from "../submissions/contributions.js";
-import { type SubmissionChange, hasMeaningfulChanges, validateChange } from "../submissions/create.js";
+import { type SubmissionChange, hasMeaningfulChanges, resolveCellExtras, validateChange } from "../submissions/create.js";
 import { type BodyPath, type StationEdit, toDirectChange } from "../submissions/translate.js";
 import { findVisibleStation } from "./read.js";
 import { stationStatusUpdate } from "./status.js";
@@ -42,8 +43,10 @@ async function assertMovedCellsFit(change: SubmissionChange): Promise<void> {
       const details = cell.details as PciDuplicateDetails | undefined;
       await checkPciDuplicate(destinationId, { rat: cell.rat, bandId: cell.band_id, details, excludeCellId: cellId }, movedIds);
 
-      const operatorId = await getOperatorIdForStation(destinationId);
-      if (operatorId !== null) await checkCellDuplicate({ rat: cell.rat, details, excludeCellId: cellId }, operatorId, changedIds);
+      const owner = await loadStationNetworkOwner(db, destinationId);
+      if (owner.operatorId === null) return;
+      const [extraCodes] = await resolveCellExtras([cell], owner);
+      await checkOwnerCellDuplicates([{ rat: cell.rat, details, excludeCellId: cellId, extraCodes }], owner, changedIds);
     }),
   );
 }

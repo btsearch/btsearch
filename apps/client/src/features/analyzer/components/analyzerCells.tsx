@@ -4,7 +4,7 @@ import type { OfficialSiteRef, Station } from "@openbts/shared/contract";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
-import { buildIdChips } from "../model/rows";
+import { buildIdChips, findNetworkDifference } from "../model/rows";
 import type { IdChip, RowStatus } from "../model/types";
 import {
   ANALYZER_DESCRIPTION_ICON_CLASS,
@@ -371,12 +371,12 @@ export function RegisterHint({ sites, hasMoreSites = true, onOpen }: RegisterHin
   );
 }
 
-function HostOperatorMark({ stationView }: { stationView: StationView }) {
+function HostOperatorMark({ stationView, isOwner }: { stationView: StationView; isOwner: boolean }) {
   const { t } = useTranslation("cellAnalyzer");
   const { operator } = stationView;
   if (operator === undefined) return null;
 
-  const label = t("table.hostStation", { operator: operator.operator.name });
+  const label = t(isOwner ? "table.ownerStation" : "table.hostStation", { operator: operator.operator.name });
 
   return (
     <span role="img" aria-label={label} title={label} className="-mr-0.5 inline-flex shrink-0">
@@ -388,14 +388,16 @@ function HostOperatorMark({ stationView }: { stationView: StationView }) {
 export function MatchCell({ view, hasCountryTile, openers }: MatchCellProps) {
   const { t } = useTranslation("cellAnalyzer");
   const { stationView, officialSites } = view;
-  const isShared = view.result?.isShared === true;
+  const networkMatch = view.result?.networkMatch ?? null;
+  const showsHost = networkMatch !== null && networkMatch !== "own";
+  const isOtherOwner = showsHost && networkMatch !== "partner";
   const secondLineClass = cn("flex min-w-0 items-center gap-1.5", ANALYZER_SECOND_LINE_CLASS);
 
   return (
     <>
       <div className="flex min-w-0 items-center gap-2">
         <ResultBadge status={view.facts.status} />
-        {stationView !== null && isShared ? <HostOperatorMark stationView={stationView} /> : null}
+        {stationView !== null && showsHost ? <HostOperatorMark stationView={stationView} isOwner={isOtherOwner} /> : null}
         {stationView === null ? null : <StationIdButton station={stationView.station} onOpen={openers.openStation} />}
       </div>
       {stationView === null ? null : (
@@ -419,6 +421,7 @@ export function DifferencesCell({ view, isSingleLine = false }: RowLineProps) {
   const { t } = useTranslation("cellAnalyzer");
   const { getKindLabel, getKindHint, getBlockWord, getBlockHint } = useAnalyzerTexts();
   const { tick, kinds } = view.facts;
+  const networkCode = findNetworkDifference(view.result?.differences ?? [])?.observed;
 
   if (!tick.canTick) {
     return (
@@ -454,7 +457,7 @@ export function DifferencesCell({ view, isSingleLine = false }: RowLineProps) {
             </>
           )}
           <span title={getKindHint(kind)} className="whitespace-nowrap">
-            {getKindLabel(kind)}
+            {getKindLabel(kind, networkCode)}
           </span>
         </Fragment>
       ))}

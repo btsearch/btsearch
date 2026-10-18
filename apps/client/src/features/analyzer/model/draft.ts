@@ -1,10 +1,12 @@
-import type { Cell, CellDifference, NrIdentity, ObservedCell, Station } from "@openbts/shared/contract";
+import type { Cell, CellDifference, CellMatchResult, NrIdentity, ObservedCell, Station } from "@openbts/shared/contract";
+import { plmnCandidates } from "@openbts/shared/operatorUtils";
 
 import type { AnalyzerSession } from "../data/session";
 import { ANALYZER_RATS, DIFFERENCE_FIELDS } from "./filters";
-import { findStoredCell } from "./rows";
+import { findNetworkDifference, findStoredCell } from "./rows";
 import { type AnalyzerSearch, parseAnalyzerSearch } from "./search";
-import type { LogFormat, RowFacts, TickAction } from "./types";
+import type { AnalyzerLookups, LogFormat, RowFacts, TickAction } from "./types";
+import { toPlmnList } from "@/features/station-editing/model/networks";
 
 export type DraftStation = {
   id: number;
@@ -32,7 +34,10 @@ export type DraftRow = {
   differences: CellDifference[];
   nrIdentity: NrIdentity | null;
   bandId: number | null;
+  network?: DraftNetwork;
 };
+
+export type DraftNetwork = { code: string; plmns: string[] };
 
 export type AnalyzerDraft = {
   id: string;
@@ -43,7 +48,7 @@ export type AnalyzerDraft = {
   rows: DraftRow[];
 };
 
-export type DraftInput = { session: AnalyzerSession; facts: readonly RowFacts[]; search: AnalyzerSearch };
+export type DraftInput = { session: AnalyzerSession; facts: readonly RowFacts[]; search: AnalyzerSearch; lookups: AnalyzerLookups | null };
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -77,7 +82,27 @@ function toDraftStation(station: Station): DraftStation {
   };
 }
 
-function toDraftRow(index: number, { session, facts }: DraftInput): DraftRow | null {
+function findCreatedNetwork(result: CellMatchResult, observedPlmn: string, { session, lookups }: DraftInput): DraftNetwork | undefined {
+  if (result.networkMatch !== "extraCode" || result.stationId === null) return undefined;
+
+  const observedOperator = result.operatorId === null ? undefined : lookups?.operatorsById.get(result.operatorId);
+  const guestCodes = observedOperator?.operator.plmns.map((entry) => entry.plmn) ?? [];
+  const code = plmnCandidates(observedPlmn).find((candidate) => guestCodes.includes(candidate)) ?? observedPlmn;
+  const ownerId = session.tables.stationsById.get(result.stationId)?.operatorId ?? null;
+  const ownerPlmn = ownerId === null ? null : (lookups?.operatorsById.get(ownerId)?.operator.primaryPlmn ?? null);
+  return { code, plmns: toPlmnList(ownerPlmn, [code]) };
+}
+
+function findAddedNetwork(differences: readonly CellDifference[], stored: Cell): DraftNetwork | undefined {
+  const difference = findNetworkDifference(differences);
+  if (difference === undefined) return undefined;
+
+  const code = difference.observed;
+  return { code, plmns: stored.plmns.includes(code) ? [...stored.plmns] : [...stored.plmns, code] };
+}
+
+function toDraftRow(index: number, input: DraftInput): DraftRow | null {
+  const { session, facts } = input;
   const row = session.rows[index];
   const result = session.results?.[index] ?? null;
   const tick = facts[index]?.tick;
@@ -91,11 +116,16 @@ function toDraftRow(index: number, { session, facts }: DraftInput): DraftRow | n
     stationId: result.stationId,
     nrIdentity: result.nrIdentity,
   };
-  if (tick.action === "create") return { ...base, cellId: null, stored: null, differences: [], bandId: facts[index].bandId };
+  if (tick.action === "create") {
+    const network = findCreatedNetwork(result, row.observed.plmn, input);
+    return { ...base, cellId: null, stored: null, differences: [], bandId: facts[index].bandId, network };
+  }
 
   const stored = findStoredCell(result, session.tables);
   if (stored === undefined) return null;
-  return { ...base, cellId: stored.id, stored, differences: tick.action === "update" ? result.differences : [], bandId: stored.bandId };
+
+  const differences = tick.action === "update" ? result.differences : [];
+  return { ...base, cellId: stored.id, stored, differences, bandId: stored.bandId, network: findAddedNetwork(differences, stored) };
 }
 
 export function buildAnalyzerDraft(input: DraftInput): Omit<AnalyzerDraft, "id" | "createdAt"> {
@@ -163,11 +193,21 @@ function isDraftStation(value: unknown): boolean {
 
 function isDraftDifference(value: unknown): boolean {
   if (!isRecord(value)) return false;
+  if (value.field === "network") return isDraftPlmn(value.observed) && value.stored === null;
   return DRAFT_DIFFERENCE_FIELDS.includes(String(value.field)) && isInteger(value.observed) && isIntegerOrNull(value.stored);
 }
 
+function isDraftPlmn(value: unknown): boolean {
+  return typeof value === "string" && DRAFT_PLMN_PATTERN.test(value);
+}
+
+function isDraftNetwork(value: unknown): boolean {
+  if (value === undefined) return true;
+  return isRecord(value) && isDraftPlmn(value.code) && Array.isArray(value.plmns) && value.plmns.every(isDraftPlmn);
+}
+
 function isDraftObserved(value: unknown): boolean {
-  return isRecord(value) && DRAFT_RATS.includes(String(value.rat)) && typeof value.plmn === "string" && DRAFT_PLMN_PATTERN.test(value.plmn);
+  return isRecord(value) && DRAFT_RATS.includes(String(value.rat)) && isDraftPlmn(value.plmn);
 }
 
 function isDraftIdentity(value: unknown): boolean {
@@ -183,7 +223,7 @@ function isDraftRow(value: unknown, stationIds: ReadonlySet<unknown>): boolean {
   if (!isRecord(value) || !isInteger(value.index) || value.index < 0 || typeof value.description !== "string") return false;
   if (!DRAFT_ACTIONS.includes(String(value.action)) || !stationIds.has(value.stationId) || !isDraftObserved(value.observed)) return false;
   if (!isDraftTarget(value) || !Array.isArray(value.differences) || !value.differences.every(isDraftDifference)) return false;
-  return isDraftIdentity(value.nrIdentity) && isIntegerOrNull(value.bandId);
+  return isDraftIdentity(value.nrIdentity) && isIntegerOrNull(value.bandId) && isDraftNetwork(value.network);
 }
 
 export function parseAnalyzerDraft(value: unknown, expectedId: string): AnalyzerDraft | null {

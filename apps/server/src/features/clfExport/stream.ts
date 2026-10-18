@@ -8,13 +8,14 @@ import db from "../../database/psql.js";
 import { flagCondition } from "../../lib/conditions.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
 import { operatedBy } from "../operators/sharing.js";
-import { stationPlacementConditions } from "../stations/read.js";
+import { guestStationCondition, stationPlacementConditions } from "../stations/read.js";
 import type { ClfFormat, ConvertOptions } from "./converter.js";
-import type { ExportSelection } from "./lines.js";
+import { type ExportSelection, loadExportNetworks } from "./lines.js";
 import { loadNativeExportLines } from "./nativeLines.js";
 
 export type CellExport = {
   stationConditions: SQL[];
+  operatorIds: readonly number[] | undefined;
   cells: Omit<ExportSelection, "stationConditions">;
   convertOptions: ConvertOptions;
 };
@@ -43,7 +44,9 @@ export function buildCellExport(query: CellExportQuery, hiddenCountryCodes: read
     isNotNull(operators.mnc),
     ...stationPlacementConditions({ countryCodes: query.countryCodes, regionIds: query.regionIds }, hiddenCountryCodes),
   ];
-  if (query.operatorIds) stationConditions.push(operatedBy(stations.operator_id, query.operatorIds));
+  if (query.operatorIds) {
+    stationConditions.push(sql`(${operatedBy(stations.operator_id, query.operatorIds)} OR ${guestStationCondition(stations.id, query.operatorIds)})`);
+  }
 
   const cellConditions: SQL[] = [];
   const bandMatch = bandCondition(cells.band_id, splitBandFilter(query.bandIds));
@@ -57,6 +60,7 @@ export function buildCellExport(query: CellExportQuery, hiddenCountryCodes: read
   const isNrAsked = isAsked("nr");
   return {
     stationConditions,
+    operatorIds: query.operatorIds,
     cells: {
       cellConditions,
       lteConditions: iotConditions(lteCells.supports_iot, includeIot && !isLteAsked ? true : query.supportsIot),
@@ -135,7 +139,8 @@ export async function* readCellExportChunks(cellExport: CellExport, format: ClfF
     for (let stationStart = 0; stationStart < stationIds.length; stationStart += STATION_BATCH_SIZE) {
       if (stopped.aborted) return;
       const batchIds = stationIds.slice(stationStart, stationStart + STATION_BATCH_SIZE);
-      const selection = { ...cellExport.cells, stationConditions: [inArray(stations.id, batchIds)] };
+      const networks = await loadExportNetworks(batchIds, cellExport.operatorIds);
+      const selection = { ...cellExport.cells, stationConditions: [inArray(stations.id, batchIds)], networks };
       const lines = (await loadNativeExportLines(selection, batchIds, format, cellExport.convertOptions)).sort();
       for (let start = 0; start < lines.length; start += LINES_PER_CHUNK) {
         if (stopped.aborted) return;

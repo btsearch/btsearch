@@ -108,6 +108,7 @@ export function toCell(
   band: BandRow | undefined,
   embedBand: boolean,
   features: Readonly<CountryFeatures>,
+  plmns: string[],
 ): Cell | null {
   const common = {
     id: cell.id,
@@ -117,6 +118,7 @@ export function toCell(
     cellType: cell.type === null ? null : CELL_TYPES[cell.type],
     isConfirmed: cell.is_confirmed,
     notes: cell.notes,
+    plmns,
     createdAt: cell.createdAt.toISOString(),
     updatedAt: cell.updatedAt.toISOString(),
   };
@@ -176,11 +178,12 @@ export function toCell(
   return null;
 }
 
-export function toStation(row: StationRow, identifiers: readonly IdentifierRow[], hostStationId: number | null): Station {
+export function toStation(row: StationRow, identifiers: readonly IdentifierRow[], hostStationId: number | null, guestOperatorIds: number[]): Station {
   return {
     id: row.id,
     siteId: row.station_id,
     operatorId: row.operator_id,
+    guestOperatorIds,
     locationId: row.location_id,
     hostStationId,
     status: toStationStatus(row.status),

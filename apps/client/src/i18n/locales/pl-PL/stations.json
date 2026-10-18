@@ -124,7 +124,8 @@
         "azimuth": "azymut",
         "cellType": "rodzaj",
         "note": "notatka",
-        "mode": "tryb"
+        "mode": "tryb",
+        "networks": "sieci"
       },
       "photosAdded_one": "{{count, number}} nowe zdjęcie",
       "photosAdded_few": "{{count, number}} nowe zdjęcia",
@@ -176,7 +177,9 @@
       "noteTooLong": "Notatka: najwyżej {{max}} znaków",
       "tooManyUploads": "Najwyżej {{max}} nowych zdjęć w zgłoszeniu",
       "tooManyPicks": "Najwyżej {{max}} wybranych zdjęć",
-      "mainPhotoNotPicked": "Zdjęcie główne musi być wśród wybranych"
+      "mainPhotoNotPicked": "Zdjęcie główne musi być wśród wybranych",
+      "tooManyNetworks": "{{rat}}: najwyżej {{max}} sieci oprócz sieci właściciela",
+      "networkOtherCountry": "Sieci {{code}} nie ma w kraju stacji"
     },
     "refusals": {
       "unknown": "Serwer odrzucił zapis: {{message}}",
@@ -200,7 +203,7 @@
       "cellSectorInvalid": "Komórka wskazuje azymut, którego nie ma na tej stacji",
       "sectorsRefused": "Serwer odrzucił zmiany azymutów: {{message}}",
       "bandWrongRat": "Pasmo: nie pasuje do technologii komórki",
-      "cellIdentityTaken": "{{fields}} {{values}}: operator ma już taką komórkę",
+      "cellIdentityTaken": "{{fields}} {{values}}: jedna z sieci komórki ma już taką komórkę",
       "pciTaken": "PCI {{pci}}: stacja ma już taką komórkę w tym paśmie",
       "cellListedTwice": "Ta sama komórka jest zmieniana dwa razy",
       "noChanges": "Serwer nie wykrył żadnych zmian",
@@ -217,7 +220,10 @@
       "photosGone": "Jedno z wybranych zdjęć już nie istnieje",
       "photosOtherLocation": "Jedno z wybranych zdjęć nie należy do lokalizacji tej stacji",
       "photosNotShown": "Stacja nie pokazuje jednego ze zdjęć do usunięcia",
-      "deleteOnlyNote": "Zgłoszenie usunięcia stacji może mieć tylko notatkę"
+      "deleteOnlyNote": "Zgłoszenie usunięcia stacji może mieć tylko notatkę",
+      "networkGone": "Jedna z wybranych sieci już nie istnieje",
+      "ownerNetworkMissing": "Sieci muszą obejmować główny kod właściciela stacji",
+      "networksNotTaken": "Komórki GSM nie nadają innych sieci"
     },
     "frame": {
       "tabs": "Części stacji",
@@ -326,7 +332,8 @@
       "columns": {
         "mode": "Tryb",
         "gnbidLength": "Bity gNBID",
-        "cellType": "Rodzaj"
+        "cellType": "Rodzaj",
+        "networks": "Sieci"
       },
       "hints": {
         "sector": "Sektor anteny, do którego należy komórka",
@@ -340,7 +347,8 @@
         "iot": "NB-IoT lub LTE-M",
         "eGsm": "Rozszerzone pasmo GSM 900",
         "redCap": "Reduced Capability NR, tylko komórki SA",
-        "saOnly": "Tylko dla komórek SA"
+        "saOnly": "Tylko dla komórek SA",
+        "networks": "Sieci nadawane przez komórkę oprócz sieci właściciela stacji"
       },
       "areaCode": {
         "sharedHint": "Jedna wartość dla wszystkich komórek {{rat}} tej stacji",
@@ -357,7 +365,9 @@
         "fillChannelsHint": "Uzupełnia puste pola według pasma i operatora",
         "addMissingCellsHint": "Dopełnia sektory w każdym paśmie",
         "assignSectorsHint": "Komórki bez azymutu biorą go od komórki z tym samym PCI",
-        "assignSectorsHintNr": "NSA bierze azymut od komórki LTE z tym samym PCI"
+        "assignSectorsHintNr": "NSA bierze azymut od komórki LTE z tym samym PCI",
+        "sharedNetworks": "Współdzielone sieci...",
+        "sharedNetworksHint": "Ustawia sieci komórek w wybranych pasmach"
       },
       "unchanged": {
         "show_one": "Pokaż {{count, number}} komórkę bez zmian",
@@ -389,6 +399,22 @@
         "computed": "{{name}} - wyliczane z {{node}} i {{cell}}",
         "previous": "Poprzednia komórka",
         "next": "Następna komórka"
+      },
+      "networks": {
+        "alsoFor": "Także dla",
+        "alwaysBroadcast": "Nadawana zawsze",
+        "search": "Szukaj sieci",
+        "noMatches": "Nie znaleziono sieci",
+        "limit": "Najwyżej {{max}} sieci oprócz sieci właściciela"
+      },
+      "sharedNetworks": {
+        "title": "Współdzielone sieci {{rat}}",
+        "bands": "Pasma",
+        "networks": "Sieci",
+        "apply_one": "Zastosuj do {{count, number}} komórki",
+        "apply_few": "Zastosuj do {{count, number}} komórek",
+        "apply_many": "Zastosuj do {{count, number}} komórek",
+        "apply_other": "Zastosuj do {{count, number}} komórki"
       }
     },
     "editor": {

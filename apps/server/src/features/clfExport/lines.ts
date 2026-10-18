@@ -1,12 +1,14 @@
 import { conventionsFor } from "@openbts/country-packs";
 import {
   bands,
+  cellPlmns,
   cells,
   gsmCells,
   locations,
   lteCells,
   nrCells,
   operators,
+  plmns,
   regions,
   stationSectors,
   stationUplinks,
@@ -14,9 +16,11 @@ import {
   structureOwners,
   umtsCells,
 } from "@openbts/drizzle";
-import { type SQL, and, eq, inArray } from "drizzle-orm";
+import { type SQL, and, eq, inArray, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
+import { extraCodesByCell } from "../cells/networks.js";
+import { operatedBy } from "../operators/sharing.js";
 import { stationCountryCode } from "../stations/country.js";
 import type { StoredStructureType } from "../structures/serialize.js";
 import { type BandDuplex, type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF, prepareConvertOptions } from "./converter.js";
@@ -27,6 +31,12 @@ export type ExportSelection = {
   lteConditions: SQL[];
   nrConditions: SQL[];
   rats: { gsm: boolean; umts: boolean; lte: boolean; nr: boolean };
+  networks?: ExportNetworks;
+};
+
+export type ExportNetworks = {
+  extraCodes: ReadonlyMap<number, readonly string[]>;
+  guestOnlyStationIds: ReadonlySet<number>;
 };
 
 export type StationExportMetadata = {
@@ -47,6 +57,7 @@ export type StationExportMetadata = {
   structure_note: string | null;
 };
 type CommonCellRow = StationExportMetadata & {
+  cell_pk: number;
   cell_type: string | null;
   notes: string | null;
   sector_id: number | null;
@@ -83,6 +94,7 @@ export type ExportRows = {
   })[];
   nrBandRows: {
     station_id: number;
+    cell_pk: number;
     nr_type: "nsa" | "sa" | null;
     band_value: number | null;
     band_duplex: BandDuplex;
@@ -92,6 +104,54 @@ export type ExportRows = {
   stationSectorRows: { id: number; station_id: number; azimuth: number }[];
 };
 type SectorMeta = { index: number; azimuth: number };
+
+const OWNER_NETWORK = "";
+const NO_NETWORKS: ExportNetworks = { extraCodes: new Map(), guestOnlyStationIds: new Set() };
+
+export async function loadExportNetworks(stationIds: readonly number[], operatorIds: readonly number[] | undefined): Promise<ExportNetworks> {
+  if (stationIds.length === 0) return NO_NETWORKS;
+
+  const rows = await db
+    .select({
+      cellId: cellPlmns.cellId,
+      stationId: cells.station_id,
+      code: plmns.code,
+      isChosen: operatorIds ? operatedBy(plmns.operatorId, operatorIds) : sql<boolean>`true`,
+      isOwnerChosen: operatorIds ? operatedBy(stations.operator_id, operatorIds) : sql<boolean>`true`,
+    })
+    .from(cellPlmns)
+    .innerJoin(cells, eq(cells.id, cellPlmns.cellId))
+    .innerJoin(stations, eq(stations.id, cells.station_id))
+    .innerJoin(plmns, eq(plmns.id, cellPlmns.plmnId))
+    .where(inArray(cells.station_id, [...stationIds]));
+
+  return {
+    extraCodes: extraCodesByCell(rows.filter((row) => row.isChosen)),
+    guestOnlyStationIds: new Set(rows.flatMap((row) => (row.isOwnerChosen ? [] : [row.stationId]))),
+  };
+}
+
+function networksOf({ extraCodes, guestOnlyStationIds }: ExportNetworks, stationId: number, cellId: number): string[] {
+  const extras = extraCodes.get(cellId) ?? [];
+  return guestOnlyStationIds.has(stationId) ? [...extras] : [OWNER_NETWORK, ...extras];
+}
+
+function perNetwork<Row extends { station_pk: number; cell_pk: number; operator_mnc: number | null }>(
+  rows: readonly Row[],
+  networks: ExportNetworks,
+): (Row & { network: string })[] {
+  return rows.flatMap((row) =>
+    networksOf(networks, row.station_pk, row.cell_pk).map((network) => ({
+      ...row,
+      network,
+      operator_mnc: network === OWNER_NETWORK ? row.operator_mnc : Number(network),
+    })),
+  );
+}
+
+function networkKey(stationId: number, network: string): string {
+  return `${stationId}:${network}`;
+}
 
 function buildCommonCellFields(row: CommonCellRow, sectorMeta: SectorMeta | undefined) {
   return {
@@ -125,6 +185,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
   const nrConditions = [...baseConditions, ...selection.nrConditions];
 
   const commonSelect = {
+    cell_pk: cells.id,
     cell_type: cells.type,
     notes: cells.notes,
     station_pk: stations.id,
@@ -238,6 +299,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
       ? db
           .select({
             station_id: cells.station_id,
+            cell_pk: cells.id,
             nr_type: nrCells.type,
             band_value: bands.value,
             band_duplex: bands.duplex,
@@ -270,26 +332,36 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
     stationSectorsQuery,
   ]);
 
-  return renderExportLines({ gsmRows, umtsRows, lteRows, nrRows, nrBandRows, stationSectorRows }, format, convertOptions);
+  return renderExportLines({ gsmRows, umtsRows, lteRows, nrRows, nrBandRows, stationSectorRows }, format, convertOptions, selection.networks);
 }
 
 export async function renderExportLines(
-  { gsmRows, umtsRows, lteRows, nrRows, nrBandRows, stationSectorRows }: ExportRows,
+  rows: ExportRows,
   format: ClfFormat,
   convertOptions: ConvertOptions,
+  networks: ExportNetworks = NO_NETWORKS,
 ): Promise<string[]> {
+  const gsmRows = perNetwork(rows.gsmRows, networks);
+  const umtsRows = perNetwork(rows.umtsRows, networks);
+  const lteRows = perNetwork(rows.lteRows, networks);
+  const nrRows = perNetwork(rows.nrRows, networks);
+  const nrBandRows = rows.nrBandRows.flatMap((row) => networksOf(networks, row.station_id, row.cell_pk).map((network) => ({ ...row, network })));
+  const { stationSectorRows } = rows;
   const preparedOptions = prepareConvertOptions(convertOptions);
   const displayNRSeparately = convertOptions.displayNRSeparately === true;
-  const perCellTacStationIds = new Set<number>();
-  const stationLteTacMap = new Map<number, number>();
+  const perCellTacStationKeys = new Set<string>();
+  const stationLteTacMap = new Map<string, number>();
   if (displayNRSeparately) {
     for (const row of nrRows) {
-      if (row.nr_type === "nsa" && !conventionsFor(row.station_country_code).hoistedTac) perCellTacStationIds.add(row.station_pk);
+      if (row.nr_type === "nsa" && !conventionsFor(row.station_country_code).hoistedTac) {
+        perCellTacStationKeys.add(networkKey(row.station_pk, row.network));
+      }
     }
     for (const row of lteRows) {
+      const key = networkKey(row.station_pk, row.network);
       if (row.lte_tac === null || row.lte_tac === undefined) continue;
-      if (perCellTacStationIds.has(row.station_pk)) continue;
-      if (!stationLteTacMap.has(row.station_pk)) stationLteTacMap.set(row.station_pk, row.lte_tac);
+      if (perCellTacStationKeys.has(key)) continue;
+      if (!stationLteTacMap.has(key)) stationLteTacMap.set(key, row.lte_tac);
     }
   }
 
@@ -298,36 +370,43 @@ export async function renderExportLines(
         ...new Set(
           nrRows.flatMap((row) => {
             if (row.nr_type !== "nsa") return [];
-            if (stationLteTacMap.has(row.station_pk)) return [];
+            if (stationLteTacMap.has(networkKey(row.station_pk, row.network))) return [];
             return [row.station_pk];
           }),
         ),
       ]
     : [];
 
-  const stationLteTacRows =
+  const storedLteTacRows =
     missingStationIds.length > 0
       ? await db
           .select({
             station_id: cells.station_id,
+            cell_id: cells.id,
             station_lte_tac: lteCells.tac,
           })
           .from(cells)
           .innerJoin(lteCells, eq(lteCells.cell_id, cells.id))
           .where(inArray(cells.station_id, missingStationIds))
       : [];
+  const stationLteTacRows = storedLteTacRows.flatMap((row) =>
+    networksOf(networks, row.station_id, row.cell_id).map((network) => ({
+      key: networkKey(row.station_id, network),
+      station_lte_tac: row.station_lte_tac,
+    })),
+  );
 
   for (const row of stationLteTacRows) {
     if (row.station_lte_tac === null || row.station_lte_tac === undefined) continue;
-    if (perCellTacStationIds.has(row.station_id)) continue;
-    if (!stationLteTacMap.has(row.station_id)) stationLteTacMap.set(row.station_id, row.station_lte_tac);
+    if (perCellTacStationKeys.has(row.key)) continue;
+    if (!stationLteTacMap.has(row.key)) stationLteTacMap.set(row.key, row.station_lte_tac);
   }
 
-  const lteTacRowsByStation = Map.groupBy(stationLteTacRows, (row) => row.station_id);
-  for (const stationId of perCellTacStationIds) {
-    const tacs = (lteTacRowsByStation.get(stationId) ?? []).map((row) => row.station_lte_tac);
+  const lteTacRowsByStation = Map.groupBy(stationLteTacRows, (row) => row.key);
+  for (const key of perCellTacStationKeys) {
+    const tacs = (lteTacRowsByStation.get(key) ?? []).map((row) => row.station_lte_tac);
     const [tac] = tacs;
-    if (typeof tac === "number" && tacs.every((other) => other === tac)) stationLteTacMap.set(stationId, tac);
+    if (typeof tac === "number" && tacs.every((other) => other === tac)) stationLteTacMap.set(key, tac);
   }
 
   stationSectorRows.sort((a, b) => (a.station_id === b.station_id ? a.id - b.id : a.station_id - b.station_id));
@@ -340,14 +419,15 @@ export async function renderExportLines(
     sectorMetaById.set(sector.id, { index, azimuth: sector.azimuth });
   }
 
-  const stationNrNonStandaloneBandPciMap = new Map<number, Map<string, NRBandPCIs>>();
+  const stationNrNonStandaloneBandPciMap = new Map<string, Map<string, NRBandPCIs>>();
   const stationNRBandPciMap = new Map<string, Map<string, NRBandPCIs>>();
   for (const row of nrBandRows) {
     if (!row.band_value) continue;
     const key = `${row.band_value}:${row.band_duplex ?? "null"}`;
+    const stationKey = networkKey(row.station_id, row.network);
 
     if (row.nr_type === "nsa") {
-      const nrNonStandaloneBandMap = stationNrNonStandaloneBandPciMap.get(row.station_id) ?? new Map();
+      const nrNonStandaloneBandMap = stationNrNonStandaloneBandPciMap.get(stationKey) ?? new Map();
       const nrNonStandaloneEntry = nrNonStandaloneBandMap.get(key) ?? {
         value: row.band_value,
         duplex: row.band_duplex ?? null,
@@ -357,10 +437,10 @@ export async function renderExportLines(
       if (row.nr_pci !== null && row.nr_pci !== undefined) nrNonStandaloneEntry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
       if (row.nr_pci === null || row.nr_pci === undefined) nrNonStandaloneEntry.has_missing_pci = true;
       nrNonStandaloneBandMap.set(key, nrNonStandaloneEntry);
-      stationNrNonStandaloneBandPciMap.set(row.station_id, nrNonStandaloneBandMap);
+      stationNrNonStandaloneBandPciMap.set(stationKey, nrNonStandaloneBandMap);
     }
 
-    const stationNRKey = `${row.station_id}:${row.nr_type ?? ""}`;
+    const stationNRKey = `${stationKey}:${row.nr_type ?? ""}`;
     const nrBandMap = stationNRBandPciMap.get(stationNRKey) ?? new Map();
     const nrEntry = nrBandMap.get(key) ?? { value: row.band_value, duplex: row.band_duplex ?? null, pcis: [], has_missing_pci: false };
     if (row.nr_pci !== null && row.nr_pci !== undefined) nrEntry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
@@ -418,7 +498,9 @@ export async function renderExportLines(
         pci: row.lte_pci,
         arfcn: row.lte_earfcn,
         rat: "LTE",
-        nr_band_pcis: row.station_pk ? [...(stationNrNonStandaloneBandPciMap.get(row.station_pk)?.values() ?? [])] : undefined,
+        nr_band_pcis: row.station_pk
+          ? [...(stationNrNonStandaloneBandPciMap.get(networkKey(row.station_pk, row.network))?.values() ?? [])]
+          : undefined,
       },
       format,
       preparedOptions,
@@ -427,7 +509,7 @@ export async function renderExportLines(
   }
 
   for (const row of nrRows) {
-    const stationNRKey = `${row.station_pk}:${row.nr_type ?? ""}`;
+    const stationNRKey = `${networkKey(row.station_pk, row.network)}:${row.nr_type ?? ""}`;
     const nrBandPciMap = stationNRBandPciMap.get(stationNRKey);
     const nr_band_pcis = nrBandPciMap ? [...nrBandPciMap.values()] : undefined;
     const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
@@ -442,7 +524,7 @@ export async function renderExportLines(
         nr_type: row.nr_type,
         pci: row.nr_pci,
         arfcn: row.nr_arfcn ?? null,
-        station_lte_tac: row.station_pk ? stationLteTacMap.get(row.station_pk) : undefined,
+        station_lte_tac: row.station_pk ? stationLteTacMap.get(networkKey(row.station_pk, row.network)) : undefined,
         rat: "NR",
         nr_band_pcis,
       },

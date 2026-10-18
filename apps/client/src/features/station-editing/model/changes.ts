@@ -1,6 +1,7 @@
 import type { BackhaulMedium, CellType, StationIdentifierKind, StationStatus } from "@openbts/shared/contract";
 import { calculateDistance, formatDistance } from "@openbts/shared/geo";
 
+import { isSameCodes, toPlmnList } from "./networks";
 import {
   CELL_FLAG_LABELS,
   CELL_NUMBER_LABELS,
@@ -49,6 +50,8 @@ export type ChangeContext = {
   operatorShortName: (operatorId: number | null) => string | null;
   regionName: (regionId: number | null) => string | null;
   ownerName: (ownerId: number) => string | null;
+  ownerPlmn: (operatorId: number | null) => string | null;
+  networkName: (code: string) => string;
 };
 
 type SectorEntry = {
@@ -553,7 +556,13 @@ function listChangedCellFields(cell: CellDraft, baseCell: CellDraft, draft: Stat
   if (cell.cellType !== baseCell.cellType) fields.push("cellType");
   if (cell.isConfirmed !== baseCell.isConfirmed) fields.push("isConfirmed");
   if (normalizeText(cell.notes) !== normalizeText(baseCell.notes)) fields.push("notes");
+  if (!isSameCodes(cell.extraPlmns, baseCell.extraPlmns)) fields.push("extraPlmns");
   return fields;
+}
+
+function describeNetworks(cell: CellDraft, snapshot: StationSnapshot, context: ChangeContext): TextPart | null {
+  const codes = toPlmnList(context.ownerPlmn(snapshot.station.operatorId), cell.extraPlmns);
+  return codes.length === 0 ? null : { text: codes.map(context.networkName).join(", ") };
 }
 
 function describeCellValue(cell: CellDraft, field: CellField, snapshot: StationSnapshot, context: ChangeContext): TextPart | null {
@@ -564,6 +573,7 @@ function describeCellValue(cell: CellDraft, field: CellField, snapshot: StationS
   if (field === "isConfirmed") return toBooleanPart(cell.isConfirmed);
   if (field === "mode") return cell.mode === null ? null : { text: cell.mode.toUpperCase() };
   if (field === "gnbidLength") return toNumberPart(cell.gnbidLength ?? DEFAULT_GNBID_LENGTH);
+  if (field === "extraPlmns") return describeNetworks(cell, snapshot, context);
   if (isCellFlagField(field)) return toBooleanPart(getCellFlag(cell, field));
   if (field === getAreaCodeField(cell.rat)) return toNumberPart(getAreaValue(snapshot, cell));
   return toNumberPart(getCellNumber(cell, field));
@@ -577,6 +587,7 @@ function describeCellField(field: CellField): TextPart {
   if (field === "mode") return { key: "stations:edit.changes.fields.mode" };
   if (field === "gnbidLength") return { key: "stations:edit.cells.columns.gnbidLength" };
   if (field === "isConfirmed") return { key: "common:labels.confirmed" };
+  if (field === "extraPlmns") return { key: "stations:edit.changes.fields.networks" };
   if (isCellFlagField(field)) return { text: CELL_FLAG_LABELS[field] };
   return { text: CELL_NUMBER_LABELS[field] };
 }

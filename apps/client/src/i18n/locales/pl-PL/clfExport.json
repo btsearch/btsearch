@@ -17,7 +17,7 @@
   },
   "form": {
     "operatorsHint": "Wybierz jednego lub więcej operatorów. Jeśli nie wybrano żadnego, wyeksportowani zostaną wszyscy operatorzy",
-    "singleCountryHint": "Wybierz operatorów z jednego kraju. Brak wyboru oznacza wszystkich operatorów tego kraju.",
+    "singleCountryHint": "Wybierz operatorów z jednego kraju. Brak wyboru oznacza wszystkich operatorów tego kraju. Komórki współdzielone przez innych operatorów są eksportowane z kodem wybranego operatora.",
     "standardHint": "Opcjonalnie, domyślnie eksportowane są wszystkie standardy",
     "bandsHint": "Opcjonalnie, domyślnie eksportowane są wszystkie pasma",
     "outputFormat": "Format wyjściowy",

@@ -132,3 +132,80 @@ describe("applyRevertPlan country features", () => {
     expect(dbMock.calls.findIndex(readsCountryFeatures)).toBeGreaterThan(placementIndex);
   });
 });
+
+describe("planCellRevert of a cell's networks", () => {
+  const before = storedCell(cellInputs.lte, 12);
+  const update = (oldCodes: string[], newCodes: string[]) =>
+    auditEntry({
+      id: 201,
+      entity: "cells",
+      op: "update",
+      record_id: "12",
+      old_values: { ...before.cell, details: before.radio, plmns: oldCodes },
+      new_values: { ...before.cell, details: before.radio, plmns: newCodes },
+    });
+  const contextOf = (entry: AuditEntry): StrategyContext => ({
+    tx: dbMock as unknown as DbTx,
+    pendingInserts: new Map(),
+    selectedEntries: [entry],
+    operationEntries: [entry],
+  });
+  const emptyState = () => ({
+    affectedStationIds: new Set<number>(),
+    cellChanges: new Map(),
+    sequenceTables: new Set<never>(),
+    sectorIdRemap: new Map<number, number>(),
+    touchedLocationIds: new Set<number>(),
+    indirectlyRevertedEntryIds: new Set<number>(),
+  });
+
+  it("writes the earlier extra codes back", async () => {
+    const entry = update(["23420"], []);
+    dbMock.query.cells.findMany.mockResolvedValueOnce([flatCell(before)]);
+    dbMock.enqueueFor("select", "plmns", [{ id: 2, code: "23420", countryCode: "GB" }], [{ id: 2, code: "23420", countryCode: "GB" }]);
+    dbMock.enqueueFor("select", "stations", [{ operatorId: 1, countryCode: "GB" }]);
+    dbMock.enqueueNetworks([{ ownerCode: "23415" }]);
+    dbMock.enqueueFor("delete", "cell_plmns", []);
+    dbMock.enqueueFor("insert", "cell_plmns", []);
+    dbMock.enqueueFor("update", "cells", []);
+
+    const plan = await planCellRevert(contextOf(entry), entry);
+    expect(plan.conflicts).toEqual([]);
+    await plan.actions[0]!.run(dbMock as unknown as DbTx, emptyState());
+
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "cell_plmns")?.values).toEqual([{ cellId: 12, plmnId: 2 }]);
+  });
+
+  it("reports a stale cell when its networks changed since", async () => {
+    const entry = update([], ["23420"]);
+    dbMock.query.cells.findMany.mockResolvedValueOnce([flatCell(before)]);
+
+    const plan = await planCellRevert(contextOf(entry), entry);
+    expect(plan.conflicts).toEqual([expect.objectContaining({ kind: "stale", fields: [{ field: "plmns", expected: ["23420"], current: [] }] })]);
+  });
+
+  it("reports a code that no longer exists", async () => {
+    const entry = update(["23420"], []);
+    dbMock.query.cells.findMany.mockResolvedValueOnce([flatCell(before)]);
+    dbMock.enqueueFor("select", "plmns", []);
+
+    const plan = await planCellRevert(contextOf(entry), entry);
+    expect(plan.conflicts).toEqual([expect.objectContaining({ kind: "fk_missing", message: "The network code 23420 no longer exists" })]);
+  });
+
+  it("leaves the networks alone for an entry written before they were recorded", async () => {
+    const entry = auditEntry({
+      id: 202,
+      entity: "cells",
+      op: "update",
+      record_id: "12",
+      old_values: { ...before.cell, notes: "Old", details: before.radio },
+      new_values: { ...before.cell, details: before.radio },
+    });
+    dbMock.query.cells.findMany.mockResolvedValueOnce([flatCell(before)]);
+
+    const plan = await planCellRevert(contextOf(entry), entry);
+    expect(plan.conflicts).toEqual([]);
+    expect(dbMock.calls.some((call) => call.table === "plmns")).toBe(false);
+  });
+});

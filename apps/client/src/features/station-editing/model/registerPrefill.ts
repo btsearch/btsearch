@@ -119,7 +119,12 @@ export function listRegisterStationActions(site: RegisterSite, lookups: Register
   const siteId = site.siteId ?? "";
   const actions: DraftAction[] = [
     { type: "setStation", patch: rules.clearsNotes ? { siteId, notes: "" } : { siteId } },
-    { type: "setOperator", operatorId: operator?.id ?? null, identifierKinds: listIdentifierKinds(operator, lookups.operatorsById) },
+    {
+      type: "setOperator",
+      operatorId: operator?.id ?? null,
+      ownerPlmn: operator?.primaryPlmn ?? null,
+      identifierKinds: listIdentifierKinds(operator, lookups.operatorsById),
+    },
   ];
 
   if (location !== null) {

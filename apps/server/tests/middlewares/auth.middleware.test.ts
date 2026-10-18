@@ -1,5 +1,5 @@
 import type { FastifyContextConfig, FastifyRequest, LightMyRequestResponse } from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
 
 import { type RuntimeSettingsPatch, getRuntimeSettings, mergeRuntimeSettings } from "../../src/lib/runtimeSettings.js";
@@ -128,6 +128,18 @@ describe("authHook", () => {
   it("keeps protected routes authenticated even when configured as a guest exception", async () => {
     settings({ enforceAuthForAllRoutes: true, allowedUnauthenticatedRoutes: ["/guarded"] });
     expectFailure(await request(), 401, "UNAUTHORIZED");
+  });
+  it.each(["/api/v1/cells/export", "/api/v2/cells/export"])("lets NetMonster into %s while site-wide authentication is enabled", async (url) => {
+    settings({ enforceAuthForAllRoutes: true });
+    vi.stubEnv("NTM_USERAGENT", "NetMonster");
+    expect((await request({ allowGuestAccess: true }, { "user-agent": "NetMonster/3.2" }, `${url}?format=ntm`, url)).statusCode).toBe(200);
+    expectFailure(await request({ allowGuestAccess: true }, { "user-agent": "curl/8.0" }, url), 401, "UNAUTHORIZED");
+  });
+  it("does not let NetMonster in when the export path is only in the query string", async () => {
+    settings({ enforceAuthForAllRoutes: true });
+    vi.stubEnv("NTM_USERAGENT", "NetMonster");
+    const response = await request({ allowGuestAccess: true }, { "user-agent": "NetMonster/3.2" }, "/guarded?next=/api/v2/cells/export", "/guarded");
+    expectFailure(response, 401, "UNAUTHORIZED");
   });
   it.each([false, true])("blocks a disabled route whether guest access is %s", async (allowGuestAccess) => {
     settings({ disabledRoutes: ["/guarded"] });

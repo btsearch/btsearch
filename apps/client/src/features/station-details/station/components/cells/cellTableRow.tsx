@@ -2,12 +2,21 @@ import { useTranslation } from "react-i18next";
 
 import type { Cell } from "../../types";
 import { getCellChannel } from "../../utils/bands";
-import { type CellColumn, type CellFreshness, getCellFreshness, getCellIdentifier, getColumnKey } from "../../utils/cells";
+import {
+  type CellColumn,
+  type CellFreshness,
+  type CellNetworks,
+  getCellFreshness,
+  getCellIdentifier,
+  getColumnKey,
+  getExtraPlmns,
+} from "../../utils/cells";
 import { getCellDownlinkFrequency } from "../../utils/frequencies";
 import { type SectorInfo, formatSectorAzimuth } from "../../utils/sectors";
 import { BandCell } from "./bandCell";
 import { NotesCell } from "./notesCell";
 import { EmptyValue } from "@/components/ui/emptyValue";
+import { OperatorMarks, listNetworkMarks } from "@/features/shared/operatorMarks";
 import { cn } from "@/lib/utils";
 
 const MONO_CELL_CLASS = "px-4 py-2 font-mono";
@@ -17,6 +26,7 @@ type CellTableRowProps = {
   cell: Cell;
   columns: readonly CellColumn[];
   sector: SectorInfo | null;
+  networks: CellNetworks;
 };
 
 type RowCellProps = {
@@ -24,6 +34,12 @@ type RowCellProps = {
   cell: Cell;
   sector: SectorInfo | null;
   freshness: CellFreshness | null;
+  networks: CellNetworks;
+};
+
+type NetworksCellProps = {
+  cell: Cell;
+  networks: CellNetworks;
 };
 
 type SectorCellProps = {
@@ -34,7 +50,7 @@ type ChannelCellProps = {
   cell: Cell;
 };
 
-export function CellTableRow({ cell, columns, sector }: CellTableRowProps) {
+export function CellTableRow({ cell, columns, sector, networks }: CellTableRowProps) {
   const freshness = getCellFreshness(cell);
 
   return (
@@ -46,18 +62,40 @@ export function CellTableRow({ cell, columns, sector }: CellTableRowProps) {
       )}
     >
       {columns.map((column) => (
-        <RowCell key={getColumnKey(column)} column={column} cell={cell} sector={sector} freshness={freshness} />
+        <RowCell key={getColumnKey(column)} column={column} cell={cell} sector={sector} freshness={freshness} networks={networks} />
       ))}
     </tr>
   );
 }
 
-function RowCell({ column, cell, sector, freshness }: RowCellProps) {
+function RowCell({ column, cell, sector, freshness, networks }: RowCellProps) {
   if (column.kind === "band") return <BandCell cell={cell} />;
+  if (column.kind === "networks") return <NetworksCell cell={cell} networks={networks} />;
   if (column.kind === "sector") return <SectorCell sector={sector} />;
   if (column.kind === "channel") return <ChannelCell cell={cell} />;
   if (column.kind === "notes") return <NotesCell cell={cell} freshness={freshness} />;
   return <td className={MONO_CELL_CLASS}>{getCellIdentifier(cell, column.field) ?? <EmptyValue />}</td>;
+}
+
+function NetworksCell({ cell, networks }: NetworksCellProps) {
+  const { t } = useTranslation("common");
+  const marks = listNetworkMarks(getExtraPlmns(cell, networks.ownerPlmn), networks.operators, networks.brands);
+
+  return (
+    <td className="px-4 py-2">
+      {marks.length === 0 ? (
+        <EmptyValue />
+      ) : (
+        <OperatorMarks
+          marks={marks}
+          title={t("sharedNetworks.cellTitle")}
+          description={t("sharedNetworks.cellHint")}
+          size={14}
+          className="align-middle"
+        />
+      )}
+    </td>
+  );
 }
 
 function SectorCell({ sector }: SectorCellProps) {

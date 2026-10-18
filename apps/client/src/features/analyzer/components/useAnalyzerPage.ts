@@ -217,7 +217,7 @@ export function useAnalyzerPage({ search, onSearchChange }: UseAnalyzerPageArgs)
   function openBatch() {
     if (isOpeningBatch.current) return;
 
-    const draftId = saveAnalyzerDraft(buildAnalyzerDraft({ session, facts, search: toAnalyzerSearch(filters) }));
+    const draftId = saveAnalyzerDraft(buildAnalyzerDraft({ session, facts, search: toAnalyzerSearch(filters), lookups }));
     if (draftId === null) {
       toast.error(t("errors.draftSaveFailed"));
       return;

@@ -155,6 +155,7 @@ describe("POST /submissions", () => {
       changed_fields: ["station_id", "operator_id", "notes", "networks_id", "networks_name", "mno_name"],
     };
     scriptContentDraftCreate(fixture);
+    dbMock.query.cells.findMany.mockResolvedValue([]);
     const { app, errors } = await createRouteHarnessWithErrors(route, options);
     const response = await app.inject({ ...request, payload: [fixture.input] });
     expect(errors).toEqual([]);

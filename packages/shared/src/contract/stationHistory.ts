@@ -85,6 +85,12 @@ const sectorRefChangeSchema = z.object({
   to: sectorSchema.nullable().describe("The cell's sector after the change, as it was at that time"),
 });
 
+const extraPlmnsChangeSchema = z.object({
+  field: z.literal("extraPlmns"),
+  from: z.array(z.string()).describe("The network codes the cell broadcast besides the station owner's main code"),
+  to: z.array(z.string()).describe("The same list after the change"),
+});
+
 const azimuthSchema = z.number().int().nullable();
 const azimuthsChangeSchema = z.object({
   field: z.literal("azimuths"),
@@ -143,7 +149,7 @@ export const stationHistoryCellSchema = z.object({
   cid: z.number().int().nullable().describe("Only set for GSM and UMTS cells"),
   clid: z.number().int().nullable().describe("Only set for LTE and NR cells"),
   fields: z
-    .array(z.union([valueChangeSchema(STATION_HISTORY_CELL_FIELDS), sectorRefChangeSchema]))
+    .array(z.union([valueChangeSchema(STATION_HISTORY_CELL_FIELDS), sectorRefChangeSchema, extraPlmnsChangeSchema]))
     .describe("The fields that changed on the cell. For a new or removed cell, every value it has"),
 });
 export type StationHistoryCell = z.infer<typeof stationHistoryCellSchema>;

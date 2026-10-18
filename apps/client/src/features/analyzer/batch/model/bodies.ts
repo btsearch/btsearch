@@ -18,6 +18,7 @@ type PendingEntry = {
   cellId: number | null;
   bandId: number | null;
   numbers: RowNumbers;
+  plmns?: string[];
   rowIndexes: number[];
 };
 
@@ -26,6 +27,10 @@ const SPREAD_RAT: Rat = "lte";
 
 function toEntryKey(row: BatchRow, numbers: RowNumbers): string {
   return row.cellId === null ? getNewCellKey(row, numbers) : String(row.cellId);
+}
+
+function mergePlmns(known: readonly string[] | undefined, added: readonly string[]): string[] {
+  return [...new Set([...(known ?? []), ...added])];
 }
 
 function listPendingEntries(rows: readonly BatchRow[], mode: SendMode): PendingEntry[] {
@@ -38,18 +43,21 @@ function listPendingEntries(rows: readonly BatchRow[], mode: SendMode): PendingE
     const key = toEntryKey(row, numbers);
     const known = entries.get(key);
     if (known === undefined) {
-      entries.set(key, { rat: getRowRat(row), cellId: row.cellId, bandId: row.bandId, numbers: { ...numbers }, rowIndexes: [row.index] });
+      const entry: PendingEntry = { rat: getRowRat(row), cellId: row.cellId, bandId: row.bandId, numbers: { ...numbers }, rowIndexes: [row.index] };
+      if (row.network !== undefined) entry.plmns = mergePlmns(undefined, row.network.plmns);
+      entries.set(key, entry);
       continue;
     }
 
     Object.assign(known.numbers, numbers);
     known.rowIndexes.push(row.index);
     known.bandId ??= row.bandId;
+    if (row.network !== undefined) known.plmns = mergePlmns(known.plmns, row.network.plmns);
   }
   return [...entries.values()];
 }
 
-function toCreateChange({ rat, bandId, numbers }: PendingEntry): CellCreateChange | null {
+function toCreateChange({ rat, bandId, numbers, plmns }: PendingEntry): CellCreateChange | null {
   if (bandId === null) return null;
 
   if (rat === "lte") {
@@ -64,6 +72,7 @@ function toCreateChange({ rat, bandId, numbers }: PendingEntry): CellCreateChang
     if (numbers.tac !== undefined) created.tac = numbers.tac;
     if (numbers.pci !== undefined) created.pci = numbers.pci;
     if (numbers.earfcn !== undefined) created.earfcn = numbers.earfcn;
+    if (plmns !== undefined) created.plmns = plmns;
     return created;
   }
   if (rat !== "nr") return null;
@@ -74,17 +83,20 @@ function toCreateChange({ rat, bandId, numbers }: PendingEntry): CellCreateChang
   if (numbers.tac !== undefined) created.tac = numbers.tac;
   if (numbers.pci !== undefined) created.pci = numbers.pci;
   if (numbers.arfcn !== undefined) created.arfcn = numbers.arfcn;
+  if (plmns !== undefined) created.plmns = plmns;
   return created;
 }
 
-function toUpdateChange(cellId: number, numbers: RowNumbers, mode: SendMode): CellUpdateChange | null {
-  if (mode === "submit" && Object.keys(numbers).length === 0) return null;
-  return { ...numbers, action: "update", id: cellId };
+function toUpdateChange(cellId: number, numbers: RowNumbers, plmns: string[] | undefined, mode: SendMode): CellUpdateChange | null {
+  if (mode === "submit" && Object.keys(numbers).length === 0 && plmns === undefined) return null;
+  const change: CellUpdateChange = { ...numbers, action: "update", id: cellId };
+  if (plmns !== undefined) change.plmns = plmns;
+  return change;
 }
 
 function toBuiltEntry(entry: PendingEntry, mode: SendMode, stationTac: number | null): BuiltEntry[] {
   const numbers = stationTac !== null && entry.rat === SPREAD_RAT ? { ...entry.numbers, tac: stationTac } : entry.numbers;
-  const change = entry.cellId === null ? toCreateChange({ ...entry, numbers }) : toUpdateChange(entry.cellId, numbers, mode);
+  const change = entry.cellId === null ? toCreateChange({ ...entry, numbers }) : toUpdateChange(entry.cellId, numbers, entry.plmns, mode);
   return change === null ? [] : [{ change, rat: entry.rat, rowIndexes: entry.rowIndexes }];
 }
 

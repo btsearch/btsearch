@@ -31,7 +31,7 @@ import { countryBandDeleteEntries } from "../../../bands/remove.js";
 import type { CountryBandRow } from "../../../bands/serialize.js";
 import { loadOperatorDetails } from "../../../operators/details.js";
 import { toOperator } from "../../../operators/serialize.js";
-import { replaceLinks, replacePlmns } from "../../../operators/write.js";
+import { findRemovedBroadcastCodes, replaceLinks, replacePlmns } from "../../../operators/write.js";
 import type { AuditEntry, AuditEntryInput } from "../../types.js";
 import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow } from "../columns.js";
 import { changedFields, staleFields, valuesEqual } from "../compare.js";
@@ -605,6 +605,20 @@ async function planOperatorRevert(context: StrategyContext, entry: AuditEntry, i
   if (differences.length > 0)
     plan.conflicts.push(conflictFor(entry, "stale", "The operator changed after this operation", "apply", { fields: differences }));
   const otherPlmns = (changed.plmns?.old ?? []).filter((plmn) => plmn.role !== "primary");
+  if (changed.plmns !== undefined) {
+    const broadcast = await findRemovedBroadcastCodes(
+      context.tx,
+      id,
+      changed.plmns.old.map((plmn) => plmn.plmn),
+    );
+    const cellCount = broadcast.reduce((total, row) => total + row.cells, 0);
+    if (cellCount > 0)
+      plan.conflicts.push(
+        conflictFor(entry, "referenced", "Cells broadcast a network code that the revert would remove", "skip", {
+          dependents: [{ table: "cell_plmns", count: cellCount }],
+        }),
+      );
+  }
   const [, , , restorableLinks] = await Promise.all([
     addOperatorUniqueConflicts(context, plan, id, oldValues),
     addOperatorParentConflict(context, plan, oldValues, new Set(fields)),

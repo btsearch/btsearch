@@ -25,8 +25,9 @@ import {
   isEGsmBlocked,
 } from "./cellFields";
 import type { CellColumn } from "./cellGrid";
-import { type CellErrorIndex, canEditCells, listSheetColumns } from "./cellRules";
+import { type CellErrorIndex, canEditCells, getNetworkChoice, listSheetColumns } from "./cellRules";
 import type { CellTexts } from "./cellTexts";
+import { FIELD_NETWORKS_CLASS, NetworkPicker } from "./networksField";
 import { IconAction } from "./ratCardHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -287,6 +288,21 @@ function SheetBody({ edit, cell, errorsByKey, texts, canConfirm, onOpenCell, onC
               className={cn(INPUT_CLASS, getClass("notes"))}
             />
           </SheetField>
+          {columns.some((column) => column.kind === "networks") ? (
+            <SheetField label={texts.networks} marks={getMarks("extraPlmns")} className={WIDE_CLASS}>
+              <NetworkPicker
+                choice={getNetworkChoice(edit)}
+                rat={cell.rat}
+                extraPlmns={cell.extraPlmns}
+                label={texts.networks}
+                className={cn(FIELD_NETWORKS_CLASS, getClass("extraPlmns"))}
+                isInvalid={hasError("extraPlmns")}
+                isLocked={isLocked}
+                isNavigable={false}
+                onChange={(extraPlmns) => dispatch({ type: "setCell", key: cell.key, patch: { extraPlmns } })}
+              />
+            </SheetField>
+          ) : null}
           {columns.filter((column) => column.kind === "flag" || column.kind === "confirmed").map(renderColumn)}
         </div>
       </div>

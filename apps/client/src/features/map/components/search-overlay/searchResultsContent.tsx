@@ -29,6 +29,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { HighlightedText } from "@/features/shared/HighlightedText";
+import { type OperatorMark, StationGuestMarks, listOperatorMarks } from "@/features/shared/operatorMarks";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
 import { useGpsFormat } from "@/hooks/usePreferences";
@@ -67,6 +68,7 @@ type StationResultTitleProps = {
   siteId: string;
   operatorName?: string;
   brand?: BrandLook | null;
+  guests?: readonly OperatorMark[];
   query: string;
 };
 
@@ -133,10 +135,11 @@ function OperatorName({ name, brand, labelClassName }: OperatorNameProps) {
   );
 }
 
-function StationResultTitle({ siteId, operatorName, brand, query }: StationResultTitleProps) {
+function StationResultTitle({ siteId, operatorName, brand, guests = [], query }: StationResultTitleProps) {
   return (
     <>
       {operatorName === undefined ? null : <OperatorName name={operatorName} brand={brand} />}
+      <StationGuestMarks marks={guests} size={BRAND_MARK_SIZE} isNested />
       <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline">
         <HighlightedText text={siteId} query={query} />
       </span>
@@ -352,6 +355,7 @@ export function SearchResults({
                                 siteId={hit.siteId}
                                 operatorName={hit.operator?.name}
                                 brand={getHitBrand(hit, lookups)}
+                                guests={listOperatorMarks(hit.guestOperatorIds, lookups?.operators, lookups?.brands)}
                                 query={normalizedQuery}
                               />
                               {networksIdLabel ? (

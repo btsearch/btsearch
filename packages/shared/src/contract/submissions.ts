@@ -215,6 +215,16 @@ export type SectorChangeInput = z.infer<typeof sectorChangeInputSchema>;
 const SECTOR_ID_NOTE = "One of the station's sectors to attach the cell to";
 const SECTOR_KEY_NOTE = "The `key` of a sector created in the same request, to attach the cell to it. Use either `sectorId` or `sectorKey`";
 
+const PLMNS_INPUT_NOTE =
+  "Every network the cell broadcasts, as a cell returns it. It must include the station owner's main code if the owner has one. " +
+  "If omitted, an update keeps the stored list and a new cell broadcasts only the owner's main code";
+const cellPlmnsSchema = z
+  .array(z.string().regex(/^[1-9]\d{4,5}$/, "Must be a three-digit MCC followed by a two- or three-digit MNC"))
+  .max(12)
+  .refine((codes) => new Set(codes).size === codes.length, { message: "Each network code can appear once" })
+  .optional()
+  .describe(PLMNS_INPUT_NOTE);
+
 const cellPlacementShape = {
   sectorId: idSchema.nullable().optional().describe(SECTOR_ID_NOTE),
   sectorKey: sectorKeySchema.optional().describe(SECTOR_KEY_NOTE),
@@ -232,6 +242,7 @@ const gnbidLengthSchema = z.number().int().min(GNBID_MIN_LENGTH).max(GNBID_MAX_L
 const newCellShape = {
   bandId: idSchema.describe(BAND_ID_NOTE),
   ...cellPlacementShape,
+  plmns: cellPlmnsSchema,
   isConfirmed: z
     .boolean()
     .optional()
@@ -325,6 +336,7 @@ export const cellUpdateChangeSchema = z
     id: idSchema,
     bandId: idSchema.optional().describe(BAND_ID_NOTE),
     ...cellPlacementShape,
+    plmns: cellPlmnsSchema,
     ...cellRadioUpdateShape,
   })
   .strict();
@@ -378,6 +390,7 @@ export const cellUpdateSchema = z
   .object({
     bandId: idSchema.optional().describe(BAND_ID_NOTE),
     ...cellReferenceShape,
+    plmns: cellPlmnsSchema,
     ...cellRadioUpdateShape,
     isConfirmed: z.boolean().optional(),
     stationId: idSchema.optional().describe("Moves the cell to another station and clears its sector"),
@@ -608,6 +621,10 @@ export const cellChangeSchema = z.object({
   cellType: z.enum(CELL_TYPES).nullable(),
   notes: z.string().nullable(),
   isConfirmed: z.boolean().describe("Whether a new cell is created as confirmed. Not used for an `update` or a `delete`"),
+  extraPlmns: z
+    .array(z.string())
+    .nullable()
+    .describe("The networks the cell will broadcast besides the station owner's main code. `null` if the change keeps the stored list"),
   mode: z.enum(NR_MODES).optional().describe(CELL_FIELD_NOTES.mode),
   lac: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.lac),
   cid: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.cid),

@@ -1,11 +1,13 @@
 import { type SharedSitePart, conventionsFor } from "@openbts/country-packs";
 import {
   attachments,
+  cellPlmns,
   cells,
   extraIdentificators,
   locationPhotos,
   locations,
   operators,
+  plmns,
   regions,
   stationPhotoSelections,
   stationSectors,
@@ -27,6 +29,7 @@ import type { DbTx } from "../../types/global.js";
 import { deletePhotoFiles } from "../../utils/photoFiles.js";
 import {
   type AuditRecorder,
+  CELL_SNAPSHOT_RELATIONS,
   type CellSnapshot,
   type PhotoSelectionSnapshots,
   type SectorSnapshot,
@@ -39,7 +42,16 @@ import {
   runAuditedOperation,
 } from "../audit/index.js";
 import { assertStoredCellBandsFit } from "../cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import { checkOwnerCellDuplicates, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import {
+  extraCodesFromStored,
+  loadExtraCodes,
+  loadKnownPlmns,
+  loadNetworkOwner,
+  loadStationNetworkOwner,
+  replaceExtraCodes,
+  withoutOwnerCode,
+} from "../cells/networkWrites.js";
 import {
   type NormalRat,
   type RATCellDetailsRow,
@@ -747,6 +759,39 @@ async function applyStationIdentityUpdate(audit: AuditRecorder, changes: Propose
     new: updatedStation,
     metadata: audit.entryMetadata,
   });
+  if (nextOperatorId !== undefined) await dropOwnerCodeFromCells(audit, stationId, nextOperatorId);
+}
+
+async function dropOwnerCodeFromCells(audit: AuditRecorder, stationId: number, operatorId: number): Promise<void> {
+  const { tx } = audit;
+  const owner = await loadNetworkOwner(tx, operatorId, null);
+  if (owner.mainCode === null) return;
+
+  const broadcasting = await tx
+    .select({ cellId: cellPlmns.cellId, plmnId: cellPlmns.plmnId })
+    .from(cellPlmns)
+    .innerJoin(cells, eq(cells.id, cellPlmns.cellId))
+    .innerJoin(plmns, eq(plmns.id, cellPlmns.plmnId))
+    .where(and(eq(cells.station_id, stationId), eq(plmns.code, owner.mainCode)));
+  const [first] = broadcasting;
+  if (!first) return;
+
+  const cellIds = broadcasting.map((row) => row.cellId);
+  const previous = await loadCellSnapshots(tx, cellIds);
+  await tx.delete(cellPlmns).where(and(inArray(cellPlmns.cellId, cellIds), eq(cellPlmns.plmnId, first.plmnId)));
+  await tx.update(cells).set({ updatedAt: new Date() }).where(inArray(cells.id, cellIds));
+  const next = await loadCellSnapshots(tx, cellIds);
+  await audit.logMany(
+    cellIds.map((cellId) => ({
+      entity: "cells" as const,
+      op: "update" as const,
+      recordId: cellId,
+      stationId,
+      old: previous.get(cellId),
+      new: next.get(cellId),
+      metadata: audit.entryMetadata,
+    })),
+  );
 }
 
 async function applyExtraIdentifierUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number): Promise<void> {
@@ -841,7 +886,7 @@ async function loadTargetCells(tx: DbTx, proposedCellRows: ProposedCellRow[]) {
 
   return tx.query.cells.findMany({
     where: { id: { in: targetCellIds } },
-    with: { gsm: true, umts: true, lte: true, nr: true },
+    with: CELL_SNAPSHOT_RELATIONS,
   });
 }
 
@@ -851,7 +896,7 @@ function getApprovalOperatorId(
   stationContext: ApprovalStationContext | null,
 ): number | null {
   if (submission.type === "new") return proposedStation?.operator_id ?? null;
-  return stationContext?.operatorId ?? null;
+  return proposedStation?.operator_id ?? stationContext?.operatorId ?? null;
 }
 
 async function checkApprovalCellDuplicates(
@@ -859,14 +904,21 @@ async function checkApprovalCellDuplicates(
   draft: ApprovalDuplicateCheckDraft,
   stationContext: ApprovalStationContext | null,
 ): Promise<void> {
-  const duplicateEntries = draft.proposedCellRows
-    .filter((cell) => cell.operation !== "delete" && cell.rat)
-    .map((cell) => ({ rat: cell.rat!, details: getProposedCellDetails(cell), excludeCellId: cell.target_cell_id ?? undefined }))
-    .filter((entry): entry is typeof entry & { details: Record<string, unknown> } => entry.details !== null);
   const operatorId = getApprovalOperatorId(submission, draft.proposedStation, stationContext);
-
   if (!operatorId) return;
-  if (duplicateEntries.length > 0) await checkCellDuplicatesBatch(duplicateEntries, operatorId);
+
+  const checkedCells = draft.proposedCellRows.filter((cell) => cell.operation !== "delete" && cell.rat);
+  const keptCellIds = checkedCells.flatMap((cell) => (cell.plmns === null && cell.target_cell_id !== null ? [cell.target_cell_id] : []));
+  const [owner, kept] = await Promise.all([loadNetworkOwner(db, operatorId, null), loadExtraCodes(db, keptCellIds)]);
+  const duplicateEntries = checkedCells
+    .map((cell) => ({
+      rat: cell.rat!,
+      details: getProposedCellDetails(cell),
+      excludeCellId: cell.target_cell_id ?? undefined,
+      extraCodes: cell.plmns ?? (cell.target_cell_id === null ? undefined : kept.get(cell.target_cell_id)) ?? [],
+    }))
+    .filter((entry): entry is typeof entry & { details: Record<string, unknown> } => entry.details !== null);
+  if (duplicateEntries.length > 0) await checkOwnerCellDuplicates(duplicateEntries, owner);
 }
 
 async function applyProposedSectors(
@@ -1052,6 +1104,36 @@ async function deleteProposedCell(tx: DbTx, proposed: ProposedCellRow, targetCel
   return snapshot;
 }
 
+type NetworkWrite = { cellId: number; stationId: number; rat: string | null; plmns: string[] | null; moved: boolean };
+
+async function writeProposedExtras(tx: DbTx, networkWrites: readonly NetworkWrite[]): Promise<void> {
+  const sent = networkWrites.filter((write) => write.plmns !== null);
+  const moved = networkWrites.filter((write) => write.plmns === null && write.moved);
+  if (sent.length === 0 && moved.length === 0) return;
+
+  const kept = await loadExtraCodes(
+    tx,
+    moved.map((write) => write.cellId),
+  );
+  const movedWithCodes = moved.filter((write) => (kept.get(write.cellId) ?? []).length > 0);
+  const written = [...sent, ...movedWithCodes];
+  const stationIds = unique(written.map((write) => write.stationId));
+  const allCodes = unique(written.flatMap((write) => write.plmns ?? kept.get(write.cellId) ?? []));
+  const [ownerEntries, known] = await Promise.all([
+    Promise.all(stationIds.map(async (stationId) => [stationId, await loadStationNetworkOwner(tx, stationId)] as const)),
+    loadKnownPlmns(tx, allCodes),
+  ]);
+  const owners = new Map(ownerEntries);
+
+  const extraCodesWrites = written.map((write) => {
+    const owner = owners.get(write.stationId)!;
+    const extras =
+      write.plmns === null ? withoutOwnerCode(kept.get(write.cellId) ?? [], owner) : extraCodesFromStored(write.rat, write.plmns, owner, known);
+    return { cellId: write.cellId, extras };
+  });
+  await replaceExtraCodes(tx, extraCodesWrites, known);
+}
+
 async function applyProposedCells(
   tx: DbTx,
   proposedCellRows: ProposedCellRow[],
@@ -1062,6 +1144,7 @@ async function applyProposedCells(
 ): Promise<CellAuditChanges> {
   const changes: CellAuditChanges = { added: [], updated: [], deleted: [] };
   const writeTasks: (() => Promise<void>)[] = [];
+  const networkWrites: NetworkWrite[] = [];
   const countryFeatures = await getStationCountryFeatures(
     unique([stationId, ...changeCells.map((cell) => cell.destination_station_id), ...[...targetCellsMap.values()].map((cell) => cell.station_id)]),
     tx,
@@ -1074,6 +1157,7 @@ async function applyProposedCells(
         writeTasks.push(() =>
           addProposedCell(tx, proposed, stationId, sectorIdByLocalId, stationFeatures).then((added) => {
             changes.added.push(added);
+            if (stationId !== null) networkWrites.push({ cellId: added, stationId, rat: proposed.rat, plmns: proposed.plmns, moved: false });
           }),
         );
         break;
@@ -1081,6 +1165,13 @@ async function applyProposedCells(
         writeTasks.push(() =>
           updateProposedCell(tx, proposed, targetCellsMap, sectorIdByLocalId, changeCells, countryFeatures).then((updated) => {
             changes.updated.push(updated);
+            const destinationId = changeCells.find((cell) => cell.target_cell_id === updated.id)?.destination_station_id;
+            const target = targetCellsMap.get(updated.id);
+            const cellStationId = destinationId ?? target?.station_id ?? stationId;
+            const rat = proposed.rat ?? target?.rat ?? null;
+            if (cellStationId !== null) {
+              networkWrites.push({ cellId: updated.id, stationId: cellStationId, rat, plmns: proposed.plmns, moved: destinationId !== undefined });
+            }
           }),
         );
         break;
@@ -1095,6 +1186,7 @@ async function applyProposedCells(
   }
 
   await writeTasks.reduce((previous, writeTask) => previous.then(writeTask), Promise.resolve());
+  await writeProposedExtras(tx, networkWrites);
 
   return changes;
 }
@@ -1886,6 +1978,7 @@ function toProposedCellRow(cell: ChangeCell): ProposedCellRow {
     rat: cell.rat ?? null,
     type: cell.type ?? null,
     notes: cell.notes ?? null,
+    plmns: cell.plmns ?? null,
     is_confirmed: cell.is_confirmed ?? false,
     gsm: cell.rat === "GSM" ? (details as ProposedCellRow["gsm"]) : null,
     umts: cell.rat === "UMTS" ? (details as ProposedCellRow["umts"]) : null,

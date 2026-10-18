@@ -68,6 +68,7 @@ describe("POST /cells/match", () => {
         stationId: null,
         cellId: null,
         isShared: false,
+        networkMatch: null,
         differences: [],
         nrIdentity: null,
         officialSiteIds: [],
@@ -98,6 +99,7 @@ describe("POST /cells/match", () => {
           stationId: 20,
           cellId: 10,
           isShared: false,
+          networkMatch: "own",
           differences: [],
           nrIdentity: cell.rat === "nr" ? { gnbid: 200, clid: 2 } : null,
         },
@@ -230,7 +232,75 @@ describe("POST /cells/match", () => {
     const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[2]] } });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.results[0]).toMatchObject({ cellId: own ? 20 : 5, isShared: !own });
+    expect(response.json().data.results[0]).toMatchObject({ cellId: own ? 20 : 5, isShared: !own, networkMatch: own ? "own" : "partner" });
+  });
+
+  it("finds a cell of another operator that broadcasts the code, without its TAC", async () => {
+    network();
+    dbMock.enqueueFor("select", "cells", []);
+    dbMock.enqueueNetworks([{ code: plmn }], [{ ...stored("lte", 30, 2), lte: { enbid: 100, clid: 2, tac: 5, pci: 7, earfcn: 9 } }]);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [{ ...observed[2], tac: 6, pci: 8 }] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({
+      match: "cell",
+      cellId: 30,
+      isShared: false,
+      networkMatch: "extraCode",
+      differences: [{ field: "pci", observed: 8, stored: 7 }],
+    });
+    const guestLookup = dbMock.calls.filter((call) => call.table === "cell_plmns")[1]?.clauses.where?.[0];
+    const { params } = new PgDialect().sqlToQuery(guestLookup as Parameters<PgDialect["sqlToQuery"]>[0]);
+    expect(params).toEqual(expect.arrayContaining([plmn, 100, 2, "published"]));
+  });
+
+  it("prefers the operator's own cell over one that broadcasts its code", async () => {
+    network();
+    dbMock.enqueueFor("select", "cells", [stored("lte", 20, 1)]);
+    dbMock.enqueueNetworks([{ code: plmn }], [stored("lte", 5, 2)]);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[2]] } });
+
+    expect(response.json().data.results[0]).toMatchObject({ cellId: 20, networkMatch: "own" });
+  });
+
+  it.each([
+    { name: "the same PCI and channel", pci: 7, isFound: true },
+    { name: "another PCI", pci: 8, isFound: false },
+  ])("suggests a missing network on another operator's cell with $name", async ({ pci, isFound }) => {
+    network();
+    const row = { ...stored("lte", 40, 2), lte: { enbid: 100, clid: 2, tac: 5, pci: 7, earfcn: 9 } };
+    dbMock.enqueueFor("select", "cells", [], [], isFound ? [row] : []);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [{ ...observed[2], pci, earfcn: 9 }] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject(
+      isFound
+        ? {
+            match: "cell",
+            cellId: 40,
+            isShared: false,
+            networkMatch: "missingCode",
+            differences: [{ field: "network", observed: plmn, stored: null }],
+          }
+        : { match: "none", reason: "cellUnknown", networkMatch: null },
+    );
+    const countryLookup = dbMock.calls.filter((call) => call.table === "cells")[2]?.clauses.where?.[0];
+    const { params } = new PgDialect().sqlToQuery(countryLookup as Parameters<PgDialect["sqlToQuery"]>[0]);
+    expect(params).toEqual(expect.arrayContaining([100, 2, pci, 9, "PL"]));
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("does not look for a missing network without a PCI and channel", async () => {
+    network();
+    dbMock.enqueueFor("select", "cells", [], []);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[2]] } });
+
+    expect(response.json().data.results[0]).toMatchObject({ match: "none", reason: "cellUnknown" });
+    expect(dbMock.calls.filter((call) => call.table === "cells")).toHaveLength(2);
   });
 
   it("chooses the lowest cell id when duplicate stored identifiers have the same operator", async () => {

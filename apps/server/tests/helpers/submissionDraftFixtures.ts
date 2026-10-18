@@ -161,6 +161,7 @@ export function draftFixture(radios: readonly DraftRadio[] = draftRadios, id = s
       rat: databaseRats[radio.rat],
       type: "MACROCELL",
       notes: "Radio evidence",
+      plmns: null,
       is_confirmed: false,
       operation: "add",
       createdAt: submissionRow.createdAt,

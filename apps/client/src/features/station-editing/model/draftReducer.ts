@@ -1,6 +1,7 @@
 import { conventionsFor } from "@openbts/country-packs";
 import type { LocationMove, StationIdentifierKind } from "@openbts/shared/contract";
 
+import { isSameCodes } from "./networks";
 import { MAX_SECTORS, RAT_FIELDS, RAT_ORDER, canShareAreaCode, carriesAreaCode, getAreaCodeField, getCellNumber } from "./ratFields";
 import {
   EMPTY_BACKHAUL,
@@ -38,7 +39,9 @@ type StationPatch = Partial<Pick<StationDraft, "siteId" | "status" | "isConfirme
 export type PlacePatch = Partial<Pick<PlaceDraft, "locationId" | "latitude" | "longitude" | "regionId" | "isRegionPicked" | "city" | "address">>;
 type StructurePatch = Partial<Pick<StructureDraft, "type" | "note">>;
 type PickedPlace = Omit<PlaceDraft, "move" | "isRegionPicked">;
-export type CellPatch = Partial<Pick<CellDraft, "bandId" | "sectorKey" | "cellType" | "notes" | "isConfirmed" | "mode" | "gnbidLength">> & {
+export type CellPatch = Partial<
+  Pick<CellDraft, "bandId" | "sectorKey" | "cellType" | "notes" | "isConfirmed" | "mode" | "gnbidLength" | "extraPlmns">
+> & {
   numbers?: CellDraft["numbers"];
   flags?: CellDraft["flags"];
 };
@@ -54,7 +57,7 @@ export type SessionInput = {
 
 export type DraftAction =
   | { type: "setStation"; patch: StationPatch }
-  | { type: "setOperator"; operatorId: number | null; identifierKinds: readonly StationIdentifierKind[] }
+  | { type: "setOperator"; operatorId: number | null; ownerPlmn: string | null; identifierKinds: readonly StationIdentifierKind[] }
   | { type: "setIdentifier"; kind: StationIdentifierKind; value: string }
   | { type: "setBackhaul"; patch: Partial<BackhaulDraft> }
   | { type: "setPlace"; patch: PlacePatch }
@@ -176,14 +179,29 @@ function patchStation(session: EditSession, patch: StationPatch): EditSession {
   return isSame ? session : withStation(session, next);
 }
 
-function setOperator(session: EditSession, operatorId: number | null, identifierKinds: readonly StationIdentifierKind[]): EditSession {
+function dropOwnerPlmn(session: EditSession, ownerPlmn: string | null): EditSession {
+  if (ownerPlmn === null || !session.draft.cells.some((cell) => cell.extraPlmns.includes(ownerPlmn))) return session;
+
+  const cells = session.draft.cells.map((cell) =>
+    cell.extraPlmns.includes(ownerPlmn) ? { ...cell, extraPlmns: cell.extraPlmns.filter((code) => code !== ownerPlmn) } : cell,
+  );
+  return withCells(session, cells);
+}
+
+function setOperator(
+  session: EditSession,
+  operatorId: number | null,
+  ownerPlmn: string | null,
+  identifierKinds: readonly StationIdentifierKind[],
+): EditSession {
   const { station } = session.draft;
   const identifiers = { ...station.identifiers };
   for (const kind of IDENTIFIER_KINDS) if (!identifierKinds.includes(kind)) identifiers[kind] = "";
   const keepsIdentifiers = IDENTIFIER_KINDS.every((kind) => identifiers[kind] === station.identifiers[kind]);
   if (station.operatorId === operatorId && keepsIdentifiers) return session;
 
-  return withStation(session, { ...station, operatorId, identifiers: keepsIdentifiers ? station.identifiers : identifiers });
+  const next = withStation(session, { ...station, operatorId, identifiers: keepsIdentifiers ? station.identifiers : identifiers });
+  return station.operatorId === operatorId ? next : dropOwnerPlmn(next, ownerPlmn);
 }
 
 function setIdentifier(session: EditSession, kind: StationIdentifierKind, value: string): EditSession {
@@ -314,6 +332,7 @@ function insertCell(cells: readonly CellDraft[], rat: Rat, options: NewCellOptio
     bandId: first?.bandId ?? options.bandId ?? null,
     isConfirmed: options.isConfirmed,
     numbers,
+    extraPlmns: first?.extraPlmns,
   });
   const next = [...cells];
   next.splice(findInsertIndex(cells, rat, options.afterKey), 0, row);
@@ -362,6 +381,7 @@ function isSameCell(left: CellDraft, right: CellDraft): boolean {
     left.mode === right.mode &&
     left.gnbidLength === right.gnbidLength &&
     left.isDeleted === right.isDeleted &&
+    isSameCodes(left.extraPlmns, right.extraPlmns) &&
     numbers.every(({ field }) => getCellNumber(left, field) === getCellNumber(right, field)) &&
     flags.every(({ field }) => (left.flags[field] ?? false) === (right.flags[field] ?? false))
   );
@@ -384,6 +404,7 @@ export function patchCell(cell: CellDraft, patch: CellPatch): CellDraft {
     gnbidLength: cell.rat === "nr" && patch.gnbidLength !== undefined ? patch.gnbidLength : cell.gnbidLength,
     numbers: mergeNumbers(cell, patch.numbers),
     flags: mergeFlags(cell, patch.flags),
+    extraPlmns: patch.extraPlmns ?? cell.extraPlmns,
   };
   const next = merged.mode === "nsa" ? clearStandaloneFields(merged) : merged;
   return isSameCell(cell, next) ? cell : next;
@@ -420,6 +441,7 @@ function duplicateCell(session: EditSession, key: DraftKey, isConfirmed: boolean
     gnbidLength: source.gnbidLength,
     numbers,
     flags: { ...source.flags },
+    extraPlmns: source.extraPlmns,
   });
   const next = [...cells];
   next.splice(index + 1, 0, copy);
@@ -581,6 +603,7 @@ function toFieldPatch(base: CellDraft, field: EditField): CellPatch {
   if (field === "isConfirmed") return { isConfirmed: base.isConfirmed };
   if (field === "mode") return { mode: base.mode };
   if (field === "gnbidLength") return { gnbidLength: base.gnbidLength };
+  if (field === "extraPlmns") return { extraPlmns: base.extraPlmns };
   return {};
 }
 
@@ -638,7 +661,7 @@ function applyAction(session: EditSession, action: DraftAction): EditSession {
     case "setStation":
       return patchStation(session, action.patch);
     case "setOperator":
-      return setOperator(session, action.operatorId, action.identifierKinds);
+      return setOperator(session, action.operatorId, action.ownerPlmn, action.identifierKinds);
     case "setIdentifier":
       return setIdentifier(session, action.kind, action.value);
     case "setBackhaul":

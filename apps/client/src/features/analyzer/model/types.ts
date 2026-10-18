@@ -51,6 +51,7 @@ export type DifferenceKind =
   | DifferenceField
   | `no-${DifferenceField}`
   | "new"
+  | "network"
   | "by-lac"
   | "shared"
   | "unknown-cell"

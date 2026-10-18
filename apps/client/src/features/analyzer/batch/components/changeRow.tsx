@@ -23,6 +23,7 @@ type ChangeRowNotes = {
   spreadCount: number | null;
   isBandMissing: boolean;
   refusals: readonly BatchRefusal[];
+  networkName: string | null;
 };
 
 export type ChangeRowProps = ChangeRowNotes & {
@@ -91,7 +92,7 @@ function NoteLine({ icon, tone, className, children }: NoteLineProps) {
   );
 }
 
-export function RowNotes({ row, conflict, spreadCount, isBandMissing, isExcluded, refusals, lineClassName }: RowNotesProps) {
+export function RowNotes({ row, conflict, spreadCount, isBandMissing, isExcluded, refusals, networkName, lineClassName }: RowNotesProps) {
   const { t } = useTranslation();
   const refusalText = [...new Set(refusals.map((refusal) => t(refusal.messageKey, refusal.values)))].join(TEXT_SEPARATOR);
 
@@ -127,6 +128,11 @@ export function RowNotes({ row, conflict, spreadCount, isBandMissing, isExcluded
           {t("cellAnalyzer:batch.newCell")}
         </NoteLine>
       ) : null}
+      {networkName === null ? null : (
+        <NoteLine icon={Add01Icon} tone="success" className={lineClassName}>
+          {t(row.action === "create" ? "cellAnalyzer:batch.newCellNetwork" : "cellAnalyzer:batch.addNetwork", { network: networkName })}
+        </NoteLine>
+      )}
     </>
   );
 }
@@ -167,6 +173,7 @@ export function ChangeRow({
   isBandMissing,
   isExcluded,
   refusals,
+  networkName,
   onChange,
 }: ChangeRowProps) {
   const { t } = useTranslation();
@@ -232,6 +239,7 @@ export function ChangeRow({
           isBandMissing={isBandMissing}
           isExcluded={isExcluded}
           refusals={refusals}
+          networkName={networkName}
           lineClassName="col-span-full pt-[3px] pb-px pl-0.5"
         />
       )}

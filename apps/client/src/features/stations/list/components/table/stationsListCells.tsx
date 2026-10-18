@@ -11,6 +11,7 @@ import { BrandMark } from "@/components/cellular/brandMark";
 import { EmptyValue } from "@/components/ui/emptyValue";
 import { EDITOR_STATION_SEARCH } from "@/features/admin/stations/editorStationSearch";
 import { HighlightedText } from "@/features/shared/HighlightedText";
+import { StationGuestMarks } from "@/features/shared/operatorMarks";
 import { groupTechnologyBands } from "@/features/station-details/station/utils/bands";
 import { type CellIdentifierField, findCellIdentifierLabel } from "@/features/station-details/station/utils/cells";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
@@ -139,6 +140,7 @@ export function StationOperatorLine({ row, className }: { row: StationsListRow; 
       <span className="truncate" title={operatorName}>
         {operatorName}
       </span>
+      <StationGuestMarks marks={row.guests} size={14} className="pointer-events-auto relative z-10" />
       {row.badgeStatus === null ? null : (
         <>
           <span aria-hidden="true">·</span>

@@ -1,25 +1,28 @@
-import { cells, gsmCells, lteCells, nrCells, stations, umtsCells } from "@openbts/drizzle";
-import { and, eq, isNull, ne, notInArray, or } from "drizzle-orm";
+import { cellPlmns, cells, gsmCells, lteCells, nrCells, plmns, stations, umtsCells } from "@openbts/drizzle";
+import { type SQL, and, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateSpec, isUnknownCellIdentity } from "./identityDuplicateSpecs.js";
+import { type NetworkOwner, loadNetworkOwner } from "./networkWrites.js";
 import { type PciDuplicateDetails, type PciDuplicateSpec, getPciDuplicateKey, getPciDuplicateSpec } from "./pciDuplicateSpecs.js";
 
 type CellIdentityDuplicateEntry = {
   values: Record<string, number>;
   excludeCellId?: number;
+  networks: SQL;
 };
 
 export type CellIdentityDuplicateSource = {
   rat?: string | null;
   details?: CellIdentityDuplicateDetails | null;
   excludeCellId?: number;
+  extraCodes?: readonly string[];
 };
 
 type CellIdentityDuplicateCheck = {
   rat: string;
-  checkEntries: (operatorId: number, entries: CellIdentityDuplicateEntry[], siblingExcludeIds: number[]) => Promise<void>;
+  checkEntries: (entries: CellIdentityDuplicateEntry[], siblingExcludeIds: number[]) => Promise<void>;
 };
 
 type PciDuplicateEntry = {
@@ -73,7 +76,7 @@ const PCI_DUPLICATE_CHECKS: PciDuplicateCheckSpec[] = [
 const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
   {
     rat: "GSM",
-    checkEntries: async (operatorId, entries, siblingExcludeIds) => {
+    checkEntries: async (entries, siblingExcludeIds) => {
       if (entries.length === 0) return;
 
       const conditions = entries.flatMap((entry) => {
@@ -85,6 +88,7 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
             eq(gsmCells.lac, lac),
             eq(gsmCells.cid, cid),
             entry.excludeCellId !== undefined ? ne(gsmCells.cell_id, entry.excludeCellId) : undefined,
+            entry.networks,
           ),
         ];
       });
@@ -95,26 +99,20 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
         .from(gsmCells)
         .innerJoin(cells, eq(cells.id, gsmCells.cell_id))
         .innerJoin(stations, eq(stations.id, cells.station_id))
-        .where(
-          and(
-            eq(stations.operator_id, operatorId),
-            siblingExcludeIds.length > 0 ? notInArray(gsmCells.cell_id, siblingExcludeIds) : undefined,
-            or(...conditions),
-          ),
-        )
+        .where(and(siblingExcludeIds.length > 0 ? notInArray(gsmCells.cell_id, siblingExcludeIds) : undefined, or(...conditions)))
         .limit(1);
 
       if (existing.length > 0) {
         const duplicate = existing[0]!;
         throw new ErrorResponse("DUPLICATE_ENTRY", {
-          message: `A GSM cell with LAC ${duplicate.lac} and CID ${duplicate.cid} already exists for this operator`,
+          message: `A GSM cell with LAC ${duplicate.lac} and CID ${duplicate.cid} already exists on one of the cell's networks`,
         });
       }
     },
   },
   {
     rat: "UMTS",
-    checkEntries: async (operatorId, entries, siblingExcludeIds) => {
+    checkEntries: async (entries, siblingExcludeIds) => {
       if (entries.length === 0) return;
 
       const conditions = entries.flatMap((entry) => {
@@ -126,6 +124,7 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
             eq(umtsCells.rnc, rnc),
             eq(umtsCells.cid, cid),
             entry.excludeCellId !== undefined ? ne(umtsCells.cell_id, entry.excludeCellId) : undefined,
+            entry.networks,
           ),
         ];
       });
@@ -136,26 +135,20 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
         .from(umtsCells)
         .innerJoin(cells, eq(cells.id, umtsCells.cell_id))
         .innerJoin(stations, eq(stations.id, cells.station_id))
-        .where(
-          and(
-            eq(stations.operator_id, operatorId),
-            siblingExcludeIds.length > 0 ? notInArray(umtsCells.cell_id, siblingExcludeIds) : undefined,
-            or(...conditions),
-          ),
-        )
+        .where(and(siblingExcludeIds.length > 0 ? notInArray(umtsCells.cell_id, siblingExcludeIds) : undefined, or(...conditions)))
         .limit(1);
 
       if (existing.length > 0) {
         const duplicate = existing[0]!;
         throw new ErrorResponse("DUPLICATE_ENTRY", {
-          message: `A UMTS cell with RNC ${duplicate.rnc} and CID ${duplicate.cid} already exists for this operator`,
+          message: `A UMTS cell with RNC ${duplicate.rnc} and CID ${duplicate.cid} already exists on one of the cell's networks`,
         });
       }
     },
   },
   {
     rat: "LTE",
-    checkEntries: async (operatorId, entries, siblingExcludeIds) => {
+    checkEntries: async (entries, siblingExcludeIds) => {
       if (entries.length === 0) return;
 
       const conditions = entries.flatMap((entry) => {
@@ -167,6 +160,7 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
             eq(lteCells.enbid, enbid),
             eq(lteCells.clid, clid),
             entry.excludeCellId !== undefined ? ne(lteCells.cell_id, entry.excludeCellId) : undefined,
+            entry.networks,
           ),
         ];
       });
@@ -179,7 +173,6 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
         .innerJoin(stations, eq(stations.id, cells.station_id))
         .where(
           and(
-            eq(stations.operator_id, operatorId),
             eq(stations.status, "published"),
             siblingExcludeIds.length > 0 ? notInArray(lteCells.cell_id, siblingExcludeIds) : undefined,
             or(...conditions),
@@ -190,14 +183,36 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
       if (existing.length > 0) {
         const duplicate = existing[0]!;
         throw new ErrorResponse("DUPLICATE_ENTRY", {
-          message: `An LTE cell with eNBID ${duplicate.enbid} and CLID ${duplicate.clid} already exists for this operator`,
+          message: `An LTE cell with eNBID ${duplicate.enbid} and CLID ${duplicate.clid} already exists on one of the cell's networks`,
         });
       }
     },
   },
 ];
 
-function getCellIdentityDuplicateEntriesByRat(sources: CellIdentityDuplicateSource[]): Map<string, CellIdentityDuplicateEntry[]> {
+function sharesNetwork(owner: NetworkOwner, extraCodes: readonly string[]): SQL {
+  const codes = [...new Set([...(owner.mainCode === null ? [] : [owner.mainCode]), ...extraCodes])];
+  const ownedWithoutCode = owner.mainCode === null && owner.operatorId !== null ? eq(stations.operator_id, owner.operatorId) : undefined;
+  if (codes.length === 0) return ownedWithoutCode ?? sql`false`;
+
+  const ownedByCode = inArray(
+    stations.operator_id,
+    db
+      .select({ id: plmns.operatorId })
+      .from(plmns)
+      .where(and(eq(plmns.role, "primary"), inArray(plmns.code, codes))),
+  );
+  const broadcastByCode = inArray(
+    cells.id,
+    db.select({ id: cellPlmns.cellId }).from(cellPlmns).innerJoin(plmns, eq(plmns.id, cellPlmns.plmnId)).where(inArray(plmns.code, codes)),
+  );
+  return or(ownedWithoutCode, ownedByCode, broadcastByCode)!;
+}
+
+function getCellIdentityDuplicateEntriesByRat(
+  sources: CellIdentityDuplicateSource[],
+  owner: NetworkOwner,
+): Map<string, CellIdentityDuplicateEntry[]> {
   const entriesByRat = new Map<string, CellIdentityDuplicateEntry[]>();
 
   for (const source of sources) {
@@ -215,7 +230,7 @@ function getCellIdentityDuplicateEntriesByRat(sources: CellIdentityDuplicateSour
     if (!duplicateCheck) continue;
 
     const entries = entriesByRat.get(spec.rat) ?? [];
-    entries.push({ values, excludeCellId: source.excludeCellId });
+    entries.push({ values, excludeCellId: source.excludeCellId, networks: sharesNetwork(owner, source.extraCodes ?? []) });
     entriesByRat.set(spec.rat, entries);
   }
 
@@ -278,8 +293,16 @@ export async function checkCellDuplicatesBatch(
   operatorId: number,
   siblingExcludeIds: number[] = [],
 ): Promise<void> {
-  const entriesByRat = getCellIdentityDuplicateEntriesByRat(cellEntries);
-  await Promise.all(CELL_IDENTITY_DUPLICATE_CHECKS.map((spec) => spec.checkEntries(operatorId, entriesByRat.get(spec.rat) ?? [], siblingExcludeIds)));
+  await checkOwnerCellDuplicates(cellEntries, await loadNetworkOwner(db, operatorId, null), siblingExcludeIds);
+}
+
+export async function checkOwnerCellDuplicates(
+  cellEntries: CellIdentityDuplicateSource[],
+  owner: NetworkOwner,
+  siblingExcludeIds: number[] = [],
+): Promise<void> {
+  const entriesByRat = getCellIdentityDuplicateEntriesByRat(cellEntries, owner);
+  await Promise.all(CELL_IDENTITY_DUPLICATE_CHECKS.map((spec) => spec.checkEntries(entriesByRat.get(spec.rat) ?? [], siblingExcludeIds)));
 }
 
 async function checkPciDuplicatesForSpec(

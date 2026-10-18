@@ -26,7 +26,9 @@ import {
 } from "./cellFields";
 import { type CellColumn, GRID_ROW_CLASS } from "./cellGrid";
 import { CellNote } from "./cellNote";
+import type { NetworkChoice } from "./cellRules";
 import type { CellTexts } from "./cellTexts";
+import { NetworkPicker, ROW_NETWORKS_CLASS } from "./networksField";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getBandLabel } from "@/features/station-details/station/utils/bands";
@@ -42,6 +44,7 @@ type CellRowProps = {
   band: Band | undefined;
   bands: readonly Band[];
   sectors: readonly SectorDraft[];
+  networkChoice: NetworkChoice;
   texts: CellTexts;
   editKind: EditKind;
   canEdit: boolean;
@@ -164,6 +167,7 @@ function CellRowInner({
   band,
   bands,
   sectors,
+  networkChoice,
   texts,
   editKind,
   canEdit,
@@ -283,6 +287,22 @@ function CellRowInner({
             className={cn(getClass("cellType"), cell.cellType === "macro" && "text-muted-foreground")}
             isLocked={isLocked}
             dispatch={dispatch}
+          />
+        </FieldCell>
+      );
+    }
+    if (column.kind === "networks") {
+      return (
+        <FieldCell key={column.id} field={column.id} marks={getMarks("extraPlmns")}>
+          <NetworkPicker
+            choice={networkChoice}
+            rat={cell.rat}
+            extraPlmns={cell.extraPlmns}
+            label={texts.networks}
+            className={cn(ROW_NETWORKS_CLASS, getClass("extraPlmns"))}
+            isInvalid={hasError("extraPlmns")}
+            isLocked={isLocked}
+            onChange={(extraPlmns) => dispatch({ type: "setCell", key: cell.key, patch: { extraPlmns } })}
           />
         </FieldCell>
       );

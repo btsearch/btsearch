@@ -10,6 +10,7 @@ function toMatchedPointStation(match: MatchedStation, lookups: MapLookups): MapP
       id: station.id,
       siteId: station.siteId,
       operatorId: station.operatorId,
+      guestOperatorIds: station.guestOperatorIds,
       status: "active",
       statusChangedAt: station.statusChangedAt,
     },

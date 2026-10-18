@@ -14,6 +14,7 @@ export type CellTexts = {
   mode: string;
   gnbidLength: string;
   cellType: string;
+  networks: string;
   confirmed: string;
   note: string;
   addNote: string;
@@ -42,6 +43,7 @@ export function useCellTexts(editKind: EditKind): CellTexts {
       mode: t("stations:edit.cells.columns.mode"),
       gnbidLength: t("stations:edit.cells.columns.gnbidLength"),
       cellType: t("common:labels.cellType"),
+      networks: t("stations:edit.cells.columns.networks"),
       confirmed: t("common:labels.confirmed"),
       note: t("stations:edit.cells.note"),
       addNote: t("stations:edit.cells.addNote"),

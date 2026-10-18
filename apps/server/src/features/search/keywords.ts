@@ -5,7 +5,7 @@ import { type SQL, type SQLWrapper, inArray, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../errors.js";
-import { hasPlmn } from "../operators/sharing.js";
+import { broadcastsCode, hasPlmn } from "../operators/sharing.js";
 import { stationCountryCode, stationPlacementMatches } from "../stations/country.js";
 import {
   FILTER_DEFINITIONS,
@@ -134,8 +134,10 @@ function keywordCondition(keyword: SearchKeyword, value: string): KeywordConditi
       const countryCodes = countryCodesSchema.parse(splitList(value.toUpperCase()));
       return { table: "stations", condition: stationPlacementMatches(inArray(stationCountryCode, countryCodes)) };
     }
-    case "plmn":
-      return { table: "stations", condition: hasPlmn(stations.operator_id, plmnsSchema.parse(splitList(value))) };
+    case "plmn": {
+      const codes = plmnsSchema.parse(splitList(value));
+      return { table: "stations", condition: sql`(${hasPlmn(stations.operator_id, codes)} OR ${broadcastsCode(stations.id, codes)})` };
+    }
     case "region":
       return regionCondition(value);
     case "city":

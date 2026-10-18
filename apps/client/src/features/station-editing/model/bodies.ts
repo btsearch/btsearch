@@ -16,6 +16,7 @@ import type {
 } from "@openbts/shared/contract";
 
 import { findCell, getAreaValue, getBackhaulModel, isMarkerMoved, isSameOwnerChoice, listSectorEntries, normalizeText } from "./changes";
+import { isSameCodes, toPlmnList } from "./networks";
 import { DEFAULT_GNBID_LENGTH, DEFAULT_NR_MODE, RAT_FIELDS, getAreaCodeField, getCellFlag, getCellNumber, toAzimuth } from "./ratFields";
 import { EMPTY_SNAPSHOT, IDENTIFIER_KINDS, UNKNOWN_OWNER } from "./snapshots";
 import type {
@@ -89,7 +90,7 @@ type SectorPartEntry =
   | { action: "delete"; id: number };
 type SectorTarget = { id: number } | { key: string };
 type SectorRef = { sectorId?: number | null; sectorKey?: string };
-type CellCommon = SectorRef & { cellType?: CellType | null; notes?: string | null; isConfirmed?: boolean };
+type CellCommon = SectorRef & { cellType?: CellType | null; notes?: string | null; isConfirmed?: boolean; plmns?: string[] };
 type NewGsmCell = CellCommon & { rat: "gsm"; bandId: number; lac: number; cid: number; isEGsm?: boolean; bsic?: number | null };
 type NewUmtsCell = CellCommon & {
   rat: "umts";
@@ -132,6 +133,7 @@ type CellUpdateFields = SectorRef &
     isConfirmed?: boolean;
     mode?: NrMode;
     gnbidLength?: number;
+    plmns?: string[];
   };
 type CellPartEntry = (NewCell & { action: "create" }) | (CellUpdateFields & { action: "update"; id: number }) | { action: "delete"; id: number };
 type Confirmation = "all" | "new" | "none";
@@ -147,6 +149,7 @@ type PartOptions = {
   allowsOwnerName: boolean;
   confirmation: Confirmation;
   storedPlace: PlaceDraft | null;
+  ownerPlmn: string | null;
 };
 
 type Parts = {
@@ -158,8 +161,8 @@ type Parts = {
   cellKeys: DraftKey[];
 };
 
-const DIRECT_OPTIONS: PartOptions = { isDirect: true, allowsOwnerName: false, confirmation: "all", storedPlace: null };
-const SUBMITTED_OPTIONS: PartOptions = { isDirect: false, allowsOwnerName: true, confirmation: "none", storedPlace: null };
+const DIRECT_OPTIONS: PartOptions = { isDirect: true, allowsOwnerName: false, confirmation: "all", storedPlace: null, ownerPlmn: null };
+const SUBMITTED_OPTIONS: PartOptions = { isDirect: false, allowsOwnerName: true, confirmation: "none", storedPlace: null, ownerPlmn: null };
 
 function nothingBuilt<Body>(body: Body | null = null): BuiltBody<Body> {
   return { body, cellKeys: [], sectorKeys: [] };
@@ -303,14 +306,15 @@ function writeSector(fields: SectorRef, target: SectorTarget | undefined): void 
   else fields.sectorKey = target.key;
 }
 
-function buildCellCommon(cell: CellDraft, plan: SectorPlan, confirmation: Confirmation): CellCommon {
+function buildCellCommon(cell: CellDraft, plan: SectorPlan, options: PartOptions): CellCommon {
   const common: CellCommon = {};
   const notes = normalizeText(cell.notes);
 
   writeSector(common, cell.sectorKey === null ? undefined : plan.targets.get(cell.sectorKey));
   if (cell.cellType !== null) common.cellType = cell.cellType;
   if (notes !== "") common.notes = notes;
-  if (confirmation !== "none") common.isConfirmed = cell.isConfirmed;
+  if (options.confirmation !== "none") common.isConfirmed = cell.isConfirmed;
+  if (cell.extraPlmns.length > 0) common.plmns = toPlmnList(options.ownerPlmn, cell.extraPlmns);
   return common;
 }
 
@@ -365,10 +369,10 @@ function buildNewNrCell(cell: CellDraft, common: CellCommon, bandId: number, are
   return created;
 }
 
-function buildNewCell(cell: CellDraft, draft: StationSnapshot, plan: SectorPlan, confirmation: Confirmation): NewCell | null {
+function buildNewCell(cell: CellDraft, draft: StationSnapshot, plan: SectorPlan, options: PartOptions): NewCell | null {
   if (cell.bandId === null) return null;
 
-  const common = buildCellCommon(cell, plan, confirmation);
+  const common = buildCellCommon(cell, plan, options);
   const areaValue = getAreaValue(draft, cell);
   if (cell.rat === "gsm") return buildNewGsmCell(cell, common, cell.bandId, areaValue);
   if (cell.rat === "umts") return buildNewUmtsCell(cell, common, cell.bandId, areaValue);
@@ -393,7 +397,7 @@ function buildCellUpdateFields(
   draft: StationSnapshot,
   base: StationSnapshot,
   plan: SectorPlan,
-  confirmation: Confirmation,
+  options: PartOptions,
 ): CellUpdateFields {
   const spec = RAT_FIELDS[cell.rat];
   const areaField = getAreaCodeField(cell.rat);
@@ -413,7 +417,8 @@ function buildCellUpdateFields(
     if (value !== baseValue) fields[field] = value;
   }
   for (const { field } of spec.flags) if (getCellFlag(cell, field) !== getCellFlag(baseCell, field)) fields[field] = getCellFlag(cell, field);
-  if (confirmation === "all" && cell.isConfirmed !== baseCell.isConfirmed) fields.isConfirmed = cell.isConfirmed;
+  if (options.confirmation === "all" && cell.isConfirmed !== baseCell.isConfirmed) fields.isConfirmed = cell.isConfirmed;
+  if (!isSameCodes(cell.extraPlmns, baseCell.extraPlmns)) fields.plmns = toPlmnList(options.ownerPlmn, cell.extraPlmns);
   return fields;
 }
 
@@ -422,17 +427,17 @@ function buildCellEntry(
   draft: StationSnapshot,
   base: StationSnapshot,
   plan: SectorPlan,
-  confirmation: Confirmation,
+  options: PartOptions,
 ): CellPartEntry | null {
   if (cell.id === null) {
-    const created = cell.isDeleted ? null : buildNewCell(cell, draft, plan, confirmation);
+    const created = cell.isDeleted ? null : buildNewCell(cell, draft, plan, options);
     return created === null ? null : { ...created, action: "create" };
   }
   const baseCell = findCell(base, cell.key);
   if (baseCell === undefined) return null;
   if (cell.isDeleted) return { action: "delete", id: cell.id };
 
-  const fields = buildCellUpdateFields(cell, baseCell, draft, base, plan, confirmation);
+  const fields = buildCellUpdateFields(cell, baseCell, draft, base, plan, options);
   return hasKeys(fields) ? { ...fields, action: "update", id: cell.id } : null;
 }
 
@@ -442,7 +447,7 @@ function buildParts(draft: StationSnapshot, base: StationSnapshot, options: Part
   const cellKeys: DraftKey[] = [];
 
   for (const cell of draft.cells) {
-    const entry = buildCellEntry(cell, draft, base, plan, options.confirmation);
+    const entry = buildCellEntry(cell, draft, base, plan, options);
     if (entry === null) continue;
     cells.push(entry);
     cellKeys.push(cell.key);
@@ -461,10 +466,10 @@ export function countCellEntries(session: EditSession): number {
   return buildParts(session.draft, session.live ?? EMPTY_SNAPSHOT, DIRECT_OPTIONS).cells.length;
 }
 
-export function buildStationUpdate(session: EditSession): BuiltBody<StationUpdate> {
+export function buildStationUpdate(session: EditSession, ownerPlmn: string | null): BuiltBody<StationUpdate> {
   if (session.live === null) return nothingBuilt();
 
-  const parts = buildParts(session.draft, session.live, DIRECT_OPTIONS);
+  const parts = buildParts(session.draft, session.live, { ...DIRECT_OPTIONS, ownerPlmn });
   const body: StationUpdate = {};
   if (hasKeys(parts.station)) body.station = parts.station;
   if (parts.location !== null && hasKeys(parts.location)) body.location = parts.location;
@@ -477,13 +482,13 @@ function toNewSectors(entries: readonly SectorPartEntry[]): { key: string; azimu
   return entries.flatMap((entry) => (entry.action === "create" ? [{ key: entry.key, azimuth: entry.azimuth }] : []));
 }
 
-function toNewCells(draft: StationSnapshot): { cells: NewCell[]; cellKeys: DraftKey[] } {
+function toNewCells(draft: StationSnapshot, options: PartOptions): { cells: NewCell[]; cellKeys: DraftKey[] } {
   const plan = planSectors(draft, EMPTY_SNAPSHOT);
   const cells: NewCell[] = [];
   const cellKeys: DraftKey[] = [];
 
   for (const cell of draft.cells) {
-    const created = cell.isDeleted ? null : buildNewCell(cell, draft, plan, DIRECT_OPTIONS.confirmation);
+    const created = cell.isDeleted ? null : buildNewCell(cell, draft, plan, options);
     if (created === null) continue;
     cells.push(created);
     cellKeys.push(cell.key);
@@ -491,12 +496,13 @@ function toNewCells(draft: StationSnapshot): { cells: NewCell[]; cellKeys: Draft
   return { cells, cellKeys };
 }
 
-export function buildStationCreate(session: EditSession): BuiltBody<StationCreate> {
+export function buildStationCreate(session: EditSession, ownerPlmn: string | null): BuiltBody<StationCreate> {
   const { draft } = session;
-  const parts = buildParts(draft, EMPTY_SNAPSHOT, DIRECT_OPTIONS);
+  const options: PartOptions = { ...DIRECT_OPTIONS, ownerPlmn };
+  const parts = buildParts(draft, EMPTY_SNAPSHOT, options);
   const { siteId, operatorId, status: _status, ...station } = parts.station;
   const { location } = parts;
-  const { cells, cellKeys } = toNewCells(draft);
+  const { cells, cellKeys } = toNewCells(draft, options);
   if (siteId === undefined || operatorId === undefined) return nothingBuilt();
 
   const body: StationCreate = { station: { ...station, siteId, operatorId, isConfirmed: draft.station.isConfirmed } };
@@ -524,8 +530,8 @@ function writeSubmissionLabels(item: SubmissionCreate, extras: SubmissionCreateE
   if (extras.origin !== undefined) item.origin = extras.origin;
 }
 
-function buildNewStationSubmission(session: EditSession, extras: SubmissionCreateExtras): BuiltBody<SubmissionCreate[]> {
-  const parts = buildParts(session.draft, EMPTY_SNAPSHOT, SUBMITTED_OPTIONS);
+function buildNewStationSubmission(session: EditSession, options: PartOptions, extras: SubmissionCreateExtras): BuiltBody<SubmissionCreate[]> {
+  const parts = buildParts(session.draft, EMPTY_SNAPSHOT, options);
   const photos = buildPhotosInput(extras.uploadCount, extras.picks, false);
   const item: SubmissionCreate = { action: "create", station: parts.station };
 
@@ -537,8 +543,13 @@ function buildNewStationSubmission(session: EditSession, extras: SubmissionCreat
   return { body: [item], cellKeys: parts.cellKeys, sectorKeys: parts.sectorKeys };
 }
 
-function buildStationChangeSubmission(session: EditSession, extras: SubmissionCreateExtras, stationId: number): BuiltBody<SubmissionCreate[]> {
-  const parts = buildParts(session.draft, session.live ?? EMPTY_SNAPSHOT, SUBMITTED_OPTIONS);
+function buildStationChangeSubmission(
+  session: EditSession,
+  options: PartOptions,
+  extras: SubmissionCreateExtras,
+  stationId: number,
+): BuiltBody<SubmissionCreate[]> {
+  const parts = buildParts(session.draft, session.live ?? EMPTY_SNAPSHOT, options);
   const photos = buildPhotosInput(extras.uploadCount, extras.picks, true);
   const item: SubmissionCreate = { action: "update", stationId };
 
@@ -553,10 +564,11 @@ function buildStationChangeSubmission(session: EditSession, extras: SubmissionCr
   return { body: [item], cellKeys: parts.cellKeys, sectorKeys: parts.sectorKeys };
 }
 
-export function buildSubmissionCreate(session: EditSession, extras: SubmissionCreateExtras): BuiltBody<SubmissionCreate[]> {
-  if (session.action === "create") return buildNewStationSubmission(session, extras);
+export function buildSubmissionCreate(session: EditSession, ownerPlmn: string | null, extras: SubmissionCreateExtras): BuiltBody<SubmissionCreate[]> {
+  const options: PartOptions = { ...SUBMITTED_OPTIONS, ownerPlmn };
+  if (session.action === "create") return buildNewStationSubmission(session, options, extras);
   if (extras.stationId === null) return nothingBuilt();
-  if (session.action === "update") return buildStationChangeSubmission(session, extras, extras.stationId);
+  if (session.action === "update") return buildStationChangeSubmission(session, options, extras, extras.stationId);
 
   const item: SubmissionCreate = { action: "delete", stationId: extras.stationId };
   writeSubmissionLabels(item, extras);
@@ -587,7 +599,11 @@ function writePickEdit(body: SubmissionUpdate, session: EditSession, edit: Submi
   body.photos = photos;
 }
 
-export function buildSubmissionUpdate(session: EditSession, extras: SubmissionUpdateExtras = {}): BuiltBody<SubmissionUpdate> {
+export function buildSubmissionUpdate(
+  session: EditSession,
+  ownerPlmn: string | null,
+  extras: SubmissionUpdateExtras = {},
+): BuiltBody<SubmissionUpdate> {
   const body: SubmissionUpdate = {};
   writeTextEdit(body, "note", extras.note);
   writeTextEdit(body, "reviewNote", extras.reviewNote);
@@ -595,7 +611,12 @@ export function buildSubmissionUpdate(session: EditSession, extras: SubmissionUp
 
   const base = session.live ?? EMPTY_SNAPSHOT;
   const stored = session.proposed ?? base;
-  const options: PartOptions = { ...SUBMITTED_OPTIONS, confirmation: session.kind === "review" ? "new" : "none", storedPlace: stored.place };
+  const options: PartOptions = {
+    ...SUBMITTED_OPTIONS,
+    confirmation: session.kind === "review" ? "new" : "none",
+    storedPlace: stored.place,
+    ownerPlmn,
+  };
   const parts = buildParts(session.draft, base, options);
   const storedParts = buildParts(stored, base, options);
 

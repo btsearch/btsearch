@@ -112,6 +112,7 @@ export const proposedCells = SubmissionsSchema.table(
     rat: ratEnum("rat"),
     type: CellType("type"),
     notes: text("notes"),
+    plmns: text("plmns").array(),
     is_confirmed: boolean("is_confirmed").default(false).notNull(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

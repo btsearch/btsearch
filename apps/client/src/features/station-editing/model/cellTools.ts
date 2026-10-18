@@ -92,6 +92,7 @@ export function createSeriesCell(source: CellDraft, clid: number, countryCode: s
     isConfirmed: source.isConfirmed,
     numbers: { ...source.numbers, clid, pci: null, tac },
     flags: { ...source.flags },
+    extraPlmns: source.extraPlmns,
   });
 }
 

@@ -1,6 +1,7 @@
 import type { Band, Cell, CellType, Sector } from "@openbts/shared/contract";
 
 import type { AnalyzerDraft, DraftRow, DraftStation } from "../../model/draft";
+import { listNumberDifferences } from "../../model/rows";
 import { getBandCode, getBandLabel } from "@/features/station-details/station/utils/bands";
 import type { LockedValue } from "@/features/station-editing/components/cells/lockedCellRow";
 import { DEFAULT_CELL_TYPE, RAT_FIELDS, isCellNumberField } from "@/features/station-editing/model/ratFields";
@@ -82,7 +83,7 @@ export function getRowNumbers(row: DraftRow): RowNumbers {
   if (row.action === "create") return getCreatedNumbers(row);
 
   const numbers: RowNumbers = {};
-  for (const difference of row.differences) {
+  for (const difference of listNumberDifferences(row.differences)) {
     if (isCellNumberField(difference.field)) numbers[difference.field] = difference.observed;
   }
   return numbers;
@@ -119,7 +120,7 @@ function toStoredNumberValues(row: DraftRow, stored: Cell, context: RowValueCont
     const value = readNumber(stored, field);
     if (value !== null) values[field] = { text: String(value), look: "plain" };
   }
-  for (const difference of row.differences) {
+  for (const difference of listNumberDifferences(row.differences)) {
     values[difference.field] =
       difference.stored === null
         ? { text: String(difference.observed), look: "added", title: context.missingValueTitle }

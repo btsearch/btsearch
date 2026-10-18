@@ -1,4 +1,4 @@
-import type { Cell, CellType, NrCell, NrMode } from "../types";
+import type { Brand, Cell, CellType, NrCell, NrMode, Operator } from "../types";
 import { getBandSortValue, getCellChannel, toRatType } from "./bands";
 import { type SectorIndex, findCellSector } from "./sectors";
 import { RAT_ORDER, type RatType } from "@/features/shared/rat";
@@ -9,6 +9,7 @@ export type CellIdentifierField = "lac" | "rnc" | "cid" | "longCid" | "bsic" | "
 
 export type CellColumn =
   | { kind: "band" }
+  | { kind: "networks" }
   | { kind: "sector" }
   | { kind: "identifier"; field: CellIdentifierField; label: string; tooltip?: string }
   | { kind: "channel"; label: string; tooltip?: string }
@@ -18,10 +19,17 @@ type SharedCellValue = { field: CellIdentifierField; label: string; value: numbe
 
 export type CellFreshness = "new" | "updated";
 
+export type CellNetworks = {
+  ownerPlmn: string | null;
+  operators: readonly Operator[] | undefined;
+  brands: readonly Brand[] | undefined;
+};
+
 export type CellTable = {
   rat: RatType;
   cells: Cell[];
   sharedValues: SharedCellValue[];
+  sharedExtraPlmns: string[];
   columns: CellColumn[];
 };
 
@@ -101,6 +109,10 @@ export function getCellNote(cell: Cell): string | null {
   return cell.notes === null || cell.notes === "" ? null : cell.notes;
 }
 
+export function getExtraPlmns(cell: Cell, ownerPlmn: string | null): string[] {
+  return cell.plmns.filter((code) => code !== ownerPlmn);
+}
+
 export function getCellFreshness(cell: Cell): CellFreshness | null {
   if (isRecent(cell.createdAt)) return "new";
   return isRecent(cell.updatedAt) ? "updated" : null;
@@ -160,6 +172,14 @@ function listSharedValues(rat: RatType, cells: readonly Cell[]): SharedCellValue
   });
 }
 
+function findSharedExtraPlmns(cells: readonly Cell[], ownerPlmn: string | null): string[] {
+  const [first, ...rest] = cells.map((cell) => getExtraPlmns(cell, ownerPlmn).sort());
+  if (first === undefined) return [];
+
+  const key = first.join();
+  return rest.every((codes) => codes.join() === key) ? first : [];
+}
+
 function findHeaderTooltip(rat: RatType, label: string): string | undefined {
   return getRatDetailFields(rat).find((field) => field.label === label)?.tooltip;
 }
@@ -173,21 +193,24 @@ function toChannelColumn(rat: RatType, label: string): CellColumn {
   return { kind: "channel", label, tooltip: findHeaderTooltip(rat, label) };
 }
 
-function listColumns(rat: RatType, sharedValues: readonly SharedCellValue[]): CellColumn[] {
+function listColumns(rat: RatType, sharedValues: readonly SharedCellValue[], hasSharedExtras: boolean): CellColumn[] {
   const { identifiers, channel } = TABLE_LAYOUTS[rat];
   const hoistedFields = new Set(sharedValues.map((shared) => shared.field));
   const identifierColumns = identifiers.filter((field) => !hoistedFields.has(field)).map((field) => toIdentifierColumn(rat, field));
   const channelColumns = channel === null ? [] : [toChannelColumn(rat, channel)];
 
-  return [{ kind: "band" }, { kind: "sector" }, ...identifierColumns, ...channelColumns, { kind: "notes" }];
+  const networkColumns: CellColumn[] = hasSharedExtras ? [] : [{ kind: "networks" }];
+
+  return [{ kind: "band" }, ...networkColumns, { kind: "sector" }, ...identifierColumns, ...channelColumns, { kind: "notes" }];
 }
 
 function hasNotesContent(cell: Cell): boolean {
   return getCellNote(cell) !== null || hasIotSupport(cell) || hasRedCapSupport(cell) || getCellFreshness(cell) !== null;
 }
 
-function hasColumnContent(column: CellColumn, cells: readonly Cell[], sectorsById: SectorIndex): boolean {
+function hasColumnContent(column: CellColumn, cells: readonly Cell[], sectorsById: SectorIndex, ownerPlmn: string | null): boolean {
   if (column.kind === "band") return true;
+  if (column.kind === "networks") return cells.some((cell) => getExtraPlmns(cell, ownerPlmn).length > 0);
   if (column.kind === "sector") return cells.some((cell) => findCellSector(cell, sectorsById) !== null);
   if (column.kind === "channel") return cells.some((cell) => getCellChannel(cell) !== null);
   if (column.kind === "notes") return cells.some(hasNotesContent);
@@ -196,17 +219,20 @@ function hasColumnContent(column: CellColumn, cells: readonly Cell[], sectorsByI
   return cells.some((cell) => getCellIdentifier(cell, field) !== null);
 }
 
-function buildCellTable(rat: RatType, cells: readonly Cell[], sectorsById: SectorIndex): CellTable {
+function buildCellTable(rat: RatType, cells: readonly Cell[], sectorsById: SectorIndex, ownerPlmn: string | null): CellTable {
   const sortedCells = [...cells].sort(compareCells);
   const sharedValues = listSharedValues(rat, sortedCells);
-  const columns = listColumns(rat, sharedValues).filter((column) => hasColumnContent(column, sortedCells, sectorsById));
+  const sharedExtraPlmns = findSharedExtraPlmns(sortedCells, ownerPlmn);
+  const columns = listColumns(rat, sharedValues, sharedExtraPlmns.length > 0).filter((column) =>
+    hasColumnContent(column, sortedCells, sectorsById, ownerPlmn),
+  );
 
-  return { rat, cells: sortedCells, sharedValues, columns };
+  return { rat, cells: sortedCells, sharedValues, sharedExtraPlmns, columns };
 }
 
-export function listCellTables(cells: readonly Cell[], sectorsById: SectorIndex): CellTable[] {
+export function listCellTables(cells: readonly Cell[], sectorsById: SectorIndex, ownerPlmn: string | null): CellTable[] {
   return RAT_ORDER.flatMap((rat) => {
     const ratCells = cells.filter((cell) => toRatType(cell.rat) === rat);
-    return ratCells.length === 0 ? [] : [buildCellTable(rat, ratCells, sectorsById)];
+    return ratCells.length === 0 ? [] : [buildCellTable(rat, ratCells, sectorsById, ownerPlmn)];
   });
 }

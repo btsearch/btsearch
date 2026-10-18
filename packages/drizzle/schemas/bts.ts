@@ -712,6 +712,20 @@ export const nrCells = pgTable(
     index("nr_cells_nci_trgm_idx").using("gin", sql`(${t.nci}::text) gin_trgm_ops`),
   ],
 );
+
+export const cellPlmns = pgTable(
+  "cell_plmns",
+  {
+    cellId: integer("cell_id")
+      .notNull()
+      .references(() => cells.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    plmnId: integer("plmn_id")
+      .notNull()
+      .references(() => plmns.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.cellId, t.plmnId] }), index("cell_plmns_plmn_id_idx").on(t.plmnId)],
+);
 /**
  * Bands table
  * @example

@@ -56,6 +56,7 @@ type CellWithRatRows = CellRow & {
   umts: UmtsCellRow | null;
   lte: LteCellRow | null;
   nr: NrCellRow | null;
+  plmns?: { plmn: { code: string } }[];
 };
 
 type ProposedCellWithRatRows = ProposedCellRow & {
@@ -82,7 +83,7 @@ type ProposedRatSnapshot =
 
 type StableProposalRow<T> = Omit<T, "id" | "submission_id" | "createdAt" | "updatedAt">;
 
-export type CellSnapshot = CellRow & { details: RatSnapshot | null };
+export type CellSnapshot = CellRow & { details: RatSnapshot | null; plmns: string[] };
 export type SectorSnapshot = { id: number; azimuth: number };
 export type PhotoSelectionSnapshot = { location_photo_id: number; is_main: boolean };
 export type PhotoSelectionSnapshots = Map<number, PhotoSelectionSnapshot[]>;
@@ -150,13 +151,25 @@ export async function loadSubmissionDraftSnapshot(tx: DbTx, submissionId: string
   return row === undefined ? undefined : normalizeSubmissionDraft(row);
 }
 
+export const CELL_SNAPSHOT_RELATIONS = {
+  gsm: true,
+  umts: true,
+  lte: true,
+  nr: true,
+  plmns: { with: { plmn: { columns: { code: true } } } },
+} as const;
+
+function toRatSnapshot({ gsm, umts, lte, nr }: CellWithRatRows): RatSnapshot | null {
+  if (gsm !== null) return omitCellId(gsm);
+  if (umts !== null) return omitCellId(umts);
+  if (lte !== null) return omitCellId(lte);
+  if (nr !== null) return omitCellId(nr);
+  return null;
+}
+
 export function flattenCellRow(row: CellWithRatRows): CellSnapshot {
-  const { gsm, umts, lte, nr, ...cell } = row;
-  if (gsm !== null) return { ...cell, details: omitCellId(gsm) };
-  if (umts !== null) return { ...cell, details: omitCellId(umts) };
-  if (lte !== null) return { ...cell, details: omitCellId(lte) };
-  if (nr !== null) return { ...cell, details: omitCellId(nr) };
-  return { ...cell, details: null };
+  const { gsm: _gsm, umts: _umts, lte: _lte, nr: _nr, plmns, ...cell } = row;
+  return { ...cell, details: toRatSnapshot(row), plmns: (plmns ?? []).map((entry) => entry.plmn.code).sort() };
 }
 
 export async function loadCellSnapshots(tx: DbTx, cellIds: readonly number[]): Promise<Map<number, CellSnapshot>> {
@@ -164,7 +177,7 @@ export async function loadCellSnapshots(tx: DbTx, cellIds: readonly number[]): P
   if (uniqueIds.length === 0) return new Map();
   const rows = await tx.query.cells.findMany({
     where: { id: { in: uniqueIds } },
-    with: { gsm: true, umts: true, lte: true, nr: true },
+    with: CELL_SNAPSHOT_RELATIONS,
   });
   return new Map(rows.map((row) => [row.id, flattenCellRow(row)]));
 }

@@ -17,6 +17,13 @@ export function expandNetworksMncs(mncs: number[] | undefined): number[] | undef
   return mncs?.includes(NETWORKS_MNC) ? [...new Set([...mncs, ...NETWORKS_PARTNER_MNCS])] : mncs;
 }
 
+export function plmnCandidates(plmn: string): string[] {
+  const mcc = plmn.slice(0, 3);
+  const mnc = plmn.slice(3);
+  if (mnc.length === 2) return [plmn, `${mcc}0${mnc}`];
+  return mnc.startsWith("0") ? [plmn, `${mcc}${mnc.slice(1)}`] : [plmn];
+}
+
 export const getOperatorColor = (mnc: number): string => {
   switch (mnc) {
     case 26002:

@@ -26,7 +26,17 @@ export type StationField =
   | "backhaulModel";
 export type PlaceField = "coordinates" | "regionId" | "city" | "address" | "structureType" | "structureOwner" | "structureNote" | "move";
 type SectorField = "degrees";
-export type CellField = "bandId" | "sectorKey" | "cellType" | "notes" | "isConfirmed" | "mode" | "gnbidLength" | CellNumberField | CellFlagField;
+export type CellField =
+  | "bandId"
+  | "sectorKey"
+  | "cellType"
+  | "notes"
+  | "isConfirmed"
+  | "mode"
+  | "gnbidLength"
+  | "extraPlmns"
+  | CellNumberField
+  | CellFlagField;
 type PhotoField = "uploads" | "picks" | "mainPhoto";
 type GeneralField = "note" | "changes" | "cells";
 export type EditField = StationField | PlaceField | SectorField | CellField | PhotoField | GeneralField;
@@ -80,6 +90,7 @@ export type CellDraft = {
   numbers: Partial<Record<CellNumberField, number | null>>;
   flags: Partial<Record<CellFlagField, boolean>>;
   gnbidLength: number | null;
+  extraPlmns: string[];
   isDeleted: boolean;
 };
 

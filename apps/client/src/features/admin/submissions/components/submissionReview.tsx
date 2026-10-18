@@ -44,7 +44,13 @@ import { buildSubmissionReview, buildSubmissionUpdate } from "@/features/station
 import { buildPhotoChanges, countDraftCells, formatCoordinatePair } from "@/features/station-editing/model/changes";
 import type { SessionInput } from "@/features/station-editing/model/draftReducer";
 import { type BuiltKeys, isServerRefusal, toEditErrors } from "@/features/station-editing/model/serverRefusals";
-import { findDraftOperator, listProposalOrphans, toProposedSnapshot, toStationSnapshot } from "@/features/station-editing/model/snapshots";
+import {
+  findDraftOperator,
+  findDraftOwnerPlmn,
+  listProposalOrphans,
+  toProposedSnapshot,
+  toStationSnapshot,
+} from "@/features/station-editing/model/snapshots";
 import type { EditError, EditSession, PlaceDraft, ProposalOrphan, StationSnapshot } from "@/features/station-editing/model/types";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -114,9 +120,10 @@ function describePlace(place: PlaceDraft | null): string {
   return formatCoordinatePair(place.latitude, place.longitude);
 }
 
-function buildCorrections(session: EditSession, stored: StoredReview, reviewNote: string | null) {
+function buildCorrections(session: EditSession, ownerPlmn: string | null, stored: StoredReview, reviewNote: string | null) {
   const storedSession = session.proposed === stored.proposed ? session : { ...session, proposed: stored.proposed };
-  return buildSubmissionUpdate(storedSession, reviewNote === null ? {} : { reviewNote: { value: reviewNote, stored: stored.reviewNote } });
+  const extras = reviewNote === null ? {} : { reviewNote: { value: reviewNote, stored: stored.reviewNote } };
+  return buildSubmissionUpdate(storedSession, ownerPlmn, extras);
 }
 
 async function runExclusive(lock: SendLock, send: () => Promise<void>): Promise<void> {
@@ -179,6 +186,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
   });
 
   const { session } = edit;
+  const ownerPlmn = findDraftOwnerPlmn(session.draft, edit.lookups.operatorsById);
   const latestDraftRef = useRef(session.draft);
   const isSendingRef = useRef(false);
 
@@ -187,7 +195,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
   }, [session.draft]);
 
   const isBusy = saveMutation.isPending || reviewMutation.isPending;
-  const isDirty = isPending && buildCorrections(session, stored, reviewNote).body !== null;
+  const isDirty = isPending && buildCorrections(session, ownerPlmn, stored, reviewNote).body !== null;
   const canAct = isPending && !isBusy && !isStale;
   const canSave = canAct && isDirty;
   const clearsStoredNote = reviewNote.trim() === "" && (stored.reviewNote ?? "").trim() !== "";
@@ -225,7 +233,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
       return;
     }
 
-    const built = buildCorrections(session, stored, reviewNote);
+    const built = buildCorrections(session, ownerPlmn, stored, reviewNote);
     if (built.body === null) return;
     try {
       await sendCorrections(built.body);
@@ -262,7 +270,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
       return null;
     }
 
-    const built = buildCorrections(session, stored, clearsStoredNote ? reviewNote : null);
+    const built = buildCorrections(session, ownerPlmn, stored, clearsStoredNote ? reviewNote : null);
     if (built.body === null) return stored.updatedAt;
     try {
       const answer = await sendCorrections(built.body, auditOperation);

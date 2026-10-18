@@ -34,6 +34,9 @@ function listOperatorColors(stations: readonly MapPointStation[]): string[] {
   for (const station of stations) {
     if (!colorsByOperator.has(station.operatorId)) colorsByOperator.set(station.operatorId, station.color);
   }
+  for (const guest of stations.flatMap((station) => station.guests)) {
+    if (!colorsByOperator.has(guest.operatorId)) colorsByOperator.set(guest.operatorId, guest.color);
+  }
   return [...colorsByOperator.values()];
 }
 

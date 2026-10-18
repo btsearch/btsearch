@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { convertToCLF, prepareConvertOptions } from "../../../../../src/features/clfExport/converter.js";
 import type { ClfFormat, ConvertOptions } from "../../../../../src/features/clfExport/converter.js";
-import { loadExportLines } from "../../../../../src/features/clfExport/lines.js";
+import { loadExportLines, renderExportLines } from "../../../../../src/features/clfExport/lines.js";
 import type { ExportRows, ExportSelection, StationExportMetadata } from "../../../../../src/features/clfExport/lines.js";
 import { loadNativeExportLines } from "../../../../../src/features/clfExport/nativeLines.js";
 import { buildCellExport, readCellExportChunks } from "../../../../../src/features/clfExport/stream.js";
@@ -98,11 +98,12 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
   return {
     metadata: [first, second],
     rows: {
-      gsmRows: [{ ...first, ...cell, band_value: 900, band_name: "GSM 900", gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false }],
+      gsmRows: [{ ...first, ...cell, cell_pk: 1, band_value: 900, band_name: "GSM 900", gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false }],
       umtsRows: [
         {
           ...second,
           ...cell,
+          cell_pk: 2,
           sector_id: null,
           notes: null,
           band_value: 2100,
@@ -118,6 +119,7 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
         {
           ...first,
           ...cell,
+          cell_pk: 3,
           band_value: 1800,
           band_name: "LTE 1800",
           lte_tac: 67,
@@ -132,6 +134,7 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
         {
           ...second,
           ...cell,
+          cell_pk: 4,
           sector_id: null,
           is_confirmed: false,
           band_value: 3500,
@@ -146,7 +149,7 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
           nr_type: "sa",
         },
       ],
-      nrBandRows: [{ station_id: 2, nr_type: "sa", band_value: 3500, band_duplex: "TDD", nr_pci: null, is_confirmed: false }],
+      nrBandRows: [{ station_id: 2, cell_pk: 4, nr_type: "sa", band_value: 3500, band_duplex: "TDD", nr_pci: null, is_confirmed: false }],
       stationSectorRows: [{ id: 101, station_id: 1, azimuth: 0 }],
     },
   };
@@ -700,7 +703,7 @@ describe("loadNativeExportLines", () => {
 
   it.each([null, "SDL"] as const)("ignores nullable NR band values with %s duplex metadata", async (duplex) => {
     const { metadata, rows } = mixedExportRows();
-    rows.nrBandRows.unshift({ station_id: 1, nr_type: "nsa", band_value: null, band_duplex: duplex, nr_pci: 31, is_confirmed: true });
+    rows.nrBandRows.unshift({ station_id: 1, cell_pk: 5, nr_type: "nsa", band_value: null, band_duplex: duplex, nr_pci: 31, is_confirmed: true });
     enqueueExportRows(rows, metadata);
     const templates = { ...options.templates, LTE: "{station_id} [{nr_band}:{nr_pcis}]" };
     const lines = await loadNativeExportLines(nativeSelection(), [1, 2], "2.0", { templates });
@@ -850,5 +853,39 @@ describe("stationPlacementConditions", () => {
     expect(wrapped.sql).toContain(`WHERE ${direct.sql}`);
     for (const fragment of fragments) expect(direct.sql).toContain(fragment);
     expect(dbMock.calls).toHaveLength(0);
+  });
+});
+
+describe("export lines for shared cells", () => {
+  const lteRow = {
+    ...stationMetadataRow,
+    cell_pk: 11,
+    cell_type: "MACROCELL",
+    notes: null,
+    sector_id: null,
+    band_value: 1800,
+    band_name: "LTE 1800",
+    band_duplex: "FDD" as const,
+    is_confirmed: true,
+    lte_tac: 67,
+    lte_enbid: 1,
+    lte_clid: 89,
+    lte_ecid: 345,
+    lte_pci: 0,
+    lte_earfcn: null,
+  };
+  const rows: ExportRows = { gsmRows: [], umtsRows: [], lteRows: [lteRow], nrRows: [], nrBandRows: [], stationSectorRows: [] };
+  const networkOf = (line: string) => line.split(";").slice(1, 3).join("-");
+
+  it("writes one more line per extra code", async () => {
+    const networks = { extraCodes: new Map([[11, ["23420"]]]), guestOnlyStationIds: new Set<number>() };
+    const lines = await renderExportLines(rows, "netmonitor", {}, networks);
+    expect(lines.map(networkOf)).toEqual(["310-260", "234-20"]);
+  });
+
+  it("writes only the extra lines of a station matched as a guest", async () => {
+    const networks = { extraCodes: new Map([[11, ["23420"]]]), guestOnlyStationIds: new Set([1]) };
+    const lines = await renderExportLines(rows, "netmonitor", {}, networks);
+    expect(lines.map(networkOf)).toEqual(["234-20"]);
   });
 });

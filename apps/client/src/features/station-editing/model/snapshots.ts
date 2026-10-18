@@ -170,6 +170,7 @@ export function createCellDraft(rat: Rat, init: CellInit = {}): CellDraft {
     numbers: { ...emptyNumbers(rat), ...init.numbers },
     flags: { ...emptyFlags(rat), ...init.flags },
     gnbidLength: init.gnbidLength ?? null,
+    extraPlmns: init.extraPlmns ?? [],
     isDeleted: init.isDeleted ?? false,
   };
 }
@@ -189,7 +190,7 @@ function readFlags(rat: Rat, source: FlagSource, fallback: CellFlags): CellFlags
   return flags;
 }
 
-function toCellDraft(cell: Cell): CellDraft {
+function toCellDraft(cell: Cell, ownerPlmn: string | null): CellDraft {
   const numbers: NumberSource = cell;
   const flags: FlagSource = cell.rat === "umts" ? {} : cell;
 
@@ -208,6 +209,7 @@ function toCellDraft(cell: Cell): CellDraft {
     numbers: readNumbers(cell.rat, numbers, {}),
     flags: readFlags(cell.rat, flags, {}),
     gnbidLength: cell.rat === "nr" ? cell.gnbidLength : null,
+    extraPlmns: cell.plmns.filter((code) => code !== ownerPlmn),
     isDeleted: false,
   };
 }
@@ -225,8 +227,8 @@ function getIdentityRank(cell: CellDraft): number {
   return computeCellId(cell) ?? getCellNumber(cell, "cid") ?? getCellNumber(cell, "clid") ?? 0;
 }
 
-function sortRecordCells(cells: readonly Cell[]): CellDraft[] {
-  const rows = cells.map((cell) => ({ draft: toCellDraft(cell), bandRank: cell.band?.labelMhz ?? 0 }));
+function sortRecordCells(cells: readonly Cell[], ownerPlmn: string | null): CellDraft[] {
+  const rows = cells.map((cell) => ({ draft: toCellDraft(cell, ownerPlmn), bandRank: cell.band?.labelMhz ?? 0 }));
   rows.sort(
     (left, right) =>
       getRatRank(left.draft.rat) - getRatRank(right.draft.rat) ||
@@ -317,7 +319,7 @@ export function toPlaceDraft(location: PlaceSource): PlaceDraft {
 
 export function toStationSnapshot(record: StationRecord): StationSnapshot {
   const { backhaul } = record;
-  const cells = sortRecordCells(record.cells);
+  const cells = sortRecordCells(record.cells, record.operator?.primaryPlmn ?? null);
 
   return {
     station: {
@@ -500,6 +502,7 @@ function toProposedCell(entry: CellChange, rat: Rat, layer: SectorLayer): CellDr
     isConfirmed: entry.isConfirmed,
     mode: entry.mode ?? DEFAULT_NR_MODE,
     gnbidLength: rat === "nr" ? (entry.gnbidLength ?? null) : null,
+    extraPlmns: entry.extraPlmns ?? [],
     numbers: readNumbers(rat, numbers, {}),
     flags: readFlags(rat, flags, {}),
   });
@@ -517,6 +520,7 @@ function overlayCell(cell: CellDraft, entry: CellChange, layer: SectorLayer): Ce
     notes: entry.notes ?? "",
     mode: cell.rat === "nr" ? (entry.mode ?? cell.mode) : null,
     gnbidLength: cell.rat === "nr" ? (entry.gnbidLength ?? cell.gnbidLength) : null,
+    extraPlmns: entry.extraPlmns ?? cell.extraPlmns,
     numbers: readNumbers(cell.rat, numbers, cell.numbers),
     flags: readFlags(cell.rat, flags, cell.flags),
   };
@@ -591,4 +595,8 @@ export function findDraftCountryCode(
 export function findDraftOperator(draft: StationSnapshot, operatorsById: ReadonlyMap<number, Operator>): Operator | null {
   const { operatorId } = draft.station;
   return operatorId === null ? null : (operatorsById.get(operatorId) ?? null);
+}
+
+export function findDraftOwnerPlmn(draft: StationSnapshot, operatorsById: ReadonlyMap<number, Operator>): string | null {
+  return findDraftOperator(draft, operatorsById)?.primaryPlmn ?? null;
 }

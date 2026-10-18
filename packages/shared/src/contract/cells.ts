@@ -48,6 +48,7 @@ const cellShape = {
   cellType: z.enum(CELL_TYPES).nullable(),
   isConfirmed: z.boolean().describe("Only editors can set it"),
   notes: z.string().nullable(),
+  plmns: z.array(z.string()).describe("Every network the cell broadcasts. The first is the station owner's main code, when it has one"),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   band: bandSchema.optional().describe(INCLUDE_NOTE),

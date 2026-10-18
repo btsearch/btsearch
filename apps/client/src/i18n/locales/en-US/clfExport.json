@@ -17,7 +17,7 @@
   },
   "form": {
     "operatorsHint": "Select one or more operators. If none selected, all operators will be exported",
-    "singleCountryHint": "Choose operators from one country. An empty selection includes all operators in that country.",
+    "singleCountryHint": "Choose operators from one country. An empty selection includes all operators in that country. Cells shared by other operators are exported under the chosen operator's code.",
     "standardHint": "Optional, all standards are exported by default",
     "bandsHint": "Optional, all bands are exported by default",
     "outputFormat": "Output format",

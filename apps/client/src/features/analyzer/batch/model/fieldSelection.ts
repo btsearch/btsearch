@@ -1,4 +1,5 @@
 import type { DraftRow } from "../../model/draft";
+import { listNumberDifferences } from "../../model/rows";
 import { type BatchRow, readNumber } from "./batchRows";
 import { isCellNumberField } from "@/features/station-editing/model/ratFields";
 import type { CellNumberField, Rat } from "@/features/station-editing/model/types";
@@ -27,9 +28,10 @@ export function listFieldChoices(row: DraftRow): FieldChoice[] {
   const { index, stationId, observed } = row;
   const rat = observed.rat;
   if (row.action === "update") {
-    return row.differences.flatMap(({ field, observed: value, stored }) =>
-      isCellNumberField(field) && OPTIONAL_FIELDS[rat].includes(field) ? [{ index, stationId, rat, field, value, stored, required: false }] : [],
-    );
+    return listNumberDifferences(row.differences).flatMap((difference) => {
+      if (!isCellNumberField(difference.field) || !OPTIONAL_FIELDS[rat].includes(difference.field)) return [];
+      return [{ index, stationId, rat, field: difference.field, value: difference.observed, stored: difference.stored, required: false }];
+    });
   }
   if (row.action !== "create" || rat !== "lte") return [];
 

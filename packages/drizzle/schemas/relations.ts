@@ -33,6 +33,7 @@ import {
 import {
   bands,
   brands,
+  cellPlmns,
   cells,
   countries,
   countryBands,
@@ -51,6 +52,7 @@ import {
   officialPermits,
   officialSites,
   operators,
+  plmns,
   regions,
   stationSectors,
   stationUplinks,
@@ -79,10 +81,12 @@ export const relations = defineRelations(
     bands,
     brands,
     cells,
+    cellPlmns,
     countries,
     countryBands,
     locations,
     operators,
+    plmns,
     structureOwners,
     regions,
     stations,
@@ -248,6 +252,7 @@ export const relations = defineRelations(
       }),
       stations: helpers.many.stations(),
       officialSites: helpers.many.officialSites(),
+      plmns: helpers.many.plmns(),
     },
     regions: {
       country: helpers.one.countries({
@@ -338,6 +343,27 @@ export const relations = defineRelations(
         to: helpers.nrCells.cell_id,
         optional: false,
       }),
+      plmns: helpers.many.cellPlmns(),
+    },
+    cellPlmns: {
+      cell: helpers.one.cells({
+        from: helpers.cellPlmns.cellId,
+        to: helpers.cells.id,
+        optional: false,
+      }),
+      plmn: helpers.one.plmns({
+        from: helpers.cellPlmns.plmnId,
+        to: helpers.plmns.id,
+        optional: false,
+      }),
+    },
+    plmns: {
+      operator: helpers.one.operators({
+        from: helpers.plmns.operatorId,
+        to: helpers.operators.id,
+        optional: false,
+      }),
+      cells: helpers.many.cellPlmns(),
     },
     bands: {
       cells: helpers.many.cells(),

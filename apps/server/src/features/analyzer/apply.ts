@@ -11,6 +11,7 @@ import { itemRefusal, pointRefusalsAtItem } from "../../lib/itemRefusals.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { type AuditRecorder, type CellSnapshot, loadCellSnapshots, runAuditedOperation, standaloneAuditContext } from "../audit/index.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateKey } from "../cells/identityDuplicateSpecs.js";
+import { loadNetworkOwner } from "../cells/networkWrites.js";
 import { prepareStationChange } from "../stations/edit.js";
 import { findVisibleStationWithCountry } from "../stations/read.js";
 import { type AppliedChange, applyDirectChange, finishDirectChange } from "../submissions/actions.js";
@@ -18,7 +19,14 @@ import type { ChangeCell, SubmissionChange } from "../submissions/create.js";
 import type { StationEdit } from "../submissions/translate.js";
 
 type StoredTacs = ReadonlyMap<number, number | null>;
-type StationChange = { stationId: number; operatorId: number | null; hoistedTac: boolean; change: SubmissionChange; tac?: number };
+type StationChange = {
+  stationId: number;
+  operatorId: number | null;
+  ownerCode: string | null;
+  hoistedTac: boolean;
+  change: SubmissionChange;
+  tac?: number;
+};
 type AppliedStation = { stationId: number; applied: AppliedChange };
 type AppliedOperation = { operationId: number; appliedStations: AppliedStation[] };
 type SpreadCell = { id: number; old: CellSnapshot };
@@ -31,20 +39,34 @@ function toConfirmedEdit(item: CellApply): StationEdit {
 
 async function prepareItem(req: FastifyRequest, item: CellApply, index: number): Promise<StationChange> {
   const { station, countryCode } = await findVisibleStationWithCountry(req, item.stationId);
-  const change = await prepareStationChange(req, toConfirmedEdit(item), (path) => [index, ...path]);
-  return { stationId: item.stationId, operatorId: station.operator_id, hoistedTac: conventionsFor(countryCode).hoistedTac, change };
+  const [change, owner] = await Promise.all([
+    prepareStationChange(req, toConfirmedEdit(item), (path) => [index, ...path]),
+    loadNetworkOwner(db, station.operator_id, countryCode),
+  ]);
+  return {
+    stationId: item.stationId,
+    operatorId: station.operator_id,
+    ownerCode: owner.mainCode,
+    hoistedTac: conventionsFor(countryCode).hoistedTac,
+    change,
+  };
+}
+
+function networkKeys(operatorId: number, ownerCode: string | null, cell: ChangeCell): string[] {
+  if (cell.plmns) return cell.plmns;
+  return [ownerCode ?? `operator:${operatorId}`];
 }
 
 function assertIdentitiesAppearOnce(stationChanges: readonly StationChange[]): void {
   const seen = new Set<string>();
-  for (const [index, { operatorId, change }] of stationChanges.entries()) {
+  for (const [index, { operatorId, ownerCode, change }] of stationChanges.entries()) {
     for (const [cellIndex, cell] of (change.cells ?? []).entries()) {
       const identity = getCellIdentityDuplicateKey({ rat: cell.rat, details: cell.details as CellIdentityDuplicateDetails | undefined });
       if (operatorId === null || !identity) continue;
 
-      const key = `${operatorId}:${identity.rat}:${identity.key}`;
-      if (seen.has(key)) throw itemRefusal("BAD_REQUEST", identity.message, [index, "cells", cellIndex]);
-      seen.add(key);
+      const keys = networkKeys(operatorId, ownerCode, cell).map((network) => `${network}:${identity.rat}:${identity.key}`);
+      if (keys.some((key) => seen.has(key))) throw itemRefusal("BAD_REQUEST", identity.message, [index, "cells", cellIndex]);
+      for (const key of keys) seen.add(key);
     }
   }
 }

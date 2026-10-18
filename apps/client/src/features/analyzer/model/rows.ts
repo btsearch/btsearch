@@ -1,4 +1,12 @@
-import type { Cell, CellDifference, CellMatchReason, CellMatchResult, ObservedCell } from "@openbts/shared/contract";
+import type {
+  Cell,
+  CellDifference,
+  CellMatchReason,
+  CellMatchResult,
+  NetworkCellDifference,
+  NumberCellDifference,
+  ObservedCell,
+} from "@openbts/shared/contract";
 
 import { getBandFacetKey, resolveLogBandId } from "./bands";
 import { toObservedCell } from "./observed";
@@ -65,13 +73,26 @@ export function describeAnalyzerFile(source: FileSource, logRows: LogRows): Anal
   };
 }
 
+export function isFoundMatch(result: CellMatchResult): boolean {
+  return result.match === "cell" && (result.networkMatch === "own" || result.networkMatch === "extraCode");
+}
+
+export function findNetworkDifference(differences: readonly CellDifference[]): NetworkCellDifference | undefined {
+  return differences.find((difference): difference is NetworkCellDifference => difference.field === "network");
+}
+
+export function listNumberDifferences(differences: readonly CellDifference[]): NumberCellDifference[] {
+  return differences.filter((difference): difference is NumberCellDifference => difference.field !== "network");
+}
+
 export function getRowStatus(result: CellMatchResult | null): RowStatus {
   if (result === null) return "pending";
   if (result.match === "none") return "notFound";
-  return result.match === "cell" && !result.isShared ? "found" : "probable";
+  return isFoundMatch(result) ? "found" : "probable";
 }
 
 function toDifferenceKind(difference: CellDifference): DifferenceKind {
+  if (difference.field === "network") return "network";
   return difference.stored === null ? `no-${difference.field}` : difference.field;
 }
 
@@ -141,7 +162,7 @@ function toChip(field: ChipField, value: number | null | undefined, result: Cell
   if (value === null || value === undefined) return [];
 
   const label = CELL_NUMBER_LABELS[field];
-  const difference = result?.differences.find((entry) => entry.field === field);
+  const difference = listNumberDifferences(result?.differences ?? []).find((entry) => entry.field === field);
   if (difference !== undefined) return [{ field, label, value, kind: difference.stored === null ? "added" : "changed", stored: difference.stored }];
 
   const kind: ChipKind = isNewCellValue && result?.match === "station" ? "added" : "same";

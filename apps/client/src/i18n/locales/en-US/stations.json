@@ -110,7 +110,8 @@
         "azimuth": "azimuth",
         "cellType": "type",
         "note": "note",
-        "mode": "mode"
+        "mode": "mode",
+        "networks": "networks"
       },
       "photosAdded_one": "{{count, number}} new photo",
       "photosAdded_other": "{{count, number}} new photos",
@@ -156,7 +157,9 @@
       "noteTooLong": "Note: at most {{max}} characters",
       "tooManyUploads": "At most {{max}} new photos per submission",
       "tooManyPicks": "At most {{max}} picked photos",
-      "mainPhotoNotPicked": "The main photo must be one of the picked photos"
+      "mainPhotoNotPicked": "The main photo must be one of the picked photos",
+      "tooManyNetworks": "{{rat}}: at most {{max}} networks besides the owner's",
+      "networkOtherCountry": "Network {{code}} is not in the station's country"
     },
     "refusals": {
       "unknown": "The server refused the save: {{message}}",
@@ -180,7 +183,7 @@
       "cellSectorInvalid": "A cell points at an azimuth that is not on this station",
       "sectorsRefused": "The server refused the azimuth changes: {{message}}",
       "bandWrongRat": "Band: does not fit the cell's technology",
-      "cellIdentityTaken": "{{fields}} {{values}}: the operator already has such a cell",
+      "cellIdentityTaken": "{{fields}} {{values}}: one of the cell's networks already has such a cell",
       "pciTaken": "PCI {{pci}}: the station already has such a cell on this band",
       "cellListedTwice": "The same cell is changed twice",
       "noChanges": "The server found no changes",
@@ -197,7 +200,10 @@
       "photosGone": "One of the picked photos no longer exists",
       "photosOtherLocation": "One of the picked photos does not belong to this station's location",
       "photosNotShown": "The station does not show one of the photos to remove",
-      "deleteOnlyNote": "A removal submission can only carry a note"
+      "deleteOnlyNote": "A removal submission can only carry a note",
+      "networkGone": "One of the chosen networks no longer exists",
+      "ownerNetworkMissing": "The networks must include the station owner's main code",
+      "networksNotTaken": "GSM cells do not broadcast other networks"
     },
     "frame": {
       "tabs": "Parts of the station",
@@ -290,7 +296,8 @@
       "columns": {
         "mode": "Mode",
         "gnbidLength": "gNBID bits",
-        "cellType": "Type"
+        "cellType": "Type",
+        "networks": "Networks"
       },
       "hints": {
         "sector": "The antenna sector the cell belongs to",
@@ -304,7 +311,8 @@
         "iot": "NB-IoT or LTE-M",
         "eGsm": "Extended GSM 900 band",
         "redCap": "Reduced Capability NR, SA cells only",
-        "saOnly": "Only for SA cells"
+        "saOnly": "Only for SA cells",
+        "networks": "Networks the cell broadcasts besides the station owner's"
       },
       "areaCode": {
         "sharedHint": "One value for all {{rat}} cells of this station",
@@ -319,7 +327,9 @@
         "fillChannelsHint": "Fills empty fields by band and operator",
         "addMissingCellsHint": "Completes the sectors of each band",
         "assignSectorsHint": "Cells without an azimuth take it from the cell with the same PCI",
-        "assignSectorsHintNr": "NSA cells take the azimuth of the LTE cell with the same PCI"
+        "assignSectorsHintNr": "NSA cells take the azimuth of the LTE cell with the same PCI",
+        "sharedNetworks": "Shared networks...",
+        "sharedNetworksHint": "Sets the networks of the cells in chosen bands"
       },
       "unchanged": {
         "show_one": "Show {{count, number}} unchanged cell",
@@ -349,6 +359,20 @@
         "computed": "{{name}} - computed from {{node}} and {{cell}}",
         "previous": "Previous cell",
         "next": "Next cell"
+      },
+      "networks": {
+        "alsoFor": "Also for",
+        "alwaysBroadcast": "Always broadcast",
+        "search": "Search networks",
+        "noMatches": "No networks found",
+        "limit": "At most {{max}} networks besides the owner's"
+      },
+      "sharedNetworks": {
+        "title": "{{rat}} shared networks",
+        "bands": "Bands",
+        "networks": "Networks",
+        "apply_one": "Apply to {{count, number}} cell",
+        "apply_other": "Apply to {{count, number}} cells"
       }
     },
     "editor": {

@@ -133,8 +133,11 @@ const stationOwnShape = {
 export const stationBaseSchema = z.object(stationOwnShape);
 export type StationBase = z.infer<typeof stationBaseSchema>;
 
+const GUEST_OPERATORS_NOTE = "Operators other than the owner that at least one of the station's cells also broadcasts for";
+
 export const stationSchema = z.object({
   ...stationOwnShape,
+  guestOperatorIds: z.array(z.number().int()).describe(GUEST_OPERATORS_NOTE),
   operator: operatorSchema.nullable().optional().describe(INCLUDE_NOTE),
   location: stationLocationSchema.nullable().optional().describe(INCLUDE_NOTE),
   cells: z.array(cellSchema).optional().describe(INCLUDE_NOTE),
@@ -149,7 +152,8 @@ export type LocationStation = z.infer<typeof locationStationSchema>;
 const LOCATION_STATIONS_NOTE =
   "Only returned with `include=stations` or any `stations.*` value. " +
   "When the request filters by technology or band (`rats`, `bandIds`, `supportsIot=true`, " +
-  "or `rat:` and `band:` in `q`), each station's `sectors` contain only the sectors that have a matching cell and the sectors that have no cells";
+  "or `rat:` and `band:` in `q`), each station's `sectors` contain only the sectors that have a matching cell and the sectors that have no cells. " +
+  "The same goes for a station that matches `operatorIds` only through cells it broadcasts for those operators";
 
 export const locationSchema = z.object({
   ...locationShape,
@@ -188,7 +192,9 @@ const STATUSES_VALUES_NOTE = `Comma-separated list. Possible values: \`${STATION
 const STATUSES_FILTER_NOTE = `${STATUSES_DEFAULT_NOTE}. ${STATUSES_VALUES_NOTE}`;
 const QUERIED_STATUSES_FILTER_NOTE =
   `${STATUSES_DEFAULT_NOTE}, or stations of any status when \`q\` contains a \`status:\` keyword. ` + STATUSES_VALUES_NOTE;
-const OPERATORS_FILTER_NOTE = "Matches stations of these operators. For a shared network, the stations of its members match too. Comma-separated ids";
+const OPERATORS_FILTER_NOTE =
+  "Matches stations of these operators. For a shared network, the stations of its members match too. " +
+  "A station of another operator matches when one of its cells also broadcasts for one of these operators. Comma-separated ids";
 const RATS_FILTER_NOTE =
   "Matches stations that have a cell of one of these technologies. With `bandIds`, a single cell must match both. " +
   `Comma-separated list. Possible values: \`${CELL_RATS.join("`, `")}\``;

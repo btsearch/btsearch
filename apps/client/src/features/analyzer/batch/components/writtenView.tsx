@@ -57,7 +57,9 @@ function WrittenRow({ line, reference }: WrittenRowProps) {
   const identity = formatNumbers(IDENTITY_FIELDS[cell.rat].map((field) => [field, readNumber(cell, field)] as const));
   const changedNumbers = formatNumbers(Object.entries(line.numbers));
 
-  let mark = changedNumbers;
+  let mark = line.hasNetworks
+    ? [changedNumbers, t("cellAnalyzer:batch.writtenNetwork")].filter((text) => text !== "").join(TEXT_SEPARATOR)
+    : changedNumbers;
   if (kind === "created") mark = t("cellAnalyzer:batch.writtenNew");
   if (kind === "confirmed") mark = t("cellAnalyzer:batch.writtenConfirmed");
   if (kind === "spread") mark = t("cellAnalyzer:batch.writtenSpread", { value: changedNumbers });

@@ -6,6 +6,7 @@ import type { StationsListHit, StationsListPageData } from "./stationsListReques
 import type { BrandLook } from "@/components/cellular/brandMark";
 import type { MapLookups } from "@/features/map/data/mapLookups";
 import { getCellTechnologyBands } from "@/features/map/utils";
+import { type OperatorMark, listOperatorMarks } from "@/features/shared/operatorMarks";
 import type { RatType } from "@/features/shared/rat";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { toRatType } from "@/features/station-details/station/utils/bands";
@@ -26,6 +27,7 @@ export type StationsListRow = {
   siteIdMark: string;
   brand: BrandLook | null | undefined;
   operatorName: string | null;
+  guests: OperatorMark[];
   note: string | null;
   isConfirmed: boolean;
   status: StationStatus;
@@ -120,6 +122,7 @@ function toStationsListRow({ station, match }: StationsListHit, context: RowCont
     siteIdMark: marks.siteId,
     brand: context.lookups === undefined ? undefined : getOperatorBrand(station.operator, context.lookups.brands),
     operatorName: station.operator?.name ?? null,
+    guests: listOperatorMarks(station.guestOperatorIds, context.lookups?.operators, context.lookups?.brands),
     note: toShownText(station.notes),
     isConfirmed: station.isConfirmed,
     status: station.status,

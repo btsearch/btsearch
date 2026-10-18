@@ -122,9 +122,12 @@
     "dateFrom": "Od",
     "dateTo": "Do",
     "band": "Pasmo",
+    "sharedWith": "Współdzielona z",
     "otherOperators_one": "{{count, number}} inny operator",
     "otherOperators_few": "{{count, number}} innych operatorów",
     "otherOperators_many": "{{count, number}} innych operatorów",
+    "expanded": "Rozwinięte",
+    "collapsed": "Zwinięte",
     "search": "Wyszukiwanie",
     "confirmed": "Potwierdzona",
     "yes": "Tak",
@@ -373,5 +376,12 @@
       "indoor": "Wewnątrz budynku",
       "other": "Inny obiekt"
     }
+  },
+  "sharedNetworks": {
+    "cellTitle": "Komórka współdzielona z innymi sieciami",
+    "cellHint": "Poza operatorem stacji ta komórka nadaje też dla poniższych sieci. Telefony tych sieci korzystają z niej jak z komórki własnej sieci.",
+    "tableHint": "Poza operatorem stacji każda komórka {{rat}} tej stacji nadaje też dla poniższych sieci. Telefony tych sieci korzystają z nich jak z komórek własnej sieci.",
+    "stationTitle": "Stacja współdzielona z innymi sieciami",
+    "stationHint": "Co najmniej jedna komórka tej stacji nadaje też dla poniższych sieci. Telefony tych sieci korzystają z niej jak z komórki własnej sieci."
   }
 }

@@ -26,6 +26,7 @@ import {
   listRatColumns,
   listRatTools,
   listRowViews,
+  offersNetworks,
 } from "./cellRules";
 import { CellSheet } from "./cellSheet";
 import type { CellTexts } from "./cellTexts";
@@ -140,6 +141,7 @@ function PhoneRatSection({ edit, rat, errorsByKey, texts, canConfirm, isNewCellC
   const shownRows = unchangedCount > 0 && !showsUnchanged ? rows.filter((row) => !isUnchangedRow(row)) : rows;
   const columns = listRatColumns(edit, rat);
   const tools = listRatTools(edit, rat, canConfirm);
+  const hasNetworksTool = canEdit && offersNetworks(edit, rat);
   const cardErrors = listCardErrors(edit.errors, rat);
 
   function addCell() {
@@ -160,7 +162,9 @@ function PhoneRatSection({ edit, rat, errorsByKey, texts, canConfirm, isNewCellC
         <span className="text-[12.5px] whitespace-nowrap text-muted-foreground">{t("common:labels.cells", { count: edit.counters[rat].total })}</span>
         <span className="flex-1" />
         <AreaCodeField edit={edit} rat={rat} />
-        {tools.length > 0 ? <ToolsMenu edit={edit} rat={rat} tools={tools} isLabelled={false} /> : null}
+        {tools.length > 0 || hasNetworksTool ? (
+          <ToolsMenu edit={edit} rat={rat} tools={tools} hasNetworksTool={hasNetworksTool} isLabelled={false} />
+        ) : null}
         {canEdit ? <IconAction label={t("stations:cells.addCell")} icon={Add01Icon} size="icon-sm" onClick={addCell} /> : null}
       </div>
       {cardErrors.length > 0 ? <ErrorLine errors={cardErrors} className="border-t px-3.5 py-1.5" /> : null}

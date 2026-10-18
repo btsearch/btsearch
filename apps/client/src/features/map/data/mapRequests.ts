@@ -91,7 +91,6 @@ export function setOperatorParams(params: URLSearchParams, operatorIds: readonly
   if (operatorIds.length === 0) return;
 
   params.set("operatorIds", sortIds(operatorIds).slice(0, MOST_LIST_VALUES).join(","));
-  params.set("keepOtherCountries", "true");
 }
 
 export function setRecentParams(params: URLSearchParams, { recentDays, recentDateFields }: RecentFilters): void {
@@ -113,6 +112,7 @@ function buildStationFilterParams({ filters, lookups }: MapListRequest): URLSear
 
   params.set("statuses", listV2Statuses(filters.status).join(","));
   setOperatorParams(params, filters.operatorIds);
+  if (filters.operatorIds.length > 0) params.set("keepOtherCountries", "true");
   if (rats.length > 0) params.set("rats", rats.join(","));
   if (filters.rat.includes(IOT_RAT)) params.set("supportsIot", "true");
   if (bandFilter.length > 0) params.set("bandIds", bandFilter.join(","));

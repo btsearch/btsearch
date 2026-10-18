@@ -17,6 +17,7 @@ import {
   type CellErrorIndex,
   canEditCells,
   getFirstBandId,
+  getNetworkChoice,
   isRatTarget,
   isUnchangedRow,
   isUnchangedTarget,
@@ -24,6 +25,7 @@ import {
   listRatColumns,
   listRatTools,
   listRowViews,
+  offersNetworks,
 } from "./cellRules";
 import type { CellTexts } from "./cellTexts";
 import { BarButton, CellHeadRow, RatCounterBadges } from "./ratCardHeader";
@@ -64,6 +66,8 @@ export function RatCard({ edit, rat, errorsByKey, texts, canConfirm, isNewCellCo
   const columns = listRatColumns(edit, rat);
   const gridStyle = { "--cell-columns": toGridTemplate(columns) } as CSSProperties;
   const tools = listRatTools(edit, rat, canConfirm);
+  const hasNetworksTool = canEdit && offersNetworks(edit, rat);
+  const networkChoice = getNetworkChoice(edit);
   const cardErrors = listCardErrors(edit.errors, rat);
 
   function addCell() {
@@ -85,7 +89,7 @@ export function RatCard({ edit, rat, errorsByKey, texts, canConfirm, isNewCellCo
         actions={
           <>
             <AreaCodeField edit={edit} rat={rat} />
-            {tools.length > 0 ? <ToolsMenu edit={edit} rat={rat} tools={tools} /> : null}
+            {tools.length > 0 || hasNetworksTool ? <ToolsMenu edit={edit} rat={rat} tools={tools} hasNetworksTool={hasNetworksTool} /> : null}
             {canEdit ? <BarButton label={t("stations:cells.addCell")} icon={Add01Icon} onClick={addCell} /> : null}
           </>
         }
@@ -105,6 +109,7 @@ export function RatCard({ edit, rat, errorsByKey, texts, canConfirm, isNewCellCo
               band={row.cell.bandId === null ? undefined : lookups.bandsById.get(row.cell.bandId)}
               bands={lookups.planBands[rat]}
               sectors={session.draft.sectors}
+              networkChoice={networkChoice}
               texts={texts}
               editKind={session.kind}
               canEdit={canEdit}

@@ -142,9 +142,17 @@ describe("submission approval application", () => {
   });
 
   it.each([
-    { input: cellInputs.gsm, duplicate: { lac: 1, cid: 2 }, message: "A GSM cell with LAC 1 and CID 2 already exists for this operator" },
-    { input: cellInputs.umts, duplicate: { rnc: 1, cid: 2 }, message: "A UMTS cell with RNC 1 and CID 2 already exists for this operator" },
-    { input: cellInputs.lte, duplicate: { enbid: 100, clid: 1 }, message: "An LTE cell with eNBID 100 and CLID 1 already exists for this operator" },
+    { input: cellInputs.gsm, duplicate: { lac: 1, cid: 2 }, message: "A GSM cell with LAC 1 and CID 2 already exists on one of the cell's networks" },
+    {
+      input: cellInputs.umts,
+      duplicate: { rnc: 1, cid: 2 },
+      message: "A UMTS cell with RNC 1 and CID 2 already exists on one of the cell's networks",
+    },
+    {
+      input: cellInputs.lte,
+      duplicate: { enbid: 100, clid: 1 },
+      message: "An LTE cell with eNBID 100 and CLID 1 already exists on one of the cell's networks",
+    },
   ])("refuses an already occupied $input.rat identity before writing any approval entities", async ({ input, duplicate, message }) => {
     prepareNewReview([input], { duplicate: { rat: input.rat, rows: [duplicate] } });
     expectError(await injectMutation(route, request, options), 409, "DUPLICATE_ENTRY", message);
@@ -716,5 +724,50 @@ describe("submission approval application", () => {
         }),
       ]),
     );
+  });
+});
+
+describe("submission approval of a cell's networks", () => {
+  it("writes the stored extra codes of an updated cell", async () => {
+    setCountryFeatures({ bsic: true, psc: true });
+    const scenario = prepareUpdatedCellReview(reviewedInputs[2]!);
+    Object.assign(scenario.proposed, { plmns: ["26003"] });
+    dbMock.enqueueNetworks([{ ownerCode: "26002" }], [{ ownerCode: "26002" }], [{ ownerCode: "26002" }]);
+    dbMock.enqueueFor("select", "stations", [{ operatorId: 2, countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "plmns", [
+      { id: 2, code: "26002", countryCode: "PL" },
+      { id: 3, code: "26003", countryCode: "PL" },
+    ]);
+    dbMock.enqueueFor("delete", "cell_plmns", []);
+    dbMock.enqueueFor("insert", "cell_plmns", []);
+    dbMock.enqueueFor("update", "cells", []);
+    writeUpdatedCellReview(scenario);
+
+    const { app, errors } = await createRouteHarnessWithErrors(route, options);
+    const response = await app.inject(request);
+
+    expect(response.statusCode, errors.map((error) => error.stack).join("\n") || response.body).toBe(200);
+    expect(response.json().data.changes.cells[0].extraPlmns).toEqual(["26003"]);
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "cell_plmns")?.values).toEqual([{ cellId: 31, plmnId: 3 }]);
+  });
+
+  it("refuses a code of another country at approval", async () => {
+    setCountryFeatures({ bsic: true, psc: true });
+    const scenario = prepareUpdatedCellReview(reviewedInputs[2]!);
+    Object.assign(scenario.proposed, { plmns: ["23420"] });
+    dbMock.enqueueNetworks([{ ownerCode: "26002" }], [{ ownerCode: "26002" }], [{ ownerCode: "26002" }]);
+    dbMock.enqueueFor("select", "stations", [{ operatorId: 2, countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "plmns", [
+      { id: 2, code: "26002", countryCode: "PL" },
+      { id: 9, code: "23420", countryCode: "GB" },
+    ]);
+    writeUpdatedCellReview(scenario);
+
+    const { app } = await createRouteHarnessWithErrors(route, options);
+    const response = await app.inject(request);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toContain("Network code 23420 belongs to another country");
+    expect(dbMock.calls.some((call) => call.table === "cell_plmns" && call.operation !== "select")).toBe(false);
   });
 });

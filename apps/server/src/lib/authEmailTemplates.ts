@@ -86,11 +86,11 @@ const copy: Record<AuthEmailLocale, LocalizedAuthEmailCopy> = {
   },
 };
 
-function resolveLocale(locale: string | null | undefined): AuthEmailLocale {
+export function resolveLocale(locale: string | null | undefined): AuthEmailLocale {
   return locale?.toLowerCase().startsWith("en") ? "en-US" : "pl-PL";
 }
 
-function normalizeName(name: string | null | undefined) {
+export function normalizeName(name: string | null | undefined) {
   const normalizedName = name?.replace(/\s+/g, " ").trim();
   return normalizedName === "" ? undefined : normalizedName;
 }
@@ -136,7 +136,7 @@ function renderAuthEmail(kind: AuthEmailKind, input: AuthEmailTemplateInput): Re
                       <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                         <tr>
                           <td style="color:#f3f5f7; font-size:18px; line-height:24px; font-weight:800;">
-                            <img src="https://btsearch.pl/btsearch.webp" width="148" height="52" alt="BTSearch" style="display:block; width:148px; height:52px; border:0; color:#f3f5f7; font-size:18px; line-height:24px; font-weight:800; filter:brightness(0) invert(1);">
+                            BTSearch
                           </td>
                         </tr>
                       </table>

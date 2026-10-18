@@ -27,7 +27,8 @@ import type {
   areaFilterShape,
   stationFilterShape,
 } from "@openbts/shared/contract";
-import { type SQL, type SQLWrapper, and, asc, eq, gte, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import { type AnyColumn, type SQL, type SQLWrapper, and, asc, eq, exists, gte, inArray, isNull, not, notInArray, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
@@ -35,12 +36,13 @@ import { ErrorResponse } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import { flagCondition } from "../../lib/conditions.js";
 import { actorIdFromRequest } from "../access/access.js";
-import { splitBandFilter } from "../bands/unknown.js";
+import { bandCondition, splitBandFilter } from "../bands/unknown.js";
+import { cellNetworkCodes, extraCodesByCell, guestOperatorIdsByStation, loadCellExtras, loadOwnerCodes } from "../cells/networks.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
 import { assertListsEnabled, findListForViewer, getUserListMembership } from "../lists/visibility.js";
 import type { LocationRow } from "../locations/write.js";
 import { loadOperators } from "../operators/details.js";
-import { operatedBy, outsideCountriesOf } from "../operators/sharing.js";
+import { broadcastsFor, operatedBy, outsideCountriesOf } from "../operators/sharing.js";
 import { type RegionRow, toRegion } from "../regions/serialize.js";
 import { DATABASE_STRUCTURE_TYPES, type StructureOwnerRow } from "../structures/serialize.js";
 import { stationCountries, stationCountryCode, stationPlacementMatches } from "./country.js";
@@ -141,8 +143,26 @@ export async function listStationIds(req: FastifyRequest, listId: string | undef
   return getUserListMembership(await findListForViewer(req, listId, actorIdFromRequest(req))).internal;
 }
 
-export function operatorCondition(operatorIds: readonly number[], keepsOtherCountries: boolean, countryFrom: CountrySource): SQL {
-  const operated = operatedBy(stations.operator_id, operatorIds);
+export function guestStationCondition(stationId: AnyColumn, operatorIds: readonly number[], cellMatch?: SQL): SQL {
+  const guestStations = db
+    .select({ id: cells.station_id })
+    .from(cells)
+    .where(and(broadcastsFor(cells.id, operatorIds), cellMatch));
+  return inArray(stationId, guestStations);
+}
+
+function guestOnlyStation(stationId: AnyColumn, operatorIds: readonly number[]): SQL {
+  const owner = alias(stations, "sector_owner");
+  const ownerMatches = db
+    .select({ id: owner.id })
+    .from(owner)
+    .where(and(eq(owner.id, stationId), operatedBy(owner.operator_id, operatorIds)));
+  return sql`(${guestStationCondition(stationId, operatorIds)} AND ${not(exists(ownerMatches))})`;
+}
+
+export function operatorCondition(operatorIds: readonly number[], keepsOtherCountries: boolean, countryFrom: CountrySource, guestMatch?: SQL): SQL {
+  const ownerMatch = operatedBy(stations.operator_id, operatorIds);
+  const operated = guestMatch ? sql`(${ownerMatch} OR ${guestMatch})` : ownerMatch;
   if (!keepsOtherCountries) return operated;
   if (countryFrom === "location") return sql`(${operated} OR ${outsideCountriesOf(regions.countryCode, operatorIds)})`;
 
@@ -165,7 +185,11 @@ export function stationFilterConditions(
   };
   const conditions = buildStationFilterConditions(stations, filter);
 
-  if (query.operatorIds?.length) conditions.push(operatorCondition(query.operatorIds, query.keepOtherCountries === true, countryFrom));
+  if (query.operatorIds?.length) {
+    const cellMatch = and(bandCondition(cells.band_id, filter), filter.nonIotRats.length ? inArray(cells.rat, filter.nonIotRats) : undefined);
+    const guestMatch = guestStationCondition(stations.id, query.operatorIds, cellMatch);
+    conditions.push(operatorCondition(query.operatorIds, query.keepOtherCountries === true, countryFrom, guestMatch));
+  }
   if (query.supportsIot !== undefined) conditions.push(iotCondition(query.supportsIot));
   if (query.hasPhotos !== undefined) conditions.push(buildHasPhotosCondition(stations.id, query.hasPhotos));
   if (query.hasSectors !== undefined) conditions.push(buildHasSectorsCondition(stationSectors, stations.id, query.hasSectors));
@@ -182,7 +206,12 @@ export function sectorFilterCondition(query: StationFilterQuery, keywordCellMatc
     nonIotRats: (query.rats ?? []).map((rat) => DATABASE_RATS[rat]),
     iotRequested: false,
   };
-  return buildSectorFilterCondition(stationSectors, filter, [keywordCellMatch, query.supportsIot === true ? IOT_CAPABLE_CELL : undefined]);
+  const otherCellMatches = [keywordCellMatch, query.supportsIot === true ? IOT_CAPABLE_CELL : undefined];
+  const condition = buildSectorFilterCondition(stationSectors, filter, otherCellMatches);
+  if (!query.operatorIds?.length) return condition;
+
+  const guestCondition = buildSectorFilterCondition(stationSectors, filter, otherCellMatches, broadcastsFor(cells.id, query.operatorIds));
+  return sql`CASE WHEN ${guestOnlyStation(stationSectors.station_id, query.operatorIds)} THEN ${guestCondition} ELSE ${condition ?? sql`true`} END`;
 }
 
 export function bboxCondition(point: SQLWrapper, [west, south, east, north]: Bbox): SQL {
@@ -306,58 +335,78 @@ export async function serializeStations(
   const locationIds = unique(rows.map((row) => row.location_id));
   const operatorIds = unique(rows.map((row) => row.operator_id));
 
-  const [identifierRows, hostStationIds, operatorsById, locationRows, cellRows, bandRows, sectorRows, backhaulRows, featuresByStation] =
-    await Promise.all([
-      db.select().from(extraIdentificators).where(inArray(extraIdentificators.station_id, stationIds)).orderBy(asc(extraIdentificators.id)),
-      findHostStationIds(locationIds),
-      loadOperators(db, wants("operator") ? operatorIds : []),
-      wantsLocation && locationIds.length > 0
-        ? db
-            .select({ location: locationColumns, region: regions, owner: structureOwners })
-            .from(locations)
-            .innerJoin(regions, eq(regions.id, locations.region_id))
-            .leftJoin(structureOwners, eq(structureOwners.id, locations.structure_owner_id))
-            .where(inArray(locations.id, locationIds))
-        : [],
-      wantsCells
-        ? db
-            .select({ cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells })
-            .from(cells)
-            .leftJoin(gsmCells, eq(gsmCells.cell_id, cells.id))
-            .leftJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
-            .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
-            .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
-            .where(inArray(cells.station_id, stationIds))
-            .orderBy(asc(cells.id))
-        : [],
-      wantsCells ? db.select().from(bands) : [],
-      wants("sectors")
-        ? db
-            .select()
-            .from(stationSectors)
-            .where(and(inArray(stationSectors.station_id, stationIds), sectorCondition))
-            .orderBy(asc(stationSectors.id))
-        : [],
-      wants("backhaul") ? db.select().from(stationUplinks).where(inArray(stationUplinks.station_id, stationIds)) : [],
-      getStationCountryFeatures(wantsCells ? stationIds : []),
-    ]);
+  const [
+    identifierRows,
+    hostStationIds,
+    operatorsById,
+    locationRows,
+    cellRows,
+    bandRows,
+    sectorRows,
+    backhaulRows,
+    featuresByStation,
+    cellExtras,
+    ownerCodes,
+  ] = await Promise.all([
+    db.select().from(extraIdentificators).where(inArray(extraIdentificators.station_id, stationIds)).orderBy(asc(extraIdentificators.id)),
+    findHostStationIds(locationIds),
+    loadOperators(db, wants("operator") ? operatorIds : []),
+    wantsLocation && locationIds.length > 0
+      ? db
+          .select({ location: locationColumns, region: regions, owner: structureOwners })
+          .from(locations)
+          .innerJoin(regions, eq(regions.id, locations.region_id))
+          .leftJoin(structureOwners, eq(structureOwners.id, locations.structure_owner_id))
+          .where(inArray(locations.id, locationIds))
+      : [],
+    wantsCells
+      ? db
+          .select({ cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells })
+          .from(cells)
+          .leftJoin(gsmCells, eq(gsmCells.cell_id, cells.id))
+          .leftJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
+          .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
+          .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
+          .where(inArray(cells.station_id, stationIds))
+          .orderBy(asc(cells.id))
+      : [],
+    wantsCells ? db.select().from(bands) : [],
+    wants("sectors")
+      ? db
+          .select()
+          .from(stationSectors)
+          .where(and(inArray(stationSectors.station_id, stationIds), sectorCondition))
+          .orderBy(asc(stationSectors.id))
+      : [],
+    wants("backhaul") ? db.select().from(stationUplinks).where(inArray(stationUplinks.station_id, stationIds)) : [],
+    getStationCountryFeatures(wantsCells ? stationIds : []),
+    loadCellExtras(stationIds),
+    loadOwnerCodes(wantsCells ? stationIds : []),
+  ]);
 
   const identifiersByStation = Map.groupBy(identifierRows, (row) => row.station_id);
   const locationsById = new Map(locationRows.map((row) => [row.location.id, row]));
   const bandsById = new Map(bandRows.map((row) => [row.id, row]));
   const sectorsByStation = Map.groupBy(sectorRows, (row) => row.station_id);
   const backhaulByStation = new Map(backhaulRows.map((row) => [row.station_id, row]));
+  const extraCodes = extraCodesByCell(cellExtras);
+  const guestOperatorIds = guestOperatorIdsByStation(cellExtras, new Map(rows.map((row) => [row.id, row.operator_id])));
   const cellsByStation = Map.groupBy(
     cellRows.flatMap(
       (row) =>
-        toCell(row, bandsById.get(row.cell.band_id), wants("cells.band"), featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures) ??
-        [],
+        toCell(
+          row,
+          bandsById.get(row.cell.band_id),
+          wants("cells.band"),
+          featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures,
+          cellNetworkCodes(ownerCodes.get(row.cell.station_id), extraCodes.get(row.cell.id)),
+        ) ?? [],
     ),
     (cell) => cell.stationId,
   );
 
   return rows.map((row) => {
-    const station = toStation(row, identifiersByStation.get(row.id) ?? [], hostStationIds.get(row.id) ?? null);
+    const station = toStation(row, identifiersByStation.get(row.id) ?? [], hostStationIds.get(row.id) ?? null, guestOperatorIds.get(row.id) ?? []);
     const operator = row.operator_id === null ? undefined : operatorsById.get(row.operator_id);
     const placement = row.location_id === null ? undefined : locationsById.get(row.location_id);
     const backhaul = backhaulByStation.get(row.id);

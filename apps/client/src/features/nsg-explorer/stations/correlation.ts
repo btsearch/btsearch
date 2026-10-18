@@ -1,6 +1,7 @@
 import type { ObservedCell } from "@openbts/shared/contract";
 
 import { type LocatedStation, type StationMatch, toNsgObservedCell } from "./match";
+import { isFoundMatch } from "@/features/analyzer/model/rows";
 import { type ServingCellResolution, type ServingCellSnapshot, resolveServingCellAt } from "@/features/nsg-explorer/cells/servingTimeline";
 import type { NsgCell } from "@/lib/nsg-parser/model";
 
@@ -71,7 +72,7 @@ export function getAnalyzerResultForCell(resultsByKey: AnalyzerResultsByKey, cel
 
 function toMatchedStation(match: StationMatch | null): MatchedStation | null {
   if (match === null || match.station === null || match.result.match === "none") return null;
-  return { station: match.station, confidence: match.result.match === "cell" && !match.result.isShared ? "exact" : "probable" };
+  return { station: match.station, confidence: isFoundMatch(match.result) ? "exact" : "probable" };
 }
 
 export function collectMatchedStations(cells: readonly NsgCell[], resultsByKey: AnalyzerResultsByKey): MatchedStation[] {

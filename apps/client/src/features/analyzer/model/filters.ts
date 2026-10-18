@@ -18,6 +18,7 @@ export const DIFFERENCE_KIND_ORDER: readonly DifferenceKind[] = [
   "pci",
   "no-pci",
   "new",
+  "network",
   "lac",
   "rnc",
   "earfcn",
@@ -82,6 +83,7 @@ export const DEFAULT_ANALYZER_FILTERS: AnalyzerFilters = {
 const MOST_PINNED_KINDS = 4;
 const CHANGE_KINDS: ReadonlySet<DifferenceKind> = new Set<DifferenceKind>([
   "new",
+  "network",
   ...DIFFERENCE_FIELDS,
   ...DIFFERENCE_FIELDS.map((field): DifferenceKind => `no-${field}`),
 ]);

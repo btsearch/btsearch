@@ -48,7 +48,7 @@ import type { SessionInput } from "@/features/station-editing/model/draftReducer
 import { RAT_FIELDS } from "@/features/station-editing/model/ratFields";
 import { REGISTER_PREFILL_RULES, listRegisterStationActions } from "@/features/station-editing/model/registerPrefill";
 import { type BuiltKeys, isServerRefusal, toEditErrors } from "@/features/station-editing/model/serverRefusals";
-import { toStationSnapshot } from "@/features/station-editing/model/snapshots";
+import { findDraftOwnerPlmn, toStationSnapshot } from "@/features/station-editing/model/snapshots";
 import type { EditError, EditSession, Rat, StationSnapshot } from "@/features/station-editing/model/types";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { PhotoUploadSection } from "@/features/submissions/components/photoUploadSection";
@@ -288,7 +288,7 @@ export function SavedStationEditor({ record }: SavedStationEditorProps) {
     }
 
     const { session } = edit;
-    const built = buildStationUpdate(session);
+    const built = buildStationUpdate(session, findDraftOwnerPlmn(session.draft, edit.lookups.operatorsById));
     if (built.body === null) return;
 
     saveMutation.mutate(
@@ -408,7 +408,7 @@ export function NewStationEditor({ prefill }: NewStationEditorProps) {
 
   function createStationFromDraft(reveal: RevealField) {
     const { session } = edit;
-    const built = buildStationCreate(session);
+    const built = buildStationCreate(session, findDraftOwnerPlmn(session.draft, edit.lookups.operatorsById));
     if (edit.hasErrors || built.body === null) {
       feedback.reportBlockedSave();
       return;

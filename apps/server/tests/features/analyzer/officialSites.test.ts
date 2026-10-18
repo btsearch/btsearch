@@ -101,6 +101,7 @@ function unknownCell(operatorId: number, officialSiteIds: number[]) {
     stationId: null,
     cellId: null,
     isShared: false,
+    networkMatch: null,
     differences: [],
     nrIdentity: null,
     officialSiteIds,

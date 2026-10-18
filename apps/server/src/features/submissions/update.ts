@@ -19,11 +19,20 @@ import { locationRefs, requestCovers } from "../access/scope.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../audit/index.js";
 import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkPciDuplicates, getOperatorIdForStation } from "../cells/duplicateCheck.js";
+import { checkCellDuplicatesBatch, checkOwnerCellDuplicates, checkPciDuplicates, getOperatorIdForStation } from "../cells/duplicateCheck.js";
+import { type NetworkOwner, loadNetworkOwner, withoutOwnerCode } from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { uplinkSpeedSchema } from "../stations/uplink.js";
 import { assertCountriesOpen, loadCurrentLocations } from "./contributions.js";
-import { type PhotoPickInput, assertTargetCellsFit, insertPhotoPicks, nrInsertSchema } from "./create.js";
+import {
+  type PhotoPickInput,
+  assertTargetCellsFit,
+  getCellDuplicateEntries,
+  insertPhotoPicks,
+  loadSubmissionOwner,
+  nrInsertSchema,
+  resolveCellExtras,
+} from "./create.js";
 import {
   changedLocationFields,
   changedStationFields,
@@ -110,16 +119,6 @@ function buildSubmissionUpdate(body: SubmissionUpdateBody): Partial<SubmissionIn
   return updateFields;
 }
 
-function getCellDuplicateEntries(cells: ProposedCellInput[]): { rat: string; details: Record<string, unknown>; excludeCellId?: number }[] {
-  return cells
-    .filter((cell) => cell.details && cell.operation !== "delete")
-    .map((cell) => ({
-      rat: cell.rat!,
-      details: cell.details as Record<string, unknown>,
-      excludeCellId: cell.target_cell_id ?? undefined,
-    }));
-}
-
 function getPciDuplicateSources(cells: ProposedCellInput[]) {
   return cells
     .filter((cell) => cell.operation !== "delete")
@@ -131,7 +130,12 @@ function getPciDuplicateSources(cells: ProposedCellInput[]) {
     }));
 }
 
-async function validateCellConflicts(cells: ProposedCellInput[] | undefined, stationId: number | null): Promise<void> {
+async function validateCellConflicts(
+  cells: ProposedCellInput[] | undefined,
+  stationId: number | null,
+  sentOperatorId: number | null | undefined,
+  countryCode: string | null,
+): Promise<void> {
   if (!cells || cells.length === 0) return;
 
   await assertTargetCellsFit(cells, stationId);
@@ -140,10 +144,14 @@ async function validateCellConflicts(cells: ProposedCellInput[] | undefined, sta
   if (stationId !== null) await checkPciDuplicates(stationId, getPciDuplicateSources(cells), allModifiedCellIds);
 
   const operatorId = stationId !== null ? await getOperatorIdForStation(stationId) : null;
-  if (operatorId !== null) {
-    const entries = getCellDuplicateEntries(cells);
-    if (entries.length > 0) await checkCellDuplicatesBatch(entries, operatorId, allModifiedCellIds);
-  }
+  const owner = await loadNetworkOwner(db, sentOperatorId ?? operatorId, countryCode);
+  const cellExtras = await resolveCellExtras(cells, owner);
+  if (operatorId === null) return;
+
+  const entries = getCellDuplicateEntries(cells, cellExtras);
+  if (entries.length === 0) return;
+  if (owner.operatorId === operatorId) await checkOwnerCellDuplicates(entries, owner, allModifiedCellIds);
+  else await checkCellDuplicatesBatch(entries, operatorId, allModifiedCellIds);
 }
 
 async function assertStationTakesChanges(stationId: number | null): Promise<void> {
@@ -218,6 +226,7 @@ async function replaceProposedCells(
   submissionId: string,
   cells: ProposedCellInput[] | undefined,
   hasAdminPermission: boolean,
+  owner: NetworkOwner | null,
 ): Promise<void> {
   if (!cells) return;
 
@@ -226,6 +235,7 @@ async function replaceProposedCells(
 
   const insertRows = cells.map(({ details: _details, ...cell }) => ({
     ...cell,
+    ...(cell.plmns && owner ? { plmns: withoutOwnerCode(cell.plmns, owner) } : {}),
     submission_id: submissionId,
     is_confirmed: hasAdminPermission && (cell.is_confirmed ?? false),
     operation: cell.operation ?? "add",
@@ -275,11 +285,14 @@ async function updateSubmissionDraft(
     locationBody = resolved.locationData;
   }
 
+  const cellOwner = body.cells?.some((cell) => cell.plmns)
+    ? await loadSubmissionOwner(tx, submissionId, submission.station_id, body.station?.operator_id)
+    : null;
   await Promise.all([
     replaceProposedStation(tx, submissionId, stationBody, updatedStationId !== null),
     replaceProposedLocation(tx, submissionId, locationBody, updatedStationId !== null, body.location?.move),
     replaceProposedSectors(tx, submissionId, body.sectors),
-    replaceProposedCells(tx, submissionId, body.cells, hasAdminPermission),
+    replaceProposedCells(tx, submissionId, body.cells, hasAdminPermission, cellOwner),
     replacePhotoPicks(tx, submissionId, picks),
   ]);
   if (body.station || body.location) await stampSubmissionCountry(tx, submissionId);
@@ -359,7 +372,7 @@ export async function updateSubmission(
     ]);
     validateSectorChanges(body.sectors ?? storedSectors, currentSectors, body.cells ?? storedCells);
   }
-  await validateCellConflicts(body.cells, stationId);
+  await validateCellConflicts(body.cells, stationId, body.station?.operator_id, body.placement_country_code ?? null);
   if (body.cells && body.cells.length > 0) {
     await validateCellBandsInCountry(
       body.cells.filter((cell) => cell.operation !== "delete"),

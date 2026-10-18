@@ -207,6 +207,7 @@ function toCellChange(
     cellType: cell.type === null ? null : CELL_TYPES[cell.type],
     notes,
     isConfirmed: cell.is_confirmed,
+    extraPlmns: cell.plmns,
     ...toRadioFields(rows, features),
   };
 }

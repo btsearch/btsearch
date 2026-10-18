@@ -130,16 +130,17 @@ export function buildSectorFilterCondition(
   sectorFields: typeof stationSectors,
   filter: SectorFilter,
   otherCellMatches: (SQL | undefined)[],
+  broadcastMatch?: SQL,
 ): SQL | undefined {
   const { nonIotRats, iotRequested } = filter;
   const bandMatch = bandCondition(cells.band_id, filter);
   const technologyMatch = or(nonIotRats.length ? inArray(cells.rat, nonIotRats) : undefined, iotRequested ? IOT_CAPABLE_CELL : undefined);
-  const requestedCell = or(and(bandMatch, technologyMatch), ...otherCellMatches);
+  const requestedCell = and(or(and(bandMatch, technologyMatch), ...otherCellMatches), broadcastMatch);
   if (!requestedCell) return undefined;
 
   const anyAttachedCellIsRequested = sql`(
     SELECT bool_or(${requestedCell}) FROM ${cells}
     WHERE ${cells.station_id} = ${sectorFields.station_id} AND ${cells.sector_id} = ${sectorFields.id}
   )`;
-  return sql`coalesce(${anyAttachedCellIsRequested}, ${SECTOR_WITHOUT_CELLS_IS_KEPT})`;
+  return sql`coalesce(${anyAttachedCellIsRequested}, ${broadcastMatch ? sql`false` : SECTOR_WITHOUT_CELLS_IS_KEPT})`;
 }

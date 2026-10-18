@@ -9,7 +9,7 @@ type AnalyzerSort = AnalyzerFilters["sort"];
 
 type AnalyzerTexts = {
   getStatusLabel: (status: RowStatus) => string;
-  getKindLabel: (kind: DifferenceFilter) => string;
+  getKindLabel: (kind: DifferenceFilter, plmn?: string) => string;
   getKindHint: (kind: DifferenceKind) => string | undefined;
   getBlockWord: (reason: TickBlock) => string | null;
   getBlockHint: (reason: TickBlock) => string;
@@ -31,9 +31,10 @@ export function useAnalyzerTexts(): AnalyzerTexts {
     return status === "notFound" ? t("status.notFound") : t("status.notAnalyzed");
   }
 
-  function getKindLabel(kind: DifferenceFilter): string {
+  function getKindLabel(kind: DifferenceFilter, plmn?: string): string {
     if (kind === ANY_DIFFERENCE) return t("diff.any");
     if (kind === "new") return t("diff.new");
+    if (kind === "network") return plmn === undefined ? t("diff.missingNetwork") : t("diff.network", { plmn });
     if (kind === "by-lac") return t("diff.byLac");
     if (kind === "shared") return t("diff.shared");
     if (kind === "unknown-cell") return t("diff.unknownCell");

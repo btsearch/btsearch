@@ -1,6 +1,6 @@
-import { brands, operatorLinks, operators, plmns } from "@openbts/drizzle";
+import { brands, cellPlmns, operatorLinks, operators, plmns } from "@openbts/drizzle";
 import type { OperatorLinkInput, OperatorLinkKind, PlmnInput } from "@openbts/shared/contract";
-import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 
 import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
@@ -63,6 +63,33 @@ async function assertLinksAreValid(tx: DbTx, links: readonly OperatorLinkInput[]
   if (memberOfThisOperator) throw new ErrorResponse("BAD_REQUEST", { message: "A linked operator is already a member of this operator" });
 }
 
+export async function findRemovedBroadcastCodes(
+  tx: DbTx,
+  operatorId: number,
+  keptCodes: readonly string[],
+): Promise<{ code: string; cells: number }[]> {
+  const rows = await tx
+    .select({ code: plmns.code, cells: count(cellPlmns.cellId) })
+    .from(cellPlmns)
+    .innerJoin(plmns, eq(plmns.id, cellPlmns.plmnId))
+    .where(and(eq(plmns.operatorId, operatorId), keptCodes.length > 0 ? notInArray(plmns.code, [...keptCodes]) : undefined))
+    .groupBy(plmns.code);
+  return rows.map((row) => ({ code: row.code, cells: Number(row.cells) }));
+}
+
+async function assertBroadcastCodesKept(tx: DbTx, operatorId: number, entries: readonly PlmnInput[]): Promise<void> {
+  const [removed] = await findRemovedBroadcastCodes(
+    tx,
+    operatorId,
+    entries.map((entry) => entry.plmn),
+  );
+  if (removed) {
+    throw new ErrorResponse("CONFLICT", {
+      message: `${removed.code} is broadcast by ${removed.cells} ${removed.cells === 1 ? "cell" : "cells"}; remove it from those cells first`,
+    });
+  }
+}
+
 export async function validateOperatorWrite(tx: DbTx, operator: OperatorWrite): Promise<void> {
   const { id, countryCode, name, brandId } = operator;
 
@@ -76,6 +103,7 @@ export async function validateOperatorWrite(tx: DbTx, operator: OperatorWrite): 
   }
 
   await assertPlmnsFree(tx, operator.plmns ?? [], id);
+  if (id !== undefined && operator.plmns) await assertBroadcastCodesKept(tx, id, operator.plmns);
   await assertLinksAreValid(tx, operator.links ?? [], countryCode, id);
 
   if (brandId !== undefined && brandId !== null) {

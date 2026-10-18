@@ -97,6 +97,7 @@ export function PhoneChangeRow({
   isBandMissing,
   isExcluded,
   refusals,
+  networkName,
   onChange,
 }: ChangeRowProps) {
   const { t } = useTranslation();
@@ -181,6 +182,7 @@ export function PhoneChangeRow({
             isBandMissing={isBandMissing}
             isExcluded={isExcluded}
             refusals={refusals}
+            networkName={networkName}
             lineClassName="pt-0.5"
           />
         )}

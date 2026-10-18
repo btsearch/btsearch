@@ -37,6 +37,7 @@ const FIELD_LABELS: Record<Exclude<HistoryFieldName, CellIdentifierField>, Field
   speedMbps: { translationKey: "common:labels.uplinkSpeed" },
   model: { translationKey: "stationDetails:history.fields.uplinkModel" },
   azimuths: { translationKey: "common:labels.azimuths" },
+  extraPlmns: { translationKey: "stations:edit.cells.columns.networks" },
   sector: { translationKey: "common:labels.azimuth" },
   bandId: { translationKey: "common:labels.band" },
   cellType: { translationKey: "common:labels.cellType" },
@@ -75,6 +76,11 @@ function formatSector(sector: Sector | null, t: TFunction): string | null {
 function formatAzimuths(azimuths: readonly (number | null)[], t: TFunction): string {
   if (azimuths.length === 0) return MISSING_VALUE;
   return azimuths.map((azimuth) => formatSectorAzimuth(azimuth, t)).join(LIST_SEPARATOR);
+}
+
+function formatNetworks(codes: readonly string[], names: HistoryNames): string {
+  if (codes.length === 0) return MISSING_VALUE;
+  return codes.map((code) => names.networks.get(code) ?? code).join(LIST_SEPARATOR);
 }
 
 function formatStatus(status: string, t: TFunction): string {
@@ -118,6 +124,7 @@ function describeFieldChange(change: HistoryFieldChange, position: number, names
   if (change.field === "location") return { key, label, from: formatLocation(change.from), to: formatLocation(change.to) };
   if (change.field === "sector") return { key, label, from: formatSector(change.from, t), to: formatSector(change.to, t) };
   if (change.field === "azimuths") return { key, label, from: formatAzimuths(change.from, t), to: formatAzimuths(change.to, t) };
+  if (change.field === "extraPlmns") return { key, label, from: formatNetworks(change.from, names), to: formatNetworks(change.to, names) };
   return { key, label, from: formatValue(change.field, change.from, names, t), to: formatValue(change.field, change.to, names, t) };
 }
 

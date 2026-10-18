@@ -222,6 +222,7 @@ function toCellInput(cell: CellEditInput, targets: ReadonlyMap<number, TargetCel
       rat: DATABASE_RATS[cell.rat],
       type: toCellType(cell.cellType ?? null),
       notes: cell.notes ?? null,
+      plmns: cell.plmns ?? null,
       ...toSectorReference(cell),
       is_confirmed: cell.isConfirmed,
       details,
@@ -249,6 +250,7 @@ function toCellInput(cell: CellEditInput, targets: ReadonlyMap<number, TargetCel
     rat: DATABASE_RATS[contractRat],
     type: cell.cellType === undefined ? type : toCellType(cell.cellType),
     notes: cell.notes === undefined ? null : (cell.notes ?? CLEARED_NOTES),
+    plmns: cell.plmns ?? null,
     ...toSectorReference(cell),
     is_confirmed: cell.isConfirmed,
   };

@@ -40,7 +40,7 @@ type LocationChangeBody = Extract<ChangeBody, { kind: "location" }>;
 type LocationField = LocationChangeBody["fields"][number]["field"];
 type PhotosChangeBody = Extract<ChangeBody, { kind: "photos" }>;
 type CellFieldChange = StationHistoryCell["fields"][number];
-type CellValueField = Exclude<CellFieldChange["field"], "sector">;
+type CellValueField = Exclude<CellFieldChange["field"], "sector" | "extraPlmns">;
 type ValuePair = { from: StationHistoryValue; to: StationHistoryValue };
 type SectorSide = keyof SectorAzimuthsAsOf;
 
@@ -239,6 +239,19 @@ function snapshotCellFields(flat: HistoryObject, action: StationHistoryAction, r
   });
 }
 
+function plmnList(value: unknown): string[] | null {
+  if (!isPlainObject(value) || !Array.isArray(value.plmns)) return null;
+  return value.plmns.filter((code): code is string => typeof code === "string");
+}
+
+function extraPlmnsField(oldValues: unknown, newValues: unknown, action: StationHistoryAction): CellFieldChange[] {
+  const from = action === "create" ? [] : plmnList(oldValues);
+  const to = action === "delete" ? [] : plmnList(newValues);
+  if (from === null || to === null) return [];
+  if (from.length === to.length && from.every((code, index) => code === to[index])) return [];
+  return [{ field: "extraPlmns", from, to }];
+}
+
 function cellNumber(column: string, flat: HistoryObject, context: HistoryContext): number | null {
   const value = cellValue(column, normalize(flat[column]), flat, context);
   return typeof value === "number" ? value : null;
@@ -256,6 +269,7 @@ function cellChange(row: AuditRow, action: StationHistoryAction, context: Histor
   if (action !== "update") fields = snapshotCellFields(identity, action, rat, context);
   else if (oldFlat !== null && newFlat !== null) fields = updatedCellFields(oldFlat, newFlat, rat, context);
   else fields = [];
+  fields = [...fields, ...extraPlmnsField(row.old_values, row.new_values, action)];
   if (fields.length === 0) return null;
 
   const hasCid = rat === "gsm" || rat === "umts";

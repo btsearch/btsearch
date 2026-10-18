@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { type MapPoint, isMapPointStationExpired } from "../data/mapPoints";
-import { PopupExpiredLabel, PopupLocationHeader, PopupOperatorName, PopupRow, PopupStationId, PopupStatusBadge } from "./popupParts";
+import { PopupExpiredLabel, PopupGuestMarks, PopupLocationHeader, PopupOperatorName, PopupRow, PopupStationId, PopupStatusBadge } from "./popupParts";
 
 type StationHoverTooltipContentProps = {
   point: MapPoint;
@@ -25,6 +25,7 @@ export function StationHoverTooltipContent({ point }: StationHoverTooltipContent
           title={
             <>
               <PopupOperatorName name={station.operatorName || t("unknownOperator")} />
+              <PopupGuestMarks guests={station.guests} isStatic />
               <PopupStationId id={station.siteId} />
               <PopupStatusBadge status={station.status} />
               {isMapPointStationExpired(station) ? <PopupExpiredLabel /> : null}

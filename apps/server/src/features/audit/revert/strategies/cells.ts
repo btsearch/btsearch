@@ -7,6 +7,7 @@ import type { z } from "zod/v4";
 import { DetailedErrorResponse, ErrorResponse } from "../../../../errors.js";
 import type { DbTx } from "../../../../types/global.js";
 import { type StoredCellScope, assertStoredCellBandsFit } from "../../../cells/arfcnValidation.js";
+import { loadKnownPlmns, loadStationNetworkOwner, withoutOwnerCode, writeExtraCodes } from "../../../cells/networkWrites.js";
 import {
   type NormalRat,
   type RATInsertDetails,
@@ -19,7 +20,7 @@ import { disabledCountryFeatures, getStationCountryFeatures } from "../../../sta
 import { loadCellSnapshots } from "../../snapshots.js";
 import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow, writableColumnNames } from "../columns.js";
-import { changedFields, staleFields, staleNestedFields } from "../compare.js";
+import { changedFields, staleFields, staleNestedFields, valuesEqual } from "../compare.js";
 import { type ApplyState, type PlannedEntry, type RevertConflict, type StrategyContext, addCellChange, conflictFor } from "../types.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, stringField } from "./common.js";
 
@@ -49,6 +50,23 @@ function detailsSnapshot(snapshot: SnapshotRecord, rat: string): SnapshotRecord 
   if (isSnapshotRecord(snapshot.details)) return snapshot.details;
   const legacy = snapshot[rat.toLowerCase()];
   return isSnapshotRecord(legacy) ? legacy : null;
+}
+
+function snapshotCodes(snapshot: SnapshotRecord): string[] | null {
+  const codes = snapshot.plmns;
+  return Array.isArray(codes) && codes.every((code) => typeof code === "string") ? [...codes].sort() : null;
+}
+
+async function addMissingCodeConflict(context: StrategyContext, plan: PlannedEntry, codes: readonly string[]): Promise<void> {
+  const known = await loadKnownPlmns(context.tx, codes);
+  const missing = codes.filter((code) => !known.has(code));
+  if (missing.length > 0)
+    plan.conflicts.push(conflictFor(plan.entry, "fk_missing", `The network code ${missing.join(", ")} no longer exists`, "skip"));
+}
+
+async function restoreExtraCodes(tx: DbTx, cellId: number, stationId: number, codes: readonly string[]): Promise<void> {
+  const [owner, known] = await Promise.all([loadStationNetworkOwner(tx, stationId), loadKnownPlmns(tx, codes)]);
+  await writeExtraCodes(tx, cellId, withoutOwnerCode(codes, owner), known);
 }
 
 function ratTable(rat: NormalRat) {
@@ -260,7 +278,9 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
     const rat = stringField(oldValues, "rat") ?? "";
     const details = detailsSnapshot(oldValues, rat);
     const stationId = numberField(oldValues, "station_id");
+    const restoredCodes = snapshotCodes(oldValues) ?? [];
     await addForeignKeyConflicts(context, plan, oldValues, new Set(["station_id", "band_id", "sector_id"]));
+    await addMissingCodeConflict(context, plan, restoredCodes);
     plan.actions.push({
       order: 26,
       run: async (tx, state) => {
@@ -284,6 +304,8 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
           if (restored === null) throw new Error(`Failed to restore ${rat} details for cell ${id}`);
         },
       });
+    if (restoredCodes.length > 0 && stationId !== null)
+      plan.actions.push({ order: 35, run: (tx) => restoreExtraCodes(tx, id, stationId, restoredCodes) });
     plan.finalize = async (tx, audit) => {
       await assertRestoredCellsFitBands(tx, entry, { cellIds: [id], stationId: null });
       const restored = (await loadCellSnapshots(tx, [id])).get(id);
@@ -329,10 +351,16 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
     if (currentDetails === null) plan.conflicts.push(conflictFor(entry, "missing", "The cell's RAT details no longer exist", "skip"));
     else if (newDetails !== null) differences.push(...staleNestedFields("details", newDetails, currentDetails, detailFields));
   }
+  const oldCodes = snapshotCodes(oldValues);
+  const newCodes = snapshotCodes(newValues);
+  const codeChange = oldCodes !== null && newCodes !== null && !valuesEqual(oldCodes, newCodes) ? { old: oldCodes, new: newCodes } : null;
+  if (codeChange && !valuesEqual(codeChange.new, current.plmns))
+    differences.push({ field: "plmns", expected: codeChange.new, current: current.plmns });
   if (differences.length > 0)
     plan.conflicts.push(conflictFor(entry, "stale", "The cell changed after this operation", "apply", { fields: differences }));
 
   await addForeignKeyConflicts(context, plan, oldValues, new Set(baseFields));
+  if (codeChange) await addMissingCodeConflict(context, plan, codeChange.old);
   plan.actions.push({
     order: 34,
     run: async (tx, state) => {
@@ -353,6 +381,7 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
         if (restored === null) throw new Error(`Failed to restore ${oldRat} details for cell ${id}`);
       }
       const restoredStationId = numberField(oldValues, "station_id");
+      if (codeChange) await restoreExtraCodes(tx, id, restoredStationId ?? current.station_id, codeChange.old);
       if (restoredStationId !== null && restoredStationId !== current.station_id) {
         addCellChange(state, current.station_id, "removed");
         addCellChange(state, restoredStationId, "added");

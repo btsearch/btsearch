@@ -43,6 +43,7 @@ function proposedReviewCell(
     sector_local_id: "front",
     sector_unassigned: false,
     notes: input.notes ?? null,
+    plmns: null,
     is_confirmed: input.isConfirmed ?? false,
     createdAt: readDate,
     updatedAt: readDate,

@@ -108,7 +108,12 @@ export function StationCard({ edit, stationId }: StationCardProps) {
   const notesView = getStationFieldView(edit, "notes", idPrefix);
 
   function changeOperator(operator: Operator) {
-    dispatch({ type: "setOperator", operatorId: operator.id, identifierKinds: listIdentifierKinds(operator, lookups.operatorsById) });
+    dispatch({
+      type: "setOperator",
+      operatorId: operator.id,
+      ownerPlmn: operator.primaryPlmn,
+      identifierKinds: listIdentifierKinds(operator, lookups.operatorsById),
+    });
   }
 
   return (

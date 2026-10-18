@@ -5,7 +5,7 @@ import type { BuiltEntry, BuiltStation } from "./bodies";
 import { isCellNumberField } from "@/features/station-editing/model/ratFields";
 
 type WrittenKind = "created" | "updated" | "confirmed" | "spread";
-export type WrittenLine = { cell: Cell; kind: WrittenKind; numbers: RowNumbers };
+export type WrittenLine = { cell: Cell; kind: WrittenKind; numbers: RowNumbers; hasNetworks: boolean };
 export type WrittenStation = { stationId: number; lines: WrittenLine[] };
 
 function readChangedNumbers(entry: BuiltEntry | undefined): RowNumbers {
@@ -19,7 +19,7 @@ function readChangedNumbers(entry: BuiltEntry | undefined): RowNumbers {
 }
 
 function toSpreadLine(cell: Cell): WrittenLine {
-  return { cell, kind: "spread", numbers: cell.rat === "lte" && cell.tac !== null ? { tac: cell.tac } : {} };
+  return { cell, kind: "spread", numbers: cell.rat === "lte" && cell.tac !== null ? { tac: cell.tac } : {}, hasNetworks: false };
 }
 
 function toWrittenLines(cells: readonly Cell[], source: BuiltStation | undefined): WrittenLine[] {
@@ -28,11 +28,13 @@ function toWrittenLines(cells: readonly Cell[], source: BuiltStation | undefined
   const updates = entries.filter((entry) => entry.change.action === "update");
 
   return cells.map((cell, position): WrittenLine => {
-    if (position < createdCount) return { cell, kind: "created", numbers: {} };
+    if (position < createdCount) return { cell, kind: "created", numbers: {}, hasNetworks: false };
     if (position >= createdCount + updates.length) return toSpreadLine(cell);
 
-    const numbers = readChangedNumbers(updates[position - createdCount]);
-    return { cell, kind: Object.keys(numbers).length === 0 ? "confirmed" : "updated", numbers };
+    const update = updates[position - createdCount];
+    const numbers = readChangedNumbers(update);
+    const hasNetworks = update?.change.plmns !== undefined;
+    return { cell, kind: Object.keys(numbers).length === 0 && !hasNetworks ? "confirmed" : "updated", numbers, hasNetworks };
   });
 }
 

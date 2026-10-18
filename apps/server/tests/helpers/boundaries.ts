@@ -21,6 +21,7 @@ type ScriptedResult = {
   countryFeatures?: boolean;
   submissionPlacement?: boolean;
   stationLinks?: boolean;
+  networks?: boolean;
   result: unknown;
 };
 type QueryBoundary = {
@@ -95,6 +96,11 @@ function defaultFeatureResult(call: DatabaseCall, selection: Record<string, unkn
   return [{ ...(countryFeatures.get("PL") ?? defaultCountryFeatures) }];
 }
 
+function isNetworkRead(call: DatabaseCall): boolean {
+  if (call.operation !== "select") return false;
+  return call.table === "cell_plmns" || (typeof call.selection === "object" && call.selection !== null && "ownerCode" in call.selection);
+}
+
 function tableName(table: unknown): string | undefined {
   if (typeof table !== "object" || table === null) return undefined;
   try {
@@ -111,16 +117,19 @@ function consume(call: DatabaseCall): Promise<unknown> {
   const featureProjection = isCountryFeatureProjection(selection);
   const placementProjection = isSubmissionPlacementProjection(call);
   const stationLinkRead = isStationLinkRead(call);
+  const networkRead = isNetworkRead(call);
   const matching = results.findIndex(
     (entry) =>
       (entry.countryFeatures === true) === featureProjection &&
       (entry.submissionPlacement === true) === placementProjection &&
       (entry.stationLinks === true) === stationLinkRead &&
+      (entry.networks === true) === networkRead &&
       (entry.operation === undefined || entry.operation === call.operation) &&
       (entry.table === undefined || entry.table === call.table),
   );
   if (matching < 0 && featureProjection) return Promise.resolve(defaultFeatureResult(call, selection));
   if (matching < 0 && stationLinkRead) return Promise.resolve([]);
+  if (matching < 0 && networkRead) return Promise.resolve([]);
   if (matching < 0) return Promise.reject(new Error(`Unscripted database call: ${call.operation} ${call.table ?? ""}`));
   const entry = results.splice(matching, 1)[0];
   if (entry?.result instanceof Error) return Promise.reject(entry.result);
@@ -199,6 +208,9 @@ export const dbMock = {
   },
   enqueueSubmissionPlacement(...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation: "select", table: "submissions", submissionPlacement: true, result })));
+  },
+  enqueueNetworks(...scripted: unknown[]): void {
+    results.push(...scripted.map((result) => ({ operation: "select", networks: true, result })));
   },
   enqueueStationLinks(...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation: "select", stationLinks: true, result })));

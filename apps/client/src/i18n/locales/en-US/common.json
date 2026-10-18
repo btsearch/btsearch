@@ -122,10 +122,13 @@
     "dateFrom": "From",
     "dateTo": "To",
     "band": "Band",
+    "sharedWith": "Shared with",
     "otherOperators_one": "{{count, number}} other operator",
     "otherOperators_few": "{{count, number}} other operators",
     "otherOperators_many": "{{count, number}} other operators",
     "otherOperators_other": "{{count, number}} other operators",
+    "expanded": "Expanded",
+    "collapsed": "Collapsed",
     "search": "Search",
     "confirmed": "Confirmed",
     "yes": "Yes",
@@ -378,5 +381,12 @@
       "indoor": "Indoor",
       "other": "Other structure"
     }
+  },
+  "sharedNetworks": {
+    "cellTitle": "Cell shared with other networks",
+    "cellHint": "Besides the station's operator, this cell also broadcasts for the networks below. Their phones use it as their own network's cell.",
+    "tableHint": "Besides the station's operator, every {{rat}} cell of this station also broadcasts for the networks below. Their phones use these cells as their own network's.",
+    "stationTitle": "Station shared with other networks",
+    "stationHint": "At least one cell of this station also broadcasts for the networks below. Their phones use it as their own network's cell."
   }
 }

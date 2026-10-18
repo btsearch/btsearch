@@ -13,6 +13,7 @@ import {
   PopupBrandMark,
   PopupCoordinatesFooter,
   PopupExpiredLabel,
+  PopupGuestMarks,
   PopupIconButton,
   PopupLocationHeader,
   PopupOperatorName,
@@ -214,6 +215,7 @@ function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, l
       title={
         <>
           <PopupOperatorName name={station.operatorName || t("unknownOperator")} />
+          <PopupGuestMarks guests={station.guests} />
           <PopupStationId id={station.siteId} />
           {networksIdLabel ? <span className="font-mono text-[11px] text-foreground/70">{networksIdLabel}</span> : null}
           {isHosted ? (

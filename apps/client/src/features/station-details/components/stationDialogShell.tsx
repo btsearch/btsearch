@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { countriesQueryOptions } from "@/features/shared/lookups";
+import type { OperatorMark } from "@/features/shared/operatorMarks";
 import { findTerrainReceiverBounds } from "@/features/terrain-profile/availability";
 import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
@@ -115,6 +116,7 @@ type StationDialogHeadingProps = {
   operatorBrand: BrandLook | null;
   stationCode: string;
   badges?: ReactNode;
+  guests?: readonly OperatorMark[];
   location?: { city: string | null; address: string | null } | null;
   addressLine?: ReactNode;
   status?: ReactNode;
@@ -127,6 +129,7 @@ export function StationDialogHeading({
   operatorBrand,
   stationCode,
   badges,
+  guests = [],
   location,
   addressLine,
   status,
@@ -143,6 +146,14 @@ export function StationDialogHeading({
         <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{stationCode}</span>
         {badges}
       </div>
+      {guests.length > 0 ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-xs text-muted-foreground">{tCommon("labels.sharedWith")}</span>
+          {guests.map((guest) => (
+            <DialogOperatorName key={guest.key} name={guest.name} brand={guest.brand} compact />
+          ))}
+        </div>
+      ) : null}
       {location ? (
         <>
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

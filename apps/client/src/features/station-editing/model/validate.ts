@@ -4,6 +4,7 @@ import type { Band, Operator, StationIdentifierKind } from "@openbts/shared/cont
 
 import { countCellEntries } from "./bodies";
 import { getAreaValue, getRowKind, normalizeText } from "./changes";
+import { EXTRA_PLMN_LIMITS, listNetworkOptions } from "./networks";
 import {
   CELL_FLAG_LABELS,
   CELL_NUMBER_LABELS,
@@ -43,6 +44,7 @@ type ValidationContext = {
   bandsById: ReadonlyMap<number, Band>;
   bandPlanIds: ReadonlySet<number> | null;
   countryFeatures: { psc: boolean; bsic: boolean } | null;
+  countryOperators: readonly Operator[];
 };
 
 type UploadFile = {
@@ -277,6 +279,19 @@ function validateBand(context: ValidationContext, cell: CellDraft): EditError[] 
   return errors;
 }
 
+function validateNetworks(context: ValidationContext, cell: CellDraft): EditError[] {
+  if (cell.extraPlmns.length === 0) return [];
+
+  const target = cellTarget(cell, "extraPlmns");
+  const max = EXTRA_PLMN_LIMITS[cell.rat];
+  if (cell.extraPlmns.length > max) return [toError(target, "stations:edit.errors.tooManyNetworks", { rat: RAT_FIELDS[cell.rat].name, max })];
+  if (context.countryCode === null) return [];
+
+  const countryCodes = new Set(listNetworkOptions(context.countryOperators).map((option) => option.code));
+  const foreign = cell.extraPlmns.find((code) => !countryCodes.has(code));
+  return foreign === undefined ? [] : [toError(target, "stations:edit.errors.networkOtherCountry", { code: foreign })];
+}
+
 function getIdentityNode(session: EditSession, cell: CellDraft): number | null {
   if (cell.rat === "gsm") return getAreaValue(session.draft, cell);
 
@@ -367,6 +382,7 @@ function validateRat(session: EditSession, context: ValidationContext, rat: Rat)
       ...validateRequiredIds(session, cell),
       ...validateNumbers(session, context, cell),
       ...validateBand(context, cell),
+      ...validateNetworks(context, cell),
     ]),
     ...validateDuplicates(session, rat, cells, written),
   ];

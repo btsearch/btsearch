@@ -42,14 +42,14 @@ describe("toCell", () => {
     const gsm = cellRows("GSM");
     const umts = cellRows("UMTS");
 
-    expect(toCell(gsm, undefined, false, features)).toMatchObject({ rat: "gsm", lac: 1, cid: 2, bsic: features.bsic ? 0 : null });
-    expect(toCell(umts, undefined, false, features)).toMatchObject({ rat: "umts", lac: 1, rnc: 3, cid: 2, psc: features.psc ? 0 : null });
+    expect(toCell(gsm, undefined, false, features, [])).toMatchObject({ rat: "gsm", lac: 1, cid: 2, bsic: features.bsic ? 0 : null });
+    expect(toCell(umts, undefined, false, features, [])).toMatchObject({ rat: "umts", lac: 1, rnc: 3, cid: 2, psc: features.psc ? 0 : null });
     expect(gsm.gsm?.bsic).toBe(0);
     expect(umts.umts?.psc).toBe(0);
   });
 
   it("omits a cell without its RAT details", () => {
-    expect(toCell({ ...cellRows("GSM"), gsm: null }, undefined, false, featureCases[3])).toBeNull();
+    expect(toCell({ ...cellRows("GSM"), gsm: null }, undefined, false, featureCases[3], [])).toBeNull();
   });
 });
 

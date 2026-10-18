@@ -21,6 +21,8 @@ import type { LocationRecord } from "@/features/station-details/station/types";
 import { sortLocationStations } from "@/features/station-details/station/utils/stations";
 import type { StationSource } from "@/types/station";
 
+export type MapStationGuest = { operatorId: number; name: string; code: string | null; brand: Brand | null; color: string };
+
 export type MapPointStation = {
   id: number;
   siteId: string;
@@ -29,6 +31,7 @@ export type MapPointStation = {
   operatorName: string | null;
   brand: Brand | null;
   color: string;
+  guests: readonly MapStationGuest[];
   status: StationStatus | null;
   statusChangedAt: string | null;
   hostStationId: number | null;
@@ -60,6 +63,7 @@ export type MapPointStationSeed = {
   siteId: string;
   operatorId: number | null;
   operatorName?: string | null;
+  guestOperatorIds?: readonly number[];
   status?: StationStatus | null;
   statusChangedAt?: string | null;
   hostStationId?: number | null;
@@ -68,7 +72,10 @@ export type MapPointStationSeed = {
   officialSite?: OfficialSite | null;
 };
 
-type ListedStationRecord = Pick<LocationStation, "id" | "siteId" | "operatorId" | "status" | "statusChangedAt" | "hostStationId" | "identifiers"> & {
+type ListedStationRecord = Pick<
+  LocationStation,
+  "id" | "siteId" | "operatorId" | "guestOperatorIds" | "status" | "statusChangedAt" | "hostStationId" | "identifiers"
+> & {
   sectors?: Sector[];
 };
 
@@ -83,6 +90,13 @@ function toMapAzimuth(registerAzimuth: number): number | null {
   return registerAzimuth === OMNIDIRECTIONAL_REGISTER_AZIMUTH ? null : registerAzimuth;
 }
 
+function listGuests(operatorIds: readonly number[], lookups: MapLookups): MapStationGuest[] {
+  return operatorIds.flatMap((operatorId) => {
+    const { operator, brand, color } = getOperatorLook(lookups, operatorId);
+    return operator === null ? [] : [{ operatorId, name: operator.name, code: operator.primaryPlmn, brand, color }];
+  });
+}
+
 export function createMapPointStation(seed: MapPointStationSeed, lookups: MapLookups): MapPointStation {
   const operatorLook = getOperatorLook(lookups, seed.operatorId);
 
@@ -94,6 +108,7 @@ export function createMapPointStation(seed: MapPointStationSeed, lookups: MapLoo
     operatorName: operatorLook.operator?.name ?? seed.operatorName ?? null,
     brand: operatorLook.brand,
     color: operatorLook.color,
+    guests: listGuests(seed.guestOperatorIds ?? [], lookups),
     status: seed.status ?? null,
     statusChangedAt: seed.statusChangedAt ?? null,
     hostStationId: seed.hostStationId ?? null,
@@ -122,6 +137,7 @@ function toMapPointStation(station: ListedStationRecord, lookups: MapLookups, fa
       siteId: station.siteId,
       operatorId: station.operatorId,
       operatorName: fallbackOperatorName,
+      guestOperatorIds: station.guestOperatorIds,
       status: station.status,
       statusChangedAt: station.statusChangedAt,
       hostStationId: station.hostStationId,

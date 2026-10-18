@@ -1,4 +1,5 @@
 import type { Band, Operator, Region } from "../types";
+import { indexNetworkNames } from "@/features/shared/operatorMarks";
 
 type NamedRecord = { id: number; name: string };
 
@@ -6,6 +7,7 @@ export type HistoryNames = {
   operators: ReadonlyMap<number, string>;
   bands: ReadonlyMap<number, string>;
   regions: ReadonlyMap<number, string>;
+  networks: ReadonlyMap<string, string>;
 };
 
 const UNRESOLVED_ID_PREFIX = "#";
@@ -21,7 +23,7 @@ export function indexHistoryNames(
   bands: readonly Band[] | undefined,
   regions: readonly Region[] | undefined,
 ): HistoryNames {
-  return { operators: indexNames(operators), bands: indexNames(bands), regions: indexNames(regions) };
+  return { operators: indexNames(operators), bands: indexNames(bands), regions: indexNames(regions), networks: indexNetworkNames(operators) };
 }
 
 export function formatUnresolvedId(id: number): string {

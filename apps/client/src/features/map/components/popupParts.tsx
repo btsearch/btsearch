@@ -5,9 +5,11 @@ import { type ComponentProps, type ReactNode, Suspense, lazy, useEffect, useRef,
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import type { MapStationGuest } from "../data/mapPoints";
 import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StationGuestMarks } from "@/features/shared/operatorMarks";
 import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useGpsFormat } from "@/hooks/usePreferences";
@@ -180,6 +182,22 @@ type PopupBrandMarkProps = {
 
 export function PopupBrandMark({ brand, color }: PopupBrandMarkProps) {
   return <BrandMark brand={{ color, logo: brand?.logo ?? null }} size={POPUP_MARK_SIZE} />;
+}
+
+type PopupGuestMarksProps = {
+  guests: readonly MapStationGuest[];
+  isStatic?: boolean;
+};
+
+export function PopupGuestMarks({ guests, isStatic = false }: PopupGuestMarksProps) {
+  const marks = guests.map((guest) => ({
+    key: String(guest.operatorId),
+    name: guest.name,
+    code: guest.code,
+    brand: { color: guest.color, logo: guest.brand?.logo ?? null },
+  }));
+
+  return <StationGuestMarks marks={marks} size={POPUP_MARK_SIZE} isNested isStatic={isStatic} />;
 }
 
 type PopupRowProps = {

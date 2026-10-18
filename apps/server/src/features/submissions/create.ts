@@ -17,7 +17,17 @@ import { ErrorResponse } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import type { DbTx } from "../../types/global.js";
 import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import { type CellIdentityDuplicateSource, checkOwnerCellDuplicates, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import {
+  type NetworkOwner,
+  assertCodesKnown,
+  extraCodesFromSent,
+  loadExtraCodes,
+  loadKnownPlmns,
+  loadNetworkOwner,
+  loadStationNetworkOwner,
+  withoutOwnerCode,
+} from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { assertCellUpdateFitsStoredRat, refuseNsaFields } from "../cells/ratCellSchemas.js";
 import type { StationStatus } from "../stations/status.js";
@@ -148,6 +158,87 @@ export async function assertTargetCellsFit(
   }
 }
 
+export async function resolveCellExtras(
+  cells: readonly Pick<ChangeCell, "operation" | "plmns" | "target_cell_id" | "rat" | "destination_station_id">[],
+  owner: NetworkOwner,
+): Promise<(string[] | undefined)[]> {
+  const sentCodes = unique(cells.flatMap((cell) => (cell.operation === "delete" ? [] : (cell.plmns ?? []))));
+  const keptCellIds = cells.flatMap((cell) =>
+    cell.operation === "update" && !cell.plmns && typeof cell.target_cell_id === "number" ? [cell.target_cell_id] : [],
+  );
+  const [known, kept] = await Promise.all([loadKnownPlmns(db, sentCodes), loadExtraCodes(db, keptCellIds)]);
+
+  return Promise.all(
+    cells.map(async (cell) => {
+      if (cell.operation === "delete") return undefined;
+      const destinationId = cell.destination_station_id;
+      if (cell.plmns) {
+        const cellOwner = destinationId === undefined ? owner : await loadStationNetworkOwner(db, destinationId);
+        return extraCodesFromSent(cell.rat, cell.plmns, cellOwner, known);
+      }
+
+      const keptCodes = typeof cell.target_cell_id === "number" ? (kept.get(cell.target_cell_id) ?? []) : [];
+      if (destinationId === undefined || keptCodes.length === 0) return keptCodes;
+      const destinationOwner = await loadStationNetworkOwner(db, destinationId);
+      assertCodesKnown(keptCodes, destinationOwner, await loadKnownPlmns(db, keptCodes));
+      return withoutOwnerCode(keptCodes, destinationOwner);
+    }),
+  );
+}
+
+export function getCellDuplicateEntries(
+  cells: readonly Pick<ChangeCell, "details" | "operation" | "rat" | "target_cell_id" | "destination_station_id">[],
+  cellExtras: readonly (string[] | undefined)[],
+): CellIdentityDuplicateSource[] {
+  return cells.flatMap((cell, index) => {
+    if (!cell.details || cell.operation === "delete" || cell.destination_station_id !== undefined) return [];
+    return [
+      {
+        rat: cell.rat!,
+        details: cell.details as Record<string, unknown>,
+        excludeCellId: cell.target_cell_id ?? undefined,
+        extraCodes: cellExtras[index],
+      },
+    ];
+  });
+}
+
+async function checkStationCellsUnderOwner(stationId: number, owner: NetworkOwner, changedCells: readonly ChangeCell[]): Promise<void> {
+  const changedIds = new Set(changedCells.map((cell) => cell.target_cell_id));
+  const storedCells = await db.query.cells.findMany({ where: { station_id: stationId }, with: { gsm: true, umts: true, lte: true, nr: true } });
+  const stationCells = storedCells.filter((cell) => !changedIds.has(cell.id));
+  if (stationCells.length === 0) return;
+
+  const stationCellIds = stationCells.map((cell) => cell.id);
+  const kept = await loadExtraCodes(db, stationCellIds);
+  const entries: CellIdentityDuplicateSource[] = stationCells.map((cell) => ({
+    rat: cell.rat,
+    details: cell.gsm ?? cell.umts ?? cell.lte ?? cell.nr,
+    excludeCellId: cell.id,
+    extraCodes: kept.get(cell.id) ?? [],
+  }));
+  await checkOwnerCellDuplicates(entries, owner, stationCellIds);
+}
+
+export async function loadSubmissionOwner(
+  tx: DbTx,
+  submissionId: string | null,
+  stationId: number | null,
+  operatorId: number | null | undefined,
+): Promise<NetworkOwner> {
+  if (typeof operatorId === "number") return loadNetworkOwner(tx, operatorId, null);
+
+  if (submissionId !== null) {
+    const [proposed] = await tx
+      .select({ operatorId: proposedStations.operator_id })
+      .from(proposedStations)
+      .where(eq(proposedStations.submission_id, submissionId))
+      .limit(1);
+    if (typeof proposed?.operatorId === "number") return loadNetworkOwner(tx, proposed.operatorId, null);
+  }
+  return stationId === null ? loadNetworkOwner(tx, null, null) : loadStationNetworkOwner(tx, stationId);
+}
+
 export function validateSubmission(input: SingleSubmission): Promise<void> {
   return validateChange(input, "review");
 }
@@ -238,7 +329,8 @@ export async function validateChange(input: SubmissionChange, handling: "review"
   if (type === "new" && existingLocation && existingLocation.stations && existingLocation.stations.length > 0)
     throw new ErrorResponse("BAD_REQUEST", { message: "The station is already registered at this location" });
 
-  const operatorId = type === "new" ? stationData?.operator_id : targetStation?.operator_id;
+  const operatorId = type === "new" ? stationData?.operator_id : (stationData?.operator_id ?? targetStation?.operator_id);
+  const changesOwner = type === "update" && typeof stationData?.operator_id === "number" && stationData.operator_id !== targetStation?.operator_id;
 
   const allModifiedCellIds = input.cells?.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined) ?? [];
   if (input.cells && input.cells.length > 0) {
@@ -277,11 +369,13 @@ export async function validateChange(input: SubmissionChange, handling: "review"
       throw new ErrorResponse("BAD_REQUEST", { message: "One or more location_photo_ids_to_remove are not assigned to this station" });
   }
 
-  if (operatorId && input.cells && input.cells.length > 0) {
-    const dupEntries = input.cells
-      .filter((cell) => cell.details && cell.operation !== "delete" && cell.destination_station_id === undefined)
-      .map((cell) => ({ rat: cell.rat!, details: cell.details as Record<string, unknown>, excludeCellId: cell.target_cell_id ?? undefined }));
-    if (dupEntries.length > 0) await checkCellDuplicatesBatch(dupEntries, operatorId, allModifiedCellIds);
+  const changedCells = input.cells ?? [];
+  if (changedCells.length > 0 || changesOwner) {
+    const owner = await loadNetworkOwner(db, operatorId ?? null, input.placement_country_code ?? null);
+    const cellExtras = await resolveCellExtras(changedCells, owner);
+    const dupEntries = operatorId ? getCellDuplicateEntries(changedCells, cellExtras) : [];
+    if (dupEntries.length > 0) await checkOwnerCellDuplicates(dupEntries, owner, allModifiedCellIds);
+    if (changesOwner && stationId !== null) await checkStationCellsUnderOwner(stationId, owner, changedCells);
   }
 
   if (stationId !== null && input.cells && input.cells.length > 0) {
@@ -399,6 +493,9 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
 
   await insertPhotoPicks(tx, submission.id, input);
 
+  const cellOwner = proposedCellsInput?.some((cell) => cell.plmns)
+    ? await loadSubmissionOwner(tx, null, station_id ?? null, stationData?.operator_id)
+    : null;
   if (proposedCellsInput && proposedCellsInput.length > 0) {
     /* eslint-disable no-await-in-loop */
     for (const cell of proposedCellsInput) {
@@ -416,6 +513,7 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
             rat: cell.rat ?? null,
             type: cell.type ?? null,
             notes: cell.notes ?? null,
+            ...(cell.plmns && cellOwner ? { plmns: withoutOwnerCode(cell.plmns, cellOwner) } : {}),
             is_confirmed: false,
             operation: cell.operation ?? "add",
           })

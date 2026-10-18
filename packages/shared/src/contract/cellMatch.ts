@@ -19,13 +19,23 @@ export type CellMatchInclude = (typeof CELL_MATCH_INCLUDES)[number];
 export const CELL_DIFFERENCE_FIELDS = ["lac", "rnc", "uarfcn", "tac", "pci", "earfcn", "arfcn", "psc", "bsic"] as const;
 export type CellDifferenceField = (typeof CELL_DIFFERENCE_FIELDS)[number];
 
+export const CELL_NETWORK_MATCHES = ["own", "partner", "extraCode", "missingCode"] as const;
+export type CellNetworkMatch = (typeof CELL_NETWORK_MATCHES)[number];
+
 const MATCH_NOTE =
   "`cell`: a stored cell has these identifiers. " +
   "`cellByLac`: UMTS only, a stored cell has this LAC and CID, but the RNC in the log is missing or different. " +
   "`station`: LTE and NR only, the base station is known by its eNBID or gNBID, but this cell is not stored. `none`: nothing was found";
 const DIFFERENCES_NOTE =
   "The values from the log that are missing from the stored cell or differ from it. " +
-  "`psc` and `bsic` are only compared while the site has them enabled";
+  "`psc` and `bsic` are only compared while the site has them enabled. " +
+  "`network` holds the network code a `missingCode` cell is not recorded as broadcasting. " +
+  "A cell found through `extraCode` gets no `tac` or `lac` difference, since each network may use its own";
+const NETWORK_MATCH_NOTE =
+  "How the station relates to the network in the log. `own`: it belongs to that network's operator. " +
+  "`partner`: it belongs to a partner in a shared network. `extraCode`: the cell broadcasts the network's code besides the owner's. " +
+  "`missingCode`: a cell of another operator in the same country has the same identifiers, PCI and channel, but is not recorded as broadcasting the code. " +
+  "`null` if `match` is `none`";
 
 const PLMN_NOTE = "The code of the network the cell belongs to: the MCC followed by the MNC";
 
@@ -107,11 +117,21 @@ export type CellMatchBody = z.infer<typeof cellMatchBodySchema>;
 export const cellMatchQuerySchema = z.object({ include: csvEnumSchema(CELL_MATCH_INCLUDES).optional() }).strict();
 export type CellMatchQuery = z.infer<typeof cellMatchQuerySchema>;
 
-export const cellDifferenceSchema = z.object({
+const numberDifferenceSchema = z.object({
   field: z.enum(CELL_DIFFERENCE_FIELDS),
   observed: z.number().int(),
   stored: z.number().int().nullable(),
 });
+export type NumberCellDifference = z.infer<typeof numberDifferenceSchema>;
+
+const networkDifferenceSchema = z.object({
+  field: z.literal("network"),
+  observed: z.string().describe("The network code from the log"),
+  stored: z.null(),
+});
+export type NetworkCellDifference = z.infer<typeof networkDifferenceSchema>;
+
+export const cellDifferenceSchema = z.union([numberDifferenceSchema, networkDifferenceSchema]);
 export type CellDifference = z.infer<typeof cellDifferenceSchema>;
 
 export const nrIdentitySchema = z.object({
@@ -127,6 +147,7 @@ export const cellMatchResultSchema = z.object({
   stationId: z.number().int().nullable().describe("The station the cell or its base station was found on. `null` if `match` is `none`"),
   cellId: z.number().int().nullable().describe("`null` if `match` is `station` or `none`"),
   isShared: z.boolean().describe("Whether the station belongs to a partner in a shared network rather than to the operator in the log"),
+  networkMatch: z.enum(CELL_NETWORK_MATCHES).nullable().describe(NETWORK_MATCH_NOTE),
   differences: z.array(cellDifferenceSchema).describe(DIFFERENCES_NOTE),
   nrIdentity: nrIdentitySchema.nullable().describe("NR only. The gNBID and cell id used to look up the cell"),
   officialSiteIds: z

@@ -76,6 +76,7 @@ export function proposedCell(overrides: Partial<ProposedCellView["cell"]> = {}):
       rat: "GSM",
       type: "MACROCELL",
       notes: "Draft note",
+      plmns: null,
       is_confirmed: false,
       createdAt: proposalDate,
       updatedAt: proposalDate,

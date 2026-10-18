@@ -21,7 +21,7 @@ import { type PhotoPicks, buildSubmissionCreate, buildSubmissionUpdate, isSamePi
 import { buildPhotoChanges, normalizeText } from "@/features/station-editing/model/changes";
 import type { SessionInput } from "@/features/station-editing/model/draftReducer";
 import { isServerRefusal, toEditErrors } from "@/features/station-editing/model/serverRefusals";
-import { toProposedSnapshot, toStationSnapshot } from "@/features/station-editing/model/snapshots";
+import { findDraftOwnerPlmn, toProposedSnapshot, toStationSnapshot } from "@/features/station-editing/model/snapshots";
 import type { BuiltBody, EditError, StationSnapshot } from "@/features/station-editing/model/types";
 import { NO_EDIT_ERRORS, listShownErrors, validateSubmissionExtras } from "@/features/station-editing/model/validate";
 import { type AuditOperationHandle, createAuditOperationHandle, showApiError } from "@/lib/api";
@@ -209,13 +209,17 @@ export function useSubmissionForm(seed: SubmissionSeed) {
       ? NO_UPLOADS
       : { files: photoDraft.photos, notes: photoDraft.notes, takenAts: photoDraft.takenAts, mainIndex: photoDraft.mainUploadPhotoIndex };
 
+    const ownerPlmn = findDraftOwnerPlmn(session.draft, edit.lookups.operatorsById);
     if (stored !== null) {
-      const built = buildSubmissionUpdate(session, { note: { value: note, stored: stored.note }, picks: { value: picks, stored: storedPicks } });
+      const built = buildSubmissionUpdate(session, ownerPlmn, {
+        note: { value: note, stored: stored.note },
+        picks: { value: picks, stored: storedPicks },
+      });
       if (built.body === null && uploads.files.length === 0) return null;
       return { kind: "update", submissionId: stored.id, built, uploads, messages };
     }
 
-    const built = buildSubmissionCreate(session, { stationId: seed.station?.id ?? null, note, uploadCount: uploads.files.length, picks });
+    const built = buildSubmissionCreate(session, ownerPlmn, { stationId: seed.station?.id ?? null, note, uploadCount: uploads.files.length, picks });
     return built.body === null ? null : { kind: "create", built, items: built.body, uploads, messages };
   }
 

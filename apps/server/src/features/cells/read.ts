@@ -5,11 +5,13 @@ import { type SQL, eq, gte, inArray, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
+import { unique } from "../../lib/collections.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
-import { operatedBy } from "../operators/sharing.js";
+import { broadcastsFor, operatedBy } from "../operators/sharing.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, DATABASE_RATS, DATABASE_STATUSES, type StationRow, toCell } from "../stations/serialize.js";
+import { cellNetworkCodes, extraCodesByCell, loadCellExtras, loadOwnerCodes } from "./networks.js";
 
 export type ListedCellRows = CellRows & { station: StationRow };
 
@@ -37,7 +39,9 @@ export function cellFilterConditions(query: CellListQuery, hiddenCountryCodes: r
   const bandMatch = bandCondition(cells.band_id, splitBandFilter(query.bandIds));
 
   if (query.stationIds) conditions.push(inArray(cells.station_id, query.stationIds));
-  if (query.operatorIds) conditions.push(operatedBy(stations.operator_id, query.operatorIds));
+  if (query.operatorIds) {
+    conditions.push(sql`(${operatedBy(stations.operator_id, query.operatorIds)} OR ${broadcastsFor(cells.id, query.operatorIds)})`);
+  }
   if (bandMatch) conditions.push(bandMatch);
   if (query.createdAfter) conditions.push(gte(cells.createdAt, new Date(query.createdAfter)));
   if (query.updatedAfter) conditions.push(gte(cells.updatedAt, new Date(query.updatedAfter)));
@@ -70,12 +74,16 @@ export async function serializeCells(rows: readonly ListedCellRows[], include: r
   if (rows.length === 0) return [];
 
   const stationRows = include.includes("station") ? [...new Map(rows.map((row) => [row.station.id, row.station])).values()] : [];
-  const [bandRows, listedStations, featuresByStation] = await Promise.all([
+  const stationIds = unique(rows.map((row) => row.cell.station_id));
+  const [bandRows, listedStations, featuresByStation, cellExtras, ownerCodes] = await Promise.all([
     db.select().from(bands),
     serializeStations(stationRows),
-    getStationCountryFeatures(rows.map((row) => row.cell.station_id)),
+    getStationCountryFeatures(stationIds),
+    loadCellExtras(stationIds),
+    loadOwnerCodes(stationIds),
   ]);
   const bandsById = new Map(bandRows.map((row) => [row.id, row]));
+  const extraCodes = extraCodesByCell(cellExtras);
   const stationsById = new Map(listedStations.map((station) => [station.id, station]));
 
   return rows.flatMap((row) => {
@@ -84,6 +92,7 @@ export async function serializeCells(rows: readonly ListedCellRows[], include: r
       bandsById.get(row.cell.band_id),
       include.includes("band"),
       featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures,
+      cellNetworkCodes(ownerCodes.get(row.cell.station_id), extraCodes.get(row.cell.id)),
     );
     if (cell === null) return [];
 

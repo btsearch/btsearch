@@ -10,7 +10,7 @@ type ColumnBase = {
 
 export type CellColumn = ColumnBase &
   (
-    | { kind: "band" | "sector" | "mode" | "gnbidLength" | "cellType" | "confirmed" }
+    | { kind: "band" | "sector" | "mode" | "gnbidLength" | "cellType" | "networks" | "confirmed" }
     | { kind: "number"; spec: NumberFieldSpec }
     | { kind: "computed"; spec: ComputedIdSpec }
     | { kind: "flag"; spec: FlagFieldSpec }
@@ -21,6 +21,7 @@ type CellGridOptions = {
   hasConfirmedColumn: boolean;
   hasStandaloneCells: boolean;
   isAreaCodePerCell: boolean;
+  hasNetworksColumn?: boolean;
   switches: Record<SiteSwitch, boolean>;
 };
 
@@ -34,6 +35,7 @@ const BAND_WIDTH = 92;
 const SECTOR_WIDTH = 66;
 const MODE_WIDTH = 62;
 const CELL_TYPE_WIDTH = 74;
+const NETWORKS_WIDTH = 96;
 const CONFIRMED_WIDTH = 26;
 const DEFAULT_NUMBER_WIDTH = 62;
 const NOTE_ICON_WIDTH = 28;
@@ -110,6 +112,13 @@ const CELL_TYPE_COLUMN: CellColumn = {
   label: { key: "stations:edit.cells.columns.cellType" },
   hint: null,
 };
+const NETWORKS_COLUMN: CellColumn = {
+  kind: "networks",
+  id: "extraPlmns",
+  width: NETWORKS_WIDTH,
+  label: { key: "stations:edit.cells.columns.networks" },
+  hint: { key: "stations:edit.cells.hints.networks" },
+};
 const CONFIRMED_COLUMN: CellColumn = {
   kind: "confirmed",
   id: "isConfirmed",
@@ -154,13 +163,16 @@ function buildCellColumns(options: CellGridOptions): CellColumn[] {
 
   if (hasMode) columns.push(MODE_COLUMN);
   columns.push(...listNumberColumns(options), ...flagColumns, CELL_TYPE_COLUMN);
+  if (options.hasNetworksColumn === true) columns.push(NETWORKS_COLUMN);
   if (options.hasConfirmedColumn) columns.push(CONFIRMED_COLUMN);
   return columns;
 }
 
 export function listCellColumns(options: CellGridOptions): readonly CellColumn[] {
-  const { rat, hasConfirmedColumn, hasStandaloneCells, isAreaCodePerCell, switches } = options;
-  const cacheKey = [rat, hasConfirmedColumn, hasStandaloneCells, isAreaCodePerCell, switches.psc, switches.bsic].join(CACHE_KEY_SEPARATOR);
+  const { rat, hasConfirmedColumn, hasStandaloneCells, isAreaCodePerCell, hasNetworksColumn = false, switches } = options;
+  const cacheKey = [rat, hasConfirmedColumn, hasStandaloneCells, isAreaCodePerCell, hasNetworksColumn, switches.psc, switches.bsic].join(
+    CACHE_KEY_SEPARATOR,
+  );
   const known = columnsByOptions.get(cacheKey);
   if (known !== undefined) return known;
 

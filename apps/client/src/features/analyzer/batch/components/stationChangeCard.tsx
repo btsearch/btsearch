@@ -14,6 +14,7 @@ import { PhoneChangeRow } from "./phoneChangeRow";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { getNetworkName } from "@/features/shared/operatorMarks";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import type { CellTexts } from "@/features/station-editing/components/cells/cellTexts";
@@ -260,6 +261,7 @@ function StationChangeCardInner({ view, reference, refusals, texts, isStaff, isP
                   spreadCount={spread !== null && spread.firstRowIndex === row.index ? spreadCount : null}
                   isBandMissing={isBandMissing(row)}
                   refusals={stationRefusals.filter((refusal) => refusal.rowIndexes.includes(row.index))}
+                  networkName={row.network === undefined ? null : getNetworkName(row.network.code, reference.operators)}
                   onChange={onChange}
                 />
               );
