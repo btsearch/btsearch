@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { RanSharingLink } from "../../../components/ranSharingLink";
+import { RanSharingLink } from "../../../components/sharingLinks";
 import type { Brand, LocationStationRecord } from "../../types";
 import { HostStationLink } from "./hostStationLink";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";

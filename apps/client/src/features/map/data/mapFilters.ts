@@ -1,11 +1,18 @@
-import { type Country, OFFICIAL_RAT_FILTERS, type OfficialLayer, type OfficialRatFilter, type Operator } from "@openbts/shared/contract";
+import {
+  type BackhaulMedium,
+  type Country,
+  OFFICIAL_RAT_FILTERS,
+  type OfficialLayer,
+  type OfficialRatFilter,
+  type Operator,
+} from "@openbts/shared/contract";
 
 import { RAT_OPTIONS } from "../constants";
 import { type OfficialLabelParts, listOfficialRatOptions, toOfficialRatOption } from "@/features/official/labels";
 import type { RatOption } from "@/features/shared/rat";
 import { isCountryCode, isRecordId } from "@/lib/apiValues";
-import { isUplinkType } from "@/lib/format/uplink";
-import type { StationSource, StationStatus, UplinkType } from "@/types/station";
+import { isBackhaulMedium } from "@/lib/format/backhaul";
+import type { StationSource, StationStatus } from "@/types/station";
 
 export type MapRecentDateField = "createdAt" | "updatedAt";
 
@@ -27,7 +34,7 @@ export type MapFilters = {
   radiolineOperators: number[];
   showHeatmap: boolean;
   showPlannedMeasurements: boolean;
-  uplinkTypes: UplinkType[];
+  uplinkTypes: BackhaulMedium[];
 };
 
 export type MapFiltersUpdater = (filters: MapFilters) => MapFilters;
@@ -153,7 +160,7 @@ export function readStoredMapFilters(stored: Record<string, unknown>): MapFilter
     radiolineOperators: readNumbers(stored.radiolineOperators),
     showHeatmap: stored.showHeatmap === true,
     showPlannedMeasurements: stored.showPlannedMeasurements === true,
-    uplinkTypes: readStrings(stored.uplinkTypes).filter(isUplinkType),
+    uplinkTypes: readStrings(stored.uplinkTypes).filter(isBackhaulMedium),
   });
 }
 

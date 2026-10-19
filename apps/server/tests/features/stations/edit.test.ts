@@ -33,7 +33,7 @@ function scriptOperator({ id, countryCode, mnc, networkMnc }: TestOperator): voi
 function scriptStoredStation(operator: TestOperator): void {
   dbMock.query.stations.findFirst.mockResolvedValue({ ...stationRow({ operator_id: operator.id }), location: null, sectors: [] });
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
 }
 
 async function editIdentifiers(operator: TestOperator, kinds: readonly StationIdentifierKind[]) {

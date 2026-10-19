@@ -30,6 +30,7 @@ import {
   groupFiltersByTable,
   parseFilterQuery,
 } from "../../../../features/search/filters.js";
+import { parseBackhaulMediumsParam } from "../../../../features/stations/backhaul.js";
 import {
   buildSectorFilterCondition,
   buildStationFilterConditions,
@@ -37,7 +38,6 @@ import {
   resolveStationFilter,
 } from "../../../../features/stations/filter.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../features/stations/status.js";
-import { parseUplinkTypesParam } from "../../../../features/stations/uplink.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -125,7 +125,7 @@ const schemaRoute = {
       .string()
       .regex(/^(?:fiber|microwave|satellite)(?:,(?:fiber|microwave|satellite))*$/)
       .optional()
-      .transform(parseUplinkTypesParam),
+      .transform(parseBackhaulMediumsParam),
   }),
   response: {
     200: z.object({

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPickerUserHandle, getPickerUserName, toPickerAvatarUser } from "@/features/admin/users/picker/pickerUser";
 import { UserLink } from "@/features/user-profile/components/userLink";
-import { UPLINK_APPEARANCE } from "@/lib/format/uplink";
+import { BACKHAUL_APPEARANCE } from "@/lib/format/backhaul";
 import { cn } from "@/lib/utils";
 
 type ListOwnerRef = List["owner"];
@@ -126,7 +126,7 @@ export function ListCounts({ list }: { list: List }) {
       </span>
       {microwaveLinks > 0 ? (
         <span className="inline-flex items-center gap-1">
-          <HugeiconsIcon icon={UPLINK_APPEARANCE.microwave.icon} aria-hidden="true" className="size-3.5" />
+          <HugeiconsIcon icon={BACKHAUL_APPEARANCE.microwave.icon} aria-hidden="true" className="size-3.5" />
           {t("lists:radiolineCount", { count: microwaveLinks })}
         </span>
       ) : null}

@@ -113,7 +113,7 @@ export function prepareCellChange(
   if (options.countryCode) dbMock.enqueueFor("select", "country_bands", []);
   dbMock.query.stations.findFirst.mockResolvedValue(station);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
   dbMock.enqueueFor("select", "stations", []);
   dbMock.enqueueFor("select", "station_watches", []);
   dbMock.enqueueFor("select", "user_lists", []);

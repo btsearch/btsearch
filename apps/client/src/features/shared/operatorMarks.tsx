@@ -1,10 +1,12 @@
 import type { Brand, Operator } from "@openbts/shared/contract";
-import { useTranslation } from "react-i18next";
+import type { ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { findOperator } from "./lookups";
 import { findOperatorForPlmn } from "./operatorBrands";
 import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { MocnLink } from "@/features/station-details/components/sharingLinks";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +15,7 @@ export type OperatorMark = { key: string; name: string; code: string | null; bra
 type OperatorMarksProps = {
   marks: readonly OperatorMark[];
   title: string;
-  description: string;
+  description: ReactNode;
   size?: number;
   isNested?: boolean;
   isStatic?: boolean;
@@ -126,7 +128,7 @@ export function StationGuestMarks({ marks, size, isNested, isStatic, className }
     <OperatorMarks
       marks={marks}
       title={t("sharedNetworks.stationTitle")}
-      description={t("sharedNetworks.stationHint")}
+      description={<Trans t={t} i18nKey="sharedNetworks.stationHint" components={{ mocnLink: <MocnLink /> }} />}
       size={size}
       isNested={isNested}
       isStatic={isStatic}

@@ -235,16 +235,16 @@
       "network_ids_create": "Network identifiers added",
       "network_ids_update": "Network identifiers updated",
       "network_ids_delete": "Network identifiers removed",
-      "uplink_create": "Uplink added",
-      "uplink_update": "Uplink updated",
-      "uplink_delete": "Uplink removed",
+      "backhaul_create": "Backhaul added",
+      "backhaul_update": "Backhaul updated",
+      "backhaul_delete": "Backhaul removed",
       "photos_create": "Photos added",
       "photos_update": "Photo selection updated",
       "photos_delete": "Photos removed"
     },
     "fields": {
       "mnoName": "MNO name",
-      "uplinkModel": "Microwave link model"
+      "backhaulModel": "Microwave link model"
     },
     "sources": {
       "import": "Import",

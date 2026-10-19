@@ -127,7 +127,7 @@
       "operatorRequired": "Operator: required",
       "networksIdInvalid": "N! ID: at most {{max}} digits and nothing else",
       "identifierTooLong": "Name: at most {{max}} characters",
-      "backhaulMediumRequired": "Uplink: pick a type before you enter a speed",
+      "backhaulMediumRequired": "Backhaul: pick a type before you enter a speed",
       "backhaulSpeedRange": "Speed: value from 1 to {{max}}",
       "backhaulModelTooLong": "Model: at most {{max}} characters",
       "coordinatesRequired": "Coordinates: required",

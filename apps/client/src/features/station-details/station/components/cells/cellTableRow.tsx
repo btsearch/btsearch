@@ -1,5 +1,6 @@
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
+import { MocnLink } from "../../../components/sharingLinks";
 import type { Cell } from "../../types";
 import { getCellChannel } from "../../utils/bands";
 import {
@@ -89,7 +90,7 @@ function NetworksCell({ cell, networks }: NetworksCellProps) {
         <OperatorMarks
           marks={marks}
           title={t("sharedNetworks.cellTitle")}
-          description={t("sharedNetworks.cellHint")}
+          description={<Trans t={t} i18nKey="sharedNetworks.cellHint" components={{ mocnLink: <MocnLink /> }} />}
           size={14}
           className="align-middle"
         />

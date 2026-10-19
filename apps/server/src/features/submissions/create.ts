@@ -31,8 +31,8 @@ import {
 } from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { assertCellUpdateFitsStoredRat, refuseNsaFields } from "../cells/ratCellSchemas.js";
+import { backhaulSpeedSchema } from "../stations/backhaul.js";
 import type { StationStatus } from "../stations/status.js";
-import { uplinkSpeedSchema } from "../stations/uplink.js";
 import {
   type ProposedLocationChanges,
   type ProposedStationChanges,
@@ -59,7 +59,7 @@ export const submissionsSelectSchema = createSelectSchema(submissions);
 export const submissionsInsertBase = createInsertSchema(submissions).omit({ createdAt: true, updatedAt: true, submitter_id: true });
 const proposedStationInsert = createInsertSchema(proposedStations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
-  .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
+  .extend({ uplink_speed: backhaulSpeedSchema.nullable().optional() })
   .strict();
 export const proposedLocationInsert = createInsertSchema(proposedLocations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
@@ -292,7 +292,7 @@ export async function validateChange(input: SubmissionChange, handling: "review"
   if (isNewStation && stationData && typeof stationData.operator_id !== "number")
     throw new ErrorResponse("BAD_REQUEST", { message: "operator_id is required for new stations" });
   if (isNewStation && stationData && !stationData.uplink_type && typeof stationData.uplink_speed === "number") {
-    throw new ErrorResponse("BAD_REQUEST", { message: "A new station's uplink speed needs an uplink type" });
+    throw new ErrorResponse("BAD_REQUEST", { message: "A new station's backhaul speed needs a backhaul type" });
   }
   if (isNewStation && locationData && !isCompleteLocation(locationData))
     throw new ErrorResponse("BAD_REQUEST", { message: "A region and coordinates are required for a new station's location" });
@@ -306,7 +306,7 @@ export async function validateChange(input: SubmissionChange, handling: "review"
   const stationId = station_id !== undefined ? Number(station_id) : null;
   if (stationId !== null && Number.isNaN(stationId)) throw new ErrorResponse("INVALID_QUERY");
 
-  const [targetStation, duplicateStation, existingLocation, targetExtraIdentifier, targetUplink] = await Promise.all([
+  const [targetStation, duplicateStation, existingLocation, targetExtraIdentifier, targetBackhaul] = await Promise.all([
     stationId !== null
       ? db.query.stations.findFirst({
           where: { id: stationId },
@@ -343,7 +343,7 @@ export async function validateChange(input: SubmissionChange, handling: "review"
       : null,
 
     type === "update" && stationId !== null ? db.query.extraIdentificators.findFirst({ where: { station_id: stationId } }) : null,
-    type === "update" && stationId !== null ? db.query.stationUplinks.findFirst({ where: { station_id: stationId } }) : null,
+    type === "update" && stationId !== null ? db.query.stationBackhauls.findFirst({ where: { station_id: stationId } }) : null,
   ]);
 
   if (stationId !== null && !targetStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found" });
@@ -423,7 +423,8 @@ export async function validateChange(input: SubmissionChange, handling: "review"
   }
 
   if (waitsForReview && type === "update" && targetStation) {
-    const hasStationChanges = !!stationData && stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null, targetUplink ?? null);
+    const hasStationChanges =
+      !!stationData && stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null, targetBackhaul ?? null);
 
     const currentLocation = targetStation.location;
     const hasLocationChanges = !!locationData && (!currentLocation || locationUpdateDiffers(locationData, currentLocation));

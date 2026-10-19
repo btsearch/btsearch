@@ -117,7 +117,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     visibleStation(current);
     dbMock.query.stations.findFirst.mockResolvedValue(current);
     dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
     dbMock.enqueueFor("select", "station_photo_selections", [], []);
     dbMock.enqueueFor("select", "stations", []);
@@ -194,7 +194,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     visibleStation(current);
     dbMock.query.stations.findFirst.mockResolvedValue(current);
     dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
     dbMock.enqueueFor("select", "station_photo_selections", [], []);
     dbMock.enqueueFor("update", "stations", [saved], []);

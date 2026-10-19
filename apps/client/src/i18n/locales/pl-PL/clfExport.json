@@ -62,7 +62,7 @@
       "city": "Miasto",
       "address": "Adres",
       "cell_type": "Rodzaj komórki",
-      "uplink": "Typ uplinku",
+      "uplink": "Typ łącza dosyłowego",
       "notes": "Notatki",
       "region": "Region",
       "station_id": "ID stacji",

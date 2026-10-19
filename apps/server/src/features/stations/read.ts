@@ -7,8 +7,8 @@ import {
   lteCells,
   nrCells,
   regions,
+  stationBackhauls,
   stationSectors,
-  stationUplinks,
   stations,
   structureOwners,
   umtsCells,
@@ -181,7 +181,7 @@ export function stationFilterConditions(
     nonIotRats: (query.rats ?? []).map((rat) => DATABASE_RATS[rat]),
     iotRequested: false,
     since: null,
-    uplinkTypes: query.backhaulMediums ?? [],
+    backhaulMediums: query.backhaulMediums ?? [],
   };
   const conditions = buildStationFilterConditions(stations, filter);
 
@@ -378,7 +378,7 @@ export async function serializeStations(
           .where(and(inArray(stationSectors.station_id, stationIds), sectorCondition))
           .orderBy(asc(stationSectors.id))
       : [],
-    wants("backhaul") ? db.select().from(stationUplinks).where(inArray(stationUplinks.station_id, stationIds)) : [],
+    wants("backhaul") ? db.select().from(stationBackhauls).where(inArray(stationBackhauls.station_id, stationIds)) : [],
     getStationCountryFeatures(wantsCells ? stationIds : []),
     loadCellExtras(stationIds),
     loadOwnerCodes(wantsCells ? stationIds : []),

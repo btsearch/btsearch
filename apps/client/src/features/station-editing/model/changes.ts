@@ -108,9 +108,9 @@ const STATUS_KEYS: Record<StationStatus, string> = {
   inactive: "stations:status.inactive",
 };
 export const BACKHAUL_MEDIUM_KEYS: Record<BackhaulMedium, string> = {
-  fiber: "common:labels.uplinkFiber",
-  microwave: "common:labels.uplinkMicrowave",
-  satellite: "common:labels.uplinkSatellite",
+  fiber: "common:labels.backhaulFiber",
+  microwave: "common:labels.backhaulMicrowave",
+  satellite: "common:labels.backhaulSatellite",
 };
 const CELL_TYPE_KEYS: Record<CellType, string> = {
   macro: "stations:cells.cellTypes.macrocell",
@@ -340,19 +340,19 @@ const STATION_SPECS: readonly FieldSpec<StationField>[] = [
   identifierSpec("networksName"),
   {
     field: "backhaulMedium",
-    label: () => ({ text: "Uplink" }),
+    label: () => ({ key: "common:labels.backhaul" }),
     read: (snapshot) => snapshot.station.backhaul.medium,
     describe: (snapshot) => describeMedium(snapshot.station.backhaul.medium),
   },
   {
     field: "backhaulSpeedMbps",
-    label: () => ({ key: "common:labels.uplinkSpeed" }),
+    label: () => ({ key: "common:labels.backhaulSpeed" }),
     read: (snapshot) => snapshot.station.backhaul.speedMbps,
     describe: (snapshot) => toNumberPart(snapshot.station.backhaul.speedMbps),
   },
   {
     field: "backhaulModel",
-    label: () => ({ key: "common:labels.uplinkModel" }),
+    label: () => ({ key: "common:labels.backhaulModel" }),
     read: (snapshot) => getBackhaulModel(snapshot.station),
     describe: (snapshot) => toTextPart(getBackhaulModel(snapshot.station)),
   },
@@ -543,10 +543,9 @@ function listChangedCellFields(
   baseCell: CellDraft,
   draft: StationSnapshot,
   base: StationSnapshot,
-  context: ChangeContext,
+  defaultGnbidLength: number,
 ): CellField[] {
   const spec = RAT_FIELDS[cell.rat];
-  const defaultGnbidLength = context.gnbidLength(draft.station.operatorId);
   const fields: CellField[] = [];
 
   if (cell.bandId !== baseCell.bandId) fields.push("bandId");
@@ -634,7 +633,7 @@ function listCellChanges(cell: CellDraft, draft: StationSnapshot, base: StationS
   if (cell.isDeleted) return baseCell.isDeleted ? [] : [toCellRowItem(cell, draft, context, "removed", "stations:edit.changes.cellRemoved")];
 
   const restored = baseCell.isDeleted ? [toCellRowItem(cell, draft, context, "added", "stations:edit.changes.cellRestored")] : [];
-  const fields = listChangedCellFields(cell, baseCell, draft, base, context);
+  const fields = listChangedCellFields(cell, baseCell, draft, base, context.gnbidLength(draft.station.operatorId));
   return [...restored, ...fields.map((field) => toCellFieldItem(cell, baseCell, field, draft, base, context))];
 }
 
@@ -708,13 +707,13 @@ export function listChanges(session: EditSession, context: ChangeContext): { cha
   return { changes: markCorrections(buildChanges(session.draft, base, context), corrections), corrections };
 }
 
-export function getRowKind(session: EditSession, cell: CellDraft): RowKind {
+export function getRowKind(session: EditSession, cell: CellDraft, defaultGnbidLength: number): RowKind {
   if (cell.isDeleted) return "deleted";
 
   const base = session.live ?? EMPTY_SNAPSHOT;
   const baseCell = findCell(base, cell.key);
   if (baseCell === undefined) return "new";
-  return listChangedCellFields(cell, baseCell, session.draft, base).length > 0 ? "changed" : "same";
+  return listChangedCellFields(cell, baseCell, session.draft, base, defaultGnbidLength).length > 0 ? "changed" : "same";
 }
 
 function toMarks(database: TextPart | null | undefined, submitted: TextPart | null | undefined): FieldMark[] {
@@ -730,9 +729,13 @@ function buildCellRowState(session: EditSession, context: ChangeContext, cell: C
   const proposedCell = proposed === null ? undefined : findCell(proposed, cell.key);
   const hasLiveCell = live !== null && liveCell !== undefined;
   const hasProposedCell = proposed !== null && proposedCell !== undefined;
-  const changed = hasLiveCell ? listChangedCellFields(cell, liveCell, draft, live) : [];
-  const corrected = hasProposedCell ? listChangedCellFields(cell, proposedCell, draft, proposed) : [];
-  const submitted = hasLiveCell && hasProposedCell ? listChangedCellFields(proposedCell, liveCell, proposed, live) : null;
+  const defaultGnbidLength = context.gnbidLength(draft.station.operatorId);
+  const changed = hasLiveCell ? listChangedCellFields(cell, liveCell, draft, live, defaultGnbidLength) : [];
+  const corrected = hasProposedCell ? listChangedCellFields(cell, proposedCell, draft, proposed, defaultGnbidLength) : [];
+  const submitted =
+    hasLiveCell && hasProposedCell
+      ? listChangedCellFields(proposedCell, liveCell, proposed, live, context.gnbidLength(proposed.station.operatorId))
+      : null;
   const fields: CellRowState["fields"] = {};
 
   for (const field of new Set([...changed, ...corrected])) {
@@ -743,7 +746,7 @@ function buildCellRowState(session: EditSession, context: ChangeContext, cell: C
     const isSentShown = sent !== null && (submitted === null || submitted.includes(field));
     fields[field] = { isChanged, isCorrected, marks: toMarks(old ?? undefined, isSentShown ? sent : undefined) };
   }
-  return { kind: getRowKind(session, cell), fields };
+  return { kind: getRowKind(session, cell, defaultGnbidLength), fields };
 }
 
 function isFreshRowState(
@@ -856,7 +859,7 @@ export function getFieldState(session: EditSession, context: ChangeContext, targ
   return fields[target.field] ?? UNCHANGED_FIELD;
 }
 
-export function countCells(session: EditSession): Record<Rat, RatCounters> {
+export function countCells(session: EditSession, defaultGnbidLength: number): Record<Rat, RatCounters> {
   const counters: Record<Rat, RatCounters> = {
     nr: { total: 0, added: 0, changed: 0, deleted: 0 },
     lte: { total: 0, added: 0, changed: 0, deleted: 0 },
@@ -866,7 +869,7 @@ export function countCells(session: EditSession): Record<Rat, RatCounters> {
 
   for (const cell of session.draft.cells) {
     const counter = counters[cell.rat];
-    const kind = getRowKind(session, cell);
+    const kind = getRowKind(session, cell, defaultGnbidLength);
     if (kind !== "deleted") counter.total += 1;
     if (kind === "new") counter.added += 1;
     if (kind === "changed") counter.changed += 1;

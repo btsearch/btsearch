@@ -96,7 +96,7 @@ export type ProposedStructureChange = StructureChange & Pick<ProposedLocationCha
 
 type CurrentStationForDiff = { station_id: string | null; operator_id: number | null; notes: string | null };
 type CurrentExtraIdentifierForDiff = { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
-type CurrentUplinkForDiff = { type: string; speed: number | null; model: string | null } | null;
+type CurrentBackhaulForDiff = { type: string; speed: number | null; model: string | null } | null;
 type CurrentLocationForDiff = StructureChange & {
   region_id: number;
   city: string | null;
@@ -147,7 +147,7 @@ export function diffProposedStation(
   stationData: ProposedStationChanges,
   currentStation: CurrentStationForDiff,
   currentExtraIdentifier: CurrentExtraIdentifierForDiff,
-  currentUplink: CurrentUplinkForDiff,
+  currentBackhaul: CurrentBackhaulForDiff,
 ): ProposedStationChanges {
   const changes: ProposedStationChanges = {};
   if (stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== currentStation.station_id)
@@ -162,11 +162,11 @@ export function diffProposedStation(
     changes.networks_name = normalizeText(stationData.networks_name);
   if (stationData.mno_name !== undefined && normalizeText(stationData.mno_name) !== normalizeText(currentExtraIdentifier?.mno_name))
     changes.mno_name = normalizeText(stationData.mno_name);
-  if (stationData.uplink_type !== undefined && stationData.uplink_type !== (currentUplink?.type ?? null))
+  if (stationData.uplink_type !== undefined && stationData.uplink_type !== (currentBackhaul?.type ?? null))
     changes.uplink_type = stationData.uplink_type;
-  if (stationData.uplink_speed !== undefined && stationData.uplink_speed !== (currentUplink?.speed ?? null))
+  if (stationData.uplink_speed !== undefined && stationData.uplink_speed !== (currentBackhaul?.speed ?? null))
     changes.uplink_speed = stationData.uplink_speed;
-  if (stationData.uplink_model !== undefined && normalizeText(stationData.uplink_model) !== normalizeText(currentUplink?.model))
+  if (stationData.uplink_model !== undefined && normalizeText(stationData.uplink_model) !== normalizeText(currentBackhaul?.model))
     changes.uplink_model = normalizeText(stationData.uplink_model);
   return changes;
 }
@@ -204,9 +204,9 @@ export function stationUpdateDiffers(
   stationData: ProposedStationChanges,
   currentStation: CurrentStationForDiff,
   currentExtraIdentifier: CurrentExtraIdentifierForDiff,
-  currentUplink: CurrentUplinkForDiff,
+  currentBackhaul: CurrentBackhaulForDiff,
 ): boolean {
-  return changedStationFields(diffProposedStation(stationData, currentStation, currentExtraIdentifier, currentUplink)).length > 0;
+  return changedStationFields(diffProposedStation(stationData, currentStation, currentExtraIdentifier, currentBackhaul)).length > 0;
 }
 
 export function locationUpdateDiffers(locationData: ProposedLocationChanges, currentLocation: CurrentLocationForDiff | null): boolean {
@@ -221,14 +221,14 @@ export async function stripUnchangedProposalData(
 ): Promise<{ stationData: ProposedStationChanges | undefined; locationData: ProposedLocationChanges | undefined }> {
   if (!stationData && !locationData) return { stationData, locationData };
 
-  const [targetStation, targetExtraIdentifier, targetUplink] = await Promise.all([
+  const [targetStation, targetExtraIdentifier, targetBackhaul] = await Promise.all([
     tx.query.stations.findFirst({ where: { id: targetStationId }, with: { location: true } }),
     tx.query.extraIdentificators.findFirst({ where: { station_id: targetStationId } }),
-    tx.query.stationUplinks.findFirst({ where: { station_id: targetStationId } }),
+    tx.query.stationBackhauls.findFirst({ where: { station_id: targetStationId } }),
   ]);
   if (!targetStation) return { stationData, locationData };
 
-  const stationChanges = stationData && diffProposedStation(stationData, targetStation, targetExtraIdentifier ?? null, targetUplink ?? null);
+  const stationChanges = stationData && diffProposedStation(stationData, targetStation, targetExtraIdentifier ?? null, targetBackhaul ?? null);
   const locationChanges = locationData && diffProposedLocation(locationData, targetStation.location);
 
   return {

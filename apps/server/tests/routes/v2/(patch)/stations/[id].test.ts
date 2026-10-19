@@ -13,7 +13,7 @@ function editableStation() {
   visibleStation(current);
   dbMock.query.stations.findFirst.mockResolvedValue(current);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
   return current;
 }
 
@@ -157,7 +157,7 @@ describe("PATCH /stations/:id", () => {
     visibleStation(current);
     dbMock.query.stations.findFirst.mockResolvedValue(current);
     dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
     dbMock.enqueueFor("select", "station_photo_selections", [], []);
     dbMock.enqueueFor("update", "stations", [], [{ ...current, status: "published" }]);

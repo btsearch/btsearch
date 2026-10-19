@@ -13,7 +13,7 @@ import {
 } from "../../data/stationsListFilters";
 import type { StationsListPanel } from "../../data/stationsListPanel";
 import { ListCountrySection, ListOperatorSection, ListRegionSection, ListStructureSection } from "./listPanelSections";
-import { BandSection, RecentDaysFilter, StandardSection, UplinkSection } from "@/features/map/components/search-overlay/mapFilterSections";
+import { BackhaulSection, BandSection, RecentDaysFilter, StandardSection } from "@/features/map/components/search-overlay/mapFilterSections";
 import { FacetPill, FilterPanelSection } from "@/features/shared/filterPanel";
 import { toV2StationStatus } from "@/features/station-details/station/utils/stations";
 import { StationStatusPills } from "@/features/stations/components/stationStatusFilter";
@@ -119,9 +119,9 @@ export function StationsStructureSection({ filters, onFiltersChange }: StationsL
   );
 }
 
-export function StationsUplinkSection({ panel, onFiltersChange }: StationsListSectionProps) {
+export function StationsBackhaulSection({ panel, onFiltersChange }: StationsListSectionProps) {
   return (
-    <UplinkSection filters={panel.mapFilters} onFiltersChange={(update) => onFiltersChange((current) => applyMapPanelChange(current, update))} />
+    <BackhaulSection filters={panel.mapFilters} onFiltersChange={(update) => onFiltersChange((current) => applyMapPanelChange(current, update))} />
   );
 }
 

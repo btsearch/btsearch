@@ -8,8 +8,8 @@ import { planLocationRevert } from "./locations.js";
 import { planPhotoSelectionRevert } from "./photoSelections.js";
 import { planReferenceRevert } from "./reference.js";
 import { planSectorRevert } from "./sectors.js";
+import { planStationBackhaulRevert } from "./stationBackhauls.js";
 import { planStationRevert } from "./stations.js";
-import { planStationUplinkRevert } from "./stationUplinks.js";
 
 export function strategyFor(entity: AuditEntity): RevertStrategy | null {
   switch (entity) {
@@ -26,7 +26,7 @@ export function strategyFor(entity: AuditEntity): RevertStrategy | null {
     case "extra_identificators":
       return planExtraIdentificatorRevert;
     case "station_uplinks":
-      return planStationUplinkRevert;
+      return planStationBackhaulRevert;
     case "station_photo_selections":
       return planPhotoSelectionRevert;
     case "operators":

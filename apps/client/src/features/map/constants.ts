@@ -1,6 +1,6 @@
 import type { SearchKeyword } from "@openbts/shared/contract";
 
-import type { FilterKeyword } from "./types";
+import type { FilterChoice, FilterKeyword } from "./types";
 import { RAT_ORDER } from "@/features/shared/rat";
 
 export { RAT_ORDER };
@@ -59,54 +59,96 @@ export const RAT_OPTIONS = [
 
 type KnownFilterKeyword = FilterKeyword & { key: `${SearchKeyword}:` };
 
-export const FILTER_KEYWORDS: KnownFilterKeyword[] = [
-  { key: "bts_id:", descriptionKey: "btsId", group: "common", availableOn: ["map", "stations"] },
-  { key: "mnc:", descriptionKey: "mnc", group: "common", availableOn: ["map"] },
-  { key: "plmn:", descriptionKey: "plmn", group: "common", availableOn: ["map"] },
-  { key: "city:", descriptionKey: "city", group: "common", availableOn: ["map", "stations"] },
-  { key: "address:", descriptionKey: "address", group: "common", availableOn: ["map", "stations"] },
-  { key: "rat:", descriptionKey: "rat", group: "common", availableOn: ["map"] },
-  { key: "band:", descriptionKey: "band", group: "common", availableOn: ["map"] },
-  { key: "status:", descriptionKey: "status", group: "common", availableOn: ["stations"] },
-  { key: "has_photo:", descriptionKey: "hasPhoto", group: "common", availableOn: ["map", "stations"] },
-  { key: "has_azimuth:", descriptionKey: "hasAzimuth", group: "common", availableOn: ["map", "stations"] },
-  { key: "uplink:", descriptionKey: "uplink", group: "common", availableOn: ["map", "stations"] },
-  { key: "gps:", descriptionKey: "gps", group: "location", availableOn: ["map", "stations"] },
-  { key: "country:", descriptionKey: "country", group: "location", availableOn: ["map"] },
-  { key: "region:", descriptionKey: "region", group: "location", availableOn: ["map"] },
-  { key: "duplex:", descriptionKey: "duplex", group: "cell", availableOn: ["map", "stations"] },
-  { key: "is_confirmed:", descriptionKey: "isConfirmed", group: "cell", availableOn: ["map", "stations"] },
-  { key: "cell_notes:", descriptionKey: "cellNotes", group: "cell", availableOn: ["map", "stations"] },
-  { key: "cell_type:", descriptionKey: "cellType", group: "cell", availableOn: ["map", "stations"] },
-  { key: "lac:", descriptionKey: "lac", group: "gsm", availableOn: ["map", "stations"] },
-  { key: "cid:", descriptionKey: "cid", group: "gsm", availableOn: ["map", "stations"] },
-  { key: "rnc:", descriptionKey: "rnc", group: "umts", availableOn: ["map", "stations"] },
-  { key: "umts_cid:", descriptionKey: "umtsCid", group: "umts", availableOn: ["map", "stations"] },
-  { key: "cid_long:", descriptionKey: "cidLong", group: "umts", availableOn: ["map", "stations"] },
-  { key: "umts_lac:", descriptionKey: "umtsLac", group: "umts", availableOn: ["map", "stations"] },
-  { key: "uarfcn:", descriptionKey: "uarfcn", group: "umts", availableOn: ["map", "stations"] },
-  { key: "enbid:", descriptionKey: "enbid", group: "lte", availableOn: ["map", "stations"] },
-  { key: "ecid:", descriptionKey: "ecid", group: "lte", availableOn: ["map", "stations"] },
-  { key: "lte_clid:", descriptionKey: "lteClid", group: "lte", availableOn: ["map", "stations"] },
-  { key: "tac:", descriptionKey: "tac", group: "lte", availableOn: ["map", "stations"] },
-  { key: "lte_pci:", descriptionKey: "ltePci", group: "lte", availableOn: ["map", "stations"] },
-  { key: "earfcn:", descriptionKey: "earfcn", group: "lte", availableOn: ["map", "stations"] },
-  { key: "supports_iot:", descriptionKey: "supportsIot", group: "lte", availableOn: ["map", "stations"] },
-  { key: "gnbid:", descriptionKey: "gnbid", group: "nr", availableOn: ["map", "stations"] },
-  { key: "nci:", descriptionKey: "nci", group: "nr", availableOn: ["map", "stations"] },
-  { key: "nr_clid:", descriptionKey: "nrClid", group: "nr", availableOn: ["map", "stations"] },
-  { key: "nrtac:", descriptionKey: "nrtac", group: "nr", availableOn: ["map", "stations"] },
-  { key: "nr_pci:", descriptionKey: "nrPci", group: "nr", availableOn: ["map", "stations"] },
-  { key: "arfcn:", descriptionKey: "arfcn", group: "nr", availableOn: ["map", "stations"] },
-  { key: "supports_nr_redcap:", descriptionKey: "supportsNrRedcap", group: "nr", availableOn: ["map", "stations"] },
-  { key: "networks_id:", descriptionKey: "networksId", group: "identifiers", availableOn: ["map", "stations"] },
-  { key: "networks_name:", descriptionKey: "networksName", group: "identifiers", availableOn: ["map", "stations"] },
-  { key: "mno_name:", descriptionKey: "mnoName", group: "identifiers", availableOn: ["map", "stations"] },
-  { key: "created_after:", descriptionKey: "createdAfter", group: "date", availableOn: ["map", "stations"] },
-  { key: "created_before:", descriptionKey: "createdBefore", group: "date", availableOn: ["map", "stations"] },
-  { key: "updated_after:", descriptionKey: "updatedAfter", group: "date", availableOn: ["map", "stations"] },
-  { key: "updated_before:", descriptionKey: "updatedBefore", group: "date", availableOn: ["map", "stations"] },
+const RAT_CHOICES: FilterChoice[] = [
+  { value: "GSM", tag: "2G" },
+  { value: "UMTS", tag: "3G" },
+  { value: "LTE", tag: "4G" },
+  { value: "NR", tag: "5G" },
 ];
+const STATUS_CHOICES: FilterChoice[] = [
+  { value: "published", labelKey: "stations:status.published", aliases: ["active"] },
+  { value: "pending", labelKey: "stations:status.pending", aliases: ["awaitingcells"] },
+  { value: "inactive", labelKey: "stations:status.inactive" },
+];
+const BACKHAUL_CHOICES: FilterChoice[] = [
+  { value: "fiber", labelKey: "common:labels.backhaulFiber" },
+  { value: "microwave", labelKey: "common:labels.backhaulMicrowave" },
+  { value: "satellite", labelKey: "common:labels.backhaulSatellite" },
+];
+const DUPLEX_CHOICES: FilterChoice[] = [{ value: "FDD" }, { value: "TDD" }, { value: "null", labelKey: "common:labels.unknown", aliases: ["false"] }];
+const CELL_TYPE_CHOICES: FilterChoice[] = [
+  { value: "macro", labelKey: "stations:cells.cellTypes.macrocell", aliases: ["macrocell"] },
+  { value: "micro", labelKey: "stations:cells.cellTypes.microcell", aliases: ["microcell"] },
+  { value: "pico", labelKey: "stations:cells.cellTypes.picocell", aliases: ["picocell"] },
+  { value: "femto", labelKey: "stations:cells.cellTypes.femtocell", aliases: ["femtocell"] },
+];
+
+export const FILTER_KEYWORDS: KnownFilterKeyword[] = [
+  { key: "bts_id:", descriptionKey: "btsId", group: "common", availableOn: ["map", "stations"], valueKind: "text" },
+  { key: "plmn:", descriptionKey: "plmn", group: "common", availableOn: ["map"], valueKind: "operator", example: "26001" },
+  { key: "city:", descriptionKey: "city", group: "common", availableOn: ["map", "stations"], valueKind: "text", example: "Kraków" },
+  { key: "address:", descriptionKey: "address", group: "common", availableOn: ["map", "stations"], valueKind: "text" },
+  { key: "rat:", descriptionKey: "rat", group: "common", availableOn: ["map"], valueKind: "choice", choices: RAT_CHOICES, example: "LTE, NR" },
+  { key: "band:", descriptionKey: "band", group: "common", availableOn: ["map"], valueKind: "band", example: "800, 1800" },
+  {
+    key: "status:",
+    descriptionKey: "status",
+    group: "common",
+    availableOn: ["stations"],
+    valueKind: "choice",
+    choices: STATUS_CHOICES,
+    example: "published",
+  },
+  { key: "has_photo:", descriptionKey: "hasPhoto", group: "common", availableOn: ["map", "stations"], valueKind: "boolean", example: "true" },
+  { key: "has_azimuth:", descriptionKey: "hasAzimuth", group: "common", availableOn: ["map", "stations"], valueKind: "boolean" },
+  {
+    key: "uplink:",
+    descriptionKey: "uplink",
+    group: "common",
+    availableOn: ["map", "stations"],
+    valueKind: "choice",
+    choices: BACKHAUL_CHOICES,
+    example: "fiber",
+  },
+  { key: "gps:", descriptionKey: "gps", group: "location", availableOn: ["map", "stations"], valueKind: "gps" },
+  { key: "country:", descriptionKey: "country", group: "location", availableOn: ["map"], valueKind: "country" },
+  { key: "region:", descriptionKey: "region", group: "location", availableOn: ["map"], valueKind: "region", example: "MAZ, SL" },
+  { key: "duplex:", descriptionKey: "duplex", group: "cell", availableOn: ["map", "stations"], valueKind: "choice", choices: DUPLEX_CHOICES },
+  { key: "is_confirmed:", descriptionKey: "isConfirmed", group: "cell", availableOn: ["map", "stations"], valueKind: "boolean" },
+  { key: "cell_notes:", descriptionKey: "cellNotes", group: "cell", availableOn: ["map", "stations"], valueKind: "text" },
+  { key: "cell_type:", descriptionKey: "cellType", group: "cell", availableOn: ["map", "stations"], valueKind: "choice", choices: CELL_TYPE_CHOICES },
+  { key: "lac:", descriptionKey: "lac", group: "gsm", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "cid:", descriptionKey: "cid", group: "gsm", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "rnc:", descriptionKey: "rnc", group: "umts", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "umts_cid:", descriptionKey: "umtsCid", group: "umts", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "cid_long:", descriptionKey: "cidLong", group: "umts", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "umts_lac:", descriptionKey: "umtsLac", group: "umts", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "uarfcn:", descriptionKey: "uarfcn", group: "umts", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "enbid:", descriptionKey: "enbid", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "ecid:", descriptionKey: "ecid", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "lte_clid:", descriptionKey: "lteClid", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "tac:", descriptionKey: "tac", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "lte_pci:", descriptionKey: "ltePci", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "earfcn:", descriptionKey: "earfcn", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "supports_iot:", descriptionKey: "supportsIot", group: "lte", availableOn: ["map", "stations"], valueKind: "boolean" },
+  { key: "gnbid:", descriptionKey: "gnbid", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "nci:", descriptionKey: "nci", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "nr_clid:", descriptionKey: "nrClid", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "nrtac:", descriptionKey: "nrtac", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "nr_pci:", descriptionKey: "nrPci", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "arfcn:", descriptionKey: "arfcn", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
+  { key: "supports_nr_redcap:", descriptionKey: "supportsNrRedcap", group: "nr", availableOn: ["map", "stations"], valueKind: "boolean" },
+  { key: "networks_id:", descriptionKey: "networksId", group: "identifiers", availableOn: ["map", "stations"], valueKind: "text" },
+  { key: "networks_name:", descriptionKey: "networksName", group: "identifiers", availableOn: ["map", "stations"], valueKind: "text" },
+  { key: "mno_name:", descriptionKey: "mnoName", group: "identifiers", availableOn: ["map", "stations"], valueKind: "text" },
+  { key: "created_after:", descriptionKey: "createdAfter", group: "date", availableOn: ["map", "stations"], valueKind: "date" },
+  { key: "created_before:", descriptionKey: "createdBefore", group: "date", availableOn: ["map", "stations"], valueKind: "date" },
+  { key: "updated_after:", descriptionKey: "updatedAfter", group: "date", availableOn: ["map", "stations"], valueKind: "date" },
+  { key: "updated_before:", descriptionKey: "updatedBefore", group: "date", availableOn: ["map", "stations"], valueKind: "date" },
+];
+
+export const FREQUENT_FILTER_KEYS: readonly string[] = ["rat:", "band:", "plmn:", "status:", "city:", "region:", "has_photo:", "uplink:"];
+export const FREQUENT_FILTER_LIMIT = 6;
 
 export const FILTER_REGEX =
   /(^|[\s,])(([a-z][a-z0-9_]*):\s*(?:'([^']*)'|"([^"]*)"|([^\s,'"][^\s,]*(?:,\s*(?![a-z][a-z0-9_]*:)[^\s,'"][^\s,]*)*)))(?:,(?=\s|$))?/gi;

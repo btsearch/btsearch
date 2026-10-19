@@ -62,7 +62,7 @@ import { useFavoriteLists } from "@/hooks/useFavoriteLists";
 import { isConflict, showApiError } from "@/lib/api";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { formatFullDate } from "@/lib/format";
-import { UPLINK_APPEARANCE } from "@/lib/format/uplink";
+import { BACKHAUL_APPEARANCE } from "@/lib/format/backhaul";
 import { cn } from "@/lib/utils";
 
 const CreateListDialog = lazy(() => import("./createListDialog").then((m) => ({ default: m.CreateListDialog })));
@@ -300,7 +300,7 @@ function ListCard({
         </span>
         {microwaveLinkCount > 0 ? (
           <span className="inline-flex items-center gap-1">
-            <HugeiconsIcon icon={UPLINK_APPEARANCE.microwave.icon} className="size-3.5" />
+            <HugeiconsIcon icon={BACKHAUL_APPEARANCE.microwave.icon} className="size-3.5" />
             {t("lists:radiolineCount", { count: microwaveLinkCount })}
           </span>
         ) : null}

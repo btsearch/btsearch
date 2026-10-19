@@ -249,16 +249,16 @@
       "network_ids_create": "Dodano identyfikatory sieci",
       "network_ids_update": "Zaktualizowano identyfikatory sieci",
       "network_ids_delete": "Usunięto identyfikatory sieci",
-      "uplink_create": "Dodano uplink",
-      "uplink_update": "Zaktualizowano uplink",
-      "uplink_delete": "Usunięto uplink",
+      "backhaul_create": "Dodano łącze dosyłowe",
+      "backhaul_update": "Zaktualizowano łącze dosyłowe",
+      "backhaul_delete": "Usunięto łącze dosyłowe",
       "photos_create": "Dodano zdjęcia",
       "photos_update": "Zaktualizowano wybór zdjęć",
       "photos_delete": "Usunięto zdjęcia"
     },
     "fields": {
       "mnoName": "Nazwa MNO",
-      "uplinkModel": "Model radiolinii"
+      "backhaulModel": "Model radiolinii"
     },
     "sources": {
       "import": "Import",

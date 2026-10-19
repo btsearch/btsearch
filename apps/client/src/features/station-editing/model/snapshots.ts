@@ -15,13 +15,11 @@ import { nanoid } from "nanoid";
 
 import {
   DEFAULT_CELL_TYPE,
-  DEFAULT_GNBID_LENGTH,
   DEFAULT_NR_MODE,
   RAT_FIELDS,
   RAT_ORDER,
   TAC_RATS,
   carriesAreaCode,
-  computeCellId,
   getAreaCodeField,
   getCellNumber,
   toDegrees,
@@ -219,13 +217,23 @@ function getRatRank(rat: Rat): number {
   return RAT_ORDER.indexOf(rat);
 }
 
-function getModeRank(cell: Pick<CellDraft, "rat" | "mode">): number {
-  return cell.rat === "nr" && cell.mode !== "sa" ? NSA_RANK : SA_FIRST_RANK;
+function isNsaCell(cell: Pick<CellDraft, "rat" | "mode">): boolean {
+  return cell.rat === "nr" && cell.mode !== "sa";
 }
 
-function getIdentityRank(cell: CellDraft): number {
-  if (cell.rat === "nr" && cell.mode !== "sa") return getCellNumber(cell, "pci") ?? 0;
-  return computeCellId(cell, DEFAULT_GNBID_LENGTH) ?? getCellNumber(cell, "cid") ?? getCellNumber(cell, "clid") ?? 0;
+function getModeRank(cell: Pick<CellDraft, "rat" | "mode">): number {
+  return isNsaCell(cell) ? NSA_RANK : SA_FIRST_RANK;
+}
+
+function getNodeRank(cell: CellDraft): number {
+  const { nodeField } = RAT_FIELDS[cell.rat];
+  if (isNsaCell(cell) || nodeField === null) return 0;
+  return getCellNumber(cell, nodeField) ?? 0;
+}
+
+function getCellRank(cell: CellDraft): number {
+  const field = isNsaCell(cell) ? "pci" : RAT_FIELDS[cell.rat].cellIdField;
+  return field === null ? 0 : (getCellNumber(cell, field) ?? 0);
 }
 
 function sortRecordCells(cells: readonly Cell[], ownerPlmn: string | null): CellDraft[] {
@@ -235,7 +243,8 @@ function sortRecordCells(cells: readonly Cell[], ownerPlmn: string | null): Cell
       getRatRank(left.draft.rat) - getRatRank(right.draft.rat) ||
       getModeRank(left.draft) - getModeRank(right.draft) ||
       left.bandRank - right.bandRank ||
-      getIdentityRank(left.draft) - getIdentityRank(right.draft) ||
+      getNodeRank(left.draft) - getNodeRank(right.draft) ||
+      getCellRank(left.draft) - getCellRank(right.draft) ||
       (left.draft.id ?? 0) - (right.draft.id ?? 0),
   );
   return rows.map((row) => row.draft);

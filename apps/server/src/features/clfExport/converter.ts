@@ -102,7 +102,7 @@ export interface CellExportData {
   latitude?: number | null;
   longitude?: number | null;
   cell_type?: string | null;
-  uplink_type?: string | null;
+  backhaul_medium?: string | null;
   notes?: string | null;
   city?: string | null;
   address?: string | null;
@@ -462,7 +462,7 @@ function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
     structure_owner: cell.structure_owner,
     structure_note: cell.structure_note,
     cell_type: getCellTypeLabel(cell),
-    uplink: cell.uplink_type,
+    uplink: cell.backhaul_medium,
     notes: cell.notes,
     sector_prefix: getSectorPrefix(cell),
     sector_tag: getSectorTag(cell),

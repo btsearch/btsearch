@@ -147,7 +147,7 @@
       "operatorRequired": "Operator: wymagany",
       "networksIdInvalid": "N! ID: najwyżej {{max}} cyfr, bez innych znaków",
       "identifierTooLong": "Nazwa: najwyżej {{max}} znaków",
-      "backhaulMediumRequired": "Uplink: wybierz typ, zanim podasz przepustowość",
+      "backhaulMediumRequired": "Łącze dosyłowe: wybierz typ, zanim podasz przepustowość",
       "backhaulSpeedRange": "Przepustowość: wartość od 1 do {{max}}",
       "backhaulModelTooLong": "Model: najwyżej {{max}} znaków",
       "coordinatesRequired": "Współrzędne: wymagane",

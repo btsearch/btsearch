@@ -26,7 +26,7 @@ export function prepareCellMove(options: { destinationId?: number; missing?: boo
     (options as { where: { id: number } }).where.id === 1 ? source : destination,
   );
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
   if (options.duplicate) dbMock.enqueueFor("select", getTableName(gsmCells), [{ lac: 1, cid: 2 }]);
   const next = {
     ...previous,

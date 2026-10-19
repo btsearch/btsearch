@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { RanSharingLink } from "./ranSharingLink";
+import { RanSharingLink } from "./sharingLinks";
 import { StationLink } from "./stationLink";
 import type { BrandLook } from "@/components/cellular/brandMark";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";

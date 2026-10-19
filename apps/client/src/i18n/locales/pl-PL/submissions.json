@@ -230,7 +230,7 @@
     },
     "reload": "Wczytaj ponownie",
     "partnerAzimuths": "Stacja partnera {{station}} dostanie te same azymuty",
-    "severalPartnerStations": "W tym miejscu jest kilka stacji partnera. Uplink, azymuty i zdjęcia trafią tylko do tej z pasującym eNBID. Jeśli nie pasuje żadna albo pasuje kilka, nic nie zostanie skopiowane",
+    "severalPartnerStations": "W tym miejscu jest kilka stacji partnera. Łącze dosyłowe, azymuty i zdjęcia trafią tylko do tej z pasującym eNBID. Jeśli nie pasuje żadna albo pasuje kilka, nic nie zostanie skopiowane",
     "queue": {
       "place_one": "{{place, number}} z {{count, number}} oczekującego",
       "place_few": "{{place, number}} z {{count, number}} oczekujących",

@@ -58,7 +58,7 @@ const NAME_REFERENCES: Record<NamedEntity, { entity: AuditEntity; column: string
 const STATION_FIELDS = ["station_id", "status", "notes", "extra_address", "operator_id", "location_id", "is_confirmed"] as const;
 const LOCATION_FIELDS = ["region_id", "city", "address", "longitude", "latitude"] as const;
 const EXTRA_IDENTIFIER_FIELDS = ["networks_id", "networks_name", "mno_name"] as const;
-const UPLINK_FIELDS = ["type", "speed", "model"] as const;
+const BACKHAUL_FIELDS = ["type", "speed", "model"] as const;
 export const CELL_FIELDS = ["rat", "band_id", "sector_id", "notes", "is_confirmed"] as const;
 export const CELL_DETAIL_FIELDS = [
   "lac",
@@ -398,7 +398,7 @@ export function transformEntry(row: AuditRow, operationKind: AuditOperationKind,
       break;
     case "station_uplinks":
       kind = "uplink";
-      changes = diffFields(oldValues, newValues, UPLINK_FIELDS, lookups).map((change) => ({ ...change, field: `uplink_${change.field}` }));
+      changes = diffFields(oldValues, newValues, BACKHAUL_FIELDS, lookups).map((change) => ({ ...change, field: `uplink_${change.field}` }));
       break;
     case "station_sectors": {
       kind = "sectors";

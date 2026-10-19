@@ -10,8 +10,8 @@ import {
   operators,
   plmns,
   regions,
+  stationBackhauls,
   stationSectors,
-  stationUplinks,
   stations,
   structureOwners,
   umtsCells,
@@ -43,7 +43,7 @@ export type StationExportMetadata = {
   station_pk: number;
   station_sid: string;
   extra_address: string | null;
-  uplink_type: string | null;
+  backhaul_medium: string | null;
   operator_mnc: number | null;
   latitude: number | null;
   longitude: number | null;
@@ -163,7 +163,7 @@ function buildCommonCellFields(row: CommonCellRow, sectorMeta: SectorMeta | unde
     latitude: row.latitude,
     longitude: row.longitude,
     cell_type: row.cell_type,
-    uplink_type: row.uplink_type,
+    backhaul_medium: row.backhaul_medium,
     notes: row.notes,
     city: row.city ?? null,
     address: row.extra_address ?? row.address ?? null,
@@ -191,7 +191,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
     station_pk: stations.id,
     station_sid: stations.station_id,
     extra_address: stations.extra_address,
-    uplink_type: stationUplinks.type,
+    backhaul_medium: stationBackhauls.type,
     sector_id: cells.sector_id,
     operator_mnc: operators.mnc,
     latitude: locations.latitude,
@@ -221,7 +221,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         .leftJoin(locations, eq(stations.location_id, locations.id))
         .leftJoin(regions, eq(locations.region_id, regions.id))
         .leftJoin(structureOwners, eq(locations.structure_owner_id, structureOwners.id))
-        .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
+        .leftJoin(stationBackhauls, eq(stationBackhauls.station_id, stations.id))
         .where(and(...baseConditions))
     : null;
 
@@ -243,7 +243,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         .leftJoin(locations, eq(stations.location_id, locations.id))
         .leftJoin(regions, eq(locations.region_id, regions.id))
         .leftJoin(structureOwners, eq(locations.structure_owner_id, structureOwners.id))
-        .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
+        .leftJoin(stationBackhauls, eq(stationBackhauls.station_id, stations.id))
         .where(and(...baseConditions))
     : null;
 
@@ -266,7 +266,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         .leftJoin(locations, eq(stations.location_id, locations.id))
         .leftJoin(regions, eq(locations.region_id, regions.id))
         .leftJoin(structureOwners, eq(locations.structure_owner_id, structureOwners.id))
-        .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
+        .leftJoin(stationBackhauls, eq(stationBackhauls.station_id, stations.id))
         .where(and(...lteConditions))
     : null;
 
@@ -290,7 +290,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         .leftJoin(locations, eq(stations.location_id, locations.id))
         .leftJoin(regions, eq(locations.region_id, regions.id))
         .leftJoin(structureOwners, eq(locations.structure_owner_id, structureOwners.id))
-        .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
+        .leftJoin(stationBackhauls, eq(stationBackhauls.station_id, stations.id))
         .where(and(...nrConditions))
     : null;
 

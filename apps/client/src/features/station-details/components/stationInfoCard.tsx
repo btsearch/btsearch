@@ -11,13 +11,12 @@ import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "./extraIdent
 import { NavigationLinks } from "./navLinks";
 import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
 import { StationInfoItem } from "./stationInfoItem";
-import { StationUplinkItem } from "./stationUplinkItem";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getLocationMapHash } from "@/features/map/mapLinks";
 import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
-import type { ExtraIdentificator, Region, StationSource, StationUplink } from "@/types/station";
+import type { ExtraIdentificator, Region, StationSource } from "@/types/station";
 
 const stationInfoGridClassName =
   "grid grid-flow-row-dense grid-cols-1 gap-4 @md:grid-cols-2 @lg:gap-x-6 @3xl:has-[>*>:nth-child(3)]:grid-cols-3 @3xl:has-[>*>:only-child]:grid-cols-3";
@@ -33,11 +32,10 @@ type StationInfoGridProps = {
   operator: { name: string; mnc?: number | null };
   location?: { id: number; latitude: number; longitude: number; city?: string | null; address?: string | null; region?: Region | null } | null;
   emfSite?: EmfSite;
-  uplink?: StationUplink;
   extraIdentificators?: ExtraIdentificator;
 };
 
-export function StationInfoGrid({ stationCode, operator, location, emfSite, uplink, extraIdentificators }: StationInfoGridProps) {
+export function StationInfoGrid({ stationCode, operator, location, emfSite, extraIdentificators }: StationInfoGridProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const { preferences } = usePreferences();
   const reportedEmfSite = !!stationCode && !!location && typeof operator.mnc === "number" ? emfSite : undefined;
@@ -77,7 +75,6 @@ export function StationInfoGrid({ stationCode, operator, location, emfSite, upli
           <span className="font-mono">{stationCode}</span>
           <CopyButton text={stationCode} fieldLabel={t("common:labels.stationId")} />
         </StationInfoItem>
-        {uplink ? <StationUplinkItem uplink={uplink} /> : null}
         {reportedEmfSite !== undefined ? (
           <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
             <SI2PEMReportsMenu

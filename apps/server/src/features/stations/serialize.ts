@@ -1,4 +1,4 @@
-import { cells, extraIdentificators, gsmCells, lteCells, nrCells, stationSectors, stationUplinks, stations, umtsCells } from "@openbts/drizzle";
+import { cells, extraIdentificators, gsmCells, lteCells, nrCells, stationBackhauls, stationSectors, stations, umtsCells } from "@openbts/drizzle";
 import type {
   Backhaul,
   Cell,
@@ -27,7 +27,7 @@ const umtsCellSelectSchema = createSelectSchema(umtsCells);
 const lteCellSelectSchema = createSelectSchema(lteCells);
 const nrCellSelectSchema = createSelectSchema(nrCells);
 const sectorSelectSchema = createSelectSchema(stationSectors);
-const uplinkSelectSchema = createSelectSchema(stationUplinks);
+const backhaulSelectSchema = createSelectSchema(stationBackhauls);
 
 export type StationRow = z.infer<typeof stationSelectSchema>;
 type IdentifierRow = z.infer<typeof identifierSelectSchema>;
@@ -65,7 +65,7 @@ export function toSector(row: z.infer<typeof sectorSelectSchema>): Sector {
   return { id: row.id, azimuth: toAzimuth(row.azimuth) };
 }
 
-export function toBackhaul(row: z.infer<typeof uplinkSelectSchema>): Backhaul {
+export function toBackhaul(row: z.infer<typeof backhaulSelectSchema>): Backhaul {
   return { medium: row.type, speedMbps: row.speed, model: row.model, updatedAt: row.updatedAt.toISOString() };
 }
 

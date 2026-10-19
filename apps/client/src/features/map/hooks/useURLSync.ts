@@ -14,7 +14,7 @@ import {
 } from "../data/mapFilters";
 import { findOperatorIdsByMncs } from "../data/mapLookups";
 import { operatorsQueryOptions } from "@/features/shared/lookups";
-import { isUplinkType } from "@/lib/format/uplink";
+import { isBackhaulMedium } from "@/lib/format/backhaul";
 import type { StationStatus } from "@/types/station";
 
 export type UrlInitialization = {
@@ -160,7 +160,7 @@ function parseTokenFilters(tokens: string[]): UrlFilters | null {
         filters = { ...filters, radiolineOperators: parseNumberList(value) };
         break;
       case "u":
-        filters = { ...filters, uplinkTypes: value.split(",").filter(isUplinkType) };
+        filters = { ...filters, uplinkTypes: value.split(",").filter(isBackhaulMedium) };
         break;
       case "f":
         filters = { ...filters, ...parseFlagToken(value) };

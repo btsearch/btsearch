@@ -1,4 +1,4 @@
-import type { Paging, SearchMatch, StationSort } from "@openbts/shared/contract";
+import { BACKHAUL_MEDIUMS, type Paging, type SearchMatch, type StationSort } from "@openbts/shared/contract";
 import { queryOptions, skipToken } from "@tanstack/react-query";
 
 import { clampListPageSize, getListOffset } from "./listPaging";
@@ -15,7 +15,6 @@ import { STATION_INCLUDE } from "@/features/station-details/station/api";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { API_V2_BASE, fetchJson } from "@/lib/api";
 import { normalizeSearchText } from "@/lib/apiValues";
-import { UPLINK_TYPES } from "@/lib/format/uplink";
 
 type StationsListRoute = "stations" | "search";
 
@@ -83,7 +82,7 @@ function setStationFilterParams(params: URLSearchParams, filters: StationsListFi
   setListParam(params, "rats", listCellRats(filters.rats));
   if (filters.rats.includes(IOT_RAT)) params.set("supportsIot", "true");
   setListParam(params, "structureTypes", listStructureTypeEntries(filters, variant));
-  setListParam(params, "backhaulMediums", orderWords(UPLINK_TYPES, filters.uplinkTypes));
+  setListParam(params, "backhaulMediums", orderWords(BACKHAUL_MEDIUMS, filters.backhaulMediums));
   setRecentParams(params, filters);
   if (variant === "admin") setEditorParams(params, filters);
 }

@@ -300,7 +300,7 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
   },
   { pattern: /^A new station needs a station ID$/, messageKey: "stations:edit.errors.siteIdRequired", findTargets: atStation("siteId") },
   {
-    pattern: /^(A new station's uplink speed needs an uplink type|medium is required for a new station's backhaul)$/,
+    pattern: /^(A new station's backhaul speed needs a backhaul type|medium is required for a new station's backhaul)$/,
     messageKey: "stations:edit.errors.backhaulMediumRequired",
     findTargets: atStation("backhaulMedium"),
   },

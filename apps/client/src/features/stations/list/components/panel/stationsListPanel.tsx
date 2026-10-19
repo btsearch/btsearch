@@ -3,6 +3,7 @@ import { memo } from "react";
 import { useStationsListPanel } from "../../data/stationsListPanel";
 import { ListPanelSlot, hasSameListPanelProps } from "./listPanelSections";
 import {
+  StationsBackhaulSection,
   StationsBandSection,
   StationsCountrySection,
   type StationsListPanelProps,
@@ -13,7 +14,6 @@ import {
   StationsStandardSection,
   StationsStatusSection,
   StationsStructureSection,
-  StationsUplinkSection,
 } from "./stationsListSections";
 
 export const StationsListPanel = memo(function StationsListPanel({ filters, onFiltersChange, variant }: StationsListPanelProps) {
@@ -44,7 +44,7 @@ export const StationsListPanel = memo(function StationsListPanel({ filters, onFi
         <StationsStructureSection {...sectionProps} />
       </ListPanelSlot>
       <ListPanelSlot>
-        <StationsUplinkSection {...sectionProps} />
+        <StationsBackhaulSection {...sectionProps} />
       </ListPanelSlot>
       <ListPanelSlot>
         <StationsRecentSection {...sectionProps} />

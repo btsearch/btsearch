@@ -32,17 +32,18 @@ import {
   stationSearchQueryOptions,
 } from "../../searchApi";
 import { MapCursorInfo } from "../mapCursorInfo";
-import { AutocompleteDropdown } from "./autocompleteDropdown";
 import { FilterButton } from "./filterButton";
 import { SmoothHeight, useCalmTransition } from "./mapFilterMotion";
 import { FilterPanel } from "./mapFilterPanel";
 import { findKeybindCountryCode } from "./mapFilterPanelRules";
 import { MapStyleSwitcher } from "./mapStyleSwitcher";
 import { MobileStatsPanel } from "./mobileStatsPanel";
+import { SearchAssistPanel } from "./searchAssist";
 import { SearchInput } from "./searchInput";
-import { type SearchOption, buildAutocompleteOptions, buildSearchResultOptions } from "./searchOptions";
+import { type SearchOption, buildSearchResultOptions, isAssistSearchOption } from "./searchOptions";
 import { type SearchFailureSource, SearchResults, type SearchSurfaceState } from "./searchResultsContent";
 import { StationCounter } from "./stationCounter";
+import { useSearchAssistOptions } from "./useSearchAssistOptions";
 import { useSearchNavigation } from "./useSearchNavigation";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -53,6 +54,7 @@ import type { StationSource } from "@/types/station";
 
 const MAP_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includes("map"));
 const MAP_SEARCH_MODE_STORAGE_KEY = "map:search:affectMap";
+const MAP_KEYWORDS_BESIDE_RESULTS = 3;
 const EMPTY_RESULTS: never[] = [];
 const PANEL_EXPANDED = { height: "auto", opacity: 1 } as const;
 const PANEL_COLLAPSED = { height: 0, opacity: 0 } as const;
@@ -161,7 +163,10 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     isFocused,
     statsSearchMode,
     parsedFilters,
-    autocompleteOptions,
+    assist,
+    isPickerOpen,
+    invalidChipIndexes,
+    queryProblem,
     activeOverlay,
     containerRef,
     inputRef,
@@ -172,33 +177,26 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     handleInputClick: clickSearchInput,
     openOverlay,
     handleKeyDown: handleChipKeyDown,
-    applyAutocomplete,
+    selectAssistOption,
+    openChipPicker,
+    goBack,
+    forgetRecent,
+    rememberQuery,
+    fixQueryProblem,
     clearSearch,
     removeFilter,
     closeOverlay,
   } = useSearchState({
     filterKeywords: isOfficialSource ? EMPTY_RESULTS : MAP_FILTER_KEYWORDS,
     parseFilters,
+    recentScope: "map",
     resultsEnabled: searchMode === "results",
   });
-
-  function handleSearchModeChange(mode: MapSearchMode) {
-    if (mode === "map" && (!supportsMapMode || isOfficialSource)) return;
-    setStoredSearchMode(mode);
-    saveMapSearchMode(mode);
-    if (mode === "map") {
-      closeOverlay();
-      return;
-    }
-    if (!isMobile) setShowFilters(false);
-    onFilterQueryChange?.(undefined);
-    if (isFocused) openOverlay(true);
-  }
 
   function handleFiltersChange(update: MapFiltersChange) {
     const nextFilters = typeof update === "function" ? update(filters) : update;
     if (supportsMapMode && nextFilters.source === "official" && storedSearchMode === "map") onFilterQueryChange?.(undefined);
-    if (nextFilters.source === "official" && isFocused && query.trim() !== "" && (isMobile || !showFilters)) openOverlay(true, false);
+    if (nextFilters.source === "official" && isFocused && query.trim() !== "" && (isMobile || !showFilters)) openOverlay(true);
     onFiltersChange(update);
   }
 
@@ -283,151 +281,31 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const searchResultOptions = builtSearchResults.options;
   const showsStationGroup = builtSearchResults.groups.some((group) => group.kind === "station");
   const stationTotalCount = showsStationGroup ? (stationQuery.data?.total ?? 0) : 0;
-  const autocompleteSearchOptions = useMemo(() => buildAutocompleteOptions(autocompleteOptions), [autocompleteOptions]);
   const showDesktopFilters = showFilters && !isMobile;
   const canShowSearch = !showDesktopFilters;
-  const showAutocomplete = canShowSearch && !isOfficialSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
+  const shownAssist = isOfficialSource ? null : assist;
   const showResults = canShowSearch && searchMode === "results" && activeOverlay === "results";
-  const isMobileSearchExpanded = mobileExpanded || showAutocomplete || showResults;
+  const showAssist = canShowSearch && shownAssist !== null && activeOverlay === "assist";
+  const showKeywordGroup = showResults && shownAssist?.view === "keywords";
+  const { options: assistOptions, areValuesLoading } = useSearchAssistOptions(
+    shownAssist,
+    searchMode === "results" ? MAP_KEYWORDS_BESIDE_RESULTS : undefined,
+  );
+  const resultNavigationOptions = useMemo(
+    () => (shownAssist?.view === "keywords" ? [...assistOptions, ...searchResultOptions] : searchResultOptions),
+    [assistOptions, searchResultOptions, shownAssist?.view],
+  );
+  const isMobileSearchExpanded = mobileExpanded || showAssist || showResults;
   const isMobileSearchCollapsed = isMobile && !isMobileSearchExpanded && !isFocused;
   const showMobileMapContext = isMobileSearchCollapsed && mapContext !== undefined;
-  let candidateNavigationOptions: SearchOption[] = EMPTY_RESULTS;
-  if (!isOfficialSource && autocompleteOptions.length > 0) candidateNavigationOptions = autocompleteSearchOptions;
-  else if (searchMode === "results") candidateNavigationOptions = searchResultOptions;
+  const opensAssist = shownAssist !== null && (shownAssist.view !== "keywords" || searchMode !== "results");
 
-  let navigationOptions = candidateNavigationOptions;
-  if (showAutocomplete) navigationOptions = autocompleteSearchOptions;
-  else if (showResults) navigationOptions = searchResultOptions;
+  let navigationOptions: SearchOption[] = EMPTY_RESULTS;
+  if (showAssist || (!showResults && opensAssist)) navigationOptions = assistOptions;
+  else if (showResults || searchMode === "results") navigationOptions = resultNavigationOptions;
   const listboxId = useId();
-  const navigation = useSearchNavigation(navigationOptions, listboxId, `${searchMode}:${query}`);
-  const hasLocationSearchFailed = shouldSearchLocations && locationQuery.isError;
-  const hasStationSearchFailed = shouldSearchStations && stationQuery.isError && !isRejectedSearchQuery(stationQuery.error);
-  const hasOfficialSearchFailed = shouldSearchOfficial && officialQuery.isError;
-  const failedSources: SearchFailureSource[] = [];
-  if (hasLocationSearchFailed) failedSources.push("locations");
-  if (hasStationSearchFailed) failedSources.push("stations");
-  if (hasOfficialSearchFailed) failedSources.push("official");
-
-  const querySettled = query === debouncedQuery;
-  const participatingQueryIsFetching =
-    (shouldSearchLocations && locationQuery.fetchStatus === "fetching") ||
-    (shouldSearchStations && stationQuery.fetchStatus === "fetching") ||
-    (shouldSearchOfficial && officialQuery.fetchStatus === "fetching");
-  const hasPlaceholderData =
-    (shouldSearchLocations && locationQuery.isPlaceholderData) ||
-    (shouldSearchStations && stationQuery.isPlaceholderData) ||
-    (shouldSearchOfficial && officialQuery.isPlaceholderData);
-  const hasSearchResults = searchResultOptions.length > 0;
-  let searchSurfaceState: SearchSurfaceState;
-  if (hasSearchResults) {
-    searchSurfaceState = {
-      kind: "ready",
-      updating: !querySettled || participatingQueryIsFetching || hasPlaceholderData,
-      failedSources,
-    };
-  } else if (!querySettled || participatingQueryIsFetching) {
-    searchSurfaceState = { kind: "loading" };
-  } else if (failedSources.length > 0) {
-    searchSurfaceState = { kind: "error", failedSources };
-  } else {
-    searchSurfaceState = { kind: "empty" };
-  }
-  const isSearchBusy = showResults && (searchSurfaceState.kind === "loading" || (searchSurfaceState.kind === "ready" && searchSurfaceState.updating));
-  const hasActiveListbox = showAutocomplete || (showResults && searchSurfaceState.kind === "ready");
-
-  useEffect(() => {
-    if (searchMode !== "map") {
-      onFilterQueryChange?.(undefined);
-      return;
-    }
-    onFilterQueryChange?.(debouncedQuery || undefined);
-  }, [debouncedQuery, onFilterQueryChange, searchMode]);
-
-  function retryFailedSearches() {
-    const retries: Promise<unknown>[] = [];
-    if (hasLocationSearchFailed) retries.push(locationQuery.refetch());
-    if (hasStationSearchFailed) retries.push(stationQuery.refetch());
-    if (hasOfficialSearchFailed) retries.push(officialQuery.refetch());
-    void Promise.allSettled(retries);
-  }
-
-  function selectSearchOption(option: SearchOption | undefined) {
-    if (!option) return;
-    navigation.reset();
-
-    switch (option.kind) {
-      case "filter":
-        applyAutocomplete(option.keyword.key);
-        return;
-      case "gps":
-        if (!onLocationSelect) return;
-        onLocationSelect(option.result.lat, option.result.lng);
-        break;
-      case "location":
-        if (!onLocationSelect) return;
-        onLocationSelect(option.result.latitude, option.result.longitude);
-        break;
-      case "station":
-        if (!onStationSelect) return;
-        onStationSelect(option.result);
-        break;
-      case "official-site":
-        if (!onOfficialSiteSelect) return;
-        onOfficialSiteSelect(option.result);
-        break;
-      case "microwave-link":
-        if (!onMicrowaveLinkSelect) return;
-        onMicrowaveLinkSelect(option.result);
-        break;
-    }
-    closeOverlay();
-  }
-
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    handleChipKeyDown(e);
-    if (e.defaultPrevented) return;
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (navigationOptions.length === 0) return;
-      e.preventDefault();
-      if (!activeOverlay || (!isMobile && showFilters)) handleInputClick();
-      navigation.move(e.key === "ArrowDown" ? 1 : -1);
-      return;
-    }
-    if (e.key === "Enter" && (showAutocomplete || showResults) && navigationOptions.length > 0) {
-      e.preventDefault();
-      selectSearchOption(navigation.activeOption ?? navigationOptions[0]);
-      return;
-    }
-    if (e.key === "Escape") {
-      if (activeOverlay) {
-        e.preventDefault();
-        navigation.reset();
-        closeOverlay();
-      } else {
-        inputRef.current?.blur();
-        setShowFilters(false);
-      }
-    }
-    if (e.key === "Tab") navigation.reset();
-  }
-
-  function handleMobileExpand() {
-    setMobileExpanded(true);
-  }
-
-  function handleMobileCollapse() {
-    setMobileExpanded(false);
-  }
-
-  function handleSearchBlur(event: FocusEvent<HTMLElement>) {
-    const nextTarget = event.relatedTarget as Node | null;
-    const filterPanel = filterPanelRef.current;
-    if (filterPanel?.contains(event.target) && filterPanel.contains(nextTarget)) return;
-    handleContainerBlur(event, filterPanel);
-    if (containerRef.current?.contains(nextTarget) && !filterPanel?.contains(nextTarget)) return;
-    navigation.reset();
-    handleMobileCollapse();
-  }
+  const navigationResetKey = `${searchMode}:${isPickerOpen ? `picker:${inputValue}` : query}:${shownAssist?.view ?? ""}`;
+  const navigation = useSearchNavigation(navigationOptions, listboxId, navigationResetKey);
 
   function handleToggleFilters() {
     if (!showFilters && !isMobile) {
@@ -437,20 +315,13 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     setShowFilters((prev) => !prev);
   }
 
-  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
-    if (!isMobile) setShowFilters(false);
-    changeSearchInput(event);
-  }
-
-  function handleInputFocus() {
-    if (!isMobile) setShowFilters(false);
-    focusSearchInput();
-  }
-
-  function handleInputClick() {
-    if (!isMobile) setShowFilters(false);
-    clickSearchInput();
-  }
+  useEffect(() => {
+    if (searchMode !== "map") {
+      onFilterQueryChange?.(undefined);
+      return;
+    }
+    onFilterQueryChange?.(debouncedQuery || undefined);
+  }, [debouncedQuery, onFilterQueryChange, searchMode]);
 
   useMapKeybinds(({ key, shiftKey }) => {
     if (key === "f" && !shiftKey) {
@@ -506,6 +377,171 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [containerRef, preferences.hideFiltersOnMapClick, showFilters]);
 
+  const hasLocationSearchFailed = shouldSearchLocations && locationQuery.isError;
+  const hasStationSearchFailed = shouldSearchStations && stationQuery.isError && !isRejectedSearchQuery(stationQuery.error);
+  const hasOfficialSearchFailed = shouldSearchOfficial && officialQuery.isError;
+  const failedSources: SearchFailureSource[] = [];
+  if (hasLocationSearchFailed) failedSources.push("locations");
+  if (hasStationSearchFailed) failedSources.push("stations");
+  if (hasOfficialSearchFailed) failedSources.push("official");
+
+  const querySettled = query === debouncedQuery;
+  const participatingQueryIsFetching =
+    (shouldSearchLocations && locationQuery.fetchStatus === "fetching") ||
+    (shouldSearchStations && stationQuery.fetchStatus === "fetching") ||
+    (shouldSearchOfficial && officialQuery.fetchStatus === "fetching");
+  const hasPlaceholderData =
+    (shouldSearchLocations && locationQuery.isPlaceholderData) ||
+    (shouldSearchStations && stationQuery.isPlaceholderData) ||
+    (shouldSearchOfficial && officialQuery.isPlaceholderData);
+  const hasSearchResults = searchResultOptions.length > 0;
+  let searchSurfaceState: SearchSurfaceState;
+  if (hasSearchResults) {
+    searchSurfaceState = {
+      kind: "ready",
+      updating: !querySettled || participatingQueryIsFetching || hasPlaceholderData,
+      failedSources,
+    };
+  } else if (!querySettled || participatingQueryIsFetching) {
+    searchSurfaceState = { kind: "loading" };
+  } else if (failedSources.length > 0) {
+    searchSurfaceState = { kind: "error", failedSources };
+  } else {
+    searchSurfaceState = { kind: "empty" };
+  }
+  const isSearchBusy = showResults && (searchSurfaceState.kind === "loading" || (searchSurfaceState.kind === "ready" && searchSurfaceState.updating));
+  const hasActiveListbox = showAssist || (showResults && (searchSurfaceState.kind === "ready" || showKeywordGroup));
+  const controlledListboxIds = [
+    showAssist || showKeywordGroup ? `${listboxId}-assist` : null,
+    showResults && searchSurfaceState.kind === "ready" ? listboxId : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const isStationQueryRejected = shouldSearchStations && querySettled && stationQuery.isError && isRejectedSearchQuery(stationQuery.error);
+
+  function handleSearchModeChange(mode: MapSearchMode) {
+    if (mode === "map" && (!supportsMapMode || isOfficialSource)) return;
+    setStoredSearchMode(mode);
+    saveMapSearchMode(mode);
+    if (mode === "map") {
+      closeOverlay();
+      return;
+    }
+    if (!isMobile) setShowFilters(false);
+    onFilterQueryChange?.(undefined);
+    if (isFocused) openOverlay(true);
+  }
+
+  function retryFailedSearches() {
+    const retries: Promise<unknown>[] = [];
+    if (hasLocationSearchFailed) retries.push(locationQuery.refetch());
+    if (hasStationSearchFailed) retries.push(stationQuery.refetch());
+    if (hasOfficialSearchFailed) retries.push(officialQuery.refetch());
+    void Promise.allSettled(retries);
+  }
+
+  function selectSearchOption(option: SearchOption | undefined) {
+    if (!option) return;
+    if (isAssistSearchOption(option)) {
+      if (option.kind !== "value") navigation.reset();
+      selectAssistOption(option);
+      return;
+    }
+    navigation.reset();
+    rememberQuery();
+
+    switch (option.kind) {
+      case "gps":
+        if (!onLocationSelect) return;
+        onLocationSelect(option.result.lat, option.result.lng);
+        break;
+      case "location":
+        if (!onLocationSelect) return;
+        onLocationSelect(option.result.latitude, option.result.longitude);
+        break;
+      case "station":
+        if (!onStationSelect) return;
+        onStationSelect(option.result);
+        break;
+      case "official-site":
+        if (!onOfficialSiteSelect) return;
+        onOfficialSiteSelect(option.result);
+        break;
+      case "microwave-link":
+        if (!onMicrowaveLinkSelect) return;
+        onMicrowaveLinkSelect(option.result);
+        break;
+    }
+    closeOverlay();
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    handleChipKeyDown(e);
+    if (e.defaultPrevented) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (navigationOptions.length === 0) return;
+      e.preventDefault();
+      if (!activeOverlay || (!isMobile && showFilters)) handleInputClick();
+      navigation.move(e.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    if (e.key === "Enter" && (showAssist || showResults) && navigationOptions.length > 0) {
+      e.preventDefault();
+      selectSearchOption(navigation.activeOption ?? (showResults ? searchResultOptions[0] : navigationOptions[0]));
+      return;
+    }
+    const activeOption = navigation.activeOption;
+    if (e.key === "Delete" && e.shiftKey && activeOption?.kind === "recent") {
+      e.preventDefault();
+      forgetRecent(activeOption.query);
+      return;
+    }
+    if (e.key === "Escape") {
+      if (activeOverlay) {
+        e.preventDefault();
+        navigation.reset();
+        closeOverlay();
+      } else {
+        inputRef.current?.blur();
+        setShowFilters(false);
+      }
+    }
+    if (e.key === "Tab") navigation.reset();
+  }
+
+  function handleMobileExpand() {
+    setMobileExpanded(true);
+  }
+
+  function handleMobileCollapse() {
+    setMobileExpanded(false);
+  }
+
+  function handleSearchBlur(event: FocusEvent<HTMLElement>) {
+    const nextTarget = event.relatedTarget as Node | null;
+    const filterPanel = filterPanelRef.current;
+    if (filterPanel?.contains(event.target) && filterPanel.contains(nextTarget)) return;
+    handleContainerBlur(event, filterPanel);
+    if (containerRef.current?.contains(nextTarget) && !filterPanel?.contains(nextTarget)) return;
+    navigation.reset();
+    handleMobileCollapse();
+  }
+
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+    if (!isMobile) setShowFilters(false);
+    changeSearchInput(event);
+  }
+
+  function handleInputFocus() {
+    if (!isMobile) setShowFilters(false);
+    focusSearchInput();
+  }
+
+  function handleInputClick() {
+    if (!isMobile) setShowFilters(false);
+    clickSearchInput();
+  }
+
   function handleSourceChange(source: StationSource) {
     handleFiltersChange((current) => changeMapFilterSource(current, source));
   }
@@ -541,10 +577,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   return (
     <>
       <div
-        className={cn(
-          "absolute top-4 left-4 right-4 md:left-auto md:right-4 md:w-105 z-10",
-          (showFilters || showResults || showAutocomplete) && "z-20",
-        )}
+        className={cn("absolute top-4 left-4 right-4 md:left-auto md:right-4 md:w-105 z-10", (showFilters || showResults || showAssist) && "z-20")}
       >
         <div className="flex items-start gap-2">
           {showMobileMapContext ? <div className="min-w-0 flex-1 overflow-hidden">{mapContext}</div> : null}
@@ -564,13 +597,15 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               inputValue={inputValue}
               parsedFilters={parsedFilters}
               focusedChipIndex={focusedChipIndex}
+              invalidChipIndexes={invalidChipIndexes}
               isBusy={isSearchBusy}
-              isQueryRejected={rejectedSearchText === query}
+              isQueryRejected={rejectedSearchText === query || isStationQueryRejected}
+              queryProblem={queryProblem}
               query={query}
               isFocused={isFocused}
               isMobile={isMobile}
               mobileExpanded={isMobileSearchExpanded}
-              listboxId={hasActiveListbox ? listboxId : undefined}
+              listboxId={hasActiveListbox ? controlledListboxIds : undefined}
               activeOptionId={hasActiveListbox ? navigation.activeOptionId : undefined}
               isExpanded={hasActiveListbox}
               onInputChange={handleInputChange}
@@ -578,6 +613,8 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               onInputFocus={handleInputFocus}
               onInputClick={handleInputClick}
               onRemoveFilter={removeFilter}
+              onEditFilter={openChipPicker}
+              onFixQuery={fixQueryProblem}
               onClearSearch={clearSearch}
               onMobileExpand={handleMobileExpand}
               mode={searchMode}
@@ -596,7 +633,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               }
               mobileControls={
                 isMobile ? (
-                  <div className={cn("flex justify-end md:hidden", (showAutocomplete || showResults) && "invisible")}>
+                  <div className={cn("flex justify-end md:hidden", (showAssist || showResults) && "invisible")}>
                     <div className="pointer-events-auto relative shrink-0">
                       <MapStyleSwitcher position="search" />
                     </div>
@@ -606,16 +643,21 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
             />
 
             <AnimatePresence>
-              {showAutocomplete || showResults || showDesktopFilters ? (
+              {showAssist || showResults || showDesktopFilters ? (
                 <SearchPanelFrame key="panels">
-                  {showAutocomplete ? (
-                    <AutocompleteDropdown
+                  {(showAssist || showKeywordGroup) && shownAssist !== null ? (
+                    <SearchAssistPanel
                       embedded
-                      options={autocompleteOptions}
+                      withFooter={showAssist}
+                      assist={shownAssist}
+                      options={assistOptions}
+                      areValuesLoading={areValuesLoading}
                       listboxId={listboxId}
                       activeKey={navigation.activeKey}
                       onActiveKeyChange={navigation.setActiveKey}
-                      onSelect={applyAutocomplete}
+                      onSelect={selectSearchOption}
+                      onForgetRecent={forgetRecent}
+                      onBack={goBack}
                     />
                   ) : null}
                   {showResults ? (

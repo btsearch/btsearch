@@ -8,7 +8,7 @@ import {
   nrCells,
   operators,
   regions,
-  stationUplinks,
+  stationBackhauls,
   stations,
   umtsCells,
 } from "@openbts/drizzle";
@@ -37,7 +37,7 @@ const locationSelectSchema = createSelectSchema(locations).omit({ point: true, r
 const regionSelectSchema = createSelectSchema(regions);
 const operatorsSelectSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
-const uplinkSchema = createSelectSchema(stationUplinks).omit({ station_id: true });
+const backhaulSchema = createSelectSchema(stationBackhauls).omit({ station_id: true });
 const cellWithDetailsSchema = cellsSelectSchema.extend({ band: bandsSchema, details: cellDetailsSchema });
 
 type ReqBody = {
@@ -56,12 +56,12 @@ type StationWithRatCells = z.infer<typeof stationsSelectSchema> & {
   location: z.infer<typeof locationSelectSchema> | null;
   operator: z.infer<typeof operatorsSelectSchema> | null;
   extra_identificators?: z.infer<typeof extraIdentificatorsSchema> | null;
-  uplink?: z.infer<typeof uplinkSchema> | null;
+  uplink?: z.infer<typeof backhaulSchema> | null;
 };
 type StationWithCells = z.infer<typeof stationsSelectSchema> & {
   cells: z.infer<typeof cellWithDetailsSchema>[];
   extra_identificators?: z.infer<typeof extraIdentificatorsSchema>;
-  uplink?: z.infer<typeof uplinkSchema>;
+  uplink?: z.infer<typeof backhaulSchema>;
   location: z.infer<typeof locationSelectSchema> | null;
   operator: z.infer<typeof operatorsSelectSchema> | null;
 };
@@ -87,7 +87,7 @@ const schemaRoute = {
             .nullable(),
           operator: operatorsSelectSchema.nullable(),
           extra_identificators: extraIdentificatorsSchema.optional(),
-          uplink: uplinkSchema.optional(),
+          uplink: backhaulSchema.optional(),
         }),
       ),
     }),

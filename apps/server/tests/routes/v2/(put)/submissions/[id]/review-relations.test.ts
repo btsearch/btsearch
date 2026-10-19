@@ -235,7 +235,7 @@ describe("submission approval relationships", () => {
 
   it("copies a new station's backhaul to its only same-location partner although neither station has cells", async () => {
     const scenario = prepareNewReview([], { withSector: false, backhaul: { type: "fiber", speed: 1000 } });
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     writeNewReview(scenario, { site: { siblingIds: [13] } });
     dbMock.enqueueFor("insert", "station_uplinks", [storedBackhaul], [{ ...storedBackhaul, id: 2, station_id: 13 }]);
     dbMock.enqueueFor("insert", "audit_logs", [], []);
@@ -269,7 +269,7 @@ describe("submission approval relationships", () => {
       taken_at: readDate,
       createdAt: readDate,
     };
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     dbMock.query.stationPhotoSelections.findFirst.mockResolvedValue(undefined);
     dbMock.query.submissionPhotos.findMany.mockResolvedValue([
       { id: 7, submission_id: submissionId, attachment_id: 8, note: null, taken_at: readDate, is_main: false, createdAt: readDate },
@@ -319,7 +319,7 @@ describe("submission approval relationships", () => {
 
   it("copies nothing from a new station without LTE cells to either of its two partners", async () => {
     const scenario = prepareNewReview([cellInputs.gsm], { backhaul: { type: "fiber", speed: 1000 } });
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     writeNewReview(scenario, { site: { siblingIds: [13, 14], stationEnbids: [] } });
     dbMock.enqueueFor("insert", "station_uplinks", [storedBackhaul]);
     dbMock.enqueueFor("insert", "audit_logs", []);
@@ -337,7 +337,7 @@ describe("submission approval relationships", () => {
 
   it("copies an updated station's backhaul to the one of two partners that shares the eNBID of the LTE cell the same approval adds", async () => {
     const scenario = prepareCombinedUpdatedReview({ backhaul: { type: "fiber", speed: 1000 } });
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     writeCombinedUpdatedReview(scenario, { site: { siblingIds: [13, 14], stationEnbids: [100], sameEnbSiblingIds: [14] } });
     dbMock.enqueueFor("select", "station_sectors", [
       { id: 15, azimuth: 180 },

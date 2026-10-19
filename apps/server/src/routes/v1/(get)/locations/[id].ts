@@ -7,10 +7,10 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
+import { parseBackhaulMediumsParam } from "../../../../features/stations/backhaul.js";
 import { buildStationFilterConditions, resolveStationFilter } from "../../../../features/stations/filter.js";
 import { findPhysicalStations, physicalStationSchema } from "../../../../features/stations/physicalStations.js";
 import { parseStationStatusParam } from "../../../../features/stations/status.js";
-import { parseUplinkTypesParam } from "../../../../features/stations/uplink.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -84,7 +84,7 @@ const schemaRoute = {
       .string()
       .regex(/^(?:fiber|microwave|satellite)(?:,(?:fiber|microwave|satellite))*$/)
       .optional()
-      .transform(parseUplinkTypesParam),
+      .transform(parseBackhaulMediumsParam),
   }),
   response: {
     200: z.object({

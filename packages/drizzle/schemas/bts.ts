@@ -31,7 +31,7 @@ export const BandVariant = pgEnum("band_variant", ["commercial", "railway"]);
 export const StationStatus = pgEnum("station_status", ["published", "inactive", "pending"]);
 export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
 export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL"]);
-export const UplinkType = pgEnum("uplink_type", ["fiber", "microwave", "satellite"]);
+export const BackhaulMedium = pgEnum("uplink_type", ["fiber", "microwave", "satellite", "xdsl"]);
 export const ContributionMode = pgEnum("contribution_mode", ["closed", "open"]);
 export const PlmnRole = pgEnum("plmn_role", ["primary", "secondary"]);
 export const OperatorLinkKind = pgEnum("operator_link_kind", ["jv_member"]);
@@ -393,14 +393,14 @@ export const stationSectors = pgTable(
   ],
 );
 
-export const stationUplinks = pgTable(
+export const stationBackhauls = pgTable(
   "station_uplinks",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     station_id: integer("station_id")
       .references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    type: UplinkType("type").notNull(),
+    type: BackhaulMedium("type").notNull(),
     speed: integer("speed"),
     model: varchar("model", { length: 100 }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

@@ -226,7 +226,7 @@
     },
     "reload": "Reload",
     "partnerAzimuths": "The partner's station {{station}} will get the same azimuths",
-    "severalPartnerStations": "Several partner stations share this place. The uplink, azimuths and photos go only to the one with a matching eNBID. If none or more than one matches, nothing is copied",
+    "severalPartnerStations": "Several partner stations share this place. The backhaul, azimuths and photos go only to the one with a matching eNBID. If none or more than one matches, nothing is copied",
     "queue": {
       "place_one": "{{place, number}} of {{count, number}} pending",
       "place_other": "{{place, number}} of {{count, number}} pending",

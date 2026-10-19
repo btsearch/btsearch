@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Reveal } from "@/features/map/components/search-overlay/mapFilterMotion";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
-import { UPLINK_APPEARANCE, formatSpeedMbps } from "@/lib/format/uplink";
+import { BACKHAUL_APPEARANCE, formatSpeedMbps } from "@/lib/format/backhaul";
 import { cn } from "@/lib/utils";
 
 type BackhaulFieldsProps = {
@@ -42,7 +42,7 @@ function MediumLabel({ medium, isInList = false }: MediumLabelProps) {
     );
   }
 
-  const { icon, iconClassName } = UPLINK_APPEARANCE[medium];
+  const { icon, iconClassName } = BACKHAUL_APPEARANCE[medium];
   return (
     <>
       <HugeiconsIcon icon={icon} aria-hidden="true" className={cn("size-3.5 shrink-0", iconClassName)} />
@@ -52,6 +52,7 @@ function MediumLabel({ medium, isInList = false }: MediumLabelProps) {
 }
 
 export function BackhaulMediumField({ edit, idPrefix }: BackhaulFieldsProps) {
+  const { t } = useTranslation("common");
   const { medium } = edit.session.draft.station.backhaul;
   const view = getStationFieldView(edit, "backhaulMedium", idPrefix);
 
@@ -61,7 +62,7 @@ export function BackhaulMediumField({ edit, idPrefix }: BackhaulFieldsProps) {
   }
 
   return (
-    <FieldGroup view={view} label="Uplink" isLabelLinked={false}>
+    <FieldGroup view={view} label={t("labels.backhaul")} isLabelLinked={false}>
       <Select value={medium ?? NO_MEDIUM} onValueChange={changeMedium} disabled={!edit.canEdit}>
         <SelectTrigger {...getControlProps(view)} aria-labelledby={view.labelId} className={cn("w-36 cursor-pointer", view.className)}>
           <SelectValue>
@@ -96,7 +97,7 @@ export function BackhaulDetailFields({ edit, idPrefix }: BackhaulFieldsProps) {
 
   return (
     <div className={cn("grid", getFieldColumnsClass(isForm))}>
-      <FieldGroup view={speedView} label={t("labels.uplinkSpeed")} className="gap-1.5">
+      <FieldGroup view={speedView} label={t("labels.backhaulSpeed")} className="gap-1.5">
         <Input
           type="text"
           inputMode="numeric"
@@ -129,7 +130,7 @@ export function BackhaulDetailFields({ edit, idPrefix }: BackhaulFieldsProps) {
         </Reveal>
       </FieldGroup>
       {medium === "microwave" ? (
-        <FieldGroup view={modelView} label={t("labels.uplinkModel")} className="gap-1.5">
+        <FieldGroup view={modelView} label={t("labels.backhaulModel")} className="gap-1.5">
           <Input
             {...NO_AUTOFILL_PROPS}
             {...getControlProps(modelView)}

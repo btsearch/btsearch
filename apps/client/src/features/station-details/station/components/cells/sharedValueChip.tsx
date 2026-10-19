@@ -1,6 +1,7 @@
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import { CopyButton } from "../../../components/copyButton";
+import { MocnLink } from "../../../components/sharingLinks";
 import { type OperatorMark, OperatorMarks } from "@/features/shared/operatorMarks";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,12 @@ export function SharedNetworksChip({ label, rat, marks }: SharedNetworksChipProp
   return (
     <span className={cn(CHIP_CLASS, "pr-2")}>
       <span className="text-[11px] font-medium leading-4 text-muted-foreground">{label}</span>
-      <OperatorMarks marks={marks} title={t("sharedNetworks.cellTitle")} description={t("sharedNetworks.tableHint", { rat })} size={14} />
+      <OperatorMarks
+        marks={marks}
+        title={t("sharedNetworks.cellTitle")}
+        description={<Trans t={t} i18nKey="sharedNetworks.tableHint" values={{ rat }} components={{ mocnLink: <MocnLink /> }} />}
+        size={14}
+      />
     </span>
   );
 }

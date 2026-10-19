@@ -19,8 +19,8 @@ import { z } from "zod/v4";
 
 import { LEGACY_COUNTRY_CODE } from "../../constants.js";
 import { ErrorResponse } from "../../errors.js";
+import { buildBackhaulCondition, isBackhaulMedium } from "../stations/backhaul.js";
 import { buildHasPhotosCondition, buildHasSectorsCondition } from "../stations/filter.js";
-import { buildUplinkCondition, isUplinkType } from "../stations/uplink.js";
 
 export type FilterValue = string | number | boolean;
 export type FilterTable = "stations" | "cells" | "gsmCells" | "umtsCells" | "lteCells" | "nrCells" | "locations" | "extraIdentificators";
@@ -250,7 +250,7 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   },
   uplink: {
     table: "stations",
-    buildCondition: (value, refs) => buildUplinkCondition(refs.stations.id, parseStrings(value).filter(isUplinkType)),
+    buildCondition: (value, refs) => buildBackhaulCondition(refs.stations.id, parseStrings(value).filter(isBackhaulMedium)),
   },
 
   // cells

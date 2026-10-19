@@ -40,7 +40,7 @@ function prepareLteUpdate(options: { oldTac?: number | null; operatorId?: number
   dbMock.enqueueFor("select", "bands", cellBands);
   dbMock.query.stations.findFirst.mockResolvedValue(station);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
   dbMock.query.cells.findMany.mockResolvedValue([snapshot(old)]);
   dbMock.enqueueFor("select", "station_watches", []);
   dbMock.enqueueFor("select", "user_lists", []);
@@ -86,7 +86,7 @@ function prepareBatch(
   }
   dbMock.query.stations.findFirst.mockImplementation(async (query) => station((query as { where: { id: number } }).where.id));
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
 }
 
 function writeBatch(items: { stationId: number; cells: NewCellInput[] }[], failStationId?: number) {

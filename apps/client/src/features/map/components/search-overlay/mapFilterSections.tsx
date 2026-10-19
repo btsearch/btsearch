@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Licensee } from "@openbts/shared/contract";
+import { BACKHAUL_MEDIUMS, type Licensee } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import { useMemo, useRef, useState } from "react";
@@ -39,7 +39,7 @@ import { FacetCountryMark, FacetPill, FilterPanelSection, KbdHint } from "@/feat
 import type { RatOption } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { formatBandMhzLabel, isBandLabelInGhz } from "@/features/station-details/station/utils/bands";
-import { UPLINK_APPEARANCE, UPLINK_TYPES, uplinkTypeKey } from "@/lib/format/uplink";
+import { BACKHAUL_APPEARANCE, backhaulMediumLabelKey } from "@/lib/format/backhaul";
 import { getCountryName } from "@/lib/geo/countryName";
 import { hasFailedLoad } from "@/lib/queryLoadState";
 import { cn, toggleValue } from "@/lib/utils";
@@ -81,7 +81,7 @@ type BandFacetPillProps = {
   onToggleBand: (label: number) => void;
 };
 
-type UplinkSectionProps = {
+type BackhaulSectionProps = {
   filters: MapFilters;
   onFiltersChange: (update: MapFiltersChange) => void;
 };
@@ -307,18 +307,18 @@ export function BandSection({ filters, facetCountryCodes, lookups, onToggleBand,
   );
 }
 
-export function UplinkSection({ filters, onFiltersChange }: UplinkSectionProps) {
+export function BackhaulSection({ filters, onFiltersChange }: BackhaulSectionProps) {
   const { t } = useTranslation("common");
 
   return (
     <FilterPanelSection
-      title="Uplink"
+      title={t("labels.backhaul")}
       onClear={filters.uplinkTypes.length > 0 ? () => onFiltersChange((current) => ({ ...current, uplinkTypes: [] })) : undefined}
     >
       <div className="flex flex-wrap gap-1.5">
-        {UPLINK_TYPES.map((type) => {
+        {BACKHAUL_MEDIUMS.map((type) => {
           const isActive = filters.uplinkTypes.includes(type);
-          const { icon, iconClassName } = UPLINK_APPEARANCE[type];
+          const { icon, iconClassName } = BACKHAUL_APPEARANCE[type];
           return (
             <FacetPill
               key={type}
@@ -326,7 +326,7 @@ export function UplinkSection({ filters, onFiltersChange }: UplinkSectionProps) 
               onClick={() => onFiltersChange((current) => ({ ...current, uplinkTypes: toggleValue(current.uplinkTypes, type) }))}
             >
               <HugeiconsIcon icon={icon} className={cn("size-3 shrink-0", isActive ? null : iconClassName)} aria-hidden="true" />
-              <span>{t(`labels.${uplinkTypeKey(type)}`)}</span>
+              <span>{t(`labels.${backhaulMediumLabelKey(type)}`)}</span>
             </FacetPill>
           );
         })}

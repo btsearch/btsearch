@@ -3,6 +3,7 @@
     "placeholderAddMore": "Dodaj więcej...",
     "accessibleLabel": "Szukaj stacji, lokalizacji i współrzędnych",
     "modeLabel": "Miejsce wyszukiwania",
+    "modeShow": "Pokaż:",
     "modeResults": "Wyniki",
     "resultsLabel": "Wyniki wyszukiwania",
     "searching": "Wyszukiwanie wyników...",
@@ -11,13 +12,39 @@
     "errorTitle": "Nie udało się wczytać wyników",
     "partialError": "Nie udało się wczytać części źródeł wyników",
     "showingTop": "Pokazano <num>{{shown, number}}</num> z <num>{{total, number}}</num> stacji",
-    "queryRejected": "Zapytanie zawiera błąd. Sprawdź wpisane filtry."
+    "queryRejected": "Zapytanie zawiera błąd. Sprawdź wpisane filtry.",
+    "editFilter": "Zmień filtr {{filter}}",
+    "unknownKeyword": "Nieznany filtr <code>{{typed}}</code>. Czy chodziło o <code>{{suggestion}}</code>?",
+    "invalidValue": "Filtr <code>{{key}}</code> nie przyjmuje wartości \"{{value}}\".",
+    "fix": "Popraw"
   },
   "autocomplete": {
     "availableFilters": "Dostępne filtry",
-    "tip": "Wskazówka:",
-    "tipText": "Użyj wartości oddzielonych przecinkami dla wielu elementów",
+    "allFilters": "Wszystkie filtry",
+    "recentSearches": "Ostatnie wyszukiwania",
+    "forgetRecent": "Usuń z historii",
+    "insert": "Wstaw",
+    "removeFilter": "Usuń filtr",
+    "noValues": "Brak wartości pasujących do \"{{text}}\"",
     "example": "Przykład",
+    "hints": {
+      "number": "Liczba dziesiętna lub szesnastkowa (0x1A2B). Kilka wartości oddziel przecinkami.",
+      "text": "Fragment nazwy. Kilka wartości oddziel przecinkami.",
+      "gps": "Szerokość i długość geograficzna oddzielone przecinkiem."
+    },
+    "presets": {
+      "today": "Dzisiaj",
+      "lastWeek": "Ostatnie 7 dni",
+      "lastMonth": "Ostatnie 30 dni",
+      "thisYear": "Od początku roku"
+    },
+    "keys": {
+      "choose": "Wybierz",
+      "insert": "Wstaw",
+      "toggle": "Zaznacz",
+      "space": "Spacja",
+      "finish": "Zakończ"
+    },
     "groups": {
       "common": "Podstawowe",
       "location": "Lokalizacja",
@@ -31,11 +58,10 @@
     },
     "filters": {
       "btsId": "Identyfikator stacji",
-      "mnc": "Kod PLMN operatora (np. 26003)",
       "status": "Status stacji (published, pending, inactive)",
       "hasPhoto": "Ma zdjęcie (true, false)",
       "hasAzimuth": "Ma co najmniej jeden azymut (true, false)",
-      "uplink": "Typ uplinku (fiber, microwave, satellite)",
+      "uplink": "Typ łącza dosyłowego (fiber, microwave, satellite)",
       "createdAfter": "Utworzono po dacie (YYYY-MM-DD)",
       "createdBefore": "Utworzono przed datą (YYYY-MM-DD)",
       "updatedAfter": "Zaktualizowano po dacie (YYYY-MM-DD)",

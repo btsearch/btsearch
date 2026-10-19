@@ -1,6 +1,7 @@
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -21,7 +22,9 @@ import { StationsListTable } from "./table/stationsListTable";
 import { useStationsListTable } from "./table/useStationsListTable";
 import { buttonVariants } from "@/components/ui/button";
 import { EDITOR_STATION_SEARCH } from "@/features/admin/stations/editorStationSearch";
-import { StationsSearchControl } from "@/features/stations/components/stationsSearchControl";
+import { SearchProblemNote } from "@/features/map/components/search-overlay/searchProblemNote";
+import { findQueryProblem, replaceSearchKeyword } from "@/features/map/searchAutocomplete";
+import { STATIONS_FILTER_KEYWORDS, StationsSearchControl } from "@/features/stations/components/stationsSearchControl";
 import { useIsCoarsePointer } from "@/hooks/useCoarsePointer";
 import { useIsMobile } from "@/hooks/useMobile";
 import { cn } from "@/lib/utils";
@@ -53,6 +56,21 @@ export function StationsListPage({ variant, search, onSearchChange }: StationsLi
   const { filters, readiness, changeFilters } = useStationsListState({ search, variant, onSearchChange });
   const { page, table } = useStationsListTable({ filters, onFiltersChange: changeFilters, variant, readiness });
   const isAdminList = variant === "admin";
+  const searchProblemNoteId = useId();
+  const searchProblem = findQueryProblem(filters.searchText, STATIONS_FILTER_KEYWORDS);
+
+  function changeSearchText(searchText: string) {
+    changeFilters((current) => setStationsListSearchText(current, searchText));
+  }
+
+  function fixSearchProblem() {
+    if (searchProblem?.kind !== "unknownKeyword") return;
+    changeSearchText(replaceSearchKeyword(filters.searchText, searchProblem.typed, searchProblem.suggestion));
+  }
+
+  let searchNote = page.isSearchRejected ? <ListSearchRejectedNote /> : null;
+  if (searchProblem !== null)
+    searchNote = <SearchProblemNote id={searchProblemNoteId} problem={searchProblem} onFix={fixSearchProblem} className="pl-[13px]" />;
 
   return (
     <ListFrame
@@ -62,11 +80,12 @@ export function StationsListPage({ variant, search, onSearchChange }: StationsLi
       search={
         <StationsSearchControl
           searchQuery={filters.searchText}
-          onSearchQueryChange={(searchText) => changeFilters((current) => setStationsListSearchText(current, searchText))}
+          onSearchQueryChange={changeSearchText}
+          describedBy={searchProblem === null ? undefined : searchProblemNoteId}
           placeholder={isMobile ? t("stations:list.searchPlaceholderShort") : t("stations:list.searchPlaceholder")}
         />
       }
-      searchNote={page.isSearchRejected ? <ListSearchRejectedNote /> : null}
+      searchNote={searchNote}
       panel={<StationsListPanel filters={filters} onFiltersChange={changeFilters} variant={variant} />}
       mobileFilters={<StationsListMobileFilters filters={filters} onFiltersChange={changeFilters} variant={variant} />}
       activeFilterCount={countActiveStationsListFilters(filters)}

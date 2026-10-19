@@ -1,4 +1,4 @@
-import type { StationStatus, StructureType } from "@openbts/shared/contract";
+import type { BackhaulMedium, StationStatus, StructureType } from "@openbts/shared/contract";
 
 import { FIRST_LIST_PAGE } from "./listPaging";
 import { type ListScope, keepBandLabelsInPlans, listCountryCodesInPlay, listCountryOptionCodes, narrowListToCountries } from "./listScope";
@@ -7,7 +7,6 @@ import { RAT_OPTIONS } from "@/features/map/constants";
 import { DEFAULT_MAP_FILTERS, type MapFilters, type MapFiltersChange, type MapRecentDateField } from "@/features/map/data/mapFilters";
 import type { MapBandLabelsByCountry } from "@/features/map/data/mapLookups";
 import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
-import type { UplinkType } from "@/types/station";
 
 export type StationsListVariant = "public" | "admin";
 export type StationsListSortColumn = "siteId" | "updated" | "created";
@@ -22,7 +21,7 @@ export type StationsListFilters = {
   bands: number[];
   statuses: StationStatus[];
   structureTypes: StructureType[];
-  uplinkTypes: UplinkType[];
+  backhaulMediums: BackhaulMedium[];
   recentDays: number | null;
   recentDateFields: MapRecentDateField[];
   missing: StationsListMissing[];
@@ -84,7 +83,7 @@ export const DEFAULT_STATIONS_LIST_FILTERS: StationsListFilters = {
   bands: [],
   statuses: [...DEFAULT_LIST_STATION_STATUSES],
   structureTypes: [],
-  uplinkTypes: [],
+  backhaulMediums: [],
   recentDays: null,
   recentDateFields: [...DEFAULT_MAP_FILTERS.recentDateFields],
   missing: [],
@@ -147,7 +146,7 @@ export function countActiveStationsListFilters(filters: StationsListFilters): nu
     filters.bands.length +
     (isDefaultListStationStatuses(filters.statuses) ? 0 : filters.statuses.length) +
     filters.structureTypes.length +
-    filters.uplinkTypes.length +
+    filters.backhaulMediums.length +
     (filters.recentDays === null ? 0 : 1) +
     filters.missing.length
   );
@@ -170,7 +169,7 @@ function getStationsListCriteriaKey(filters: StationsListFilters): string {
     filters.bands,
     filters.statuses,
     filters.structureTypes,
-    filters.uplinkTypes,
+    filters.backhaulMediums,
     filters.recentDays,
     filters.recentDateFields,
     filters.missing,
@@ -213,7 +212,7 @@ export function toMapPanelFilters(filters: StationsListFilters): MapFilters {
     status: filters.statuses.map(toV1StationStatus),
     recentDays: filters.recentDays,
     recentDateFields: filters.recentDateFields,
-    uplinkTypes: filters.uplinkTypes,
+    uplinkTypes: filters.backhaulMediums,
   };
   mapFiltersByListFilters.set(filters, mapFilters);
   return mapFilters;
@@ -234,6 +233,6 @@ export function applyMapPanelChange(filters: StationsListFilters, change: MapFil
     statuses: statuses.length > 0 ? statuses : filters.statuses,
     recentDays: next.recentDays,
     recentDateFields: next.recentDateFields,
-    uplinkTypes: next.uplinkTypes,
+    backhaulMediums: next.uplinkTypes,
   };
 }

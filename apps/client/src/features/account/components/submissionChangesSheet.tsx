@@ -76,9 +76,9 @@ const OPERATION_RAIL_CLASSES: Record<SubmissionAction, string> = {
 };
 const IDENTIFIER_ORDER: readonly StationIdentifierKind[] = ["networksId", "networksName", "operatorName"];
 const MEDIUM_KEYS: Record<BackhaulMedium, string> = {
-  fiber: "common:labels.uplinkFiber",
-  microwave: "common:labels.uplinkMicrowave",
-  satellite: "common:labels.uplinkSatellite",
+  fiber: "common:labels.backhaulFiber",
+  microwave: "common:labels.backhaulMicrowave",
+  satellite: "common:labels.backhaulSatellite",
 };
 const EMPTY_VALUE = "-";
 const FALLBACK_OPERATOR_BRAND = "MNO";
@@ -105,12 +105,12 @@ function listStationPairs(change: StationChange | null, operator: Operator | und
     const identifier = change.identifiers?.find((entry) => entry.kind === kind);
     if (identifier !== undefined) pairs.push({ label: getIdentifierLabel(kind, operator, t), value: identifier.value ?? EMPTY_VALUE });
   }
-  if (backhaul === null) pairs.push({ label: t("common:labels.uplinkType"), value: EMPTY_VALUE });
-  if (backhaul?.medium !== undefined) pairs.push({ label: t("common:labels.uplinkType"), value: t(MEDIUM_KEYS[backhaul.medium]) });
+  if (backhaul === null) pairs.push({ label: t("common:labels.backhaulType"), value: EMPTY_VALUE });
+  if (backhaul?.medium !== undefined) pairs.push({ label: t("common:labels.backhaulType"), value: t(MEDIUM_KEYS[backhaul.medium]) });
   if (backhaul?.speedMbps !== undefined) {
-    pairs.push({ label: t("common:labels.uplinkSpeed"), value: backhaul.speedMbps === null ? EMPTY_VALUE : String(backhaul.speedMbps) });
+    pairs.push({ label: t("common:labels.backhaulSpeed"), value: backhaul.speedMbps === null ? EMPTY_VALUE : String(backhaul.speedMbps) });
   }
-  if (backhaul?.model !== undefined) pairs.push({ label: t("common:labels.uplinkModel"), value: backhaul.model || EMPTY_VALUE });
+  if (backhaul?.model !== undefined) pairs.push({ label: t("common:labels.backhaulModel"), value: backhaul.model || EMPTY_VALUE });
   if (change.notes !== undefined) pairs.push({ label: t("common:labels.notes"), value: change.notes || EMPTY_VALUE });
   return pairs;
 }

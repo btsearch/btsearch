@@ -1,4 +1,4 @@
-import type { Operator } from "@openbts/shared/contract";
+import { BACKHAUL_MEDIUMS, type Operator } from "@openbts/shared/contract";
 
 import { FIRST_LIST_PAGE, LAST_LIST_PAGE, LIST_PAGE_SIZE_LIMIT, SMALLEST_LIST_PAGE_SIZE } from "./listPaging";
 import { DEFAULT_LIST_STATION_STATUSES, LIST_STATION_STATUSES, isDefaultListStationStatuses } from "./listStationStatuses";
@@ -30,7 +30,6 @@ import {
 } from "./stationsListFilters";
 import { type MapRecentDateField, UNKNOWN_BAND_LABEL } from "@/features/map/data/mapFilters";
 import { normalizeSearchText } from "@/lib/apiValues";
-import { UPLINK_TYPES } from "@/lib/format/uplink";
 
 type RecentDateWord = "created" | "updated";
 
@@ -86,7 +85,7 @@ export function readStationsListFilters(search: ListUrlSearch, variant: Stations
     bands: parseUrlNumbers(search.bands, UNKNOWN_BAND_LABEL, LARGEST_BAND_LABEL),
     statuses: statuses.length > 0 ? statuses : [...DEFAULT_LIST_STATION_STATUSES],
     structureTypes: parseUrlEnum(search.structures, LIST_STRUCTURE_TYPES),
-    uplinkTypes: parseUrlEnum(search.uplink, UPLINK_TYPES),
+    backhaulMediums: parseUrlEnum(search.uplink, BACKHAUL_MEDIUMS),
     recentDays,
     recentDateFields: recentDateFields.length > 0 ? recentDateFields : [...DEFAULT_STATIONS_LIST_FILTERS.recentDateFields],
     missing: variant === "admin" ? parseUrlEnum(search.missing, STATIONS_LIST_MISSING) : [],
@@ -110,7 +109,7 @@ export function toStationsListSearch(filters: StationsListFilters, variant: Stat
     bands: joinUrlValues(sortUniqueNumbers(filters.bands)),
     statuses: isDefaultListStationStatuses(filters.statuses) ? undefined : joinUrlValues(orderWords(LIST_STATION_STATUSES, filters.statuses)),
     structures: joinUrlValues(orderWords(LIST_STRUCTURE_TYPES, filters.structureTypes)),
-    uplink: joinUrlValues(orderWords(UPLINK_TYPES, filters.uplinkTypes)),
+    uplink: joinUrlValues(orderWords(BACKHAUL_MEDIUMS, filters.backhaulMediums)),
     recentDays: filters.recentDays ?? undefined,
     recentDates: hasOwnRecentDates ? joinUrlValues(listRecentDateWords(filters.recentDateFields)) : undefined,
     missing: variant === "admin" ? joinUrlValues(orderWords(STATIONS_LIST_MISSING, filters.missing)) : undefined,

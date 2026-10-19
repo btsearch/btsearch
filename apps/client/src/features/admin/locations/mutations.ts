@@ -32,7 +32,7 @@ export function usePatchLocationMutation(locationId: number, location?: Location
         cellCountChanged: false,
         sectorsChanged: false,
         extraIdsChanged: false,
-        uplinkChanged: false,
+        backhaulChanged: false,
       }));
       invalidateStationUpdateQueriesBatch(queryClient, impacts);
 

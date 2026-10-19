@@ -22,7 +22,7 @@ import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
 import { checkOwnerCellDuplicates, checkPciDuplicates, getOperatorIdForStation } from "../cells/duplicateCheck.js";
 import { type NetworkOwner, loadNetworkOwner, withoutOwnerCode } from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
-import { uplinkSpeedSchema } from "../stations/uplink.js";
+import { backhaulSpeedSchema } from "../stations/backhaul.js";
 import { assertCountriesOpen, loadCurrentLocations } from "./contributions.js";
 import {
   type PhotoPickInput,
@@ -68,7 +68,7 @@ const cellInputSchema = createInsertSchema(proposedCells)
 
 const stationInputSchema = createInsertSchema(proposedStations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
-  .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
+  .extend({ uplink_speed: backhaulSpeedSchema.nullable().optional() })
   .partial();
 const sectorInputSchema = createInsertSchema(proposedSectors).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
 
@@ -363,7 +363,7 @@ export async function updateSubmission(
     throw new ErrorResponse("BAD_REQUEST", { message: "operator_id is required for new stations" });
   }
   if (submission.type === "new" && body.station && !body.station.uplink_type && typeof body.station.uplink_speed === "number") {
-    throw new ErrorResponse("BAD_REQUEST", { message: "A new station's uplink speed needs an uplink type" });
+    throw new ErrorResponse("BAD_REQUEST", { message: "A new station's backhaul speed needs a backhaul type" });
   }
   if (submission.type === "new" && body.location && !isCompleteLocation(body.location)) {
     throw new ErrorResponse("BAD_REQUEST", { message: "A region and coordinates are required for a new station's location" });

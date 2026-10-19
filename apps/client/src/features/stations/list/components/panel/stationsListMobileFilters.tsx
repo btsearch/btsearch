@@ -19,6 +19,7 @@ import { useStationsListPanel } from "../../data/stationsListPanel";
 import { ListMobileFilterChip, ListMobileFilterRail, useHeldClearChip } from "./listMobileFilterRail";
 import { hasSameListPanelProps } from "./listPanelSections";
 import {
+  StationsBackhaulSection,
   StationsBandSection,
   StationsCountrySection,
   type StationsListPanelProps,
@@ -29,10 +30,7 @@ import {
   StationsStandardSection,
   StationsStatusSection,
   StationsStructureSection,
-  StationsUplinkSection,
 } from "./stationsListSections";
-
-const UPLINK_LABEL = "Uplink";
 
 export const StationsListMobileFilters = memo(function StationsListMobileFilters({ filters, onFiltersChange, variant }: StationsListPanelProps) {
   const { t } = useTranslation(["main", "common", "stationDetails"]);
@@ -91,8 +89,13 @@ export const StationsListMobileFilters = memo(function StationsListMobileFilters
       >
         <StationsStructureSection {...sectionProps} />
       </ListMobileFilterChip>
-      <ListMobileFilterChip icon={CableIcon} label={UPLINK_LABEL} count={filters.uplinkTypes.length} onOpenChange={handleChipOpenChange}>
-        <StationsUplinkSection {...sectionProps} />
+      <ListMobileFilterChip
+        icon={CableIcon}
+        label={t("common:labels.backhaul")}
+        count={filters.backhaulMediums.length}
+        onOpenChange={handleChipOpenChange}
+      >
+        <StationsBackhaulSection {...sectionProps} />
       </ListMobileFilterChip>
       <ListMobileFilterChip
         icon={Calendar03Icon}

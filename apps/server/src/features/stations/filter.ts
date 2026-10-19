@@ -4,8 +4,8 @@ import { type SQL, and, inArray, or, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { bandCondition } from "../bands/unknown.js";
+import { type BackhaulMedium, buildBackhaulCondition } from "./backhaul.js";
 import { type StationStatus, buildStatusCondition } from "./status.js";
-import { type UplinkType, buildUplinkCondition } from "./uplink.js";
 
 type NonIotRat = "GSM" | "UMTS" | "LTE" | "NR";
 
@@ -24,7 +24,7 @@ export type StationFilterParams = {
   bands?: number[];
   rat?: string[];
   since: StationSinceFilter | null;
-  uplink?: UplinkType[];
+  uplink?: BackhaulMedium[];
 };
 
 export type StationFilter = {
@@ -35,7 +35,7 @@ export type StationFilter = {
   nonIotRats: NonIotRat[];
   iotRequested: boolean;
   since: StationSinceFilter | null;
-  uplinkTypes: UplinkType[];
+  backhaulMediums: BackhaulMedium[];
 };
 
 export type SectorFilter = Pick<StationFilter, "bandIds" | "includesUnknownBand" | "nonIotRats" | "iotRequested">;
@@ -60,7 +60,7 @@ export async function resolveStationFilter(params: StationFilterParams): Promise
     nonIotRats: rats.map((rat) => NON_IOT_RATS[rat]).filter((rat): rat is NonIotRat => rat !== undefined),
     iotRequested: rats.includes("iot"),
     since: params.since,
-    uplinkTypes: params.uplink ?? [],
+    backhaulMediums: params.uplink ?? [],
   };
 }
 
@@ -72,12 +72,12 @@ export function hasStationFilterCriteria(filter: StationFilter): boolean {
     filter.nonIotRats.length > 0 ||
     filter.iotRequested ||
     filter.since !== null ||
-    filter.uplinkTypes.length > 0
+    filter.backhaulMediums.length > 0
   );
 }
 
 export function buildStationFilterConditions(stationFields: typeof stations, filter: StationFilter): SQL[] {
-  const { operatorIds, nonIotRats, iotRequested, since, uplinkTypes } = filter;
+  const { operatorIds, nonIotRats, iotRequested, since, backhaulMediums } = filter;
   const conditions: SQL[] = [buildStatusCondition(stationFields, filter.statuses)];
 
   if (operatorIds.length) conditions.push(inArray(stationFields.operator_id, operatorIds));
@@ -111,7 +111,7 @@ export function buildStationFilterConditions(stationFields: typeof stations, fil
     conditions.push(sql`(${sql.join(sinceConditions, sql` OR `)})`);
   }
 
-  if (uplinkTypes.length) conditions.push(buildUplinkCondition(stationFields.id, uplinkTypes));
+  if (backhaulMediums.length) conditions.push(buildBackhaulCondition(stationFields.id, backhaulMediums));
 
   return conditions;
 }

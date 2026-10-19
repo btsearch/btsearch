@@ -23,11 +23,11 @@ import {
   splitCountryPillCodes,
 } from "./mapFilterPanelRules";
 import {
+  BackhaulSection,
   BandSection,
   MicrowaveLinkOperatorsSection,
   RecentDaysFilter,
   StandardSection,
-  UplinkSection,
   useMicrowaveLinkOperators,
 } from "./mapFilterSections";
 import { SourceSwitch } from "@/components/cellular/sourceSwitch";
@@ -324,7 +324,7 @@ export function FilterPanel({
           >
             <StationStatusPills statuses={filters.status} onToggleStatus={handleToggleStatus} />
           </FilterPanelSection>
-          <UplinkSection filters={filters} onFiltersChange={onFiltersChange} />
+          <BackhaulSection filters={filters} onFiltersChange={onFiltersChange} />
         </div>
       </Reveal>
       <div className="pt-0.5">

@@ -83,16 +83,6 @@ export type ExtraIdentificator = {
   createdAt: string;
 };
 
-export type UplinkType = "fiber" | "microwave" | "satellite";
-
-export type StationUplink = {
-  id: number;
-  type: UplinkType;
-  speed: number | null;
-  model: string | null;
-  updatedAt: string;
-};
-
 export type StationStatus = "published" | "inactive" | "pending";
 
 export type PhysicalStation = {
@@ -118,7 +108,6 @@ export type Station = {
   operator: Operator;
   extra_identificators?: ExtraIdentificator;
   sectors?: Sector[];
-  uplink?: StationUplink;
   physicalStation?: PhysicalStation;
 };
 

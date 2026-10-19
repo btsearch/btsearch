@@ -8,7 +8,7 @@ export function placedStation() {
   visibleStation(current);
   dbMock.query.stations.findFirst.mockResolvedValue(current);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
   return { current, location };
 }
 

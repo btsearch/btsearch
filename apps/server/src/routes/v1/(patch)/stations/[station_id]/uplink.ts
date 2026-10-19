@@ -1,4 +1,4 @@
-import { stationUplinks, stations } from "@openbts/drizzle";
+import { stationBackhauls, stations } from "@openbts/drizzle";
 import { eq } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -8,15 +8,15 @@ import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import { stationParamScope } from "../../../../../features/access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../features/audit/index.js";
-import { uplinkSpeedSchema } from "../../../../../features/stations/uplink.js";
+import { backhaulSpeedSchema } from "../../../../../features/stations/backhaul.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
-const uplinkSelectSchema = createSelectSchema(stationUplinks);
+const backhaulSelectSchema = createSelectSchema(stationBackhauls);
 
 const requestSchema = z.object({
   type: z.enum(["fiber", "microwave", "satellite"]).nullable(),
-  speed: uplinkSpeedSchema.nullable().optional(),
+  speed: backhaulSpeedSchema.nullable().optional(),
   model: z.string().max(100).nullable().optional(),
 });
 
@@ -26,7 +26,7 @@ const schemaRoute = {
   }),
   body: requestSchema,
   response: {
-    200: z.object({ data: uplinkSelectSchema }),
+    200: z.object({ data: backhaulSelectSchema }),
     204: z.void(),
   },
 };
@@ -34,7 +34,7 @@ const schemaRoute = {
 type ReqBody = { Body: z.infer<typeof requestSchema> };
 type ReqParams = { Params: { station_id: number } };
 type RequestData = ReqBody & ReqParams;
-type ResponseData = z.infer<typeof uplinkSelectSchema>;
+type ResponseData = z.infer<typeof backhaulSelectSchema>;
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const { station_id } = req.params;
@@ -43,13 +43,13 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const station = await db.query.stations.findFirst({ where: { id: station_id } });
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const existing = await db.query.stationUplinks.findFirst({ where: { station_id } });
+  const existing = await db.query.stationBackhauls.findFirst({ where: { station_id } });
 
   if (!type) {
     if (!existing) throw new ErrorResponse("NOT_FOUND");
 
     await runAuditedOperation(auditContextFromRequest(req), { kind: "station.edit" }, async (tx, audit) => {
-      await tx.delete(stationUplinks).where(eq(stationUplinks.id, existing.id));
+      await tx.delete(stationBackhauls).where(eq(stationBackhauls.id, existing.id));
       await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, station_id));
       await audit.log({
         entity: "station_uplinks",
@@ -74,16 +74,16 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     return res.send({ data: existing });
 
   const result = await runAuditedOperation(auditContextFromRequest(req), { kind: "station.edit" }, async (tx, audit) => {
-    const current = await tx.query.stationUplinks.findFirst({ where: { station_id } });
+    const current = await tx.query.stationBackhauls.findFirst({ where: { station_id } });
 
     const [saved] = current
       ? await tx
-          .update(stationUplinks)
+          .update(stationBackhauls)
           .set({ ...values, updatedAt: new Date() })
-          .where(eq(stationUplinks.id, current.id))
+          .where(eq(stationBackhauls.id, current.id))
           .returning()
       : await tx
-          .insert(stationUplinks)
+          .insert(stationBackhauls)
           .values({ station_id, ...values })
           .returning();
 
@@ -104,7 +104,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   return res.send({ data: result });
 }
 
-const updateStationUplink: Route<RequestData, ResponseData> = {
+const updateStationBackhaul: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/uplink",
   method: "PATCH",
   config: { permissions: ["update:stations"], scope: stationParamScope },
@@ -112,4 +112,4 @@ const updateStationUplink: Route<RequestData, ResponseData> = {
   handler,
 };
 
-export default updateStationUplink;
+export default updateStationBackhaul;

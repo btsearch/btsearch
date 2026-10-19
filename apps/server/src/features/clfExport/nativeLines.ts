@@ -7,8 +7,8 @@ import {
   nrCells,
   operators,
   regions,
+  stationBackhauls,
   stationSectors,
-  stationUplinks,
   stations,
   structureOwners,
   umtsCells,
@@ -58,7 +58,7 @@ export async function loadNativeExportLines(
       station_pk: stations.id,
       station_sid: stations.station_id,
       extra_address: stations.extra_address,
-      uplink_type: stationUplinks.type,
+      backhaul_medium: stationBackhauls.type,
       operator_mnc: operators.mnc,
       latitude: locations.latitude,
       longitude: locations.longitude,
@@ -76,7 +76,7 @@ export async function loadNativeExportLines(
     .leftJoin(locations, eq(stations.location_id, locations.id))
     .leftJoin(regions, eq(locations.region_id, regions.id))
     .leftJoin(structureOwners, eq(locations.structure_owner_id, structureOwners.id))
-    .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
+    .leftJoin(stationBackhauls, eq(stationBackhauls.station_id, stations.id))
     .where(inArray(stations.id, [...stationIds]));
   const gsmQuery = rats.gsm
     ? db

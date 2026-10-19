@@ -54,8 +54,8 @@ import {
   operators,
   plmns,
   regions,
+  stationBackhauls,
   stationSectors,
-  stationUplinks,
   stations,
   stationsPermits,
   statsSnapshots,
@@ -91,7 +91,7 @@ export const relations = defineRelations(
     regions,
     stations,
     stationSectors,
-    stationUplinks,
+    stationBackhauls,
     officialSites,
     officialPermits,
     officialPermitSectors,
@@ -292,9 +292,9 @@ export const relations = defineRelations(
         to: helpers.extraIdentificators.station_id,
       }),
       sectors: helpers.many.stationSectors(),
-      uplink: helpers.one.stationUplinks({
+      uplink: helpers.one.stationBackhauls({
         from: helpers.stations.id,
-        to: helpers.stationUplinks.station_id,
+        to: helpers.stationBackhauls.station_id,
       }),
       stationWatches: helpers.many.stationWatches(),
     },
@@ -305,9 +305,9 @@ export const relations = defineRelations(
         optional: false,
       }),
     },
-    stationUplinks: {
+    stationBackhauls: {
       station: helpers.one.stations({
-        from: helpers.stationUplinks.station_id,
+        from: helpers.stationBackhauls.station_id,
         to: helpers.stations.id,
         optional: false,
       }),

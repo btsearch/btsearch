@@ -18,7 +18,7 @@ export type StationUpdateImpact = {
   cellCountChanged: boolean;
   sectorsChanged: boolean;
   extraIdsChanged: boolean;
-  uplinkChanged: boolean;
+  backhaulChanged: boolean;
 };
 
 type InvalidateStationUpdateQueriesOptions = {
@@ -42,7 +42,7 @@ export function createConservativeStationImpact(stationId: number | null): Stati
     cellCountChanged: true,
     sectorsChanged: true,
     extraIdsChanged: true,
-    uplinkChanged: true,
+    backhaulChanged: true,
   };
 }
 
@@ -88,7 +88,7 @@ export function invalidateStationUpdateQueriesBatch(
   let cellsChanged = false;
   let sectorsChanged = false;
   let extraIdsChanged = false;
-  let uplinkChanged = false;
+  let backhaulChanged = false;
   let hasChangedStationWithoutLocationId = false;
 
   for (const impact of impacts) {
@@ -100,9 +100,9 @@ export function invalidateStationUpdateQueriesBatch(
       impact.cellsChanged ||
       impact.sectorsChanged ||
       impact.extraIdsChanged ||
-      impact.uplinkChanged;
+      impact.backhaulChanged;
     const stationListingChanged =
-      impact.stationMetadataChanged || impact.locationMetadataChanged || impact.locationMoved || impact.cellsChanged || impact.uplinkChanged;
+      impact.stationMetadataChanged || impact.locationMetadataChanged || impact.locationMoved || impact.cellsChanged || impact.backhaulChanged;
 
     if (impact.stationId !== null) {
       if (stationDetailChanged) stationDetailIds.add(impact.stationId);
@@ -121,10 +121,10 @@ export function invalidateStationUpdateQueriesBatch(
     cellsChanged ||= impact.cellsChanged;
     sectorsChanged ||= impact.sectorsChanged;
     extraIdsChanged ||= impact.extraIdsChanged;
-    uplinkChanged ||= impact.uplinkChanged;
+    backhaulChanged ||= impact.backhaulChanged;
   }
 
-  const stationListingChanged = stationMetadataChanged || locationMetadataChanged || locationMoved || cellsChanged || uplinkChanged;
+  const stationListingChanged = stationMetadataChanged || locationMetadataChanged || locationMoved || cellsChanged || backhaulChanged;
   const locationChanged = locationMetadataChanged || locationMoved;
   const stationDataChanged = stationListingChanged || extraIdsChanged;
   const stationOrLocationChanged = stationMetadataChanged || locationMetadataChanged || locationMoved;

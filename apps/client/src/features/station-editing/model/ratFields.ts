@@ -1,4 +1,4 @@
-import { type CellType, DEFAULT_GNBID_LENGTH, type NrMode } from "@openbts/shared/contract";
+import type { CellType, NrMode } from "@openbts/shared/contract";
 
 export { DEFAULT_GNBID_LENGTH, GNBID_MIN_LENGTH, GNBID_MAX_LENGTH } from "@openbts/shared/contract";
 

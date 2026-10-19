@@ -6,8 +6,8 @@ import {
   proposedLocations,
   proposedSectors,
   proposedStations,
+  stationBackhauls,
   stationSectors,
-  stationUplinks,
   stations,
   submissions,
 } from "@openbts/drizzle";
@@ -100,22 +100,22 @@ function storedStationInput(row: ProposedStationRow): ProposedStationChanges {
 }
 
 async function backfillStationProposal(row: ProposedStationRow, stationId: number, writtenAt: string): Promise<ProposedStationChanges> {
-  const [liveExtra, liveUplink, extraEntries, uplinkEntries, station] = await Promise.all([
+  const [liveExtra, liveBackhaul, extraEntries, backhaulEntries, station] = await Promise.all([
     db.select().from(extraIdentificators).where(eq(extraIdentificators.station_id, stationId)).orderBy(asc(extraIdentificators.id)).limit(1),
-    db.select().from(stationUplinks).where(eq(stationUplinks.station_id, stationId)).limit(1),
+    db.select().from(stationBackhauls).where(eq(stationBackhauls.station_id, stationId)).limit(1),
     auditEntriesAfter(writtenAt, "extra_identificators", { stationId }),
     auditEntriesAfter(writtenAt, "station_uplinks", { stationId }),
     stationAtWriteTime(stationId, writtenAt),
   ]);
   const extra = rowAtWriteTime(extraEntries, liveExtra[0] ?? null);
-  const uplink = rowAtWriteTime(uplinkEntries, liveUplink[0] ?? null);
-  const uplinkType = text(uplink?.type);
+  const backhaul = rowAtWriteTime(backhaulEntries, liveBackhaul[0] ?? null);
+  const backhaulMedium = text(backhaul?.type);
 
   const changes = diffProposedStation(
     storedStationInput(row),
     { station_id: text(station.station_id), operator_id: num(station.operator_id), notes: text(station.notes) },
     extra && { networks_id: num(extra.networks_id), networks_name: text(extra.networks_name), mno_name: text(extra.mno_name) },
-    uplink && uplinkType !== null ? { type: uplinkType, speed: num(uplink.speed), model: text(uplink.model) } : null,
+    backhaul && backhaulMedium !== null ? { type: backhaulMedium, speed: num(backhaul.speed), model: text(backhaul.model) } : null,
   );
 
   if (apply)

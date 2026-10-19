@@ -18,10 +18,10 @@ import { sql } from "drizzle-orm/sql";
 
 import { locationPhotos, users } from "./auth.ts";
 import {
+  BackhaulMedium,
   CellType,
   NRType,
   StructureType,
-  UplinkType,
   bands,
   cells,
   countries,
@@ -237,7 +237,7 @@ export const proposedStations = SubmissionsSchema.table(
     networks_id: integer("networks_id"),
     networks_name: varchar("networks_name", { length: 50 }),
     mno_name: varchar("mno_name", { length: 50 }),
-    uplink_type: UplinkType("uplink_type"),
+    uplink_type: BackhaulMedium("uplink_type"),
     uplink_speed: integer("uplink_speed"),
     uplink_model: varchar("uplink_model", { length: 100 }),
     changed_fields: ProposedStationFieldEnum("changed_fields").array(),

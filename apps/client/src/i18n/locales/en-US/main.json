@@ -3,6 +3,7 @@
     "placeholderAddMore": "Add more...",
     "accessibleLabel": "Search stations, locations, and coordinates",
     "modeLabel": "Search destination",
+    "modeShow": "Show:",
     "modeResults": "Results",
     "resultsLabel": "Search results",
     "searching": "Searching...",
@@ -11,13 +12,39 @@
     "errorTitle": "Could not load search results",
     "partialError": "Some result sources could not be loaded",
     "showingTop": "Showing <num>{{shown, number}}</num> of <num>{{total, number}}</num> stations",
-    "queryRejected": "The query has an error. Check the filters you typed."
+    "queryRejected": "The query has an error. Check the filters you typed.",
+    "editFilter": "Edit filter {{filter}}",
+    "unknownKeyword": "Unknown filter <code>{{typed}}</code>. Did you mean <code>{{suggestion}}</code>?",
+    "invalidValue": "The <code>{{key}}</code> filter does not accept \"{{value}}\".",
+    "fix": "Fix"
   },
   "autocomplete": {
     "availableFilters": "Available filters",
-    "tip": "Tip:",
-    "tipText": "Use comma-separated values for multiple items",
+    "allFilters": "All filters",
+    "recentSearches": "Recent searches",
+    "forgetRecent": "Remove from history",
+    "insert": "Insert",
+    "removeFilter": "Remove filter",
+    "noValues": "No values match \"{{text}}\"",
     "example": "Example",
+    "hints": {
+      "number": "A decimal or hexadecimal number (0x1A2B). Separate several values with commas.",
+      "text": "Part of the name. Separate several values with commas.",
+      "gps": "Latitude and longitude, separated by a comma."
+    },
+    "presets": {
+      "today": "Today",
+      "lastWeek": "Last 7 days",
+      "lastMonth": "Last 30 days",
+      "thisYear": "Since the start of the year"
+    },
+    "keys": {
+      "choose": "Move",
+      "insert": "Insert",
+      "toggle": "Select",
+      "space": "Space",
+      "finish": "Finish"
+    },
     "groups": {
       "common": "Common",
       "location": "Location",
@@ -31,11 +58,10 @@
     },
     "filters": {
       "btsId": "Station ID",
-      "mnc": "Operator PLMN code (for example 26003)",
       "status": "Station status (published, pending, inactive)",
       "hasPhoto": "Has a photo (true, false)",
       "hasAzimuth": "Has at least one azimuth (true, false)",
-      "uplink": "Uplink type (fiber, microwave, satellite)",
+      "uplink": "Backhaul type (fiber, microwave, satellite)",
       "createdAfter": "Created after date (YYYY-MM-DD)",
       "createdBefore": "Created before date (YYYY-MM-DD)",
       "updatedAfter": "Updated after date (YYYY-MM-DD)",

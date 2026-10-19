@@ -29,7 +29,7 @@ import { CloseButton } from "@/components/ui/close-button";
 import { InlineError } from "@/components/ui/error-state";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RanSharingLink } from "@/features/station-details/components/ranSharingLink";
+import { RanSharingLink } from "@/features/station-details/components/sharingLinks";
 import { locationPhotoRecordsQueryOptions } from "@/features/station-details/station/api";
 import { StationStructureLine } from "@/features/station-details/station/components/panel/stationStructureLine";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";

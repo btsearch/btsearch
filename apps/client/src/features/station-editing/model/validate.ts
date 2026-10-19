@@ -392,7 +392,8 @@ function validateAreaCode(session: EditSession, rat: Rat, cells: readonly CellDr
 
 function validateRat(session: EditSession, context: ValidationContext, rat: Rat): EditError[] {
   const cells = session.draft.cells.filter((cell) => cell.rat === rat && !cell.isDeleted);
-  const writtenCells = cells.filter((cell) => getRowKind(session, cell) !== "same");
+  const defaultGnbidLength = findDraftGnbidLength(session.draft, context.operatorsById);
+  const writtenCells = cells.filter((cell) => getRowKind(session, cell, defaultGnbidLength) !== "same");
   const written = new Set(writtenCells.map((cell) => cell.key));
 
   return [

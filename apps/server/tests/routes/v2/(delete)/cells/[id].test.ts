@@ -18,7 +18,7 @@ describe("DELETE /cells/:id", () => {
     dbMock.enqueueFor("select", "stations", [{ station, countryCode: null }], [{ locationCountry: null, operatorCountry: null }]);
     dbMock.query.stations.findFirst.mockResolvedValue(station);
     dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
     dbMock.query.cells.findMany.mockResolvedValue([{ ...previous.cell, gsm: previous.gsm, umts: null, lte: null, nr: null }]);
     dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
     dbMock.enqueueFor("select", "station_photo_selections", [], []);

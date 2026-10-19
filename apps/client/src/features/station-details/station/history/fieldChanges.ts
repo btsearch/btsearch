@@ -7,7 +7,7 @@ import { findV1StationStatus, getLocationLabel } from "../utils/stations";
 import { formatUnresolvedId, getNameById } from "./names";
 import type { HistoryNames } from "./names";
 import type { HistoryFieldChange, HistoryFieldName, HistoryLine, StationHistoryLocation, StationHistoryValue } from "./types";
-import { isUplinkType, uplinkTypeKey } from "@/lib/format/uplink";
+import { backhaulMediumLabelKey, isBackhaulMedium } from "@/lib/format/backhaul";
 
 type FieldLabel = { translationKey: string } | { text: string };
 
@@ -33,9 +33,9 @@ const FIELD_LABELS: Record<Exclude<HistoryFieldName, CellIdentifierField>, Field
   networksId: { translationKey: "common:labels.networksId" },
   networksName: { translationKey: "common:labels.networksName" },
   operatorName: { translationKey: "stationDetails:history.fields.mnoName" },
-  medium: { translationKey: "common:labels.uplinkType" },
-  speedMbps: { translationKey: "common:labels.uplinkSpeed" },
-  model: { translationKey: "stationDetails:history.fields.uplinkModel" },
+  medium: { translationKey: "common:labels.backhaulType" },
+  speedMbps: { translationKey: "common:labels.backhaulSpeed" },
+  model: { translationKey: "stationDetails:history.fields.backhaulModel" },
   azimuths: { translationKey: "common:labels.azimuths" },
   extraPlmns: { translationKey: "stations:edit.cells.columns.networks" },
   sector: { translationKey: "common:labels.azimuth" },
@@ -97,7 +97,7 @@ function formatText(field: string, value: string, t: TFunction): string {
   if (field === "status") return formatStatus(value, t);
   if (field === "cellType") return formatCellType(value, t);
   if (field === "structureType") return t(`common:structure.types.${value}`, { defaultValue: value });
-  if (field === "medium" && isUplinkType(value)) return t(`common:labels.${uplinkTypeKey(value)}`);
+  if (field === "medium" && isBackhaulMedium(value)) return t(`common:labels.${backhaulMediumLabelKey(value)}`);
   if (field === "mode" || field === "rat") return value.toUpperCase();
   return value;
 }

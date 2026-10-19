@@ -137,12 +137,13 @@
     "networksId": "N! ID",
     "networksName": "NetWorks name",
     "cellType": "Cell type",
-    "uplinkType": "Uplink type",
-    "uplinkSpeed": "Speed (Mbps)",
-    "uplinkModel": "Model",
-    "uplinkFiber": "Fiber",
-    "uplinkMicrowave": "Microwave",
-    "uplinkSatellite": "Satellite",
+    "backhaul": "Backhaul",
+    "backhaulType": "Backhaul type",
+    "backhaulSpeed": "Speed (Mbps)",
+    "backhaulModel": "Model",
+    "backhaulFiber": "Fiber",
+    "backhaulMicrowave": "Microwave",
+    "backhaulSatellite": "Satellite",
     "mnoName": "{{brand}} name",
     "cells": "Cells",
     "newStation": "New station",
@@ -384,9 +385,9 @@
   },
   "sharedNetworks": {
     "cellTitle": "Cell shared with other networks",
-    "cellHint": "Besides the station's operator, this cell also broadcasts for the networks below. Their phones use it as their own network's cell.",
-    "tableHint": "Besides the station's operator, every {{rat}} cell of this station also broadcasts for the networks below. Their phones use these cells as their own network's.",
+    "cellHint": "Besides the station's operator, this cell also broadcasts for the networks below. Their phones use it as their own network's cell via <mocnLink>MOCN</mocnLink>",
+    "tableHint": "Besides the station's operator, every {{rat}} cell of this station also broadcasts for the networks below. Their phones use these cells as their own network's cells via <mocnLink>MOCN</mocnLink>",
     "stationTitle": "Station shared with other networks",
-    "stationHint": "At least one cell of this station also broadcasts for the networks below. Their phones use it as their own network's cell."
+    "stationHint": "At least one cell of this station also broadcasts for the networks below. Their phones use it as their own network's cell via <mocnLink>MOCN</mocnLink>"
   }
 }

@@ -295,7 +295,7 @@ export function scriptContentDraftCreate(fixture: DraftFixture): void {
   dbMock.enqueueFor("select", "countries", []);
   dbMock.query.stations.findFirst.mockResolvedValue(liveDraftStation);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(liveDraftIdentifiers);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(liveDraftBackhaul);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(liveDraftBackhaul);
   scriptAudit();
   dbMock.enqueueFor("insert", "submissions", [fixture.row]);
   if (fixture.snapshot.proposedStation !== null) dbMock.enqueueFor("insert", "proposed_stations", []);
@@ -381,7 +381,7 @@ export function scriptExistingDraftCreate(fixture: DraftFixture, targets: Return
   dbMock.enqueueFor("select", "countries", []);
   dbMock.query.stations.findFirst.mockResolvedValue(station);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
   dbMock.query.cells.findMany.mockResolvedValue(targets.map(({ cell }) => cell));
   if (fixture.cells.some(({ cell }) => cell.operation !== "delete")) {
     scriptBandPlan();

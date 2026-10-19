@@ -9,9 +9,9 @@ import {
   operators,
   plmns,
   regions,
+  stationBackhauls,
   stationPhotoSelections,
   stationSectors,
-  stationUplinks,
   stations,
   submissions,
 } from "@openbts/drizzle";
@@ -67,13 +67,13 @@ import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
 import { correctStationLinks, findStationGroups } from "../official/links.js";
 import { findRegionIdAt } from "../regions/lookup.js";
+import { isBackhaulMedium } from "../stations/backhaul.js";
 import { stationCountryCode } from "../stations/country.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { writeSectorAzimuths } from "../stations/sectorAzimuths.js";
 import { findSharedSiblingIds, keepSameEnbSiblingIds } from "../stations/sharedSiblings.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
-import { isUplinkType } from "../stations/uplink.js";
 import type { StructureOwnerRow } from "../structures/serialize.js";
 import { findOrCreateNamedOwner } from "../structures/write.js";
 import type { ChangeCell, SubmissionChange } from "./create.js";
@@ -361,7 +361,7 @@ async function createExtraIdentifierForNewStation(
   });
 }
 
-function extractUplinkFields(proposedStation: NonNullable<ApprovalDraft["proposedStation"]>) {
+function extractBackhaulFields(proposedStation: NonNullable<ApprovalDraft["proposedStation"]>) {
   const raw = proposedStation as Record<string, unknown>;
   return {
     type: raw.uplink_type as string | null | undefined,
@@ -370,24 +370,24 @@ function extractUplinkFields(proposedStation: NonNullable<ApprovalDraft["propose
   };
 }
 
-const stationUplinkSelectSchema = createSelectSchema(stationUplinks);
+const stationBackhaulSelectSchema = createSelectSchema(stationBackhauls);
 const stationInsertSchema = createInsertSchema(stations);
 
-type UplinkValues = Pick<z.infer<typeof stationUplinkSelectSchema>, "type" | "speed" | "model">;
+type BackhaulValues = Pick<z.infer<typeof stationBackhaulSelectSchema>, "type" | "speed" | "model">;
 
-async function saveStationUplink(audit: AuditRecorder, stationId: number, values: UplinkValues): Promise<boolean> {
+async function saveStationBackhaul(audit: AuditRecorder, stationId: number, values: BackhaulValues): Promise<boolean> {
   const { tx } = audit;
-  const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
+  const existing = await tx.query.stationBackhauls.findFirst({ where: { station_id: stationId } });
   if (existing && existing.type === values.type && existing.speed === values.speed && existing.model === values.model) return false;
 
   const [saved] = existing
     ? await tx
-        .update(stationUplinks)
+        .update(stationBackhauls)
         .set({ ...values, updatedAt: new Date() })
-        .where(eq(stationUplinks.id, existing.id))
+        .where(eq(stationBackhauls.id, existing.id))
         .returning()
     : await tx
-        .insert(stationUplinks)
+        .insert(stationBackhauls)
         .values({ station_id: stationId, ...values })
         .returning();
 
@@ -405,7 +405,7 @@ async function saveStationUplink(audit: AuditRecorder, stationId: number, values
   return true;
 }
 
-async function syncSiblingUplink(audit: AuditRecorder, stationId: number, values: UplinkValues): Promise<void> {
+async function syncSiblingBackhaul(audit: AuditRecorder, stationId: number, values: BackhaulValues): Promise<void> {
   const { tx } = audit;
   const site = await loadStationSiteContext(tx, stationId);
   if (!site?.locationId) return;
@@ -413,33 +413,33 @@ async function syncSiblingUplink(audit: AuditRecorder, stationId: number, values
   const siblingStationId = await findSharedSiteCopyTarget(tx, site, "backhaul");
   if (siblingStationId === null) return;
 
-  if (await saveStationUplink(audit, siblingStationId, values)) {
+  if (await saveStationBackhaul(audit, siblingStationId, values)) {
     await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, siblingStationId));
   }
 }
 
-async function createUplinkForNewStation(
+async function createBackhaulForNewStation(
   audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
   stationId: number,
-): Promise<UplinkValues | null> {
-  const { type, speed, model } = extractUplinkFields(proposedStation);
-  if (!isUplinkType(type)) return null;
+): Promise<BackhaulValues | null> {
+  const { type, speed, model } = extractBackhaulFields(proposedStation);
+  if (!isBackhaulMedium(type)) return null;
 
   const values = { type, speed, model: type === "microwave" ? model : null };
-  return (await saveStationUplink(audit, stationId, values)) ? values : null;
+  return (await saveStationBackhaul(audit, stationId, values)) ? values : null;
 }
 
-async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number): Promise<UplinkValues | null> {
+async function applyBackhaulUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number): Promise<BackhaulValues | null> {
   if (changes.uplink_type === undefined && changes.uplink_speed === undefined && changes.uplink_model === undefined) return null;
 
   const { tx } = audit;
-  const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
+  const existing = await tx.query.stationBackhauls.findFirst({ where: { station_id: stationId } });
   const proposedType = resolveChange(changes.uplink_type, existing?.type ?? null);
 
   if (proposedType === null) {
     if (!existing) return null;
-    await tx.delete(stationUplinks).where(eq(stationUplinks.id, existing.id));
+    await tx.delete(stationBackhauls).where(eq(stationBackhauls.id, existing.id));
     await audit.log({
       entity: "station_uplinks",
       op: "delete",
@@ -457,7 +457,7 @@ async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationC
     model: proposedType === "microwave" ? resolveChange(changes.uplink_model, existing?.model ?? null) : null,
   };
 
-  return (await saveStationUplink(audit, stationId, values)) ? values : null;
+  return (await saveStationBackhaul(audit, stationId, values)) ? values : null;
 }
 
 async function createStationFromProposal(
@@ -466,7 +466,7 @@ async function createStationFromProposal(
   locationId: number | null,
   proposedCellCount: number,
   isConfirmed: boolean,
-): Promise<{ stationId: number; savedUplink: UplinkValues | null }> {
+): Promise<{ stationId: number; savedBackhaul: BackhaulValues | null }> {
   const [newStation] = await audit.tx
     .insert(stations)
     .values({
@@ -491,30 +491,30 @@ async function createStationFromProposal(
   });
 
   await createExtraIdentifierForNewStation(audit, proposedStation, newStation.id);
-  const savedUplink = await createUplinkForNewStation(audit, proposedStation, newStation.id);
-  return { stationId: newStation.id, savedUplink };
+  const savedBackhaul = await createBackhaulForNewStation(audit, proposedStation, newStation.id);
+  return { stationId: newStation.id, savedBackhaul };
 }
 
 async function applyNewSubmission(
   audit: AuditRecorder,
   draft: ApprovalDraft,
   isConfirmed: boolean,
-): Promise<{ stationId: number | null; resolvedLocationId: number | null; savedUplink: UplinkValues | null }> {
+): Promise<{ stationId: number | null; resolvedLocationId: number | null; savedBackhaul: BackhaulValues | null }> {
   let locationResult: UpsertLocationResult | null = null;
 
   if (draft.proposedLocation) locationResult = await upsertLocation(audit.tx, toLocationValues(draft.proposedLocation.changes));
   const locationId = locationResult?.locationId ?? null;
 
   let stationId: number | null = null;
-  let savedUplink: UplinkValues | null = null;
+  let savedBackhaul: BackhaulValues | null = null;
   if (draft.proposedStation) {
     const created = await createStationFromProposal(audit, draft.proposedStation, locationId, draft.proposedCellRows.length, isConfirmed);
     stationId = created.stationId;
-    savedUplink = created.savedUplink;
+    savedBackhaul = created.savedBackhaul;
   }
   if (locationResult) await logLocationChange(audit, locationResult, stationId);
 
-  return { stationId, resolvedLocationId: locationId, savedUplink };
+  return { stationId, resolvedLocationId: locationId, savedBackhaul };
 }
 
 async function deleteEmptiedLocation(audit: AuditRecorder, currentLocation: LocationRow, stationId: number): Promise<void> {
@@ -1783,7 +1783,7 @@ async function applyChange(
   const targetCellsPromise = loadTargetCells(tx, draft.proposedCellRows);
   let stationId = draft.stationId;
   let resolvedLocationId: number | null = null;
-  let savedUplink: UplinkValues | null = null;
+  let savedBackhaul: BackhaulValues | null = null;
   const changesGroupOrLocation =
     draft.proposedLocation !== undefined ||
     draft.proposedStation?.station_id !== undefined ||
@@ -1796,7 +1796,7 @@ async function applyChange(
     const result = await applyNewSubmission(audit, draft, change?.station_is_confirmed ?? true);
     stationId = result.stationId;
     resolvedLocationId = result.resolvedLocationId;
-    savedUplink = result.savedUplink;
+    savedBackhaul = result.savedBackhaul;
   }
 
   const submissionPhotoSelectionRows =
@@ -1817,7 +1817,7 @@ async function applyChange(
   if (type === "update" && draft.proposedStation && stationId) {
     await applyStationIdentityUpdate(audit, draft.proposedStation, stationId);
     await applyExtraIdentifierUpdate(audit, draft.proposedStation, stationId);
-    savedUplink = await applyUplinkUpdate(audit, draft.proposedStation, stationId);
+    savedBackhaul = await applyBackhaulUpdate(audit, draft.proposedStation, stationId);
   }
 
   if (type === "delete") await applyDeletedSubmission(audit, stationId);
@@ -1838,7 +1838,7 @@ async function applyChange(
   await Promise.all(destinationIds.map((destinationId) => syncStatusWithCells(audit, destinationId)));
 
   await deleteUnretainedSectors(tx, stationId, sectorIdsToDeleteAfterCells);
-  if (stationId && savedUplink) await syncSiblingUplink(audit, stationId, savedUplink);
+  if (stationId && savedBackhaul) await syncSiblingBackhaul(audit, stationId, savedBackhaul);
   await finishSectorChange(audit, stationId, previousSectors);
   await logCellChanges(audit, cellChanges);
 

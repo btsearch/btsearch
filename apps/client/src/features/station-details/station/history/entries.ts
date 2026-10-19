@@ -30,9 +30,9 @@ const PART_TITLE_KEYS: Record<HistoryPartKind, Record<StationHistoryAction, stri
     delete: "stationDetails:history.titles.network_ids_delete",
   },
   backhaul: {
-    create: "stationDetails:history.titles.uplink_create",
-    update: "stationDetails:history.titles.uplink_update",
-    delete: "stationDetails:history.titles.uplink_delete",
+    create: "stationDetails:history.titles.backhaul_create",
+    update: "stationDetails:history.titles.backhaul_update",
+    delete: "stationDetails:history.titles.backhaul_delete",
   },
   photos: {
     create: "stationDetails:history.titles.photos_create",

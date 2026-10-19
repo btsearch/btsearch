@@ -128,7 +128,7 @@ export function useStationDraft(input: StationDraftInput): StationDraftApi {
       corrections,
       errors,
       hasErrors: blockingErrors.length > 0,
-      counters: countCells(session),
+      counters: countCells(session, context.gnbidLength(session.draft.station.operatorId)),
       canEdit,
       lookups,
       context,

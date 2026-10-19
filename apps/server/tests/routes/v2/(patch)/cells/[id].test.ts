@@ -16,7 +16,7 @@ function target(rat: keyof typeof cellInputs = "gsm") {
   dbMock.enqueueFor("select", "bands", cellBands);
   dbMock.query.stations.findFirst.mockResolvedValue(station);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
-  dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+  dbMock.query.stationBackhauls.findFirst.mockResolvedValue(undefined);
   return row;
 }
 

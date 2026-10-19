@@ -73,7 +73,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     dbMock.enqueueFor("select", "countries", []);
     dbMock.query.stations.findFirst.mockResolvedValue(liveDraftStation);
     dbMock.query.extraIdentificators.findFirst.mockResolvedValue(liveDraftIdentifiers);
-    dbMock.query.stationUplinks.findFirst.mockResolvedValue(liveDraftBackhaul);
+    dbMock.query.stationBackhauls.findFirst.mockResolvedValue(liveDraftBackhaul);
     dbMock.query.proposedLocations.findFirst.mockResolvedValue(previous.proposedLocation);
     scriptAudit();
     dbMock.enqueueFor("select", "submissions", [{ status: "pending", updatedAt: fixture.row.updatedAt }]);

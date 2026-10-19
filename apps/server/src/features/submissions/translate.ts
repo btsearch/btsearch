@@ -116,7 +116,7 @@ const UNKNOWN_AS_ZERO: Partial<Record<CellRat, IdentifierPair>> = {
 };
 const CLEARED_NOTES = "";
 
-function toUplinkInput(backhaul: StationChangeInput["backhaul"]): Pick<StationInput, "uplink_type" | "uplink_speed" | "uplink_model"> {
+function toBackhaulInput(backhaul: StationChangeInput["backhaul"]): Pick<StationInput, "uplink_type" | "uplink_speed" | "uplink_model"> {
   if (backhaul === undefined) return {};
   if (backhaul === null) return { uplink_type: null, uplink_speed: null, uplink_model: null };
   return { uplink_type: backhaul.medium, uplink_speed: backhaul.speedMbps, uplink_model: backhaul.model };
@@ -133,7 +133,7 @@ function toStationInput(station: StationChangeInput): StationInput {
     networks_id: typeof networksId === "string" ? Number(networksId) : networksId,
     networks_name: identifiers.get("networksName"),
     mno_name: identifiers.get("operatorName"),
-    ...toUplinkInput(station.backhaul),
+    ...toBackhaulInput(station.backhaul),
   };
 }
 
