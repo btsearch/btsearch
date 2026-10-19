@@ -4,7 +4,7 @@ import test from "node:test";
 import { defaultConventions } from "../../core/conventions.ts";
 import { capabilitiesFor, conventionsFor, countryCodesWith } from "../../core/registry.ts";
 import { pl } from "../index.ts";
-import { TMOBILE } from "./operators.ts";
+import { TMOBILE, WITHOUT_PLMN } from "./operators.ts";
 
 const HOOKS = [
   "identifierKinds",
@@ -17,11 +17,13 @@ const HOOKS = [
   "hoistedTac",
   "normalizeGeocodedPlace",
 ] as const;
+const DEFAULT_HOOKS = ["gnbidLength"] as const;
 
-void test("gives Poland its own hook for every convention", () => {
+void test("gives Poland its own hook for every convention it changes", () => {
   const conventions = conventionsFor("PL");
 
-  assert.deepEqual(Object.keys(defaultConventions).sort(), [...HOOKS].sort());
+  assert.deepEqual(Object.keys(defaultConventions).sort(), [...HOOKS, ...DEFAULT_HOOKS].sort());
+  for (const hook of DEFAULT_HOOKS) assert.equal(conventions[hook], defaultConventions[hook], hook);
   for (const hook of HOOKS) {
     assert.equal(conventions[hook], pl.conventions[hook], hook);
     assert.notEqual(conventions[hook], defaultConventions[hook], hook);
@@ -33,11 +35,22 @@ void test("gives Poland its own hook for every convention", () => {
   assert.deepEqual(conventions.equivalentEnbids(TMOBILE, 57), [17, 27, 37, 47, 57, 67, 77, 87, 97]);
   assert.deepEqual(conventions.sharedSite.copies, ["backhaul", "sectors", "photos"]);
   assert.equal(conventions.lteSectorRule(TMOBILE)?.clidStep, 1);
+  assert.equal(conventions.gnbidLength(TMOBILE), 24);
   assert.equal(conventions.hoistedTac, true);
   assert.deepEqual(conventions.normalizeGeocodedPlace({ region: "województwo łódzkie", municipality: "gmina Zgierz" }), {
     region: "Łódzkie",
     municipality: "Zgierz",
   });
+});
+
+void test("gives every operator in Great Britain a 22-bit gNB ID and the defaults otherwise", () => {
+  const conventions = conventionsFor("GB");
+
+  assert.equal(conventions.gnbidLength(TMOBILE), 22);
+  assert.equal(conventions.gnbidLength(WITHOUT_PLMN), 22);
+  assert.equal(conventions.lteSectorRule, defaultConventions.lteSectorRule);
+  assert.equal(conventions.hoistedTac, false);
+  assert.deepEqual(capabilitiesFor("GB"), { official: false, microwaveLinks: false, emf: false, terrainProfiles: null, kmz: false });
 });
 
 void test("gives the defaults to a country without a pack and to no country", () => {
@@ -52,6 +65,7 @@ void test("gives the defaults to a country without a pack and to no country", ()
     assert.deepEqual(conventions.equivalentEnbids(TMOBILE, 345678), [345678]);
     assert.deepEqual(conventions.sharedSite.copies, []);
     assert.equal(conventions.lteSectorRule(TMOBILE), null);
+    assert.equal(conventions.gnbidLength(TMOBILE), 24);
     assert.equal(conventions.hoistedTac, false);
     assert.deepEqual(conventions.normalizeGeocodedPlace({ region: "województwo łódzkie", municipality: "gmina Zgierz" }), {
       region: "województwo łódzkie",

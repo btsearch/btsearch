@@ -31,8 +31,8 @@ const errorReasons = {
     "The station cannot be created as sent. For example, the operator already has a station with this `siteId`, " +
     "a band is not in the country's band plan, or an operator, region or band does not exist.",
   409:
-    "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
-    "or an LTE cell on an active station with the same `enbid` and `clid`.",
+    "An active station already has a cell with the same identity on one of the cell's networks: " +
+    "`lac` and `cid` for GSM, `rnc` and `cid` for UMTS, `enbid` and `clid` for LTE, `nci` for NR.",
 };
 type RequestData = { Querystring: StationQuery; Body: StationCreate };
 

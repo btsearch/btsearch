@@ -10,7 +10,13 @@ import { ErrorResponse } from "../../../../errors.js";
 import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../../../../features/cells/duplicateCheck.js";
+import {
+  checkCellDuplicate,
+  checkPciDuplicate,
+  getOperatorIdForStation,
+  lockAndCheckStoredCells,
+} from "../../../../features/cells/duplicateCheck.js";
+import { loadExtraCodes } from "../../../../features/cells/networkWrites.js";
 import { NORMAL_RATS, type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../features/cells/ratCellPersistence.js";
 import {
   assertCellUpdateFitsStoredRat,
@@ -74,11 +80,16 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   if (req.body.details || req.body.band_id !== undefined) {
     if (req.body.details) {
-      const lteDetails = req.body.details as z.infer<typeof lteUpdateSchema> | undefined;
-      const identityDetails =
-        cell.rat === "LTE" ? ({ ...cell.lte, ...lteDetails } as Record<string, unknown>) : (req.body.details as Record<string, unknown>);
-      const operatorId = await getOperatorIdForStation(cell.station_id);
-      if (operatorId) await checkCellDuplicate({ rat: cell.rat, details: identityDetails, excludeCellId: id }, operatorId);
+      const storedIdentity = cell.rat === "LTE" ? cell.lte : cell.rat === "NR" ? cell.nr : null;
+      const identityDetails = { ...storedIdentity, ...(req.body.details as object) } as Record<string, unknown>;
+      const [operatorId, extraCodes] = await Promise.all([getOperatorIdForStation(cell.station_id), loadExtraCodes(db, [id])]);
+      if (operatorId) {
+        await checkCellDuplicate(
+          db,
+          { rat: cell.rat, details: identityDetails, excludeCellId: id, extraCodes: extraCodes.get(id) ?? [] },
+          operatorId,
+        );
+      }
     }
 
     assertCellUpdateSetsNoNsaFields(cell, req.body);
@@ -143,6 +154,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           });
       }
 
+      await lockAndCheckStoredCells(tx, { cellIds: [id], stationId: null });
       const newSnapshot = await loadCellSnapshot(tx, id);
       if (!newSnapshot) throw new ErrorResponse("FAILED_TO_UPDATE");
 

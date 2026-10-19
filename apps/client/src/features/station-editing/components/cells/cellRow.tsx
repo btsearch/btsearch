@@ -45,6 +45,7 @@ type CellRowProps = {
   bands: readonly Band[];
   sectors: readonly SectorDraft[];
   networkChoice: NetworkChoice;
+  defaultGnbidLength: number;
   texts: CellTexts;
   editKind: EditKind;
   canEdit: boolean;
@@ -168,6 +169,7 @@ function CellRowInner({
   bands,
   sectors,
   networkChoice,
+  defaultGnbidLength,
   texts,
   editKind,
   canEdit,
@@ -234,6 +236,7 @@ function CellRowInner({
           <GnbidLengthField
             cellKey={cell.key}
             length={cell.gnbidLength}
+            defaultLength={defaultGnbidLength}
             texts={texts}
             className={cn(getClass("gnbidLength"), isUnused && UNUSED_FIELD_CLASS)}
             isInvalid={hasError("gnbidLength")}
@@ -261,7 +264,9 @@ function CellRowInner({
         </FieldCell>
       );
     }
-    if (column.kind === "computed") return <ComputedValue key={column.id} value={computeCellId(cell)} isDeleted={cell.isDeleted} />;
+    if (column.kind === "computed") {
+      return <ComputedValue key={column.id} value={computeCellId(cell, defaultGnbidLength)} isDeleted={cell.isDeleted} />;
+    }
     if (column.kind === "flag") {
       const { field, label } = column.spec;
       const isStandaloneOnly = !isFieldInUse(cell, column.spec);

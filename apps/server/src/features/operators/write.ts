@@ -4,6 +4,8 @@ import { and, count, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 
 import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
+import { findCodeIdentityCollisions } from "../cells/duplicateCheck.js";
+import { loadNetworkOwner } from "../cells/networkWrites.js";
 import { MCC_LENGTH, type OperatorLinkRow } from "./serialize.js";
 
 type OperatorWrite = {
@@ -131,6 +133,18 @@ export async function replacePlmns(tx: DbTx, operatorId: number, entries: readon
       set: { role: sql`excluded.role`, updatedAt: sql`now()` },
       setWhere: sql`${plmns.operatorId} = excluded.operator_id`,
     });
+}
+
+export async function assertMainCodeKeepsCellsApart(tx: DbTx, operatorId: number, previousPlmns: readonly PlmnInput[]): Promise<void> {
+  const { mainCode } = await loadNetworkOwner(tx, operatorId, null);
+  const previousCode = previousPlmns.find((entry) => entry.role === "primary")?.plmn ?? null;
+  if (mainCode === null || mainCode === previousCode) return;
+
+  const collisions = await findCodeIdentityCollisions(tx, operatorId, mainCode);
+  if (collisions.length === 0) return;
+  throw new ErrorResponse("DUPLICATE_ENTRY", {
+    message: `Under network code ${mainCode}, cells of this operator would share an identity with cells of other stations: ${collisions.join(", ")}`,
+  });
 }
 
 export async function replaceLinks(tx: DbTx, operatorId: number, links: readonly OperatorLinkInput[]): Promise<void> {

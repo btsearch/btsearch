@@ -14,7 +14,7 @@ import {
 } from "../model/draftReducer";
 import { findDraftCountryCode } from "../model/snapshots";
 import type { ChangeItem, EditError, EditSession, Rat, RatCounters, TextPart } from "../model/types";
-import { listShownErrors, validateDraft } from "../model/validate";
+import { getOperatorGnbidLength, listShownErrors, validateDraft } from "../model/validate";
 import { indexNetworkNames } from "@/features/shared/operatorMarks";
 import { getBandCode, getBandLabel } from "@/features/station-details/station/utils/bands";
 import { getOperatorShortLabel } from "@/features/station-details/station/utils/stations";
@@ -95,6 +95,8 @@ function createChangeContext(lookups: EditLookups, unknownBandText: string, lang
     regionName: (regionId) => (regionId === null ? null : (lookups.regionsById.get(regionId)?.name ?? null)),
     ownerName: (ownerId) => lookups.ownersById.get(ownerId)?.name ?? null,
     ownerPlmn: (operatorId) => (operatorId === null ? null : (lookups.operatorsById.get(operatorId)?.primaryPlmn ?? null)),
+    gnbidLength: (operatorId) =>
+      getOperatorGnbidLength(operatorId === null ? null : (lookups.operatorsById.get(operatorId) ?? null), lookups.operatorsById),
     networkName: (code) => networkNames.get(code) ?? code,
   };
 }

@@ -312,7 +312,7 @@ describe("submission approval relationships", () => {
     const order = operations();
     const cellWritten = order.indexOf("insert lte_cells");
     expect(order.indexOf("insert station_uplinks")).toBeLessThan(order.indexOf("insert cells"));
-    expect(order.slice(0, cellWritten).filter((operation) => operation === "select lte_cells")).toHaveLength(1);
+    expect(order.slice(0, cellWritten).filter((operation) => operation === "select lte_cells")).toEqual([]);
     expect(cellWritten).toBeLessThan(order.lastIndexOf("insert station_uplinks"));
     expect(order.lastIndexOf("insert station_uplinks")).toBeLessThan(order.lastIndexOf("insert station_sectors"));
   });
@@ -362,7 +362,7 @@ describe("submission approval relationships", () => {
     const order = operations();
     const cellWritten = order.indexOf("insert lte_cells");
     expect(order.indexOf("insert station_uplinks")).toBeLessThan(order.indexOf("insert cells"));
-    expect(order.slice(0, cellWritten).filter((operation) => operation === "select lte_cells")).toHaveLength(1);
+    expect(order.slice(0, cellWritten).filter((operation) => operation === "select lte_cells")).toEqual([]);
     expect(cellWritten).toBeLessThan(order.lastIndexOf("insert station_uplinks"));
     expect(inserted("station_sectors")).toEqual([{ station_id: 12, azimuth: 270 }]);
   });

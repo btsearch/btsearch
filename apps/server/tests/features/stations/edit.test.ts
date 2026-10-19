@@ -36,13 +36,14 @@ function scriptStoredStation(operator: TestOperator): void {
   dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
 }
 
-function editIdentifiers(operator: TestOperator, kinds: readonly StationIdentifierKind[]) {
+async function editIdentifiers(operator: TestOperator, kinds: readonly StationIdentifierKind[]) {
   scriptStoredStation(operator);
   dbMock.enqueueFor("select", "stations", [{ operatorId: operator.id }]);
   scriptOperator(operator);
 
   const identifiers = kinds.map((kind) => ({ kind, value: VALUES[kind] }));
-  return prepareStationChange(request, { action: "update", stationId: 1, station: { identifiers } });
+  const { change } = await prepareStationChange(request, { action: "update", stationId: 1, station: { identifiers } });
+  return change;
 }
 
 describe("prepareStationChange", () => {

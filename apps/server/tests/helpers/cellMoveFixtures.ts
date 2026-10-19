@@ -14,6 +14,8 @@ export function prepareCellMove(options: { destinationId?: number; missing?: boo
   dbMock.enqueueFor("select", "cells", [previous], [previous]);
   dbMock.enqueueFor("select", "stations", [{ station: source, countryCode: null }], [{ locationCountry: null, operatorCountry: null }]);
   if (moves) dbMock.enqueueFor("select", "stations", options.missing ? [] : [{ station: destination, countryCode: options.hidden ? "PL" : null }]);
+  const destinationOwner = [{ operatorId: destination.operator_id, countryCode: null }];
+  if (moves) dbMock.enqueueFor("select", "stations", destinationOwner, destinationOwner);
   if (options.hidden) {
     dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     dbMock.enqueueFor("select", "users", [{ role: "user" }]);

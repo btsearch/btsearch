@@ -5,7 +5,6 @@ import { isSameCodes, toPlmnList } from "./networks";
 import {
   CELL_FLAG_LABELS,
   CELL_NUMBER_LABELS,
-  DEFAULT_GNBID_LENGTH,
   OMNIDIRECTIONAL_DEGREES,
   RAT_FIELDS,
   RAT_ORDER,
@@ -51,6 +50,7 @@ export type ChangeContext = {
   regionName: (regionId: number | null) => string | null;
   ownerName: (ownerId: number) => string | null;
   ownerPlmn: (operatorId: number | null) => string | null;
+  gnbidLength: (operatorId: number | null) => number;
   networkName: (code: string) => string;
 };
 
@@ -538,14 +538,21 @@ function isAreaValueChanged(cell: CellDraft, baseCell: CellDraft, draft: Station
   return getAreaValue(draft, cell) !== getAreaValue(base, baseCell);
 }
 
-function listChangedCellFields(cell: CellDraft, baseCell: CellDraft, draft: StationSnapshot, base: StationSnapshot): CellField[] {
+function listChangedCellFields(
+  cell: CellDraft,
+  baseCell: CellDraft,
+  draft: StationSnapshot,
+  base: StationSnapshot,
+  context: ChangeContext,
+): CellField[] {
   const spec = RAT_FIELDS[cell.rat];
+  const defaultGnbidLength = context.gnbidLength(draft.station.operatorId);
   const fields: CellField[] = [];
 
   if (cell.bandId !== baseCell.bandId) fields.push("bandId");
   if (isSectorChanged(cell, baseCell, draft, base)) fields.push("sectorKey");
   if (cell.mode !== baseCell.mode) fields.push("mode");
-  if (cell.rat === "nr" && cell.mode === "sa" && (cell.gnbidLength ?? DEFAULT_GNBID_LENGTH) !== (baseCell.gnbidLength ?? DEFAULT_GNBID_LENGTH))
+  if (cell.rat === "nr" && cell.mode === "sa" && (cell.gnbidLength ?? defaultGnbidLength) !== (baseCell.gnbidLength ?? defaultGnbidLength))
     fields.push("gnbidLength");
   for (const { field } of spec.numbers) {
     const isChanged =
@@ -572,7 +579,7 @@ function describeCellValue(cell: CellDraft, field: CellField, snapshot: StationS
   if (field === "notes") return toTextPart(cell.notes);
   if (field === "isConfirmed") return toBooleanPart(cell.isConfirmed);
   if (field === "mode") return cell.mode === null ? null : { text: cell.mode.toUpperCase() };
-  if (field === "gnbidLength") return toNumberPart(cell.gnbidLength ?? DEFAULT_GNBID_LENGTH);
+  if (field === "gnbidLength") return toNumberPart(cell.gnbidLength ?? context.gnbidLength(snapshot.station.operatorId));
   if (field === "extraPlmns") return describeNetworks(cell, snapshot, context);
   if (isCellFlagField(field)) return toBooleanPart(getCellFlag(cell, field));
   if (field === getAreaCodeField(cell.rat)) return toNumberPart(getAreaValue(snapshot, cell));
@@ -627,7 +634,7 @@ function listCellChanges(cell: CellDraft, draft: StationSnapshot, base: StationS
   if (cell.isDeleted) return baseCell.isDeleted ? [] : [toCellRowItem(cell, draft, context, "removed", "stations:edit.changes.cellRemoved")];
 
   const restored = baseCell.isDeleted ? [toCellRowItem(cell, draft, context, "added", "stations:edit.changes.cellRestored")] : [];
-  const fields = listChangedCellFields(cell, baseCell, draft, base);
+  const fields = listChangedCellFields(cell, baseCell, draft, base, context);
   return [...restored, ...fields.map((field) => toCellFieldItem(cell, baseCell, field, draft, base, context))];
 }
 

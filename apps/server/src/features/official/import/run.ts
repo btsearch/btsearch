@@ -14,11 +14,12 @@ import { correctLicenseeNames } from "./licensees.js";
 import { importRelease } from "./release.js";
 import { type RemapReport, remapLicensee } from "./remap/apply.js";
 import { type DryRunReport, readReport } from "./report.js";
-import { RunNotOwnedError, failRun, finishRun, inRunTransaction, startHeartbeat, touchHeartbeat } from "./runs.js";
+import { RunNotOwnedError, deleteRun, failRun, finishRun, inRunTransaction, startHeartbeat, touchHeartbeat } from "./runs.js";
 import { recordRelease } from "./snapshots.js";
+import { hasChangedNothing, readDatasetOutcomes } from "./steps/datasetOutcomes.js";
 import type { ClaimedRun, ImportEnvironment, PreparedRelease, RunDataset, RunScope } from "./types.js";
 
-export type RunEnd = "done" | "failed" | "lost";
+export type RunEnd = "done" | "unchanged" | "failed" | "lost";
 export type DryRunEnd = { end: "done"; report: DryRunReport } | { end: "failed"; error: string } | { end: "lost" };
 
 type Session = { scope: RunScope; directory: string; close(): Promise<void> };
@@ -95,6 +96,16 @@ function applyRemap(scope: RunScope): Promise<RemapReport> {
   });
 }
 
+function forgetUnchangedImport(scope: RunScope): Promise<boolean> {
+  return inRunTransaction(scope, async (tx) => {
+    if (!hasChangedNothing(await readDatasetOutcomes(tx, scope.run))) return false;
+
+    await deleteRun(tx, scope.run.id);
+    logger.info("official.import.nothing_changed", { runId: scope.run.id });
+    return true;
+  });
+}
+
 async function endFailedRun(run: ClaimedRun, error: unknown): Promise<"failed" | "lost"> {
   if (error instanceof RunNotOwnedError) return "lost";
 
@@ -121,6 +132,7 @@ export async function processRun(run: ClaimedRun, environment: ImportEnvironment
     if (!resumesAtAfterSteps) {
       if (run.kind === "remap") await applyRemap(scope);
       await importDatasets(scope, await readRunDatasets(db, run.id, scope.source), (dataset) => prepareReleases(db, workspace, dataset));
+      if (run.kind === "import" && (await forgetUnchangedImport(scope))) return "unchanged";
     }
     await runAfterSteps(scope, environment.steps, environment.archive);
     await inRunTransaction(scope, (tx) => finishRun(tx, run.id));

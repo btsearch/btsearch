@@ -52,14 +52,14 @@ export const draftRadios = [
     },
     details: { type: "sa", gnbid: 123456, gnbid_length: null, clid: 7, nrtac: 16777215, pci: 1007, arfcn: 630000, supports_nr_redcap: true },
     table: "proposed_nr_cells",
-    identityTable: null,
+    identityTable: "nr_cells",
   },
 ] as const satisfies readonly {
   rat: string;
   input: SubmittedCellInput;
   details: Record<string, unknown>;
   table: string;
-  identityTable: string | null;
+  identityTable: string;
 }[];
 
 type DraftRadio = (typeof draftRadios)[number];
@@ -386,7 +386,7 @@ export function scriptExistingDraftCreate(fixture: DraftFixture, targets: Return
   if (fixture.cells.some(({ cell }) => cell.operation !== "delete")) {
     scriptBandPlan();
     for (const radio of fixture.radios) {
-      if (radio.identityTable !== null) dbMock.enqueueFor("select", radio.identityTable, []);
+      dbMock.enqueueFor("select", radio.identityTable, []);
       if (radio.rat === "lte" || radio.rat === "nr") dbMock.enqueueFor("select", `${radio.rat}_cells`, []);
     }
   }
@@ -502,7 +502,7 @@ export function scriptDraftBatchCreate(fixtures: DraftFixture[]): void {
   scriptDraftGeography();
   for (const fixture of fixtures) {
     scriptBandPlan();
-    for (const radio of fixture.radios) if (radio.identityTable !== null) dbMock.enqueueFor("select", radio.identityTable, []);
+    for (const radio of fixture.radios) dbMock.enqueueFor("select", radio.identityTable, []);
   }
   dbMock.query.stations.findFirst.mockResolvedValue(undefined);
   dbMock.query.locations.findFirst.mockResolvedValue(undefined);
@@ -580,6 +580,10 @@ export function scriptDraftUpdate(
       "bands",
       fixture.radios.map((radio) => ({ id: radio.input.bandId })),
     );
+  if (body.cells?.length && previous.row.type === "new") {
+    dbMock.query.proposedStations.findFirst.mockResolvedValue({ operator_id: previous.snapshot.proposedStation?.operator_id ?? null });
+    for (const radio of fixture.radios) dbMock.enqueueFor("select", radio.identityTable, []);
+  }
   if (body.location?.structure?.ownerName !== undefined || options.lookupRetainedOwner) {
     dbMock.enqueueFor("select", "regions", [{ countryCode: options.countryCode === undefined ? "PL" : options.countryCode }]);
     dbMock.enqueueFor("select", "structure_owners", []);

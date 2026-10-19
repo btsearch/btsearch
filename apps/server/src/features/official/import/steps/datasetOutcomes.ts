@@ -55,6 +55,10 @@ export function hasFailedDataset(datasets: readonly DatasetOutcome[], layer?: Da
   return datasets.some((dataset) => (layer === undefined || dataset.layer === layer) && dataset.error !== null);
 }
 
+export function hasChangedNothing(datasets: readonly DatasetOutcome[]): boolean {
+  return datasets.every((dataset) => dataset.error === null && dataset.appliedSlices.length === 0 && dataset.heldSlices.length === 0);
+}
+
 export function takesStatsSnapshot(datasets: readonly DatasetOutcome[]): boolean {
   return hasAppliedSlice(datasets, "sites") && !hasFailedDataset(datasets, "sites");
 }

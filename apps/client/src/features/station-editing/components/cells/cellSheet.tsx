@@ -9,7 +9,7 @@ import { toFlagPatch } from "../../model/draftReducer";
 import { CELL_NUMBER_LABELS, RAT_FIELDS, computeCellId, getCellFlag, getCellNumber, isFieldInUse } from "../../model/ratFields";
 import { newDraftKey } from "../../model/snapshots";
 import type { CellDraft, DraftKey, FieldMark } from "../../model/types";
-import { NO_EDIT_ERRORS } from "../../model/validate";
+import { NO_EDIT_ERRORS, findDraftGnbidLength } from "../../model/validate";
 import { FieldMarks } from "../frame/wasLine";
 import { CellErrors } from "./cellErrors";
 import {
@@ -99,6 +99,7 @@ function SheetBody({ edit, cell, errorsByKey, texts, canConfirm, onOpenCell, onC
   const { t } = useTranslation();
   const { session, lookups, context, dispatch } = edit;
   const { draft } = session;
+  const defaultGnbidLength = findDraftGnbidLength(draft, lookups.operatorsById);
   const spec = RAT_FIELDS[cell.rat];
   const canEdit = canEditCells(edit);
   const state = getCellRowState(session, context, cell);
@@ -163,6 +164,7 @@ function SheetBody({ edit, cell, errorsByKey, texts, canConfirm, onOpenCell, onC
           <GnbidLengthField
             cellKey={cell.key}
             length={cell.gnbidLength}
+            defaultLength={defaultGnbidLength}
             texts={texts}
             className={cn(TRIGGER_CLASS, getClass("gnbidLength"), isUnused && UNUSED_FIELD_CLASS)}
             isInvalid={hasError("gnbidLength")}
@@ -263,7 +265,7 @@ function SheetBody({ edit, cell, errorsByKey, texts, canConfirm, onOpenCell, onC
               })}
               className={hasOddFields ? undefined : WIDE_CLASS}
             >
-              <div className={COMPUTED_CLASS}>{computeCellId(cell) ?? EMPTY_TEXT}</div>
+              <div className={COMPUTED_CLASS}>{computeCellId(cell, defaultGnbidLength) ?? EMPTY_TEXT}</div>
             </SheetField>
           ) : null}
           <SheetField label={t("stations:edit.cells.columns.cellType")} marks={getMarks("cellType")}>

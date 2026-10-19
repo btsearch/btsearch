@@ -206,10 +206,10 @@ export function getCellFlag(cell: Pick<CellDraft, "flags">, field: CellFlagField
   return cell.flags[field] ?? false;
 }
 
-export function getCellNumberMax(cell: Pick<CellDraft, "rat" | "gnbidLength">, spec: NumberFieldSpec): number {
+export function getCellNumberMax(cell: Pick<CellDraft, "rat" | "gnbidLength">, spec: NumberFieldSpec, defaultGnbidLength: number): number {
   if (cell.rat !== "nr") return spec.max;
 
-  const length = cell.gnbidLength ?? DEFAULT_GNBID_LENGTH;
+  const length = cell.gnbidLength ?? defaultGnbidLength;
   if (spec.field === "gnbid") return Math.min(spec.max, 2 ** length - 1);
   if (spec.field === "clid") return Math.min(spec.max, 2 ** (NCI_BITS - length) - 1);
   return spec.max;
@@ -219,7 +219,7 @@ function isKnownNode(value: number | null): value is number {
   return value !== null && value !== 0;
 }
 
-export function computeCellId(cell: IdentifiedCell): number | null {
+export function computeCellId(cell: IdentifiedCell, defaultGnbidLength: number): number | null {
   const { nodeField, cellIdField, computedId } = RAT_FIELDS[cell.rat];
   if (computedId === null || nodeField === null || cellIdField === null) return null;
 
@@ -228,7 +228,7 @@ export function computeCellId(cell: IdentifiedCell): number | null {
   if (!isKnownNode(node) || cellId === null) return null;
   if (computedId.kind === "longCid") return node * LONG_CID_RNC_FACTOR + cellId;
   if (computedId.kind === "eci") return node * ECI_ENBID_FACTOR + cellId;
-  return node * 2 ** (NCI_BITS - (cell.gnbidLength ?? DEFAULT_GNBID_LENGTH)) + cellId;
+  return node * 2 ** (NCI_BITS - (cell.gnbidLength ?? defaultGnbidLength)) + cellId;
 }
 
 export function toAzimuth(degrees: number): number | null {

@@ -11,7 +11,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import { stationParamScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../../../features/cells/duplicateCheck.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates, lockAndCheckStoredCells } from "../../../../../../features/cells/duplicateCheck.js";
 import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../../../features/cells/ratCellPersistence.js";
 import {
   INSERT_OMIT,
@@ -96,6 +96,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   await Promise.all([
     station.operator_id
       ? checkCellDuplicatesBatch(
+          db,
           cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
           station.operator_id,
         )
@@ -139,6 +140,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       );
 
       const ids = created.map((cell) => cell.id);
+      await lockAndCheckStoredCells(tx, { cellIds: ids, stationId: null });
       const snapshots = await loadCellSnapshots(tx, ids);
       const createdSnapshots = ids.map((id) => {
         const snapshot = snapshots.get(id);

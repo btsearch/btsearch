@@ -372,9 +372,11 @@ interface CellWithDetails {
   details?: unknown;
 }
 
-export function validateCellDuplicates(cells: CellWithDetails[]): void {
-  const seenIdentityKeysByRat = new Map<string, Set<string>>();
-  for (const cell of cells) {
+const STATION_OWNER_NETWORK = "owner";
+
+export function validateCellDuplicates(cells: CellWithDetails[], cellNetworks: readonly (readonly string[])[] = []): void {
+  const seenIdentityKeys = new Set<string>();
+  for (const [index, cell] of cells.entries()) {
     if (cell.operation === "delete") continue;
     const duplicateKey = getCellIdentityDuplicateKey({
       rat: cell.rat,
@@ -382,10 +384,9 @@ export function validateCellDuplicates(cells: CellWithDetails[]): void {
     });
     if (!duplicateKey) continue;
 
-    const seen = seenIdentityKeysByRat.get(duplicateKey.rat) ?? new Set<string>();
-    if (seen.has(duplicateKey.key)) throw new ErrorResponse("BAD_REQUEST", { message: duplicateKey.message });
-    seen.add(duplicateKey.key);
-    seenIdentityKeysByRat.set(duplicateKey.rat, seen);
+    const keys = (cellNetworks[index] ?? [STATION_OWNER_NETWORK]).map((network) => `${network}:${duplicateKey.rat}:${duplicateKey.key}`);
+    if (keys.some((key) => seenIdentityKeys.has(key))) throw new ErrorResponse("BAD_REQUEST", { message: duplicateKey.message });
+    for (const key of keys) seenIdentityKeys.add(key);
   }
 
   const seenPciKeysByRat = new Map<string, Set<string>>();

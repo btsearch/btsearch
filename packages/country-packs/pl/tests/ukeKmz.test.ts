@@ -9,6 +9,7 @@ import test from "node:test";
 
 import type { KmzExportContext } from "../../core/sources.ts";
 import { type KmzDocument, writeDocuments } from "../sources/uke/kmz/documents.ts";
+import { exportKmz } from "../sources/uke/kmz/index.ts";
 import { classifyLinkType, groupIntoLinks, linkDocuments, linksKml } from "../sources/uke/kmz/microwaveLinks.ts";
 import { type KmzLink, type KmzPermit, readLinks, readPermits } from "../sources/uke/kmz/read.ts";
 import { groupBySite, siteDocuments, sitesKml } from "../sources/uke/kmz/sites.ts";
@@ -122,6 +123,22 @@ function databaseHolding(table: string, ids: readonly number[]): { db: KmzExport
   });
   return { db: db as unknown as KmzExportContext["db"], reads };
 }
+
+async function tablesReadByExport(changedDatasets: readonly string[]): Promise<string[]> {
+  const queries: string[] = [];
+  const db = drizzle(async (query: string) => {
+    queries.push(query);
+    return { rows: [] };
+  });
+  await exportKmz({ db: db as unknown as KmzExportContext["db"], directory, day: DAY, changedDatasets });
+  return ["permits", "microwave_links"].filter((table) => queries.some((query) => query.includes(`from "official"."${table}"`)));
+}
+
+void test("exports the stations only after a permits change, and the microwave links only after a links change", async () => {
+  assert.deepEqual(await tablesReadByExport(["permits", "device-registry"]), ["permits"]);
+  assert.deepEqual(await tablesReadByExport(["microwave-links"]), ["microwave_links"]);
+  assert.deepEqual(await tablesReadByExport(["device-registry"]), []);
+});
 
 void test("groups permits by official site, in the order the sites are first seen", () => {
   const sites = groupBySite([

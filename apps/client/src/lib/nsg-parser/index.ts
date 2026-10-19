@@ -12,6 +12,7 @@ export async function parseNsg({ stream, source }: NsgParseInput, options: NsgPa
     allowIncompleteFinalRecord: options.allowIncompleteFinalRecord,
     onCell: options.onCell,
     onEvent: options.onEvent,
+    gnbidLength: options.gnbidLength,
   });
   const { onProgress } = options;
   const reader = stream.getReader();

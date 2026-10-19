@@ -31,11 +31,12 @@ import { countryBandDeleteEntries } from "../../../bands/remove.js";
 import type { CountryBandRow } from "../../../bands/serialize.js";
 import { loadOperatorDetails } from "../../../operators/details.js";
 import { toOperator } from "../../../operators/serialize.js";
-import { findRemovedBroadcastCodes, replaceLinks, replacePlmns } from "../../../operators/write.js";
+import { assertMainCodeKeepsCellsApart, findRemovedBroadcastCodes, replaceLinks, replacePlmns } from "../../../operators/write.js";
 import type { AuditEntry, AuditEntryInput } from "../../types.js";
 import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow } from "../columns.js";
 import { changedFields, staleFields, valuesEqual } from "../compare.js";
 import { type ApplyState, type PlannedEntry, type RevertDependent, type StrategyContext, conflictFor } from "../types.js";
+import { refuseIdentityCollision } from "./cells.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, snapshotFieldNames, stringField } from "./common.js";
 
 type OperationCountryBand = { entry: AuditEntry; countryCode: string; row: SnapshotRecord };
@@ -644,6 +645,7 @@ async function planOperatorRevert(context: StrategyContext, entry: AuditEntry, i
       loadOperatorDetails(tx, [id]),
     ]);
     if (restored === undefined) throw new Error(`Updated operator ${id} disappeared`);
+    if (changed.plmns !== undefined) await refuseIdentityCollision(entry, () => assertMainCodeKeepsCellsApart(tx, id, currentPlmns));
     const { plmns: restoredPlmns, links: restoredLinks } = toOperator(restored, details.get(id));
     const metadata = inverseMetadata(entry.id, plan.droppedFields);
     if (changed.plmns !== undefined) metadata.plmns = { old: currentPlmns, new: restoredPlmns };

@@ -32,8 +32,8 @@ const errorReasons = {
     "Editors also get this response when none of the stations exist. This response does not say which station it is about.",
   404: "One of the stations does not exist, or a cell you want to update does not belong to the station it is listed under.",
   409:
-    "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
-    "or an LTE cell on an active station with the same `enbid` and `clid`. " +
+    "An active station already has a cell with the same identity on one of the cell's networks: " +
+    "`lac` and `cid` for GSM, `rnc` and `cid` for UMTS, `enbid` and `clid` for LTE, `nci` for NR. " +
     "Also returned when the station already has an LTE or NR cell with the same `pci` on the same band.",
 };
 type RequestData = { Body: CellApply[] };

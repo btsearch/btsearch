@@ -53,8 +53,8 @@ const errorReasons = {
     "with `details[0].field` pointing at its owner name, for example `0/location/structure/ownerName`.",
   404: "A station you referenced does not exist or is `inactive`, or a cell you referenced is not on that station.",
   409:
-    "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
-    "or an LTE cell on an active station with the same `enbid` and `clid`. " +
+    "An active station already has a cell with the same identity on one of the cell's networks: " +
+    "`lac` and `cid` for GSM, `rnc` and `cid` for UMTS, `enbid` and `clid` for LTE, `nci` for NR. " +
     "Also returned when the station already has an LTE or NR cell with the same `pci` on the same band.",
   429:
     "This request would take you past 100 changes with `origin` set to `analyzer` in 32 hours. " +

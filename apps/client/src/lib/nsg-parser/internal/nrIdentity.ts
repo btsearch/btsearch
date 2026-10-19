@@ -1,4 +1,4 @@
-import type { NsgCell, NsgJsonObject } from "../model";
+import type { NsgCell, NsgJsonObject, NsgNrIdentitySource } from "../model";
 
 const NR_NCI_BITS = 36;
 const DEFAULT_GNBID_LENGTH = 24;
@@ -31,7 +31,12 @@ function fitsReportedLength(gnbid: number, clid: number, length: number): boolea
   return gnbid < 2 ** length && clid < 2 ** (NR_NCI_BITS - length);
 }
 
-export function resolveNrIdentity(raw: NsgJsonObject, nci: number | null): NsgNrIdentity {
+function derivedSource(reportedLength: number | null, operatorLength: number | null): NsgNrIdentitySource {
+  if (reportedLength !== null) return "derived-reported-length";
+  return operatorLength === null ? "derived-default-24" : "derived-operator-length";
+}
+
+export function resolveNrIdentity(raw: NsgJsonObject, nci: number | null, operatorLength: number | null = null): NsgNrIdentity {
   const reportedGnbid = integerInRange(raw.gnbid, MAX_GNBID);
   const reportedClid = integerInRange(raw.clid, MAX_CLID);
   const reportedLength = reportedGnbidLength(raw);
@@ -45,12 +50,12 @@ export function resolveNrIdentity(raw: NsgJsonObject, nci: number | null): NsgNr
     };
 
   if (nci === null || !Number.isSafeInteger(nci) || nci <= 0 || nci > MAX_NCI) return nullIdentity();
-  const gnbidLength = reportedLength ?? DEFAULT_GNBID_LENGTH;
+  const gnbidLength = reportedLength ?? operatorLength ?? DEFAULT_GNBID_LENGTH;
   const clidRadix = 2 ** (NR_NCI_BITS - gnbidLength);
   return {
     gnbid: Math.floor(nci / clidRadix),
     gnbidLength,
     clid: nci % clidRadix,
-    nrIdentitySource: reportedLength === null ? "derived-default-24" : "derived-reported-length",
+    nrIdentitySource: derivedSource(reportedLength, operatorLength),
   };
 }

@@ -56,8 +56,6 @@ type ChannelIdentifiers = [first: number, second: number, pci: number, channel: 
 const PAIRS_PER_QUERY = 200;
 const VALUES_PER_QUERY = 1000;
 const NCI_BITS = 36;
-const DEFAULT_GNBID_LENGTH = 24;
-const CELLS_PER_GNB = 2 ** (NCI_BITS - DEFAULT_GNBID_LENGTH);
 const NETWORK_MATCH_RANKS: Record<CellNetworkMatch, number> = { own: 0, extraCode: 1, partner: 2, missingCode: 3 };
 const STORED_CELL_COLUMNS = { cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells, operatorId: stations.operator_id };
 const SHARED_AREA_FIELDS = new Set<string>(["tac", "lac"]);
@@ -78,12 +76,13 @@ function knownRnc(rnc: number | null | undefined): number | null {
   return rnc === undefined || rnc === null || rnc === 0 ? null : rnc;
 }
 
-function nrCellIdentity(cell: Extract<ObservedCell, { rat: "nr" }>): NrIdentity | null {
+function nrCellIdentity({ operator, countryCode }: Network, cell: Extract<ObservedCell, { rat: "nr" }>): NrIdentity | null {
   if (typeof cell.gnbid === "number" && typeof cell.clid === "number") return cell.gnbid === 0 ? null : { gnbid: cell.gnbid, clid: cell.clid };
   if (typeof cell.nci !== "number") return null;
 
-  const gnbid = Math.floor(cell.nci / CELLS_PER_GNB);
-  return gnbid === 0 ? null : { gnbid, clid: cell.nci % CELLS_PER_GNB };
+  const cellsPerGnb = 2 ** (NCI_BITS - conventionsFor(countryCode).gnbidLength(operator));
+  const gnbid = Math.floor(cell.nci / cellsPerGnb);
+  return gnbid === 0 ? null : { gnbid, clid: cell.nci % cellsPerGnb };
 }
 
 function unsplitNci(cell: Extract<ObservedCell, { rat: "nr" }>): number | null {
@@ -279,8 +278,9 @@ async function findStoredCells(
   const gnbids: IdentifiersByOperator<number> = new Map();
   const ncis: IdentifiersByOperator<number> = new Map();
   for (const cell of observed) {
-    const own = networks.get(cell.plmn)?.operatorId;
-    if (own === undefined) continue;
+    const network = networks.get(cell.plmn);
+    if (network === undefined) continue;
+    const own = network.operatorId;
 
     switch (cell.rat) {
       case "gsm":
@@ -295,7 +295,7 @@ async function findStoredCells(
         if (cell.enbid > 0) addIdentifier(ltePairs, own, [cell.enbid, cell.clid]);
         break;
       case "nr": {
-        const identity = nrCellIdentity(cell);
+        const identity = nrCellIdentity(network, cell);
         if (identity) addIdentifier(gnbids, own, identity.gnbid);
         const nci = unsplitNci(cell);
         if (nci !== null) addIdentifier(ncis, own, nci);
@@ -396,7 +396,7 @@ async function findMissingCodeCells(
         found.lte.has(identityKey(own, cell.enbid, cell.clid)) || found.lteStations.has(identityKey(own, canonicalEnbid(network, cell.enbid)));
       if (!isFound) addIdentifier(lteValues, own, [cell.enbid, cell.clid, cell.pci, cell.earfcn]);
     } else if (cell.rat === "nr" && typeof cell.pci === "number" && typeof cell.arfcn === "number") {
-      const identity = nrCellIdentity(cell);
+      const identity = nrCellIdentity(network, cell);
       if (identity === null) continue;
       const nci = unsplitNci(cell);
       const isFound =
@@ -550,7 +550,7 @@ function resolveCell(
     }
 
     case "nr": {
-      const split = nrCellIdentity(cell);
+      const split = nrCellIdentity(network, cell);
       const nci = unsplitNci(cell);
       const byNci = nci === null ? undefined : found.nrByNci.get(identityKey(own, nci));
       const bySplit = byNci !== undefined || split === null ? undefined : found.nr.get(identityKey(own, split.gnbid, split.clid));

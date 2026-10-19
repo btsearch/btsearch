@@ -38,8 +38,8 @@ const errorReasons = {
     "Editors can also get this response when the station does not exist.",
   404: "A cell in `cells` does not belong to this station, or a cell is moved to a station that does not exist.",
   409:
-    "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
-    "or an LTE cell on an active station with the same `enbid` and `clid`. " +
+    "An active station already has a cell with the same identity on one of the cell's networks: " +
+    "`lac` and `cid` for GSM, `rnc` and `cid` for UMTS, `enbid` and `clid` for LTE, `nci` for NR. " +
     "Also returned when the station already has an LTE or NR cell with the same `pci` on the same band.",
 };
 type RequestData = { Params: z.infer<typeof stationParamsSchema>; Querystring: StationQuery; Body: StationUpdate };

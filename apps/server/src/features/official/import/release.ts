@@ -5,11 +5,11 @@ import { markSlicesImported, readAppliedSnapshots, readApprovals, saveCheckpoint
 import { DEFAULT_HOLD_SHRINK_PERCENT } from "./config.js";
 import { fileDateOf } from "./fileDate.js";
 import { decideSlice } from "./guard.js";
-import { applyLinks, countLiveLinks, stageLinks } from "./links/apply.js";
+import { applyLinks, countLiveLinks, readPublishedLinks, stageLinks } from "./links/apply.js";
 import { readContextOf } from "./readContext.js";
 import { inRunTransaction, touchHeartbeat } from "./runs.js";
 import { applySites } from "./sites/apply.js";
-import { countLiveListings, stageSites } from "./sites/staging.js";
+import { countLiveListings, readPublishedPermits, stageSites } from "./sites/staging.js";
 import { type SkipCounts, countSkip, skipRows } from "./skips.js";
 import type { ChangeInput, PreparedRelease, ReleaseInput, RunScope, SliceCount } from "./types.js";
 
@@ -74,27 +74,43 @@ async function settleRelease(
   }
 }
 
-async function stageAndSettle(tx: DbTx, input: ReleaseInput): Promise<void> {
+async function readRelease(input: ReleaseInput): Promise<(tx: DbTx) => Promise<void>> {
   const { definition } = input.dataset;
   const skips: SkipCounts = new Map();
   const context = readContextOf(input.scope, input.dataset.key, (slice, reason) => countSkip(skips, slice, reason));
 
   if (definition.layer === "sites") {
-    const counts = await stageSites(tx, input, definition, context, skips);
-    await settleRelease(tx, input, counts, skips, (appliedSlices) => applySites(tx, input, definition, appliedSlices));
-    return;
+    const permits = await readPublishedPermits(input, definition, context, skips);
+    return async (tx) => {
+      const counts = await stageSites(tx, input, permits, skips);
+      await settleRelease(tx, input, counts, skips, (appliedSlices) => applySites(tx, input, definition, appliedSlices));
+    };
   }
 
-  const staged = await stageLinks(tx, input, definition, context, skips);
-  await settleRelease(tx, input, staged.counts, skips, () => applyLinks(tx, input, staged, skips));
+  const published = await readPublishedLinks(input, definition, context, skips);
+  return async (tx) => {
+    const staged = await stageLinks(tx, input, published);
+    await settleRelease(tx, input, staged.counts, skips, () => applyLinks(tx, input, staged, skips));
+  };
+}
+
+function checkpointIfUnchanged(scope: RunScope, input: ReleaseInput): Promise<boolean> {
+  return inRunTransaction(scope, async (tx) => {
+    if (!(await isUnchanged(tx, input))) return false;
+
+    await checkpointUnchanged(tx, input);
+    await touchHeartbeat(tx, scope.run.id);
+    return true;
+  });
 }
 
 export async function importRelease(scope: RunScope, prepared: PreparedRelease, snapshotId: number): Promise<void> {
   const input: ReleaseInput = { ...prepared, scope, snapshotId, fileDate: fileDateOf(prepared.release.publishedOn, scope.run.startedAt) };
+  if (await checkpointIfUnchanged(scope, input)) return;
 
+  const settle = await readRelease(input);
   await inRunTransaction(scope, async (tx) => {
-    if (await isUnchanged(tx, input)) await checkpointUnchanged(tx, input);
-    else await stageAndSettle(tx, input);
+    await settle(tx);
     await touchHeartbeat(tx, scope.run.id);
   });
 }

@@ -15,7 +15,17 @@ import type { ImportEnvironment } from "../../../../src/features/official/import
 import type { DbTx } from "../../../../src/types/global.js";
 import { logger } from "../../../../src/utils/logger.js";
 import { type DatabaseCall, dbMock } from "../../../helpers/boundaries.js";
-import { FOREIGN_TOKEN, RUN_ID, claimedRun, ownRun, recordTransactions, sourceOf, valuesOf, whereOf } from "../../../helpers/importEngineFixtures.js";
+import {
+  FOREIGN_TOKEN,
+  RUN_ID,
+  claimedRun,
+  ownRun,
+  recordTransactions,
+  scriptDatasetOutcomes,
+  sourceOf,
+  valuesOf,
+  whereOf,
+} from "../../../helpers/importEngineFixtures.js";
 
 const FILE_DATE = new Date("2026-10-01T14:15:16.789Z");
 const ZIP_FILE = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from("workbook")]);
@@ -23,10 +33,21 @@ const ZIP_FILE_SHA256 = createHash("sha256").update(ZIP_FILE).digest("hex");
 const SITES_FILE_URL = "https://files.invalid/2026-10-01_north.xlsx";
 const SITES_DATASET = { id: 1, key: "towers", holdShrinkPercent: null, error: null };
 const LINKS_DATASET = { id: 3, key: "links", holdShrinkPercent: null, error: null };
+const STORED_DATASETS = [
+  { datasetId: SITES_DATASET.id, key: SITES_DATASET.key, layer: "sites" },
+  { datasetId: LINKS_DATASET.id, key: LINKS_DATASET.key, layer: "microwave_links" },
+] as const;
+const NORTH_APPLIED = { datasetId: SITES_DATASET.id, slice: "north", outcome: "applied" } as const;
+const NORTH_HELD = { datasetId: SITES_DATASET.id, slice: "north", outcome: "held" } as const;
+const NORTH_UNCHANGED = { datasetId: SITES_DATASET.id, slice: "north", outcome: "unchanged" } as const;
+const LINKS_APPLIED = { datasetId: LINKS_DATASET.id, slice: "", outcome: "applied" } as const;
 
 const dialect = new PgDialect();
 const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
-  [/^SELECT place\.id, COALESCE\(region_at\(place\.longitude, place\.latitude, claimed\.id\), claimed\.id\) AS "regionId"/, "resolve: regions"],
+  [
+    /^SELECT place\.id, COALESCE\(known\.region_id, region_at\(place\.longitude, place\.latitude, claimed\.id\), claimed\.id\) AS "regionId"/,
+    "resolve: regions",
+  ],
   [/^SELECT published\.licensee FROM jsonb_array_elements_text\(\$1::jsonb\) AS published \(licensee\) ORDER BY/, "resolve: order licensee names"],
   [/^SET LOCAL effective_io_concurrency = 16$/, "stage: limit read-ahead"],
   [/^SET LOCAL work_mem = '64MB'$/, "stage: raise work memory"],
@@ -46,6 +67,7 @@ const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
   [/^WITH listed AS/, "apply: insert listings"],
   [/^INSERT INTO "official"\."permit_sectors"/, "apply: insert sectors"],
   [/^DELETE FROM "official"\."permit_listings"/, "apply: unlist"],
+  [/^UPDATE "official"\."microwave_links" AS link/, "apply: update links"],
 ];
 const STAGED_PERMITS = "official_import_staged_permits";
 
@@ -285,13 +307,13 @@ function scriptStagedSites(staged: { live: number }): void {
   dbMock.enqueueFor("select", "official.import_run_approvals", []);
 }
 
-function scriptStagedMatches(): void {
-  dbMock.enqueueFor("update", STAGED_PERMITS, undefined, undefined, undefined, undefined, undefined, undefined);
+function scriptStagedMatches(updates = 6): void {
+  dbMock.enqueueFor("update", STAGED_PERMITS, ...Array.from({ length: updates }, () => undefined));
 }
 
 function scriptAppliedSites(): void {
   scriptStagedMatches();
-  dbMock.enqueueFor("insert", "official.locations", undefined);
+  dbMock.enqueueFor("insert", "official.locations", [{ id: 12 }]);
   scriptStatements([{ siteCode: "BT1001", operatorId: 4, locationId: 12, firstOrdinal: 0, slice: "north", officialSiteId: 503, fromLocationId: 11 }]);
   scriptStatements([], []);
   scriptStatements([{ officialSiteId: 504, slice: "north" }], []);
@@ -307,8 +329,8 @@ function scriptAppliedSites(): void {
 }
 
 function scriptAppliedSitesWithoutChanges(): void {
-  scriptStagedMatches();
-  dbMock.enqueueFor("insert", "official.locations", undefined);
+  scriptStagedMatches(3);
+  dbMock.enqueueFor("insert", "official.locations", []);
   dbMock.enqueueFor("insert", "official.permits", []);
   dbMock.enqueueFor("update", "official.permit_listings", undefined);
   scriptStatements([], [], [], [], [], [], []);
@@ -322,6 +344,14 @@ function scriptCheckpoint(written: { skips?: boolean; changes?: boolean; slicesA
   dbMock.enqueueFor("update", "official.import_runs", undefined);
 }
 
+function scriptChangeCheck(
+  runSlices: Parameters<typeof scriptDatasetOutcomes>[1],
+  runDatasets: Parameters<typeof scriptDatasetOutcomes>[0] = [],
+): void {
+  ownRun(1);
+  scriptDatasetOutcomes(runDatasets, runSlices, STORED_DATASETS);
+}
+
 function scriptAppliedLinks(stored: readonly StoredLink[]): void {
   dbMock.enqueueFor("select", "official.dataset_slices", [{ slice: "", snapshotId: null }]);
   dbMock.enqueueFor("select", "official.licensees", [{ id: 8, legalName: "Orange Polska S.A.", operatorId: 4 }]);
@@ -333,7 +363,7 @@ function scriptAppliedLinks(stored: readonly StoredLink[]): void {
   dbMock.enqueueFor("insert", "official.microwave_link_transmitter_types", [{ id: 31, name: "RTN 950" }]);
   dbMock.enqueueFor("select", "official.microwave_links", [...stored]);
   dbMock.enqueueFor("insert", "official.microwave_links", [{ id: 804 }]);
-  dbMock.enqueueFor("update", "official.microwave_links", undefined);
+  scriptStatements([]);
   dbMock.enqueueFor("delete", "official.microwave_links", undefined);
 }
 
@@ -372,7 +402,7 @@ describe("a run through the engine", () => {
       links: () => recordsOf([linkRecord({ eirpDbm: 31 }), linkRecord({ permitNumber: "RL/new", freqMhz: 38000 })]),
     });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET, LINKS_DATASET]);
-    ownRun(8);
+    ownRun(10);
 
     scriptPreparation();
     scriptRecordedRelease(41);
@@ -392,6 +422,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("insert", "official.import_changes", undefined);
     dbMock.enqueueFor("delete", "official.permits", undefined);
     dbMock.enqueueFor("update", "official.import_run_steps", undefined);
+    scriptChangeCheck([NORTH_APPLIED, LINKS_APPLIED]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     const end = await processRun(claimedRun(), { ...environment, sources: [source], steps: [unlistedPermits] });
@@ -421,6 +452,9 @@ describe("a run through the engine", () => {
       "begin",
       "select official.import_runs",
       "select official.dataset_slices",
+      "commit",
+      "begin",
+      "select official.import_runs",
       "resolve: regions",
       "resolve: order licensee names",
       "select official.licensees",
@@ -479,6 +513,9 @@ describe("a run through the engine", () => {
       "begin",
       "select official.import_runs",
       "select official.dataset_slices",
+      "commit",
+      "begin",
+      "select official.import_runs",
       "select official.licensees",
       "count official.microwave_links",
       "select official.import_run_approvals",
@@ -488,12 +525,19 @@ describe("a run through the engine", () => {
       "insert official.microwave_link_transmitter_types",
       "select official.microwave_links",
       "insert official.microwave_links",
-      "update official.microwave_links",
+      "apply: update links",
       "delete official.microwave_links",
       "insert official.import_run_slices",
       "insert official.import_changes",
       "update official.dataset_slices",
       "update official.import_runs",
+      "commit",
+
+      "begin",
+      "select official.import_runs",
+      "select official.datasets",
+      "select official.import_run_datasets",
+      "select official.import_run_slices",
       "commit",
 
       "begin",
@@ -545,9 +589,15 @@ describe("a run through the engine", () => {
         { runId: RUN_ID, kind: "station_unlinked", permitId: 600, stationId: 100 },
       ],
     ]);
-    expect(valuesOf("update", "official.microwave_links")).toEqual([
-      expect.objectContaining({ tx_eirp: 31, permit_number: "RL/1", updatedAt: FILE_DATE }),
+    const linkUpdates = dbMock.calls.filter((call) => call.operation === "execute" && executedLabel(call) === "apply: update links");
+    expect(linkUpdates.map((call) => executedQuery(call).params[0])).toEqual([FILE_DATE.toISOString()]);
+    expect(linkUpdates.map((call) => JSON.parse(String(executedQuery(call).params[1])))).toEqual([
+      [expect.objectContaining({ id: 801, tx_eirp: 31, permit_number: "RL/1", licensee_id: 8 })],
     ]);
+    const [linkUpdate = ""] = linkUpdates.map(executedText);
+    expect(linkUpdate).toContain('"tx_transmitter_type_id" = changed."tx_transmitter_type_id"');
+    expect(linkUpdate).toContain('"licensee_id" integer');
+    expect(linkUpdate).not.toContain('"modulation_type"');
     expect(valuesOf("insert", "official.microwave_links")).toEqual([
       [expect.objectContaining({ permit_number: "RL/new", operator_id: 8, tx_transmitter_type_id: 31, dataset_id: 3, createdAt: FILE_DATE })],
     ]);
@@ -557,12 +607,13 @@ describe("a run through the engine", () => {
     const record = siteRecord();
     const source = sourceWith({ sites: () => recordsOf([{ ...record, permit: { ...record.permit, expiresOn: null } }]) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(4);
     scriptPreparation();
     scriptRecordedRelease(41);
     scriptStagedSites({ live: 1 });
     scriptAppliedSites();
     scriptCheckpoint({ skips: true, changes: true, slicesApplied: true });
+    scriptChangeCheck([NORTH_APPLIED]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
@@ -610,7 +661,7 @@ describe("a run through the engine", () => {
       shortLicenseeName: (publishedName) => publishedName,
     };
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(4);
     scriptPreparation();
     scriptRecordedRelease(41);
     dbMock.enqueueFor("select", "official.dataset_slices", [{ slice: "north", snapshotId: null }]);
@@ -624,11 +675,17 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.permit_listings", [{ slice: "north", listings: 10 }]);
     dbMock.enqueueFor("select", "official.import_run_approvals", []);
     scriptCheckpoint({ skips: true });
+    scriptChangeCheck([NORTH_HELD]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
 
     expect(dbMock.pendingResults()).toBe(0);
+    expect(
+      dbMock.calls
+        .filter((call) => call.operation === "execute" && executedLabel(call) === "resolve: regions")
+        .map((call) => executedQuery(call).params[1]),
+    ).toEqual([1]);
     expect(jsonParamsOf("resolve: regions")).toEqual([
       [
         { id: 0, longitude: 21.0123, latitude: 52.2297, region_iso_code: "PL-14" },
@@ -660,7 +717,7 @@ describe("a run through the engine", () => {
   it("matches a link published under another spelling of its licensee: no new licensee, nothing archived", async () => {
     const source = sourceWith({ links: () => recordsOf([linkRecord({ licensee: "Orange Polska" })]) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [LINKS_DATASET]);
-    ownRun(3);
+    ownRun(4);
     scriptPreparation();
     scriptRecordedRelease(42);
     dbMock.enqueueFor("select", "official.dataset_slices", [{ slice: "", snapshotId: null }]);
@@ -672,6 +729,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.microwave_link_transmitter_types", [{ id: 31, name: "RTN 950" }]);
     dbMock.enqueueFor("select", "official.microwave_links", [storedLink(801, linkRecord())]);
     scriptCheckpoint({ slicesApplied: true });
+    scriptChangeCheck([LINKS_APPLIED]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
@@ -687,11 +745,12 @@ describe("a run through the engine", () => {
     const sevenSites = Array.from({ length: 7 }, (_, index) => siteRecord({ siteId: `BT100${index}` }));
     const source = sourceWith({ sites: () => recordsOf(sevenSites) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(4);
     scriptPreparation();
     scriptRecordedRelease(41);
     scriptStagedSites({ live: 10 });
     scriptCheckpoint({ skips: true });
+    scriptChangeCheck([NORTH_HELD]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     const end = await processRun(claimedRun(), { ...environment, sources: [source] });
@@ -741,7 +800,7 @@ describe("a run through the engine", () => {
       operatorNameOfLicensee: (publishedName) => publishedName.replace(/ S\.A\.$/, ""),
     };
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(4);
     scriptPreparation();
     scriptRecordedRelease(41);
     dbMock.enqueueFor("select", "official.dataset_slices", [{ slice: "north", snapshotId: null }]);
@@ -761,6 +820,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.permit_listings", [{ slice: "north", listings: 10 }]);
     dbMock.enqueueFor("select", "official.import_run_approvals", []);
     scriptCheckpoint({ skips: true });
+    scriptChangeCheck([NORTH_HELD]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
@@ -793,7 +853,7 @@ describe("a run through the engine", () => {
   it("applies a held slice when the run carries an approval for this release", async () => {
     const source = sourceWith({ sites: () => recordsOf([siteRecord()]) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(4);
     dbMock.enqueueFor("select", "official.import_run_slices", []);
     dbMock.enqueueFor("select", "official.import_run_approvals", [{ slice: "north", snapshotId: 41 }]);
     dbMock.enqueueFor("select", "official.listed_files", []);
@@ -806,6 +866,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.import_run_approvals", [{ slice: "north", snapshotId: 41 }]);
     scriptAppliedSitesWithoutChanges();
     scriptCheckpoint({ skips: true, slicesApplied: true });
+    scriptChangeCheck([NORTH_APPLIED]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
@@ -819,7 +880,7 @@ describe("a run through the engine", () => {
   it("holds the slice again when the approval names another release", async () => {
     const source = sourceWith({ sites: () => recordsOf([siteRecord()]) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(4);
     dbMock.enqueueFor("select", "official.import_run_slices", []);
     dbMock.enqueueFor("select", "official.import_run_approvals", [{ slice: "north", snapshotId: 39 }]);
     dbMock.enqueueFor("select", "official.listed_files", []);
@@ -831,6 +892,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.permit_listings", [{ slice: "north", listings: 10 }]);
     dbMock.enqueueFor("select", "official.import_run_approvals", [{ slice: "north", snapshotId: 39 }]);
     scriptCheckpoint({ skips: true });
+    scriptChangeCheck([NORTH_HELD]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
@@ -843,7 +905,7 @@ describe("a run through the engine", () => {
     const parse = vi.fn(() => recordsOf([siteRecord()]));
     const source = sourceWith({ sites: parse });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(2);
     scriptPreparation();
     dbMock.enqueueFor("select", "official.files", [{ sha256: "known" }]);
     dbMock.enqueueFor("insert", "official.files", undefined);
@@ -854,9 +916,10 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.dataset_slices", [{ slice: "north", snapshotId: 41 }]);
     dbMock.enqueueFor("select", "official.permit_listings", [{ slice: "north", listings: 12 }]);
     scriptCheckpoint();
-    dbMock.enqueueFor("update", "official.import_runs", undefined);
+    scriptChangeCheck([NORTH_UNCHANGED]);
+    dbMock.enqueueFor("delete", "official.import_runs", undefined);
 
-    expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
+    expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("unchanged");
 
     expect(dbMock.pendingResults()).toBe(0);
     expect(parse).not.toHaveBeenCalled();
@@ -866,7 +929,7 @@ describe("a run through the engine", () => {
     ]);
   });
 
-  it("fails the dataset when its reader throws: the release's transaction rolls back and only the error is written", async () => {
+  it("fails the dataset when its reader throws: the file is read before the release's transaction, so only the error is written", async () => {
     const source = sourceWith({
       sites: async function* broken() {
         yield siteRecord();
@@ -879,20 +942,28 @@ describe("a run through the engine", () => {
     scriptRecordedRelease(41);
     dbMock.enqueueFor("select", "official.dataset_slices", [{ slice: "north", snapshotId: null }]);
     dbMock.enqueueFor("update", "official.import_run_datasets", undefined);
+    scriptChangeCheck([], [{ datasetId: SITES_DATASET.id, error: 'Workbook "2026-10-01_north.xlsx" has no sheet' }]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     const end = await processRun(claimedRun(), { ...environment, sources: [source] });
 
     expect(end).toBe("done");
     expect(dbMock.pendingResults()).toBe(0);
-    expect(trace().slice(trace().indexOf("rollback") - 3)).toEqual([
+    expect(trace()).not.toContain("rollback");
+    expect(trace().slice(trace().lastIndexOf("select official.dataset_slices") - 2)).toEqual([
       "begin",
       "select official.import_runs",
       "select official.dataset_slices",
-      "rollback",
+      "commit",
       "begin",
       "select official.import_runs",
       "update official.import_run_datasets",
+      "commit",
+      "begin",
+      "select official.import_runs",
+      "select official.datasets",
+      "select official.import_run_datasets",
+      "select official.import_run_slices",
       "commit",
       "begin",
       "select official.import_runs",
@@ -946,6 +1017,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.import_run_steps", [{ lastSeq: 17, finishedAt: null }]);
     dbMock.enqueueFor("update", "official.import_run_steps", undefined, undefined);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
+    scriptChangeCheck([NORTH_APPLIED]);
     const seenProgress: (number | null)[] = [];
     const failing = {
       name: "links" as const,
@@ -971,13 +1043,13 @@ describe("a run through the engine", () => {
     const source = sourceWith({ sites: () => recordsOf([siteRecord()]) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
     scriptPreparation();
-    ownRun(7);
+    ownRun(8);
     dbMock.enqueueFor("select", "official.licensees", [{ id: 7, name: "TFILM", legalName: "SATFILM S.A." }]);
     dbMock.enqueueFor("update", "official.licensees", undefined);
     scriptRecordedRelease(41);
     scriptStagedSites({ live: 0 });
-    scriptStagedMatches();
-    dbMock.enqueueFor("insert", "official.locations", undefined);
+    scriptStagedMatches(4);
+    dbMock.enqueueFor("insert", "official.locations", []);
     dbMock.enqueueFor("insert", "official.permits", [{ id: 701 }]);
     dbMock.enqueueFor("update", "official.permit_listings", undefined);
     scriptStatements([], [], [], [], [{ permitId: 701, slice: "north", officialSiteId: 504 }], [], []);
@@ -1049,21 +1121,33 @@ describe("a run through the engine", () => {
     expect(valuesOf("update", "official.import_runs").at(-1)).toMatchObject({ state: "done" });
   });
 
-  it("does not read a release whose files are listed as at their last download", async () => {
+  it("does not read a release whose files are listed as at their last download, and keeps no run that changed nothing", async () => {
     const parse = vi.fn(() => recordsOf([siteRecord()]));
+    const step = { name: "unlisted_permits" as const, runsInDryRun: true, perform: vi.fn(async () => undefined) };
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
     dbMock.enqueueFor("select", "official.import_run_slices", []);
     dbMock.enqueueFor("select", "official.import_run_approvals", []);
     dbMock.enqueueFor("select", "official.listed_files", [listedAsServed()]);
-    ownRun(1);
-    dbMock.enqueueFor("update", "official.import_runs", undefined);
+    scriptChangeCheck([]);
+    dbMock.enqueueFor("delete", "official.import_runs", undefined);
 
-    expect(await processRun(claimedRun(), { ...environment, sources: [sourceWith({ sites: parse })] })).toBe("done");
+    expect(await processRun(claimedRun(), { ...environment, sources: [sourceWith({ sites: parse })], steps: [step] })).toBe("unchanged");
 
     expect(dbMock.pendingResults()).toBe(0);
     expect(parse).not.toHaveBeenCalled();
+    expect(step.perform).not.toHaveBeenCalled();
     expect([requestsOf("HEAD"), requestsOf("GET")]).toEqual([1, 0]);
-    expect(trace().slice(4)).toEqual(["begin", "select official.import_runs", "update official.import_runs", "commit"]);
+    expect(trace().slice(4)).toEqual([
+      "begin",
+      "select official.import_runs",
+      "select official.datasets",
+      "select official.import_run_datasets",
+      "select official.import_run_slices",
+      "delete official.import_runs",
+      "commit",
+    ]);
+    expect(whereOf(dbMock.calls.find((call) => call.operation === "delete")).params).toEqual([RUN_ID]);
+    expect(logger.info).toHaveBeenCalledWith("official.import.nothing_changed", { runId: RUN_ID });
     expect(logger.info).toHaveBeenCalledWith("official.import.file_unchanged", { runId: RUN_ID, datasetKey: "towers", url: SITES_FILE_URL });
     expect(logger.info).not.toHaveBeenCalledWith("official.import.downloading", expect.anything());
   });
@@ -1076,20 +1160,21 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.import_run_slices", []);
     dbMock.enqueueFor("select", "official.import_run_approvals", []);
     dbMock.enqueueFor("select", "official.listed_files", [listedAsServed()]);
-    ownRun(3);
+    ownRun(2);
     dbMock.enqueueFor("select", "official.snapshots", [{ id: 41 }]);
     dbMock.enqueueFor("select", "official.dataset_slices", [{ key: "north" }]);
     dbMock.enqueueFor("select", "official.snapshot_slices", [{ slice: "north" }]);
     dbMock.enqueueFor("select", "official.dataset_slices", [{ slice: "north", snapshotId: 41 }]);
     dbMock.enqueueFor("select", "official.permit_listings", [{ slice: "north", listings: 12 }]);
     scriptCheckpoint();
-    dbMock.enqueueFor("update", "official.import_runs", undefined);
+    scriptChangeCheck([NORTH_UNCHANGED]);
+    dbMock.enqueueFor("delete", "official.import_runs", undefined);
 
-    expect(await processRun(claimedRun({ attempt: 2 }), { ...environment, sources: [sourceWith({})] })).toBe("done");
+    expect(await processRun(claimedRun({ attempt: 2 }), { ...environment, sources: [sourceWith({})] })).toBe("unchanged");
 
     expect(dbMock.pendingResults()).toBe(0);
     expect([requestsOf("HEAD"), requestsOf("GET")]).toEqual([1, 0]);
-    expect(writesOf(trace())).toEqual(["insert official.import_run_slices", "update official.import_runs", "update official.import_runs"]);
+    expect(writesOf(trace())).toEqual(["insert official.import_run_slices", "update official.import_runs", "delete official.import_runs"]);
     expect(logger.info).toHaveBeenCalledWith("official.import.file_from_archive", { runId: RUN_ID, datasetKey: "towers", url: SITES_FILE_URL });
     expect(logger.info).toHaveBeenCalledWith("official.import.release_unchanged", { runId: RUN_ID, datasetKey: "towers", slices: ["north"] });
   });
@@ -1101,6 +1186,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.import_run_approvals", []);
     dbMock.enqueueFor("select", "official.listed_files", []);
     ownRun(1);
+    scriptChangeCheck([NORTH_APPLIED]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun({ attempt: 2 }), { ...environment, sources: [sourceWith({})] })).toBe("done");
@@ -1167,7 +1253,7 @@ describe("a run through the engine", () => {
   it("applies the slices of a release that pass the guard and holds the others", async () => {
     const source = sourceWith({ sitesCover: ["north", "south"], sites: () => recordsOf([siteRecord(), siteRecord({ slice: "south" })]) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
-    ownRun(3);
+    ownRun(4);
     scriptPreparation();
     scriptRecordedRelease(41);
     dbMock.enqueueFor("select", "official.dataset_slices", []);
@@ -1179,6 +1265,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("delete", STAGED_PERMITS, undefined);
     scriptAppliedSitesWithoutChanges();
     scriptCheckpoint({ skips: true, slicesApplied: true });
+    scriptChangeCheck([NORTH_APPLIED, { ...NORTH_HELD, slice: "south" }]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
@@ -1204,6 +1291,7 @@ describe("a run through the engine", () => {
     scriptRecordedRelease(41);
     dbMock.enqueueFor("select", "official.dataset_slices", []);
     dbMock.enqueueFor("update", "official.import_run_datasets", undefined);
+    scriptChangeCheck([], [{ datasetId: SITES_DATASET.id, error: "unreadable" }]);
     dbMock.enqueueFor("update", "official.import_runs", undefined);
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
@@ -1222,7 +1310,7 @@ describe("a run through the engine", () => {
     const source = sourceWith({ sites: () => recordsOf([siteRecord({ name: "WAW CENTRUM" })]), syncSiteNames });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
     scriptPreparation();
-    ownRun(4);
+    ownRun(5);
     dbMock.enqueueFor("select", "official.licensees", []);
     scriptRecordedRelease(41);
     scriptStagedSites({ live: 1 });

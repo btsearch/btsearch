@@ -106,7 +106,7 @@ export type SourceAudit = (
 ) => Promise<void>;
 export type SiteNameSyncContext = { tx: SourceTransaction; siteNames: readonly PublishedSiteName[]; audit: SourceAudit };
 export type SiteNameSyncResult = { skippedSiteNames: number };
-export type KmzExportContext = { db: Database | SourceTransaction; directory: string; day: string };
+export type KmzExportContext = { db: Database | SourceTransaction; directory: string; day: string; changedDatasets: readonly string[] };
 export type UnmatchedLteCell = { operator: OperatorRef; operatorIds: readonly number[]; enbid: number };
 export type CellMatchContext = { db: Database | SourceTransaction; cells: readonly UnmatchedLteCell[] };
 

@@ -7,6 +7,7 @@ import type { z } from "zod/v4";
 import { DetailedErrorResponse, ErrorResponse } from "../../../../errors.js";
 import type { DbTx } from "../../../../types/global.js";
 import { type StoredCellScope, assertStoredCellBandsFit } from "../../../cells/arfcnValidation.js";
+import { lockAndCheckStoredCells } from "../../../cells/duplicateCheck.js";
 import { loadKnownPlmns, loadStationNetworkOwner, withoutOwnerCode, writeExtraCodes } from "../../../cells/networkWrites.js";
 import {
   type NormalRat,
@@ -202,6 +203,24 @@ export async function assertRestoredCellsFitBands(tx: DbTx, entry: AuditEntry, s
   throw new DetailedErrorResponse("CONFLICT", conflicts, { cause: firstMisfit });
 }
 
+export async function refuseIdentityCollision(entry: AuditEntry, check: () => Promise<void>): Promise<void> {
+  try {
+    await check();
+  } catch (error) {
+    if (!(error instanceof ErrorResponse) || error.code !== "DUPLICATE_ENTRY") throw error;
+    const conflict: RevertConflict = {
+      entry_id: entry.id,
+      entity: entry.entity,
+      op: entry.op,
+      record_id: entry.record_id,
+      station_id: entry.station_id,
+      kind: "unique_violation",
+      message: error.message,
+    };
+    throw new DetailedErrorResponse("CONFLICT", [conflict], { cause: error });
+  }
+}
+
 export async function planCellRevert(context: StrategyContext, entry: AuditEntry): Promise<PlannedEntry> {
   const plan = createEmptyPlan(entry);
   const id = recordIdNumber(entry.record_id);
@@ -308,6 +327,7 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
       plan.actions.push({ order: 35, run: (tx) => restoreExtraCodes(tx, id, stationId, restoredCodes) });
     plan.finalize = async (tx, audit) => {
       await assertRestoredCellsFitBands(tx, entry, { cellIds: [id], stationId: null });
+      await refuseIdentityCollision(entry, () => lockAndCheckStoredCells(tx, { cellIds: [id], stationId: null }));
       const restored = (await loadCellSnapshots(tx, [id])).get(id);
       if (restored === undefined) throw new Error(`Restored cell ${id} disappeared`);
       await audit.log({
@@ -390,6 +410,7 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
   });
   plan.finalize = async (tx, audit) => {
     await assertRestoredCellsFitBands(tx, entry, { cellIds: [id], stationId: null });
+    await refuseIdentityCollision(entry, () => lockAndCheckStoredCells(tx, { cellIds: [id], stationId: null }));
     const restored = (await loadCellSnapshots(tx, [id])).get(id);
     if (restored === undefined) throw new Error(`Updated cell ${id} disappeared`);
     await audit.log({

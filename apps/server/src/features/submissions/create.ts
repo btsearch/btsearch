@@ -15,12 +15,13 @@ import z from "zod";
 
 import { ErrorResponse } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
-import type { DbTx } from "../../types/global.js";
+import type { DbClient, DbTx } from "../../types/global.js";
 import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
 import { type CellIdentityDuplicateSource, checkOwnerCellDuplicates, checkPciDuplicates } from "../cells/duplicateCheck.js";
 import {
   type NetworkOwner,
   assertCodesKnown,
+  cellNetworkKeys,
   extraCodesFromSent,
   loadExtraCodes,
   loadKnownPlmns,
@@ -186,6 +187,21 @@ export async function resolveCellExtras(
   );
 }
 
+export async function loadCellNetworks(
+  cells: readonly Pick<ChangeCell, "destination_station_id">[],
+  owner: NetworkOwner,
+  cellExtras: readonly (string[] | undefined)[],
+): Promise<string[][]> {
+  const destinationIds = unique(cells.map((cell) => cell.destination_station_id));
+  const destinationOwners = new Map(
+    await Promise.all(destinationIds.map(async (stationId) => [stationId, await loadStationNetworkOwner(db, stationId)] as const)),
+  );
+  return cells.map((cell, index) => {
+    const cellOwner = cell.destination_station_id === undefined ? owner : destinationOwners.get(cell.destination_station_id);
+    return cellNetworkKeys(cellOwner ?? owner, cellExtras[index] ?? []);
+  });
+}
+
 export function getCellDuplicateEntries(
   cells: readonly Pick<ChangeCell, "details" | "operation" | "rat" | "target_cell_id" | "destination_station_id">[],
   cellExtras: readonly (string[] | undefined)[],
@@ -217,11 +233,11 @@ async function checkStationCellsUnderOwner(stationId: number, owner: NetworkOwne
     excludeCellId: cell.id,
     extraCodes: kept.get(cell.id) ?? [],
   }));
-  await checkOwnerCellDuplicates(entries, owner, stationCellIds);
+  await checkOwnerCellDuplicates(db, entries, owner, stationCellIds);
 }
 
 export async function loadSubmissionOwner(
-  tx: DbTx,
+  tx: DbClient,
   submissionId: string | null,
   stationId: number | null,
   operatorId: number | null | undefined,
@@ -239,11 +255,29 @@ export async function loadSubmissionOwner(
   return stationId === null ? loadNetworkOwner(tx, null, null) : loadStationNetworkOwner(tx, stationId);
 }
 
-export function validateSubmission(input: SingleSubmission): Promise<void> {
-  return validateChange(input, "review");
+export async function validateSubmission(input: SingleSubmission): Promise<void> {
+  await validateChange(input, "review");
 }
 
-export async function validateChange(input: SubmissionChange, handling: "review" | "direct"): Promise<void> {
+async function checkChangedCellIdentities(
+  input: SubmissionChange,
+  operatorId: number | null | undefined,
+  stationId: number | null,
+  changesOwner: boolean,
+  allModifiedCellIds: number[],
+): Promise<string[][]> {
+  const changedCells = input.cells ?? [];
+  const owner = await loadNetworkOwner(db, operatorId ?? null, input.placement_country_code ?? null);
+  const cellExtras = await resolveCellExtras(changedCells, owner);
+  const cellNetworks = await loadCellNetworks(changedCells, owner, cellExtras);
+  validateCellDuplicates(changedCells, cellNetworks);
+  const dupEntries = operatorId ? getCellDuplicateEntries(changedCells, cellExtras) : [];
+  if (dupEntries.length > 0) await checkOwnerCellDuplicates(db, dupEntries, owner, allModifiedCellIds);
+  if (changesOwner && stationId !== null) await checkStationCellsUnderOwner(stationId, owner, changedCells);
+  return cellNetworks;
+}
+
+export async function validateChange(input: SubmissionChange, handling: "review" | "direct"): Promise<string[][]> {
   const { station_id, type, station: stationData } = input;
   const locationData = input.location ?? undefined;
   const waitsForReview = handling === "review";
@@ -335,7 +369,6 @@ export async function validateChange(input: SubmissionChange, handling: "review"
   const allModifiedCellIds = input.cells?.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined) ?? [];
   if (input.cells && input.cells.length > 0) {
     await assertTargetCellsFit(input.cells, isNewStation ? null : stationId);
-    validateCellDuplicates(input.cells);
     if (unique(allModifiedCellIds).length !== allModifiedCellIds.length) {
       throw new ErrorResponse("BAD_REQUEST", { message: "A cell can be changed once per submission" });
     }
@@ -369,14 +402,10 @@ export async function validateChange(input: SubmissionChange, handling: "review"
       throw new ErrorResponse("BAD_REQUEST", { message: "One or more location_photo_ids_to_remove are not assigned to this station" });
   }
 
-  const changedCells = input.cells ?? [];
-  if (changedCells.length > 0 || changesOwner) {
-    const owner = await loadNetworkOwner(db, operatorId ?? null, input.placement_country_code ?? null);
-    const cellExtras = await resolveCellExtras(changedCells, owner);
-    const dupEntries = operatorId ? getCellDuplicateEntries(changedCells, cellExtras) : [];
-    if (dupEntries.length > 0) await checkOwnerCellDuplicates(dupEntries, owner, allModifiedCellIds);
-    if (changesOwner && stationId !== null) await checkStationCellsUnderOwner(stationId, owner, changedCells);
-  }
+  const cellNetworks =
+    (input.cells?.length ?? 0) > 0 || changesOwner
+      ? await checkChangedCellIdentities(input, operatorId, stationId, changesOwner, allModifiedCellIds)
+      : [];
 
   if (stationId !== null && input.cells && input.cells.length > 0) {
     await checkPciDuplicates(
@@ -416,6 +445,7 @@ export async function validateChange(input: SubmissionChange, handling: "review"
     )
       throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected. Please modify the data before submitting." });
   }
+  return cellNetworks;
 }
 
 export type PhotoPickInput = Pick<SingleSubmission, "location_photo_ids" | "location_photo_ids_to_remove" | "main_location_photo_id">;

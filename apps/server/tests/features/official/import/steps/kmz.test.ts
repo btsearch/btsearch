@@ -14,9 +14,11 @@ import {
   sourceOf,
   trace,
   valuesOf,
+  whereOf,
 } from "../../../../helpers/importEngineFixtures.js";
 
 const APPLIED = [{ datasetId: 1, slice: "LTE:800:commercial", outcome: "applied" as const }];
+const LINKS_APPLIED = { datasetId: 3, slice: "", outcome: "applied" as const };
 
 function scriptOutcomes(runSlices: Parameters<typeof scriptDatasetOutcomes>[1]): void {
   scriptStepStart();
@@ -43,8 +45,48 @@ describe("the KMZ step", () => {
     await runStep(kmz, { run: claimedRun({ startedAt: new Date("2026-10-12T23:59:59.999Z") }), source: sourceOf({ exportKmz }) });
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(exportKmz).toHaveBeenCalledExactlyOnceWith({ db: dbMock, directory: "/app/kmz", day: "2026-10-12" });
+    expect(exportKmz).toHaveBeenCalledExactlyOnceWith({ db: dbMock, directory: "/app/kmz", day: "2026-10-12", changedDatasets: ["permits"] });
     expect(transactionsOpenAtExport).toEqual([0]);
+  });
+
+  it("names every dataset that applied a slice, and leaves the others out", async () => {
+    const exportKmz = vi.fn(async (_context: KmzExportContext) => []);
+    scriptOutcomes([...APPLIED, { datasetId: 2, slice: "PL", outcome: "applied" }]);
+    scriptStepFinish();
+
+    await runStep(kmz, { source: sourceOf({ exportKmz }) });
+
+    expect(dbMock.pendingResults()).toBe(0);
+    expect(exportKmz.mock.calls[0]?.[0].changedDatasets).toEqual(["permits", "device-registry"]);
+  });
+
+  it("names the microwave links only when every link holds the technical columns of its last update", async () => {
+    const exportKmz = vi.fn(async (_context: KmzExportContext) => []);
+    scriptOutcomes([...APPLIED, LINKS_APPLIED]);
+    dbMock.enqueueFor("select", "official.microwave_links", []);
+    scriptStepFinish();
+
+    await runStep(kmz, { source: sourceOf({ exportKmz }) });
+
+    expect(dbMock.pendingResults()).toBe(0);
+    expect(exportKmz.mock.calls[0]?.[0].changedDatasets).toEqual(["permits", "microwave-links"]);
+    const linkRead = dbMock.calls.find((call) => call.operation === "select" && call.table === "official.microwave_links");
+    expect(whereOf(linkRead).sql).toBe(
+      '(("official"."microwave_links"."dataset_id" = $1) and (((("official"."microwave_links"."specs_date" is null)) or ("official"."microwave_links"."specs_date" < "official"."microwave_links"."updatedAt"))))',
+    );
+    expect(whereOf(linkRead).params).toEqual([3]);
+  });
+
+  it("exports nothing when only the microwave links changed and a link lacks technical columns", async () => {
+    const exportKmz = vi.fn(async (_context: KmzExportContext) => []);
+    scriptOutcomes([LINKS_APPLIED]);
+    dbMock.enqueueFor("select", "official.microwave_links", [{ id: 801 }]);
+    scriptStepFinish();
+
+    await runStep(kmz, { source: sourceOf({ exportKmz }) });
+
+    expect(dbMock.pendingResults()).toBe(0);
+    expect(exportKmz).not.toHaveBeenCalled();
   });
 
   it("exports nothing when the run applied no slice", async () => {

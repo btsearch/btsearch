@@ -10,7 +10,13 @@ import { ErrorResponse } from "../../../../errors.js";
 import { type AuditMetadata, runAuditedOperation, standaloneAuditContext } from "../../../../features/audit/index.js";
 import { loadOperatorDetails } from "../../../../features/operators/details.js";
 import { toOperator } from "../../../../features/operators/serialize.js";
-import { primaryPlmnNumber, replaceLinks, replacePlmns, validateOperatorWrite } from "../../../../features/operators/write.js";
+import {
+  assertMainCodeKeepsCellsApart,
+  primaryPlmnNumber,
+  replaceLinks,
+  replacePlmns,
+  validateOperatorWrite,
+} from "../../../../features/operators/write.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -29,7 +35,9 @@ const errorReasons = {
   400:
     "The brand or a linked operator does not exist, or a link points to the operator itself, " +
     "to an operator in another country, or to an operator that is already a member of this one.",
-  409: "The country already has an operator with this name, or one of the PLMNs already belongs to another operator.",
+  409:
+    "The country already has an operator with this name, one of the PLMNs already belongs to another operator, " +
+    "or a new main PLMN would give the operator's cells the same identity as cells of other stations that broadcast it.",
 };
 type ReqBody = { Body: OperatorUpdate };
 type ReqParams = { Params: z.infer<typeof operatorParamsSchema> };
@@ -52,11 +60,14 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       const [result] = hasColumnChange ? await tx.update(operators).set(columns).where(eq(operators.id, id)).returning() : [operator];
       if (!result) throw new ErrorResponse("FAILED_TO_UPDATE");
 
-      if (plmns) await replacePlmns(tx, id, plmns);
+      const before = toOperator(operator, previous);
+      if (plmns) {
+        await replacePlmns(tx, id, plmns);
+        await assertMainCodeKeepsCellsApart(tx, id, before.plmns);
+      }
       if (links) await replaceLinks(tx, id, links);
       const details = (await loadOperatorDetails(tx, [id])).get(id);
 
-      const before = toOperator(operator, previous);
       const after = toOperator(result, details);
       const metadata: AuditMetadata = {};
       if (plmns) metadata.plmns = { old: before.plmns, new: after.plmns };

@@ -1,3 +1,5 @@
+import { DEFAULT_GNBID_LENGTH } from "@openbts/shared/contract";
+
 export type CellIdentityDuplicateDetails = Record<string, unknown>;
 
 type CellIdentityFieldSpec = {
@@ -12,6 +14,7 @@ export type CellIdentityDuplicateSpec = {
   requiredFields: readonly string[];
   duplicateLabel: string;
   isUnknownWhenZero: boolean;
+  identityDetails?: (details: CellIdentityDuplicateDetails) => CellIdentityDuplicateDetails;
 };
 
 export type CellIdentityDuplicateKey = {
@@ -51,11 +54,31 @@ export const CELL_IDENTITY_DUPLICATE_SPECS: CellIdentityDuplicateSpec[] = [
     duplicateLabel: "eNBID+CLID",
     isUnknownWhenZero: true,
   },
+  {
+    rat: "NR",
+    label: "NR",
+    fields: [{ field: "nci" }],
+    requiredFields: ["nci"],
+    duplicateLabel: "NCI",
+    isUnknownWhenZero: true,
+    identityDetails: (details) => ({ nci: nrCellIdentity(details) }),
+  },
 ];
+
+const NCI_BITS = 36;
+
+function nrCellIdentity({ gnbid, clid, gnbid_length: length = DEFAULT_GNBID_LENGTH }: CellIdentityDuplicateDetails): number | undefined {
+  if (typeof gnbid !== "number" || gnbid === 0 || typeof clid !== "number" || typeof length !== "number") return undefined;
+  return gnbid * 2 ** (NCI_BITS - length) + clid;
+}
 
 export function getCellIdentityDuplicateSpec(rat: string | null | undefined): CellIdentityDuplicateSpec | undefined {
   if (!rat) return undefined;
   return CELL_IDENTITY_DUPLICATE_SPECS.find((spec) => spec.rat === rat);
+}
+
+export function toIdentityDetails(spec: CellIdentityDuplicateSpec, details: CellIdentityDuplicateDetails): CellIdentityDuplicateDetails {
+  return spec.identityDetails?.(details) ?? details;
 }
 
 export function isUnknownCellIdentity(spec: CellIdentityDuplicateSpec, details: CellIdentityDuplicateDetails): boolean {
@@ -64,11 +87,13 @@ export function isUnknownCellIdentity(spec: CellIdentityDuplicateSpec, details: 
 
 export function getCellIdentityDuplicateKey(source: CellIdentityDuplicateSource): CellIdentityDuplicateKey | undefined {
   const spec = getCellIdentityDuplicateSpec(source.rat);
-  if (!spec || !source.details || isUnknownCellIdentity(spec, source.details)) return undefined;
+  if (!spec || !source.details) return undefined;
+  const details = toIdentityDetails(spec, source.details);
+  if (isUnknownCellIdentity(spec, details)) return undefined;
 
   const values: Record<string, number> = {};
   for (const field of spec.fields) {
-    const value = source.details[field.field];
+    const value = details[field.field];
     if (typeof value === "number") values[field.field] = value;
     else if (field.fallback !== undefined) values[field.field] = field.fallback;
   }

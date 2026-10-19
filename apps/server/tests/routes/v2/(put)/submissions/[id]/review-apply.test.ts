@@ -3,7 +3,7 @@ import { getTableName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import route from "../../../../../../src/routes/v2/(put)/submissions/[id]/review.js";
-import { dbMock, setCountryFeatures, userSession } from "../../../../../helpers/boundaries.js";
+import { dbMock, queryOf, setCountryFeatures, userSession } from "../../../../../helpers/boundaries.js";
 import { cellInputs, radioTables, storedCell } from "../../../../../helpers/cellWriteFixtures.js";
 import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import { readDate } from "../../../../../helpers/readFixtures.js";
@@ -153,11 +153,27 @@ describe("submission approval application", () => {
       duplicate: { enbid: 100, clid: 1 },
       message: "An LTE cell with eNBID 100 and CLID 1 already exists on one of the cell's networks",
     },
-  ])("refuses an already occupied $input.rat identity before writing any approval entities", async ({ input, duplicate, message }) => {
-    prepareNewReview([input], { duplicate: { rat: input.rat, rows: [duplicate] } });
+    {
+      input: { rat: "nr", bandId: 4, mode: "sa", gnbid: 100, clid: 2, gnbidLength: 24 } satisfies NewCellInput,
+      duplicate: { nci: 409602n },
+      message: "An NR cell with NCI 409602 already exists on one of the cell's networks",
+    },
+  ])("refuses an already occupied $input.rat identity inside the approval transaction", async ({ input, duplicate, message }) => {
+    const scenario = prepareNewReview([input]);
+    writeNewReview(scenario);
+    const snapshots = scenario.cells.map(({ cell, gsm, umts, lte, nr }) => ({ ...cell, gsm, umts, lte, nr }));
+    const active = snapshots.map((snapshot) => ({ ...snapshot, plmns: [], station: { operator_id: 7, status: "published", operator: null } }));
+    dbMock.query.cells.findMany.mockImplementation(async (query) => ("station" in ((query as { with?: object }).with ?? {}) ? active : snapshots));
+    dbMock.enqueueFor("execute", undefined, []);
+    dbMock.enqueueFor("select", getTableName(radioTables[input.rat]), [duplicate]);
+
     expectError(await injectMutation(route, request, options), 409, "DUPLICATE_ENTRY", message);
-    expect(dbMock.transaction).not.toHaveBeenCalled();
+    expect(dbMock.transaction).toHaveBeenCalled();
+    expect(
+      dbMock.calls.some((call) => call.operation === "execute" && queryOf(call.clauses.statement?.[0]).sql.includes("pg_advisory_xact_lock")),
+    ).toBe(true);
     expect(whereQuery(getTableName(radioTables[input.rat]), "select").params).toContain(7);
+    expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "submissions")).toBe(false);
   });
 
   it.each([

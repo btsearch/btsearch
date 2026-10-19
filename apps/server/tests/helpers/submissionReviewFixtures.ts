@@ -61,7 +61,6 @@ export function prepareNewReview(
     submitter?: boolean;
     withSector?: boolean;
     backhaul?: { type: string; speed: number };
-    duplicate?: { rat: NewCellInput["rat"]; rows: unknown[] };
   } = {},
 ) {
   const withLocation = options.withLocation ?? true;
@@ -130,8 +129,6 @@ export function prepareNewReview(
   dbMock.query.submissionLocationPhotoSelections.findMany.mockResolvedValue([]);
   dbMock.query.users.findFirst.mockResolvedValue({ name: "Reviewer", locale: "en-US" });
   dbMock.query.locations.findFirst.mockResolvedValue(undefined);
-  for (const rat of new Set(inputs.map((input) => input.rat)))
-    if (rat !== "nr") dbMock.enqueueFor("select", getTableName(radioTables[rat]), options.duplicate?.rat === rat ? options.duplicate.rows : []);
   return {
     submission,
     location,

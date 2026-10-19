@@ -195,6 +195,33 @@ void test("prefers reported NR identity and otherwise uses a valid reported gNB 
   );
 });
 
+void test("splits an NCI by the gNB length the caller gives for the cell's operator", () => {
+  const bytes = concat(
+    nsgHeader(),
+    timeAnchor(),
+    jsonEvent(1, {
+      event: "ScheduleCellInfo",
+      cells: [
+        { type: "nr5g", nci: 6_461_599_761, mcc: "234", mnc: "15" },
+        { type: "nr5g", nci: 6_461_599_761, mcc: "260", mnc: "01" },
+        { type: "nr5g", nci: 6_461_599_761, mcc: "234", mnc: "15", gnbIdLength: 28 },
+      ],
+    }),
+  );
+  const parser = new StreamDecoder({ name: "synthetic.log", size: bytes.length }, { gnbidLength: (mcc) => (mcc === "234" ? 22 : null) });
+  parser.push(bytes);
+  const log = parser.finish();
+
+  assert.deepEqual(
+    log.cells.map(({ gnbid, gnbidLength, clid, nrIdentitySource }) => ({ gnbid, gnbidLength, clid, nrIdentitySource })),
+    [
+      { gnbid: 394_384, gnbidLength: 22, clid: 12_305, nrIdentitySource: "derived-operator-length" },
+      { gnbid: 1_577_539, gnbidLength: 24, clid: 17, nrIdentitySource: "derived-default-24" },
+      { gnbid: 25_240_624, gnbidLength: 28, clid: 17, nrIdentitySource: "derived-reported-length" },
+    ],
+  );
+});
+
 void test("does not derive UMTS identity from malformed or out-of-range CI values", () => {
   for (const ci of [-1, 1.5, 0x10000000, 2147483647, "3670050"])
     assert.deepEqual(

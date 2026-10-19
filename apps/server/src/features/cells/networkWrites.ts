@@ -1,13 +1,11 @@
 import { cellPlmns, cells, operators, plmns, stations } from "@openbts/drizzle";
 import { and, eq, inArray } from "drizzle-orm";
 
-import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
-import type { DbTx } from "../../types/global.js";
+import type { DbClient as Client } from "../../types/global.js";
 import { stationCountries } from "../stations/country.js";
 import { extraCodesByCell } from "./networks.js";
 
-type Client = typeof db | DbTx;
 type KnownPlmn = { id: number; code: string; countryCode: string };
 
 export type NetworkOwner = { operatorId: number | null; mainCode: string | null; countryCode: string | null };
@@ -90,6 +88,10 @@ function cappedExtraCodes(rat: string | null | undefined, codes: readonly string
   if (limit === 0 && extras.length > 0) throw refusal("This cell cannot broadcast other networks");
   if (extras.length > limit) throw refusal(`A ${rat} cell can broadcast at most ${limit} networks besides the owner's`);
   return extras;
+}
+
+export function cellNetworkKeys(owner: NetworkOwner, extras: readonly string[]): string[] {
+  return [owner.mainCode ?? `operator:${owner.operatorId}`, ...extras];
 }
 
 export function withoutOwnerCode(codes: readonly string[], owner: NetworkOwner): string[] {

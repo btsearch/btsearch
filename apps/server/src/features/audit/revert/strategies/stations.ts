@@ -1,12 +1,13 @@
 import { stations } from "@openbts/drizzle";
 import { and, eq, ne } from "drizzle-orm";
 
+import { lockAndCheckStoredCells } from "../../../cells/duplicateCheck.js";
 import { type StationStatus, stationStatusUpdate } from "../../../stations/status.js";
 import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow } from "../columns.js";
 import { changedFields, staleFields } from "../compare.js";
 import { type PlannedEntry, type StrategyContext, conflictFor } from "../types.js";
-import { assertRestoredCellsFitBands } from "./cells.js";
+import { assertRestoredCellsFitBands, refuseIdentityCollision } from "./cells.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, snapshotFieldNames, stringField } from "./common.js";
 
 const STATION_UNIQUE_CONSTRAINT = "stations_station_id_operator_unique";
@@ -171,6 +172,8 @@ export async function planStationRevert(context: StrategyContext, entry: AuditEn
     if (restored === undefined) throw new Error(`Updated station ${id} disappeared`);
     const hasNewPlacement = restored.location_id !== current.location_id || restored.operator_id !== current.operator_id;
     if (hasNewPlacement) await assertRestoredCellsFitBands(tx, entry, { cellIds: [], stationId: id });
+    const changesNetworks = restored.operator_id !== current.operator_id || (restored.status === "published" && current.status !== "published");
+    if (changesNetworks) await refuseIdentityCollision(entry, () => lockAndCheckStoredCells(tx, { cellIds: [], stationId: id }));
     await audit.log({
       entity: "stations",
       op: "update",

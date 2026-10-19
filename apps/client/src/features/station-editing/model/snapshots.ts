@@ -15,6 +15,7 @@ import { nanoid } from "nanoid";
 
 import {
   DEFAULT_CELL_TYPE,
+  DEFAULT_GNBID_LENGTH,
   DEFAULT_NR_MODE,
   RAT_FIELDS,
   RAT_ORDER,
@@ -224,7 +225,7 @@ function getModeRank(cell: Pick<CellDraft, "rat" | "mode">): number {
 
 function getIdentityRank(cell: CellDraft): number {
   if (cell.rat === "nr" && cell.mode !== "sa") return getCellNumber(cell, "pci") ?? 0;
-  return computeCellId(cell) ?? getCellNumber(cell, "cid") ?? getCellNumber(cell, "clid") ?? 0;
+  return computeCellId(cell, DEFAULT_GNBID_LENGTH) ?? getCellNumber(cell, "cid") ?? getCellNumber(cell, "clid") ?? 0;
 }
 
 function sortRecordCells(cells: readonly Cell[], ownerPlmn: string | null): CellDraft[] {

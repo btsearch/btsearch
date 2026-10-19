@@ -23,6 +23,8 @@ import { type BodyPath, type StationEdit, toDirectChange } from "../submissions/
 import { findVisibleStation } from "./read.js";
 import { stationStatusUpdate } from "./status.js";
 
+type PreparedChange = { change: SubmissionChange; cellNetworks: string[][] };
+
 function getEditPermissions({ action, station, location, sectors, cells = [] }: StationEdit): PermissionObject {
   const cellActions = unique(cells.map((cell) => cell.action));
   if (cellActions.length === 0) return { stations: [action] };
@@ -46,7 +48,7 @@ async function assertMovedCellsFit(change: SubmissionChange): Promise<void> {
       const owner = await loadStationNetworkOwner(db, destinationId);
       if (owner.operatorId === null) return;
       const [extraCodes] = await resolveCellExtras([cell], owner);
-      await checkOwnerCellDuplicates([{ rat: cell.rat, details, excludeCellId: cellId, extraCodes }], owner, changedIds);
+      await checkOwnerCellDuplicates(db, [{ rat: cell.rat, details, excludeCellId: cellId, extraCodes }], owner, changedIds);
     }),
   );
 }
@@ -85,12 +87,12 @@ async function assertIdentifiersFitOperator({ station, station_id: stationId }: 
   if (sentKinds.some((kind) => !acceptedKinds.includes(kind))) throw new ErrorResponse("BAD_REQUEST", { message: identifierRefusal(acceptedKinds) });
 }
 
-export async function prepareStationChange(req: FastifyRequest, edit: StationEdit, bodyPath?: BodyPath): Promise<SubmissionChange> {
+export async function prepareStationChange(req: FastifyRequest, edit: StationEdit, bodyPath?: BodyPath): Promise<PreparedChange> {
   const change = await toDirectChange(edit, bodyPath);
   if (!hasMeaningfulChanges(change)) throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected" });
   await Promise.all(getDestinationStationIds(change).map((stationId) => findVisibleStation(req, stationId)));
-  await Promise.all([validateChange(change, "direct"), assertMovedCellsFit(change), assertIdentifiersFitOperator(change)]);
-  return change;
+  const [cellNetworks] = await Promise.all([validateChange(change, "direct"), assertMovedCellsFit(change), assertIdentifiersFitOperator(change)]);
+  return { change, cellNetworks };
 }
 
 export async function applyStationChange(
@@ -101,7 +103,7 @@ export async function applyStationChange(
 ): Promise<AppliedChange> {
   if (!(await hasStaffPermission(req, getEditPermissions(edit)))) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
 
-  const change = await prepareStationChange(req, edit, bodyPath);
+  const { change } = await prepareStationChange(req, edit, bodyPath);
   const applied = await runAuditedOperation(auditContextFromRequest(req), { kind }, (_tx, audit) => applyDirectChange(audit, change));
   await finishDirectChange(applied);
   return applied;

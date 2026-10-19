@@ -6,6 +6,7 @@ import { useCellNavigation } from "../../hooks/useCellNavigation";
 import type { StationDraftApi } from "../../hooks/useStationDraft";
 import { RAT_FIELDS } from "../../model/ratFields";
 import type { Rat } from "../../model/types";
+import { findDraftGnbidLength } from "../../model/validate";
 import { EditCard } from "../frame/editCard";
 import { useNewReveal } from "../frame/editPage";
 import { editTargetProps } from "../frame/editTargets";
@@ -68,6 +69,7 @@ export function RatCard({ edit, rat, errorsByKey, texts, canConfirm, isNewCellCo
   const tools = listRatTools(edit, rat, canConfirm);
   const hasNetworksTool = canEdit && offersNetworks(edit, rat);
   const networkChoice = getNetworkChoice(edit);
+  const defaultGnbidLength = findDraftGnbidLength(session.draft, lookups.operatorsById);
   const cardErrors = listCardErrors(edit.errors, rat);
 
   function addCell() {
@@ -110,6 +112,7 @@ export function RatCard({ edit, rat, errorsByKey, texts, canConfirm, isNewCellCo
               bands={lookups.planBands[rat]}
               sectors={session.draft.sectors}
               networkChoice={networkChoice}
+              defaultGnbidLength={defaultGnbidLength}
               texts={texts}
               editKind={session.kind}
               canEdit={canEdit}

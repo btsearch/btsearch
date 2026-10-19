@@ -6,11 +6,12 @@ import postgres from "postgres";
 import { z } from "zod/v4";
 
 import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
+import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch } from "../../../../features/cells/duplicateCheck.js";
+import { checkCellDuplicatesBatch, lockAndCheckStoredCells } from "../../../../features/cells/duplicateCheck.js";
 import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
 import {
   INSERT_OMIT,
@@ -99,6 +100,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 
   if (stationData.operator_id && cellsData && cellsData.length > 0) {
     await checkCellDuplicatesBatch(
+      db,
       cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
       stationData.operator_id,
     );
@@ -149,6 +151,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
             if (isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails, features);
           }),
         );
+        await lockAndCheckStoredCells(tx, { cellIds: [], stationId: newStation.id });
       }
 
       const full = await tx.query.stations.findFirst({

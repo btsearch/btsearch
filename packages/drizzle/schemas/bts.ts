@@ -606,7 +606,6 @@ export const gsmCells = pgTable(
     check("gsm_lac_check", sql`${t.lac} BETWEEN 0 AND 65535`),
     check("gsm_cid_check", sql`${t.cid} BETWEEN 0 AND 65535`),
     check("gsm_bsic_check", sql`${t.bsic} BETWEEN 0 AND 63`),
-    unique("gsm_cells_lac_cid_unique").on(t.cell_id, t.lac, t.cid),
     index("gsm_cells_cid_idx").on(t.cid),
     index("gsm_cells_cid_trgm_idx").using("gin", sql`(${t.cid}::text) gin_trgm_ops`),
   ],
@@ -636,7 +635,6 @@ export const umtsCells = pgTable(
     check("umts_cid_check", sql`${t.cid} BETWEEN 0 AND 65535`),
     check("umts_arfcn_check", sql`${t.arfcn} BETWEEN 0 AND 16383`),
     check("umts_psc_check", sql`${t.psc} BETWEEN 0 AND 511`),
-    unique("umts_cells_rnc_cid_unique").on(t.cell_id, t.rnc, t.cid),
     index("umts_cells_cid_idx").on(t.cid),
     index("umts_cells_cid_trgm_idx").using("gin", sql`(${t.cid}::text) gin_trgm_ops`),
     index("umts_cells_cid_long_trgm_idx").using("gin", sql`(${t.cid_long}::text) gin_trgm_ops`),
@@ -668,7 +666,7 @@ export const lteCells = pgTable(
     check("lte_enbid_check", sql`${t.enbid} BETWEEN 0 AND 1048575`),
     check("pci_check", sql`${t.pci} BETWEEN 0 AND 503`),
     check("lte_earfcn_check", sql`${t.earfcn} BETWEEN 0 AND 262143`),
-    unique("lte_cells_enbid_clid_unique").on(t.cell_id, t.enbid, t.clid),
+    index("lte_cells_enbid_clid_idx").on(t.enbid, t.clid),
     index("lte_cells_iot_true_idx")
       .on(t.enbid, t.clid)
       .where(sql`${t.supports_iot} = true`),
@@ -704,7 +702,7 @@ export const nrCells = pgTable(
     check("nr_clid_check", sql`${t.clid} BETWEEN 0 AND 16383`),
     check("nr_pci_check", sql`${t.pci} BETWEEN 0 AND 1007`),
     check("nr_arfcn_check", sql`${t.arfcn} BETWEEN 0 AND 3279165`),
-    // unique("nr_cells_gnbid_clid_unique").on(t.gnbid, t.clid).nullsNotDistinct(),
+    index("nr_cells_nci_idx").on(t.nci),
     index("nr_cells_redcap_true_idx")
       .on(t.gnbid, t.clid)
       .where(sql`${t.supports_nr_redcap} = true`),

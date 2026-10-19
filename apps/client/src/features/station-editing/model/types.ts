@@ -94,6 +94,8 @@ export type CellDraft = {
   isDeleted: boolean;
 };
 
+export type DraftOwner = { plmn: string | null; gnbidLength: number };
+
 export type AreaCode = { mode: "shared"; value: number | null } | { mode: "perCell" };
 
 export type StationSnapshot = {

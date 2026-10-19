@@ -1,3 +1,4 @@
+import { gb } from "../gb/index.ts";
 import { pl } from "../pl/index.ts";
 import {
   type CountryCapabilities,
@@ -15,7 +16,7 @@ export type CountryPack = {
   conventions: Partial<CountryConventions>;
 };
 
-const PACKS: readonly CountryPack[] = [pl];
+const PACKS: readonly CountryPack[] = [pl, gb];
 const declaredByCountryCode = new Map(PACKS.map((pack) => [pack.countryCode, pack.capabilities]));
 const conventionsByCountryCode = new Map(PACKS.map((pack) => [pack.countryCode, { ...defaultConventions, ...pack.conventions }]));
 

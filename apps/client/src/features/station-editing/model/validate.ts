@@ -8,6 +8,7 @@ import { EXTRA_PLMN_LIMITS, listNetworkOptions } from "./networks";
 import {
   CELL_FLAG_LABELS,
   CELL_NUMBER_LABELS,
+  DEFAULT_GNBID_LENGTH,
   GNBID_MAX_LENGTH,
   GNBID_MIN_LENGTH,
   MAX_CELL_CHANGES,
@@ -22,11 +23,12 @@ import {
   getCellNumber,
   getCellNumberMax,
 } from "./ratFields";
-import { IDENTIFIER_KINDS } from "./snapshots";
+import { IDENTIFIER_KINDS, findDraftOperator } from "./snapshots";
 import type {
   CellDraft,
   CellNumberField,
   DraftKey,
+  DraftOwner,
   EditError,
   EditField,
   EditSession,
@@ -34,6 +36,7 @@ import type {
   PlaceDraft,
   Rat,
   SectorDraft,
+  StationSnapshot,
   TextValues,
 } from "./types";
 import { toOperatorRef } from "@/features/station-details/station/utils/stations";
@@ -45,6 +48,7 @@ type ValidationContext = {
   bandPlanIds: ReadonlySet<number> | null;
   countryFeatures: { psc: boolean; bsic: boolean } | null;
   countryOperators: readonly Operator[];
+  operatorsById: ReadonlyMap<number, Operator>;
 };
 
 type UploadFile = {
@@ -93,6 +97,20 @@ const lastGroups: Record<RowScope, ReadonlyMap<DraftKey, EditError[]>> = { cell:
 export function listIdentifierKinds(operator: Operator | null, operatorsById: ReadonlyMap<number, Operator>): readonly StationIdentifierKind[] {
   if (operator === null) return [];
   return conventionsFor(operator.countryCode).identifierKinds(toOperatorRef(operator, operatorsById));
+}
+
+export function getOperatorGnbidLength(operator: Operator | null, operatorsById: ReadonlyMap<number, Operator>): number {
+  if (operator === null) return DEFAULT_GNBID_LENGTH;
+  return conventionsFor(operator.countryCode).gnbidLength(toOperatorRef(operator, operatorsById));
+}
+
+export function findDraftGnbidLength(draft: StationSnapshot, operatorsById: ReadonlyMap<number, Operator>): number {
+  return getOperatorGnbidLength(findDraftOperator(draft, operatorsById), operatorsById);
+}
+
+export function findDraftOwner(draft: StationSnapshot, operatorsById: ReadonlyMap<number, Operator>): DraftOwner {
+  const operator = findDraftOperator(draft, operatorsById);
+  return { plmn: operator?.primaryPlmn ?? null, gnbidLength: getOperatorGnbidLength(operator, operatorsById) };
 }
 
 function toError(target: FieldTarget, messageKey: string, values?: TextValues, isQuiet = false): EditError {
@@ -239,9 +257,10 @@ function validateNumbers(session: EditSession, context: ValidationContext, cell:
   if (cell.rat === "nr" && cell.mode === "sa" && cell.gnbidLength !== null && isOutOfRange(cell.gnbidLength, GNBID_MIN_LENGTH, GNBID_MAX_LENGTH))
     errors.push(toError(cellTarget(cell, "gnbidLength"), "stations:edit.errors.gnbidLengthRange", { min: GNBID_MIN_LENGTH, max: GNBID_MAX_LENGTH }));
 
+  const defaultGnbidLength = findDraftGnbidLength(session.draft, context.operatorsById);
   for (const numberSpec of spec.numbers) {
     const { field, label, isSaOnly, siteSwitch } = numberSpec;
-    const max = getCellNumberMax(cell, numberSpec);
+    const max = getCellNumberMax(cell, numberSpec, defaultGnbidLength);
     const value = getCellNumber(cell, field);
     if (value === null || (field === spec.areaCodeField && isAreaShared)) continue;
 

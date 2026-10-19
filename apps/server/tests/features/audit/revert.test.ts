@@ -20,6 +20,17 @@ function flatCell({ cell, gsm, umts, lte, nr }: ReturnType<typeof storedCell>) {
   return { ...cell, gsm, umts, lte, nr };
 }
 
+function emptyState() {
+  return {
+    affectedStationIds: new Set<number>(),
+    cellChanges: new Map(),
+    sequenceTables: new Set<never>(),
+    sectorIdRemap: new Map<number, number>(),
+    touchedLocationIds: new Set<number>(),
+    indirectlyRevertedEntryIds: new Set<number>(),
+  };
+}
+
 function restoresPlacement({ operation, table, values }: DatabaseCall): boolean {
   return (
     operation === "update" &&
@@ -86,7 +97,9 @@ describe("applyRevertPlan country features", () => {
     dbMock.query.cells.findMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([flatCell(updatedCurrent)])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([flatCell(updatedAfter)])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([flatCell(deleted)]);
     dbMock.enqueueFor("select", "bands", [{ id: originalInput.bandId }]);
     dbMock.enqueueFor("insert", "cells", []);
@@ -150,14 +163,6 @@ describe("planCellRevert of a cell's networks", () => {
     selectedEntries: [entry],
     operationEntries: [entry],
   });
-  const emptyState = () => ({
-    affectedStationIds: new Set<number>(),
-    cellChanges: new Map(),
-    sequenceTables: new Set<never>(),
-    sectorIdRemap: new Map<number, number>(),
-    touchedLocationIds: new Set<number>(),
-    indirectlyRevertedEntryIds: new Set<number>(),
-  });
 
   it("writes the earlier extra codes back", async () => {
     const entry = update(["23420"], []);
@@ -207,5 +212,51 @@ describe("planCellRevert of a cell's networks", () => {
     const plan = await planCellRevert(contextOf(entry), entry);
     expect(plan.conflicts).toEqual([]);
     expect(dbMock.calls.some((call) => call.table === "plmns")).toBe(false);
+  });
+});
+
+describe("planStationRevert of a deactivation", () => {
+  const active = stationRow({ id: 1, status: "published" });
+  const deactivated = stationRow({ id: 1, status: "inactive" });
+  const entry = auditEntry({ id: 301, entity: "stations", op: "update", record_id: "1", old_values: active, new_values: deactivated });
+  const tx = dbMock as unknown as DbTx;
+  const audit: AuditRecorder = {
+    operationId: 8,
+    tx,
+    entryMetadata: null,
+    log: vi.fn(async () => undefined),
+    logMany: vi.fn(async () => undefined),
+    withEntryMetadata: () => audit,
+  };
+  const storedLte = {
+    id: 12,
+    rat: "LTE",
+    gsm: null,
+    umts: null,
+    lte: { enbid: 100, clid: 1 },
+    nr: null,
+    plmns: [],
+    station: { operator_id: 7, status: "published", operator: { id: 7, plmns: [{ code: "26002" }] } },
+  };
+
+  it("reports a cell identity an active station took meanwhile as a revert conflict", async () => {
+    dbMock.enqueueFor("select", "stations", [deactivated], [{ ...deactivated, status: "published" }]);
+    const plan = await planStationRevert({ tx, pendingInserts: new Map(), selectedEntries: [entry], operationEntries: [entry] }, entry);
+    expect(plan.conflicts).toEqual([]);
+    dbMock.query.cells.findMany.mockResolvedValueOnce([storedLte]);
+    dbMock.enqueueFor("execute", undefined, []);
+    dbMock.enqueueFor("select", "lte_cells", [{ enbid: 100, clid: 1 }]);
+
+    await expect(plan.finalize(tx, audit, emptyState())).rejects.toMatchObject({
+      code: "CONFLICT",
+      details: [
+        {
+          entry_id: 301,
+          kind: "unique_violation",
+          message: "An LTE cell with eNBID 100 and CLID 1 already exists on one of the cell's networks",
+        },
+      ],
+    });
+    expect(dbMock.query.cells.findMany.mock.calls[0]?.[0]).toMatchObject({ where: { OR: [{ id: { in: [] } }, { station_id: 1 }] } });
   });
 });

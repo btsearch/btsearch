@@ -31,21 +31,25 @@ async function matchLocations(tx: DbTx, sourceId: number): Promise<void> {
     );
 }
 
-async function insertLocations(tx: DbTx, sourceId: number): Promise<void> {
-  await tx.insert(officialLocations).select(
-    tx
-      .selectDistinctOn([stagedPermits.longitude, stagedPermits.latitude], {
-        source_id: sql`${sourceId}::integer`.as("source_id"),
-        region_id: stagedPermits.regionId,
-        city: stagedPermits.city,
-        address: stagedPermits.address,
-        longitude: stagedPermits.longitude,
-        latitude: stagedPermits.latitude,
-      })
-      .from(stagedPermits)
-      .where(isNull(stagedPermits.locationId))
-      .orderBy(stagedPermits.longitude, stagedPermits.latitude, stagedPermits.ordinal),
-  );
+async function insertLocations(tx: DbTx, sourceId: number): Promise<number> {
+  const added = await tx
+    .insert(officialLocations)
+    .select(
+      tx
+        .selectDistinctOn([stagedPermits.longitude, stagedPermits.latitude], {
+          source_id: sql`${sourceId}::integer`.as("source_id"),
+          region_id: stagedPermits.regionId,
+          city: stagedPermits.city,
+          address: stagedPermits.address,
+          longitude: stagedPermits.longitude,
+          latitude: stagedPermits.latitude,
+        })
+        .from(stagedPermits)
+        .where(isNull(stagedPermits.locationId))
+        .orderBy(stagedPermits.longitude, stagedPermits.latitude, stagedPermits.ordinal),
+    )
+    .returning({ id: officialLocations.id });
+  return added.length;
 }
 
 async function matchSites(tx: DbTx): Promise<void> {
@@ -278,14 +282,13 @@ async function readSiteNames(tx: DbTx): Promise<PublishedSiteName[]> {
 async function resolveStagedSites(tx: DbTx, { scope, fileDate }: ReleaseInput): Promise<{ moves: SiteMove[]; added: AddedSite[] }> {
   const { sourceId } = scope.run;
   await matchLocations(tx, sourceId);
-  await insertLocations(tx, sourceId);
-  await matchLocations(tx, sourceId);
+  if ((await insertLocations(tx, sourceId)) > 0) await matchLocations(tx, sourceId);
 
   await matchSites(tx);
   const moves = decideSiteMoves(await readMoveCandidates(tx, sourceId));
   await moveSites(tx, moves, fileDate);
   const added = await insertSites(tx, sourceId, fileDate);
-  await matchSites(tx);
+  if (added.length > 0) await matchSites(tx);
   await analyzeFilledIds(tx, sql`location_id, official_site_id`);
 
   return { moves, added };
@@ -312,7 +315,7 @@ export async function applySites(tx: DbTx, input: ReleaseInput, definition: Site
 
   await matchPermits(tx);
   const addedPermitIds = await insertPermits(tx, fileDate);
-  await matchPermits(tx);
+  if (addedPermitIds.size > 0) await matchPermits(tx);
   await analyzeFilledIds(tx, sql`permit_id`);
 
   await refreshListings(tx, datasetId);

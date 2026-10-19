@@ -1,4 +1,4 @@
-import type { StationIdentifierKind } from "@openbts/shared/contract";
+import { DEFAULT_GNBID_LENGTH, type StationIdentifierKind } from "@openbts/shared/contract";
 
 export type OperatorRef = {
   id: number;
@@ -34,6 +34,7 @@ export type CountryConventions = {
   equivalentEnbids: (operator: OperatorRef, enbid: number) => number[];
   sharedSite: { copies: readonly SharedSitePart[] };
   lteSectorRule: (operator: OperatorRef) => LteSectorRule | null;
+  gnbidLength: (operator: OperatorRef) => number;
   hoistedTac: boolean;
   normalizeGeocodedPlace: (place: GeocodedPlaceNames) => GeocodedPlaceNames;
 };
@@ -46,6 +47,7 @@ export const defaultConventions: CountryConventions = {
   equivalentEnbids: (_operator, enbid) => [enbid],
   sharedSite: { copies: [] },
   lteSectorRule: () => null,
+  gnbidLength: () => DEFAULT_GNBID_LENGTH,
   hoistedTac: false,
   normalizeGeocodedPlace: (place) => place,
 };

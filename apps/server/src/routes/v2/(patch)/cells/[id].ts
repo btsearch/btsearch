@@ -34,8 +34,8 @@ const errorReasons = {
     "Editors can also get this response when the cell does not exist.",
   404: "The cell or the station in `stationId` does not exist.",
   409:
-    "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
-    "or an LTE cell on an active station with the same `enbid` and `clid`. " +
+    "An active station already has a cell with the same identity on one of the cell's networks: " +
+    "`lac` and `cid` for GSM, `rnc` and `cid` for UMTS, `enbid` and `clid` for LTE, `nci` for NR. " +
     "Also returned when the station already has an LTE or NR cell with the same `pci` on the same band. " +
     "When you move a cell, both checks apply to the station it moves to.",
 };

@@ -10,7 +10,12 @@ import { ErrorResponse } from "../../../../errors.js";
 import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../../../../features/cells/duplicateCheck.js";
+import {
+  checkCellDuplicate,
+  checkPciDuplicate,
+  getOperatorIdForStation,
+  lockAndCheckStoredCells,
+} from "../../../../features/cells/duplicateCheck.js";
 import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetailsReturning, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
 import { normalRatInsertSchemaMap } from "../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../features/notifications/stationCellChanges.js";
@@ -56,7 +61,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
   try {
     if (req.body.details && req.body.station_id) {
       const operatorId = await getOperatorIdForStation(req.body.station_id);
-      if (operatorId) await checkCellDuplicate({ rat: req.body.rat, details: req.body.details as Record<string, unknown> }, operatorId);
+      if (operatorId) await checkCellDuplicate(db, { rat: req.body.rat, details: req.body.details as Record<string, unknown> }, operatorId);
     }
 
     if (req.body.details && req.body.station_id && req.body.band_id) {
@@ -78,6 +83,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
 
       if (requestedDetails && isNormalRat(inserted.rat))
         await insertRATCellDetailsReturning(tx, inserted.rat, inserted.id, requestedDetails as RATInsertDetails, features);
+      await lockAndCheckStoredCells(tx, { cellIds: [inserted.id], stationId: null });
 
       const snapshot = await loadCellSnapshot(tx, inserted.id);
       if (!snapshot) throw new ErrorResponse("FAILED_TO_CREATE");

@@ -401,20 +401,18 @@ describe.skipIf(DATABASE_URL === "")(
       await database.sql.end();
     });
 
-    it("applies a slice, then finds the same release unchanged", () =>
+    it("applies a slice, then finds the same release unchanged and keeps no run for it", () =>
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
         world.published.permits = [siteRecord(1), siteRecord(2)];
 
         const applied = await runImport(world, ["permits"]);
-        const again = await runImport(world, ["permits"]);
+        const again = await claimRun(world, { datasetIds: [world.datasetIds.permits] });
 
-        const slice = { dataset: "permits", slice: "north", stagedCount: 2 };
-
-        expect(await slicesOf(world, applied)).toEqual([{ ...slice, outcome: "applied", liveCount: 0 }]);
+        expect(await processRun(again, world.environment)).toBe("unchanged");
+        expect(await slicesOf(world, applied)).toEqual([{ dataset: "permits", slice: "north", stagedCount: 2, outcome: "applied", liveCount: 0 }]);
         expect(await changesOf(world, applied)).toEqual({ "permits: site_added": 2, "permits: permit_added": 2 });
-        expect(await slicesOf(world, again)).toEqual([{ ...slice, outcome: "unchanged", liveCount: 2 }]);
-        expect(await changesOf(world, again)).toEqual({});
+        expect(await tx.select({ id: officialImportRuns.id }).from(officialImportRuns).where(eq(officialImportRuns.id, again.id))).toEqual([]);
         expect(await listingsOf(world)).toEqual([
           { number: "ET/1", dataset: "permits" },
           { number: "ET/2", dataset: "permits" },

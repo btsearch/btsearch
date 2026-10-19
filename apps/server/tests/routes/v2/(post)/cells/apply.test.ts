@@ -152,6 +152,8 @@ describe("POST /cells/apply", () => {
       notes: "confirmed",
     });
     expect(dbMock.calls.filter((call) => call.operation === "select" && call.table === lteTable)).toHaveLength(1);
+    const writeStart = dbMock.calls.findIndex((call) => call.operation === "insert" && call.table === "audit_operations");
+    expect(dbMock.calls.slice(0, writeStart).filter((call) => call.operation === "select" && call.table === "cell_plmns")).toHaveLength(1);
   });
 
   it("confirms an existing cell when the update names only its id", async () => {
@@ -181,6 +183,7 @@ describe("POST /cells/apply", () => {
     dbMock.query.cells.findMany
       .mockResolvedValueOnce([snapshot(old)])
       .mockResolvedValueOnce([snapshot(old)])
+      .mockResolvedValueOnce([snapshot(next)])
       .mockResolvedValueOnce([snapshot(next)])
       .mockResolvedValueOnce([snapshot(siblingOld)])
       .mockResolvedValueOnce([snapshot(siblingNext)]);

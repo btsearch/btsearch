@@ -13,6 +13,7 @@ import {
   logPhotoSelectionChanges,
   runAuditedOperation,
 } from "../../../../features/audit/index.js";
+import { lockAndCheckStoredCells } from "../../../../features/cells/duplicateCheck.js";
 import { deleteLocationWithPhotos } from "../../../../features/locations/deleteWithPhotos.js";
 import { correctStationLinks } from "../../../../features/official/links.js";
 import { migrateStationPhotosToLocation } from "../../../../features/stations/photoMigration.js";
@@ -80,6 +81,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         .where(eq(stations.id, station_id))
         .returning();
       if (!saved) throw new ErrorResponse("FAILED_TO_UPDATE");
+      const reactivates = saved.status === "published" && current.status !== "published";
+      if (saved.operator_id !== current.operator_id || reactivates) await lockAndCheckStoredCells(tx, { cellIds: [], stationId: station_id });
 
       await audit.log({
         entity: "stations",

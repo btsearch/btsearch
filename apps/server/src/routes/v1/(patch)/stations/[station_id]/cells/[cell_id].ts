@@ -10,7 +10,8 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import { defineScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicate, checkPciDuplicate } from "../../../../../../features/cells/duplicateCheck.js";
+import { checkCellDuplicate, checkPciDuplicate, lockAndCheckStoredCells } from "../../../../../../features/cells/duplicateCheck.js";
+import { loadExtraCodes } from "../../../../../../features/cells/networkWrites.js";
 import {
   NORMAL_RATS,
   type RATUpdateDetails,
@@ -116,10 +117,12 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   assertCellUpdateFitsStoredRat(cell, req.body);
 
   if (req.body.details) {
-    const lteDetails = req.body.details as z.infer<typeof lteCellsUpdateSchema> | undefined;
-    const identityDetails =
-      cell.rat === "LTE" ? ({ ...cell.lte, ...lteDetails } as Record<string, unknown>) : (req.body.details as Record<string, unknown>);
-    if (station.operator_id) await checkCellDuplicate({ rat: cell.rat, details: identityDetails, excludeCellId: cell_id }, station.operator_id);
+    const storedIdentity = cell.rat === "LTE" ? cell.lte : cell.rat === "NR" ? cell.nr : null;
+    const identityDetails = { ...storedIdentity, ...(req.body.details as object) } as Record<string, unknown>;
+    if (station.operator_id) {
+      const extraCodes = (await loadExtraCodes(db, [cell_id])).get(cell_id) ?? [];
+      await checkCellDuplicate(db, { rat: cell.rat, details: identityDetails, excludeCellId: cell_id, extraCodes }, station.operator_id);
+    }
   }
 
   assertCellUpdateSetsNoNsaFields(cell, req.body);
@@ -189,6 +192,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           });
       }
 
+      await lockAndCheckStoredCells(tx, { cellIds: [cell_id], stationId: null });
       const newSnapshot = await loadCellSnapshot(tx, cell_id);
       if (!newSnapshot) throw new ErrorResponse("FAILED_TO_UPDATE");
 

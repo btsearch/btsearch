@@ -1,5 +1,5 @@
 import type { ReadContext, SiteRecord, SitesDataset } from "@openbts/country-packs/sources";
-import { BandVariant, OfficialDecisionType, officialPermitListings, ratEnum, regions } from "@openbts/drizzle";
+import { BandVariant, OfficialDecisionType, officialLocations, officialPermitListings, ratEnum, regions } from "@openbts/drizzle";
 import { type SQL, and, count, eq, inArray, sql } from "drizzle-orm";
 import { date, doublePrecision, integer, jsonb, pgSchema, text, varchar } from "drizzle-orm/pg-core";
 
@@ -21,7 +21,7 @@ import type { ReleaseInput, SliceCount } from "../types.js";
 type StagedSector = { azimuth: number | null; elevation: number | null; antenna_height: number | null; antenna_type: string | null };
 type PublishedLine = { ordinal: number; sectors: StagedSector[] };
 type FirstSiteName = { name: string; ordinal: number };
-type PublishedPermit = { first: SiteRecord; ordinal: number; lines: PublishedLine[]; siteName: FirstSiteName | null };
+export type PublishedPermit = { first: SiteRecord; ordinal: number; lines: PublishedLine[]; siteName: FirstSiteName | null };
 type LocatedPermit = PublishedPermit & { regionId: number };
 type MappedPermit = LocatedPermit & { licenseeId: number; operatorId: number };
 type StagedPermitRow = {
@@ -144,7 +144,7 @@ function addPublishedLine(permits: Map<string, PublishedPermit>, record: SiteRec
   if (permit.siteName === null && name !== null && name !== "") permit.siteName = { name, ordinal };
 }
 
-async function readPublishedPermits(
+export async function readPublishedPermits(
   { dataset, release, files }: ReleaseInput,
   definition: SitesDataset,
   context: ReadContext,
@@ -171,7 +171,7 @@ async function readPublishedPermits(
   return [...permits.values()];
 }
 
-async function readRegionIds(tx: DbTx, permits: readonly PublishedPermit[]): Promise<Map<string, number | null>> {
+async function readRegionIds(tx: DbTx, sourceId: number, permits: readonly PublishedPermit[]): Promise<Map<string, number | null>> {
   const locations = new Map(permits.map(({ first }) => [placeKeyOf(first), first.location]));
   const places = [...locations.values()].map(({ longitude, latitude, regionIsoCode }, id) => ({
     id,
@@ -180,10 +180,13 @@ async function readRegionIds(tx: DbTx, permits: readonly PublishedPermit[]): Pro
     region_iso_code: regionIsoCode,
   }));
   const resolved = await tx.execute<{ id: number; regionId: number | null }>(sql`
-    SELECT place.id, COALESCE(region_at(place.longitude, place.latitude, claimed.id), claimed.id) AS "regionId"
+    SELECT place.id, COALESCE(known.region_id, region_at(place.longitude, place.latitude, claimed.id), claimed.id) AS "regionId"
     FROM jsonb_to_recordset(${JSON.stringify(places)}::jsonb)
       AS place (id integer, longitude double precision, latitude double precision, region_iso_code text)
     LEFT JOIN ${regions} AS claimed ON claimed.iso_code = place.region_iso_code
+    LEFT JOIN ${officialLocations} AS known
+      ON known.source_id = ${sourceId}::integer AND known.source_ref IS NULL
+        AND known.longitude = place.longitude AND known.latitude = place.latitude
   `);
   const regionIdOfPlace = new Map(resolved.map((place) => [place.id, place.regionId]));
 
@@ -287,7 +290,7 @@ function stagedRowsOf(permits: readonly MappedPermit[]): StagedPermitRow[] {
 
 async function resolveStagedRows(tx: DbTx, input: ReleaseInput, permits: readonly PublishedPermit[], skips: SkipCounts): Promise<StagedPermitRow[]> {
   const { scope } = input;
-  const located = locatedPermitsOf(permits, await readRegionIds(tx, permits), skips);
+  const located = locatedPermitsOf(permits, await readRegionIds(tx, scope.run.sourceId, permits), skips);
   const publishedNames = await readOrderedLicenseeNames(tx, located);
   const licensees = await resolveLicensees(tx, scope.run.sourceId, scope.source, publishedNames, { addsUnmapped: false });
   logUnmappedLicensees(input, unmappedNamesOf(publishedNames, licensees));
@@ -374,15 +377,9 @@ export async function countLiveListings(tx: DbTx, datasetId: number, slices: rea
   return new Map(rows.map((row) => [row.slice, row.listings]));
 }
 
-export async function stageSites(
-  tx: DbTx,
-  input: ReleaseInput,
-  definition: SitesDataset,
-  context: ReadContext,
-  skips: SkipCounts,
-): Promise<SliceCount[]> {
+export async function stageSites(tx: DbTx, input: ReleaseInput, permits: readonly PublishedPermit[], skips: SkipCounts): Promise<SliceCount[]> {
   const { dataset, release } = input;
-  const rows = await resolveStagedRows(tx, input, await readPublishedPermits(input, definition, context, skips), skips);
+  const rows = await resolveStagedRows(tx, input, permits, skips);
   await openStagingTable(tx);
   // eslint-disable-next-line no-await-in-loop
   for (const batch of chunks(rows, STAGING_BATCH_SIZE)) await stageRows(tx, batch);

@@ -59,6 +59,30 @@ describe("PATCH /operators", () => {
     expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "operators")?.values).toMatchObject({ mnc: 26001 });
   });
 
+  it("refuses a new main PLMN under which the operator's cells would share another station's identity", async () => {
+    dbMock.query.operators.findFirst.mockResolvedValue(row);
+    scriptAudit();
+    dbMock.enqueueFor("select", "operators", []);
+    dbMock.enqueueFor("select", "plmns", [], [], []);
+    dbMock.enqueueFor("select", "operator_links", [], []);
+    dbMock.enqueueFor("update", "operators", [{ ...row, mnc: 26001 }]);
+    dbMock.enqueueFor("delete", "plmns", []);
+    dbMock.enqueueFor("update", "plmns", []);
+    dbMock.enqueueFor("insert", "plmns", []);
+    dbMock.enqueueNetworks([], [{ ownerCode: "26001" }]);
+    dbMock.enqueueFor("select", "gsm_cells", []);
+    dbMock.enqueueFor("select", "umts_cells", []);
+    dbMock.enqueueFor("select", "lte_cells", [{ identity: "LTE eNBID 100 CLID 1", cellId: 11, otherCellId: 21 }]);
+    dbMock.enqueueFor("select", "nr_cells", []);
+
+    expectError(
+      await injectMutation(route, { ...request, payload: { plmns: [{ plmn: "26001", role: "primary" }] } }, options),
+      409,
+      "DUPLICATE_ENTRY",
+      "Under network code 26001, cells of this operator would share an identity with cells of other stations: LTE eNBID 100 CLID 1 (cells 11 and 21)",
+    );
+  });
+
   it("clears all PLMNs and the legacy primary when an empty replacement is sent", async () => {
     dbMock.query.operators.findFirst.mockResolvedValue({ ...row, mnc: 26001 });
     scriptAudit();

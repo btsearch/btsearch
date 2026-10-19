@@ -1,4 +1,4 @@
-import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgNrMode, NsgParseMode } from "../model";
+import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgNrMode, NsgParseMode, NsgParseOptions } from "../model";
 import { isValidLatLng } from "./coordinates";
 import type { DefaultDataSubscriptionChange, LteAnchor } from "./nonStandalone/model";
 import { resolveNrIdentity } from "./nrIdentity";
@@ -129,7 +129,12 @@ export class EventProcessor {
   constructor(
     private readonly decoder: TextDecoder,
     private readonly fail: Fail,
+    private readonly gnbidLength?: NsgParseOptions["gnbidLength"],
   ) {}
+
+  private operatorGnbidLength({ mcc, mnc }: NsgCell): number | null {
+    return this.gnbidLength !== undefined && mcc !== null && mnc !== null ? this.gnbidLength(mcc, mnc) : null;
+  }
 
   parsePayload(payload: Uint8Array): NsgJsonObject {
     let data: unknown;
@@ -166,7 +171,6 @@ export class EventProcessor {
       if (!isObject(raw)) this.fail("Expected an NSG cell object");
       const rat = normalizeRat(raw.type);
       const normalizedRadioFields = radioFields(raw, rat);
-      const nrIdentity = rat === "NR" ? resolveNrIdentity(raw, normalizedRadioFields.nci) : null;
       const cell: NsgCell = {
         eventIndex: event.id,
         cellIndex,
@@ -185,7 +189,10 @@ export class EventProcessor {
         mnc: text(raw.mnc),
         operatorName: null,
         ...normalizedRadioFields,
-        ...(nrIdentity ?? { gnbid: null, gnbidLength: null, clid: null, nrIdentitySource: null }),
+        gnbid: null,
+        gnbidLength: null,
+        clid: null,
+        nrIdentitySource: null,
         raw,
       };
       const reportedOperator = resolveCellOperator(cell);
@@ -197,6 +204,7 @@ export class EventProcessor {
         raw.mcc = operator.mcc;
         raw.mnc = operator.mnc;
       }
+      if (rat === "NR") Object.assign(cell, resolveNrIdentity(raw, normalizedRadioFields.nci, this.operatorGnbidLength(cell)));
       if (lteAnchor === null && cell.rat === "LTE" && cell.registered === true) lteAnchor = cell;
       sink.emitCell(cell);
     }

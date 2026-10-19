@@ -349,6 +349,20 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
       proposed_cell_id: 40,
       ...Object.fromEntries(Object.entries(radio.details).filter(([, value]) => value !== null)),
     });
+    expect(whereQuery(radio.identityTable, "select").params).toEqual(expect.arrayContaining([7, "published"]));
+  });
+
+  it("checks a new station's cells under the owner the update sends", async () => {
+    const fixture = draftFixture([draftRadios[2]]);
+    const body = { station: { ...fixture.input.station!, operatorId: 9 }, cells: fixture.input.cells };
+    scriptDraftUpdate(fixture, body);
+    const { app, errors } = await createRouteHarnessWithErrors(route, options);
+    const response = await app.inject({ ...request, payload: body });
+    expect(errors).toEqual([]);
+    expect(response.statusCode).toBe(200);
+    expect(whereQuery("lte_cells", "select").params).toEqual(expect.arrayContaining([9, "published"]));
+    expect(whereQuery("lte_cells", "select").params).not.toContain(7);
+    expect(dbMock.query.proposedStations.findFirst).not.toHaveBeenCalled();
   });
 
   it.each(["user", "admin"] as const)("replaces all draft content and keeps cell confirmation only for %s", async (role) => {

@@ -37,7 +37,7 @@ export type NsgSource = Readonly<{
 export type NsgCellMeasurementRole = "nr-primary" | "nr-neighbor" | "lte-secondary";
 export type NsgCellSource = "android-telephony" | "qualcomm-diag";
 export type NsgNrMode = "SA" | "NSA";
-export type NsgNrIdentitySource = "reported" | "derived-reported-length" | "derived-default-24";
+export type NsgNrIdentitySource = "reported" | "derived-reported-length" | "derived-operator-length" | "derived-default-24";
 
 export type NsgSignalingRecord = NsgTimestamp &
   NsgSignalingMessage & {
@@ -154,4 +154,5 @@ export type NsgParseOptions = {
   onCell?: (cell: NsgCell) => void;
   onEvent?: (event: NsgEvent) => void;
   onProgress?: (progress: NsgProgress) => void;
+  gnbidLength?: (mcc: string, mnc: string) => number | null;
 };

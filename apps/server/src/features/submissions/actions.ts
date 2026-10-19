@@ -42,7 +42,7 @@ import {
   runAuditedOperation,
 } from "../audit/index.js";
 import { assertStoredCellBandsFit } from "../cells/arfcnValidation.js";
-import { checkOwnerCellDuplicates, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import { checkPciDuplicates, lockAndCheckStoredCells } from "../cells/duplicateCheck.js";
 import {
   extraCodesFromStored,
   loadExtraCodes,
@@ -257,7 +257,6 @@ type ProposedCellSectorRef = {
   sector_unassigned?: boolean;
 };
 
-type ApprovalQueryClient = Pick<DbTx, "query">;
 type SubmissionRow = NonNullable<Awaited<ReturnType<typeof db.query.submissions.findFirst>>>;
 type ApprovalDraft = {
   type: SubmissionRow["type"];
@@ -276,8 +275,7 @@ type ProposedCellRow = ApprovalDraft["proposedCellRows"][number];
 type TargetCellRow = NonNullable<Awaited<ReturnType<typeof loadTargetCells>>[number]>;
 type SubmissionPhotoRow = Awaited<ReturnType<DbTx["query"]["submissionPhotos"]["findMany"]>>[number];
 type SubmissionLocationPhotoSelectionRow = Awaited<ReturnType<DbTx["query"]["submissionLocationPhotoSelections"]["findMany"]>>[number];
-type ApprovalDuplicateCheckDraft = Pick<ApprovalDraft, "proposedStation" | "proposedCellRows">;
-type ApprovalStationContext = { operatorId: number | null; stationStringId: string | null };
+type ApprovalStationContext = { stationStringId: string | null };
 type StationSite = { id: number; locationId: number | null; operatorId: number | null; countryCode: string | null };
 type CellAuditChanges = {
   added: number[];
@@ -302,58 +300,36 @@ async function findSharedSiteCopyTarget(tx: DbTx, site: StationSite, part: Share
   return candidateIds.length === 1 ? (candidateIds[0] ?? null) : null;
 }
 
-function getProposedCellDetails(proposed: ProposedCellRow): Record<string, unknown> | null {
-  return (proposed.lte ?? proposed.gsm ?? proposed.umts ?? proposed.nr) as Record<string, unknown> | null;
-}
-
 async function validatePublishedStation(submission: SubmissionRow): Promise<ApprovalStationContext | null> {
   if (submission.station_id === null) return null;
 
   const station = await db.query.stations.findFirst({
     where: { id: submission.station_id },
-    columns: { status: true, operator_id: true, station_id: true },
+    columns: { status: true, station_id: true },
   });
   if (!station || (station.status !== "published" && station.status !== "pending")) {
     throw new ErrorResponse("NOT_FOUND", { message: "Station not found" });
   }
-  return { operatorId: station.operator_id, stationStringId: station.station_id ?? null };
+  return { stationStringId: station.station_id ?? null };
 }
 
-async function loadProposedStationForApproval(client: ApprovalQueryClient, submissionId: string): Promise<ProposedStationChanges | undefined> {
-  const row = await client.query.proposedStations.findFirst({ where: { submission_id: submissionId } });
-  return row ? getProposedStationChanges(row) : undefined;
-}
-
-async function loadProposedCellsForApproval(client: ApprovalQueryClient, submissionId: string): Promise<ProposedCellRow[]> {
-  return client.query.proposedCells.findMany({ where: { submission_id: submissionId }, with: { gsm: true, umts: true, lte: true, nr: true } });
-}
-
-async function loadApprovalDraft(tx: DbTx, submission: SubmissionRow, preloaded?: ApprovalDuplicateCheckDraft): Promise<ApprovalDraft> {
+async function loadApprovalDraft(tx: DbTx, submission: SubmissionRow): Promise<ApprovalDraft> {
   const submissionId = submission.id;
   const [proposedStation, proposedLocation, proposedSectorRows, proposedCellRows] = await Promise.all([
-    preloaded ? Promise.resolve(preloaded.proposedStation) : loadProposedStationForApproval(tx, submissionId),
+    tx.query.proposedStations.findFirst({ where: { submission_id: submissionId } }),
     tx.query.proposedLocations.findFirst({ where: { submission_id: submissionId } }),
     tx.query.proposedSectors.findMany({ where: { submission_id: submissionId }, orderBy: { id: "asc" } }),
-    preloaded ? Promise.resolve(preloaded.proposedCellRows) : loadProposedCellsForApproval(tx, submissionId),
+    tx.query.proposedCells.findMany({ where: { submission_id: submissionId }, with: { gsm: true, umts: true, lte: true, nr: true } }),
   ]);
 
   return {
     type: submission.type,
     stationId: submission.station_id,
-    proposedStation,
+    proposedStation: proposedStation ? getProposedStationChanges(proposedStation) : undefined,
     proposedLocation: proposedLocation ? { changes: getProposedLocationChanges(proposedLocation), move: proposedLocation.move } : undefined,
     proposedSectorRows,
     proposedCellRows,
   };
-}
-
-async function loadApprovalDuplicateCheckDraft(submissionId: string): Promise<ApprovalDuplicateCheckDraft> {
-  const [proposedStation, proposedCellRows] = await Promise.all([
-    loadProposedStationForApproval(db, submissionId),
-    loadProposedCellsForApproval(db, submissionId),
-  ]);
-
-  return { proposedStation, proposedCellRows };
 }
 
 async function createExtraIdentifierForNewStation(
@@ -888,37 +864,6 @@ async function loadTargetCells(tx: DbTx, proposedCellRows: ProposedCellRow[]) {
     where: { id: { in: targetCellIds } },
     with: CELL_SNAPSHOT_RELATIONS,
   });
-}
-
-function getApprovalOperatorId(
-  submission: SubmissionRow,
-  proposedStation: ApprovalDraft["proposedStation"],
-  stationContext: ApprovalStationContext | null,
-): number | null {
-  if (submission.type === "new") return proposedStation?.operator_id ?? null;
-  return proposedStation?.operator_id ?? stationContext?.operatorId ?? null;
-}
-
-async function checkApprovalCellDuplicates(
-  submission: SubmissionRow,
-  draft: ApprovalDuplicateCheckDraft,
-  stationContext: ApprovalStationContext | null,
-): Promise<void> {
-  const operatorId = getApprovalOperatorId(submission, draft.proposedStation, stationContext);
-  if (!operatorId) return;
-
-  const checkedCells = draft.proposedCellRows.filter((cell) => cell.operation !== "delete" && cell.rat);
-  const keptCellIds = checkedCells.flatMap((cell) => (cell.plmns === null && cell.target_cell_id !== null ? [cell.target_cell_id] : []));
-  const [owner, kept] = await Promise.all([loadNetworkOwner(db, operatorId, null), loadExtraCodes(db, keptCellIds)]);
-  const duplicateEntries = checkedCells
-    .map((cell) => ({
-      rat: cell.rat!,
-      details: getProposedCellDetails(cell),
-      excludeCellId: cell.target_cell_id ?? undefined,
-      extraCodes: cell.plmns ?? (cell.target_cell_id === null ? undefined : kept.get(cell.target_cell_id)) ?? [],
-    }))
-    .filter((entry): entry is typeof entry & { details: Record<string, unknown> } => entry.details !== null);
-  if (duplicateEntries.length > 0) await checkOwnerCellDuplicates(duplicateEntries, owner);
 }
 
 async function applyProposedSectors(
@@ -1908,10 +1853,10 @@ async function applyChange(
     await correctStationLinks(tx, [...groupsBefore, ...groupsAfter]);
   }
   const movesStation = draft.proposedLocation !== undefined || typeof draft.proposedStation?.operator_id === "number" || change?.location === null;
-  await assertStoredCellBandsFit(tx, {
-    cellIds: [...cellChanges.added, ...cellChanges.updated.map(({ id }) => id)],
-    stationId: type === "update" && movesStation ? stationId : null,
-  });
+  const writtenCellIds = [...cellChanges.added, ...cellChanges.updated.map(({ id }) => id)];
+  await assertStoredCellBandsFit(tx, { cellIds: writtenCellIds, stationId: type === "update" && movesStation ? stationId : null });
+  const checksWholeStation = typeof draft.proposedStation?.operator_id === "number" || change?.station_status === "published";
+  await lockAndCheckStoredCells(tx, { cellIds: writtenCellIds, stationId: type === "update" && checksWholeStation ? stationId : null });
 
   const { attachmentUuidsToDelete, photosAdded } = await applySubmissionPhotos(
     audit,
@@ -1933,7 +1878,6 @@ async function runApprovalTransaction({
   reviewerId,
   reviewerNotes,
   expectedUpdatedAt,
-  duplicateCheckDraft,
   stationContext,
 }: {
   audit: AuditRecorder;
@@ -1941,12 +1885,11 @@ async function runApprovalTransaction({
   reviewerId: string;
   reviewerNotes?: string | null;
   expectedUpdatedAt?: Date;
-  duplicateCheckDraft: ApprovalDuplicateCheckDraft;
   stationContext: ApprovalStationContext | null;
 }): Promise<ApprovalOutcome> {
   const { tx } = audit;
   await lockPendingSubmission(tx, submission, expectedUpdatedAt);
-  const draft = await loadApprovalDraft(tx, submission, duplicateCheckDraft);
+  const draft = await loadApprovalDraft(tx, submission);
   const applied = await applyChange(audit.withEntryMetadata({ submission_id: submission.id }), draft, submission, null);
 
   const updated = await finalizeApprovedSubmission(tx, submission, reviewerId, reviewerNotes, applied.stationId);
@@ -2033,8 +1976,6 @@ export async function approveSubmissionAction({
   if (submission.status !== "pending") throw new ErrorResponse("BAD_REQUEST", { message: "Only pending submissions can be approved" });
 
   const stationContext = await validatePublishedStation(submission);
-  const duplicateCheckDraft = await loadApprovalDuplicateCheckDraft(submissionId);
-  await checkApprovalCellDuplicates(submission, duplicateCheckDraft, stationContext);
 
   const transactionResult = await runAuditedOperation(
     auditContextFromRequest(req),
@@ -2050,7 +1991,6 @@ export async function approveSubmissionAction({
         reviewerId,
         reviewerNotes,
         expectedUpdatedAt,
-        duplicateCheckDraft,
         stationContext,
       }),
   );

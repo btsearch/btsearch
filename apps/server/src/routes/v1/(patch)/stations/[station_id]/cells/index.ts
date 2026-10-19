@@ -10,7 +10,8 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import { defineScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../../../features/cells/duplicateCheck.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates, lockAndCheckStoredCells } from "../../../../../../features/cells/duplicateCheck.js";
+import { loadExtraCodes } from "../../../../../../features/cells/networkWrites.js";
 import {
   NORMAL_RATS,
   type RATUpdateDetails,
@@ -129,14 +130,17 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   validateCellDuplicates(effectiveCells);
 
   const allModifiedCellIds = [...new Set(cellsData.map((cellData) => cellData.cell_id))];
+  const storedExtraCodes = await loadExtraCodes(db, allModifiedCellIds);
 
   await Promise.all([
     station.operator_id
       ? checkCellDuplicatesBatch(
+          db,
           effectiveCells.map((cell, index) => ({
             rat: cell.rat,
             details: cell.details as Record<string, unknown> | undefined,
             excludeCellId: cellsData[index]?.cell_id,
+            extraCodes: storedExtraCodes.get(cellsData[index]?.cell_id ?? 0) ?? [],
           })),
           station.operator_id,
           allModifiedCellIds,
@@ -196,6 +200,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         results.push(updatedCell);
       }
 
+      await lockAndCheckStoredCells(tx, { cellIds: allModifiedCellIds, stationId: null });
       const newSnapshots = await loadCellSnapshots(tx, allModifiedCellIds);
       const response = results.map((cell) => {
         const snapshot = newSnapshots.get(cell.id);

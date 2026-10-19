@@ -199,6 +199,10 @@ export async function finishRun(tx: DbTx, runId: string): Promise<void> {
     .where(eq(officialImportRuns.id, runId));
 }
 
+export async function deleteRun(tx: DbTx, runId: string): Promise<void> {
+  await tx.delete(officialImportRuns).where(eq(officialImportRuns.id, runId));
+}
+
 export async function failRun(tx: DbTx, runId: string, error: string): Promise<void> {
   await tx
     .update(officialImportRuns)

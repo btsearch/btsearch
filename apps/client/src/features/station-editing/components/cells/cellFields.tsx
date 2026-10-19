@@ -8,7 +8,7 @@ import { CELL_CONTROL_PROPS, cellFieldProps } from "../../hooks/useCellNavigatio
 import { useEditText } from "../../hooks/useStationDraft";
 import { TEXT_SEPARATOR, UNCHANGED_FIELD, parseDigits } from "../../model/changes";
 import { type CellPatch, type DraftDispatch, toNumberPatch } from "../../model/draftReducer";
-import { DEFAULT_GNBID_LENGTH, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, MAX_SECTORS, OMNIDIRECTIONAL_DEGREES } from "../../model/ratFields";
+import { GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, MAX_SECTORS, OMNIDIRECTIONAL_DEGREES } from "../../model/ratFields";
 import { newDraftKey } from "../../model/snapshots";
 import type {
   CellDraft,
@@ -109,6 +109,7 @@ type ModeFieldProps = ControlProps & {
 type GnbidLengthFieldProps = ControlProps & {
   cellKey: DraftKey;
   length: number | null;
+  defaultLength: number;
   texts: CellTexts;
   dispatch: DraftDispatch;
 };
@@ -401,8 +402,8 @@ export function ModeField({ cellKey, mode, texts, className, isInvalid, isLocked
   );
 }
 
-export function GnbidLengthField({ cellKey, length, texts, className, isInvalid, isLocked, dispatch }: GnbidLengthFieldProps) {
-  const value = length ?? DEFAULT_GNBID_LENGTH;
+export function GnbidLengthField({ cellKey, length, defaultLength, texts, className, isInvalid, isLocked, dispatch }: GnbidLengthFieldProps) {
+  const value = length ?? defaultLength;
 
   function changeLength(selected: string | null) {
     const nextLength = GNBID_LENGTHS.find((option) => String(option) === selected);

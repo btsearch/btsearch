@@ -37,7 +37,7 @@ export type QualcommPayloadCapture = Readonly<{
 
 type Fail = (message: string) => never;
 
-export type RecordingOptions = Pick<NsgParseOptions, "mode" | "allowIncompleteFinalRecord" | "onCell" | "onEvent">;
+export type RecordingOptions = Pick<NsgParseOptions, "mode" | "allowIncompleteFinalRecord" | "onCell" | "onEvent" | "gnbidLength">;
 
 export class RecordingBuilder {
   private headerXml = "";
@@ -79,7 +79,7 @@ export class RecordingBuilder {
     private readonly fail: Fail,
   ) {
     this.mode = options.mode ?? "complete";
-    this.eventProcessor = new EventProcessor(decoder, fail);
+    this.eventProcessor = new EventProcessor(decoder, fail, options.gnbidLength);
     this.eventSink = {
       emitCell: (cell) => this.emitCell(cell),
       retainDefaultDataSubscription: (change) => this.defaultDataSubscriptions.push(change),

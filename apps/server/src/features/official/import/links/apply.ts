@@ -1,7 +1,7 @@
 /* eslint-disable no-await-in-loop */
 import type { MicrowaveLinkRecord, MicrowaveLinksDataset, ReadContext } from "@openbts/country-packs/sources";
 import { microwaveLinks } from "@openbts/drizzle";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import { chunks, unique } from "../../../../lib/collections.js";
 import type { DbTx } from "../../../../types/global.js";
@@ -13,7 +13,10 @@ import { type LinkChange, decideLinks } from "./decide.js";
 import { resolveEquipment } from "./equipment.js";
 import { type LinkValues, toLinkValues } from "./values.js";
 
-type StagedLinks = { slice: string; records: MicrowaveLinkRecord[]; licensees: Map<string, ResolvedLicensee>; counts: SliceCount[] };
+const linkColumns = getTableColumns(microwaveLinks);
+
+type PublishedLinks = { slice: string; records: MicrowaveLinkRecord[] };
+type StagedLinks = PublishedLinks & { licensees: Map<string, ResolvedLicensee>; counts: SliceCount[] };
 
 async function readRecords(
   input: ReleaseInput,
@@ -39,18 +42,31 @@ export async function countLiveLinks(tx: DbTx, datasetId: number): Promise<numbe
   return tx.$count(microwaveLinks, eq(microwaveLinks.dataset_id, datasetId));
 }
 
-export async function stageLinks(
-  tx: DbTx,
+export async function hasEveryTechnicalColumn(tx: Pick<DbTx, "select">, datasetId: number): Promise<boolean> {
+  const [outdated] = await tx
+    .select({ id: microwaveLinks.id })
+    .from(microwaveLinks)
+    .where(
+      and(eq(microwaveLinks.dataset_id, datasetId), or(isNull(microwaveLinks.specs_date), lt(microwaveLinks.specs_date, microwaveLinks.updatedAt))),
+    )
+    .limit(1);
+  return outdated === undefined;
+}
+
+export async function readPublishedLinks(
   input: ReleaseInput,
   definition: MicrowaveLinksDataset,
   context: ReadContext,
   skips: SkipCounts,
-): Promise<StagedLinks> {
-  const { dataset, release, scope } = input;
-  const [slice, ...otherSlices] = release.coveredSlices;
-  if (slice === undefined || otherSlices.length > 0) throw new Error(`A release of ${dataset.key} covers the whole dataset as one slice`);
+): Promise<PublishedLinks> {
+  const [slice, ...otherSlices] = input.release.coveredSlices;
+  if (slice === undefined || otherSlices.length > 0) throw new Error(`A release of ${input.dataset.key} covers the whole dataset as one slice`);
 
-  const records = await readRecords(input, definition, context, slice, skips);
+  return { slice, records: await readRecords(input, definition, context, slice, skips) };
+}
+
+export async function stageLinks(tx: DbTx, input: ReleaseInput, { slice, records }: PublishedLinks): Promise<StagedLinks> {
+  const { dataset, scope } = input;
   const publishedNames = unique(records.map((record) => record.licensee));
   const licensees = await resolveLicensees(tx, scope.run.sourceId, scope.source, publishedNames, { addsUnmapped: true });
   const liveCount = await countLiveLinks(tx, dataset.id);
@@ -71,13 +87,34 @@ async function insertLinks(tx: DbTx, datasetId: number, inserts: readonly LinkVa
   return addedIds;
 }
 
-async function updateLinks(tx: DbTx, changes: readonly LinkChange[], fileDate: Date): Promise<void> {
-  for (const { id, values } of changes) {
-    await tx
-      .update(microwaveLinks)
-      .set({ ...values, updatedAt: fileDate })
-      .where(eq(microwaveLinks.id, id));
+function columnRowOf(id: number, values: LinkValues): Record<string, unknown> {
+  return { id, ...Object.fromEntries(Object.entries(values).map(([key, value]) => [linkColumns[key as keyof LinkValues].name, value])) };
+}
+
+async function updateLinksWithSameColumns(tx: DbTx, changes: readonly LinkChange[], fileDate: Date): Promise<void> {
+  const columns = Object.keys(changes[0]?.values ?? {}).map((key) => linkColumns[key as keyof LinkValues]);
+  const assignments = sql.join(
+    columns.map((column) => sql`${sql.identifier(column.name)} = changed.${sql.identifier(column.name)}`),
+    sql`, `,
+  );
+  const definitions = sql.join(
+    columns.map((column) => sql`${sql.identifier(column.name)} ${sql.raw(column.getSQLType())}`),
+    sql`, `,
+  );
+  for (const group of chunks(changes, STATEMENT_BATCH_SIZE)) {
+    const rows = group.map(({ id, values }) => columnRowOf(id, values));
+    await tx.execute(sql`
+      UPDATE ${microwaveLinks} AS link
+      SET ${assignments}, "updatedAt" = ${fileDate.toISOString()}::timestamp with time zone
+      FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS changed (id integer, ${definitions})
+      WHERE link.id = changed.id
+    `);
   }
+}
+
+async function updateLinks(tx: DbTx, changes: readonly LinkChange[], fileDate: Date): Promise<void> {
+  const byColumns = Map.groupBy(changes, ({ values }) => Object.keys(values).join());
+  for (const group of byColumns.values()) await updateLinksWithSameColumns(tx, group, fileDate);
 }
 
 async function deleteLinks(tx: DbTx, ids: readonly number[]): Promise<void> {
@@ -98,8 +135,7 @@ export async function applyLinks(tx: DbTx, input: ReleaseInput, staged: StagedLi
   countSkip(skips, slice, "duplicate_link", decision.duplicateRecords);
 
   const addedIds = await insertLinks(tx, datasetId, decision.inserts, fileDate);
-  await updateLinks(tx, decision.updates, fileDate);
-  await updateLinks(tx, decision.renewals, fileDate);
+  await updateLinks(tx, [...decision.updates, ...decision.renewals], fileDate);
   await deleteLinks(tx, decision.archivedIds);
   if (records.every((record) => record.publishesEveryTechnicalColumn)) {
     await tx.update(microwaveLinks).set({ specs_date: fileDate }).where(eq(microwaveLinks.dataset_id, datasetId));

@@ -152,6 +152,40 @@ describe("PATCH /stations/:id", () => {
     ]);
   });
 
+  it("refuses to reactivate a station whose cell identity an active station took meanwhile", async () => {
+    const current = stationRow({ status: "inactive", location: null, sectors: [] });
+    visibleStation(current);
+    dbMock.query.stations.findFirst.mockResolvedValue(current);
+    dbMock.query.extraIdentificators.findFirst.mockResolvedValue(undefined);
+    dbMock.query.stationUplinks.findFirst.mockResolvedValue(undefined);
+    dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
+    dbMock.enqueueFor("select", "station_photo_selections", [], []);
+    dbMock.enqueueFor("update", "stations", [], [{ ...current, status: "published" }]);
+    dbMock.enqueueFor("insert", "audit_logs", []);
+    const storedLte = {
+      id: 11,
+      rat: "LTE",
+      gsm: null,
+      umts: null,
+      lte: { enbid: 100, clid: 1 },
+      nr: null,
+      plmns: [],
+      station: { operator_id: 1, status: "published", operator: { id: 1, plmns: [{ code: "26001" }] } },
+    };
+    dbMock.query.cells.findMany.mockResolvedValue([storedLte]);
+    dbMock.enqueueFor("execute", undefined, []);
+    dbMock.enqueueFor("select", "lte_cells", [{ enbid: 100, clid: 1 }]);
+    const app = await createRouteHarness(route, { session: userSession() });
+    const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { station: { status: "active" } } });
+
+    expect(response.statusCode, response.body).toBe(409);
+    expect(response.json().errors[0]).toMatchObject({
+      code: "DUPLICATE_ENTRY",
+      message: "An LTE cell with eNBID 100 and CLID 1 already exists on one of the cell's networks",
+    });
+    expect(dbMock.query.cells.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { OR: [{ id: { in: [] } }, { station_id: 1 }] } }));
+  });
+
   it.each([
     ["notes", " new notes ", " new notes "],
     ["null notes", null, null],

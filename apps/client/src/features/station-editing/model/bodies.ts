@@ -25,6 +25,7 @@ import type {
   CellFlagField,
   CellNumberField,
   DraftKey,
+  DraftOwner,
   EditSession,
   OwnerChoice,
   PlaceDraft,
@@ -149,7 +150,7 @@ type PartOptions = {
   allowsOwnerName: boolean;
   confirmation: Confirmation;
   storedPlace: PlaceDraft | null;
-  ownerPlmn: string | null;
+  owner: DraftOwner;
 };
 
 type Parts = {
@@ -161,8 +162,9 @@ type Parts = {
   cellKeys: DraftKey[];
 };
 
-const DIRECT_OPTIONS: PartOptions = { isDirect: true, allowsOwnerName: false, confirmation: "all", storedPlace: null, ownerPlmn: null };
-const SUBMITTED_OPTIONS: PartOptions = { isDirect: false, allowsOwnerName: true, confirmation: "none", storedPlace: null, ownerPlmn: null };
+const NO_OWNER: DraftOwner = { plmn: null, gnbidLength: DEFAULT_GNBID_LENGTH };
+const DIRECT_OPTIONS: PartOptions = { isDirect: true, allowsOwnerName: false, confirmation: "all", storedPlace: null, owner: NO_OWNER };
+const SUBMITTED_OPTIONS: PartOptions = { isDirect: false, allowsOwnerName: true, confirmation: "none", storedPlace: null, owner: NO_OWNER };
 
 function nothingBuilt<Body>(body: Body | null = null): BuiltBody<Body> {
   return { body, cellKeys: [], sectorKeys: [] };
@@ -314,7 +316,7 @@ function buildCellCommon(cell: CellDraft, plan: SectorPlan, options: PartOptions
   if (cell.cellType !== null) common.cellType = cell.cellType;
   if (notes !== "") common.notes = notes;
   if (options.confirmation !== "none") common.isConfirmed = cell.isConfirmed;
-  if (cell.extraPlmns.length > 0) common.plmns = toPlmnList(options.ownerPlmn, cell.extraPlmns);
+  if (cell.extraPlmns.length > 0) common.plmns = toPlmnList(options.owner.plmn, cell.extraPlmns);
   return common;
 }
 
@@ -352,7 +354,7 @@ function buildNewLteCell(cell: CellDraft, common: CellCommon, bandId: number, ar
   return created;
 }
 
-function buildNewNrCell(cell: CellDraft, common: CellCommon, bandId: number, areaValue: number | null): NewNrCell {
+function buildNewNrCell(cell: CellDraft, common: CellCommon, bandId: number, areaValue: number | null, defaultGnbidLength: number): NewNrCell {
   const gnbid = getCellNumber(cell, "gnbid");
   const clid = getCellNumber(cell, "clid");
   const pci = getCellNumber(cell, "pci");
@@ -361,7 +363,7 @@ function buildNewNrCell(cell: CellDraft, common: CellCommon, bandId: number, are
 
   if (areaValue !== null) created.tac = areaValue;
   if (gnbid !== null) created.gnbid = gnbid;
-  if (cell.mode === "sa") created.gnbidLength = cell.gnbidLength ?? DEFAULT_GNBID_LENGTH;
+  if (cell.mode === "sa") created.gnbidLength = cell.gnbidLength ?? defaultGnbidLength;
   if (clid !== null) created.clid = clid;
   if (pci !== null) created.pci = pci;
   if (arfcn !== null) created.arfcn = arfcn;
@@ -377,7 +379,7 @@ function buildNewCell(cell: CellDraft, draft: StationSnapshot, plan: SectorPlan,
   if (cell.rat === "gsm") return buildNewGsmCell(cell, common, cell.bandId, areaValue);
   if (cell.rat === "umts") return buildNewUmtsCell(cell, common, cell.bandId, areaValue);
   if (cell.rat === "lte") return buildNewLteCell(cell, common, cell.bandId, areaValue);
-  return buildNewNrCell(cell, common, cell.bandId, areaValue);
+  return buildNewNrCell(cell, common, cell.bandId, areaValue, options.owner.gnbidLength);
 }
 
 function writeSectorChange(fields: CellUpdateFields, cell: CellDraft, baseCell: CellDraft, base: StationSnapshot, plan: SectorPlan): void {
@@ -409,8 +411,9 @@ function buildCellUpdateFields(
   if (cell.cellType !== baseCell.cellType) fields.cellType = cell.cellType;
   if (notes !== normalizeText(baseCell.notes)) fields.notes = toNullableText(notes);
   if (cell.mode !== null && cell.mode !== baseCell.mode) fields.mode = cell.mode;
-  if (cell.rat === "nr" && cell.mode === "sa" && (cell.gnbidLength ?? DEFAULT_GNBID_LENGTH) !== (baseCell.gnbidLength ?? DEFAULT_GNBID_LENGTH))
-    fields.gnbidLength = cell.gnbidLength ?? DEFAULT_GNBID_LENGTH;
+  const { gnbidLength: defaultGnbidLength } = options.owner;
+  if (cell.rat === "nr" && cell.mode === "sa" && (cell.gnbidLength ?? defaultGnbidLength) !== (baseCell.gnbidLength ?? defaultGnbidLength))
+    fields.gnbidLength = cell.gnbidLength ?? defaultGnbidLength;
   for (const { field } of spec.numbers) {
     const value = field === areaField ? getAreaValue(draft, cell) : getCellNumber(cell, field);
     const baseValue = field === areaField ? getAreaValue(base, baseCell) : getCellNumber(baseCell, field);
@@ -418,7 +421,7 @@ function buildCellUpdateFields(
   }
   for (const { field } of spec.flags) if (getCellFlag(cell, field) !== getCellFlag(baseCell, field)) fields[field] = getCellFlag(cell, field);
   if (options.confirmation === "all" && cell.isConfirmed !== baseCell.isConfirmed) fields.isConfirmed = cell.isConfirmed;
-  if (!isSameCodes(cell.extraPlmns, baseCell.extraPlmns)) fields.plmns = toPlmnList(options.ownerPlmn, cell.extraPlmns);
+  if (!isSameCodes(cell.extraPlmns, baseCell.extraPlmns)) fields.plmns = toPlmnList(options.owner.plmn, cell.extraPlmns);
   return fields;
 }
 
@@ -466,10 +469,10 @@ export function countCellEntries(session: EditSession): number {
   return buildParts(session.draft, session.live ?? EMPTY_SNAPSHOT, DIRECT_OPTIONS).cells.length;
 }
 
-export function buildStationUpdate(session: EditSession, ownerPlmn: string | null): BuiltBody<StationUpdate> {
+export function buildStationUpdate(session: EditSession, owner: DraftOwner): BuiltBody<StationUpdate> {
   if (session.live === null) return nothingBuilt();
 
-  const parts = buildParts(session.draft, session.live, { ...DIRECT_OPTIONS, ownerPlmn });
+  const parts = buildParts(session.draft, session.live, { ...DIRECT_OPTIONS, owner });
   const body: StationUpdate = {};
   if (hasKeys(parts.station)) body.station = parts.station;
   if (parts.location !== null && hasKeys(parts.location)) body.location = parts.location;
@@ -496,9 +499,9 @@ function toNewCells(draft: StationSnapshot, options: PartOptions): { cells: NewC
   return { cells, cellKeys };
 }
 
-export function buildStationCreate(session: EditSession, ownerPlmn: string | null): BuiltBody<StationCreate> {
+export function buildStationCreate(session: EditSession, owner: DraftOwner): BuiltBody<StationCreate> {
   const { draft } = session;
-  const options: PartOptions = { ...DIRECT_OPTIONS, ownerPlmn };
+  const options: PartOptions = { ...DIRECT_OPTIONS, owner };
   const parts = buildParts(draft, EMPTY_SNAPSHOT, options);
   const { siteId, operatorId, status: _status, ...station } = parts.station;
   const { location } = parts;
@@ -564,8 +567,8 @@ function buildStationChangeSubmission(
   return { body: [item], cellKeys: parts.cellKeys, sectorKeys: parts.sectorKeys };
 }
 
-export function buildSubmissionCreate(session: EditSession, ownerPlmn: string | null, extras: SubmissionCreateExtras): BuiltBody<SubmissionCreate[]> {
-  const options: PartOptions = { ...SUBMITTED_OPTIONS, ownerPlmn };
+export function buildSubmissionCreate(session: EditSession, owner: DraftOwner, extras: SubmissionCreateExtras): BuiltBody<SubmissionCreate[]> {
+  const options: PartOptions = { ...SUBMITTED_OPTIONS, owner };
   if (session.action === "create") return buildNewStationSubmission(session, options, extras);
   if (extras.stationId === null) return nothingBuilt();
   if (session.action === "update") return buildStationChangeSubmission(session, options, extras, extras.stationId);
@@ -599,11 +602,7 @@ function writePickEdit(body: SubmissionUpdate, session: EditSession, edit: Submi
   body.photos = photos;
 }
 
-export function buildSubmissionUpdate(
-  session: EditSession,
-  ownerPlmn: string | null,
-  extras: SubmissionUpdateExtras = {},
-): BuiltBody<SubmissionUpdate> {
+export function buildSubmissionUpdate(session: EditSession, owner: DraftOwner, extras: SubmissionUpdateExtras = {}): BuiltBody<SubmissionUpdate> {
   const body: SubmissionUpdate = {};
   writeTextEdit(body, "note", extras.note);
   writeTextEdit(body, "reviewNote", extras.reviewNote);
@@ -615,7 +614,7 @@ export function buildSubmissionUpdate(
     ...SUBMITTED_OPTIONS,
     confirmation: session.kind === "review" ? "new" : "none",
     storedPlace: stored.place,
-    ownerPlmn,
+    owner,
   };
   const parts = buildParts(session.draft, base, options);
   const storedParts = buildParts(stored, base, options);

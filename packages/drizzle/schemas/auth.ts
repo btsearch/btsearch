@@ -981,6 +981,9 @@ export const notifications = pgTable(
     index("notifications_station_watch_push_queue_idx")
       .on(t.pushQueuedAt)
       .where(sql`${t.pushQueuedAt} IS NOT NULL AND ${t.pushSentAt} IS NULL`),
+    index("notifications_official_site_id_idx")
+      .on(t.officialSiteId)
+      .where(sql`${t.officialSiteId} IS NOT NULL`),
   ],
 );
 

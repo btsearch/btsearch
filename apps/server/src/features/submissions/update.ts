@@ -19,7 +19,7 @@ import { locationRefs, requestCovers } from "../access/scope.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../audit/index.js";
 import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkOwnerCellDuplicates, checkPciDuplicates, getOperatorIdForStation } from "../cells/duplicateCheck.js";
+import { checkOwnerCellDuplicates, checkPciDuplicates, getOperatorIdForStation } from "../cells/duplicateCheck.js";
 import { type NetworkOwner, loadNetworkOwner, withoutOwnerCode } from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { uplinkSpeedSchema } from "../stations/uplink.js";
@@ -29,6 +29,7 @@ import {
   assertTargetCellsFit,
   getCellDuplicateEntries,
   insertPhotoPicks,
+  loadCellNetworks,
   loadSubmissionOwner,
   nrInsertSchema,
   resolveCellExtras,
@@ -130,8 +131,14 @@ function getPciDuplicateSources(cells: ProposedCellInput[]) {
     }));
 }
 
+async function getProposedOperatorId(submissionId: string): Promise<number | null> {
+  const proposed = await db.query.proposedStations.findFirst({ where: { submission_id: submissionId }, columns: { operator_id: true } });
+  return proposed?.operator_id ?? null;
+}
+
 async function validateCellConflicts(
   cells: ProposedCellInput[] | undefined,
+  submissionId: string,
   stationId: number | null,
   sentOperatorId: number | null | undefined,
   countryCode: string | null,
@@ -139,19 +146,17 @@ async function validateCellConflicts(
   if (!cells || cells.length === 0) return;
 
   await assertTargetCellsFit(cells, stationId);
-  validateCellDuplicates(cells);
   const allModifiedCellIds = cells.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
   if (stationId !== null) await checkPciDuplicates(stationId, getPciDuplicateSources(cells), allModifiedCellIds);
 
-  const operatorId = stationId !== null ? await getOperatorIdForStation(stationId) : null;
-  const owner = await loadNetworkOwner(db, sentOperatorId ?? operatorId, countryCode);
+  const operatorId = sentOperatorId ?? (stationId === null ? await getProposedOperatorId(submissionId) : await getOperatorIdForStation(stationId));
+  const owner = await loadNetworkOwner(db, operatorId, countryCode);
   const cellExtras = await resolveCellExtras(cells, owner);
-  if (operatorId === null) return;
+  validateCellDuplicates(cells, await loadCellNetworks(cells, owner, cellExtras));
+  if (owner.operatorId === null) return;
 
   const entries = getCellDuplicateEntries(cells, cellExtras);
-  if (entries.length === 0) return;
-  if (owner.operatorId === operatorId) await checkOwnerCellDuplicates(entries, owner, allModifiedCellIds);
-  else await checkCellDuplicatesBatch(entries, operatorId, allModifiedCellIds);
+  if (entries.length > 0) await checkOwnerCellDuplicates(db, entries, owner, allModifiedCellIds);
 }
 
 async function assertStationTakesChanges(stationId: number | null): Promise<void> {
@@ -372,7 +377,7 @@ export async function updateSubmission(
     ]);
     validateSectorChanges(body.sectors ?? storedSectors, currentSectors, body.cells ?? storedCells);
   }
-  await validateCellConflicts(body.cells, stationId, body.station?.operator_id, body.placement_country_code ?? null);
+  await validateCellConflicts(body.cells, id, stationId, body.station?.operator_id, body.placement_country_code ?? null);
   if (body.cells && body.cells.length > 0) {
     await validateCellBandsInCountry(
       body.cells.filter((cell) => cell.operation !== "delete"),

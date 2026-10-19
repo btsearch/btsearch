@@ -50,10 +50,11 @@ async function rehearse(run: ClaimedRun, environment: ImportEnvironment): Promis
   return dryRun.report;
 }
 
-async function apply(run: ClaimedRun, environment: ImportEnvironment): Promise<RunSummary> {
+async function apply(run: ClaimedRun, environment: ImportEnvironment): Promise<RunSummary | null> {
   const end = await processRun(run, environment);
   if (end === "lost") throw new Error(`run ${run.id} was cancelled or taken over`);
   if (end === "failed") throw new Error(`run ${run.id} failed; the error is logged above and stored on the run`);
+  if (end === "unchanged") return null;
 
   return db.transaction((tx) => readReport(tx, run.id, COUNTED_BY_DRY_RUNS_ONLY));
 }
@@ -111,7 +112,9 @@ async function main(): Promise<void> {
     const report = await rehearse(run, environment);
     print(report, rehearsalLines(report));
   } else {
-    print(await apply(run, environment), [`run ${run.id} is done`]);
+    const summary = await apply(run, environment);
+    if (summary === null) console.log(`nothing changed; run ${run.id} is not kept`);
+    else print(summary, [`run ${run.id} is done`]);
   }
 }
 
