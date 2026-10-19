@@ -80,9 +80,9 @@ export function EditPageHead({
 }: EditPageHeadProps) {
   const { t } = useTranslation("common");
   const isPhone = useIsMobile();
-  const hasSiteId = siteId !== undefined && siteId !== null && siteId !== "";
+  const isNewStation = siteId === undefined || siteId === null;
   const hasPageTitle = pageTitle !== undefined;
-  const title = hasSiteId ? siteId : t("labels.newStation");
+  const title = isNewStation ? t("labels.newStation") : siteId;
   const backText = backLabel ?? t("actions.back");
   const operatorColor = operator?.brand?.color;
 
@@ -107,8 +107,8 @@ export function EditPageHead({
         )}
         {hasPageTitle ? (
           <h1 className="min-w-0 truncate text-base font-bold">{pageTitle}</h1>
-        ) : (
-          <h1 className={cn("min-w-0 shrink-0 truncate text-base font-bold", hasSiteId ? "font-mono" : null)}>{title}</h1>
+        ) : title === "" ? null : (
+          <h1 className={cn("min-w-0 shrink-0 truncate text-base font-bold", isNewStation ? null : "font-mono")}>{title}</h1>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {compactBadges}
@@ -149,8 +149,8 @@ export function EditPageHead({
             )}
             {hasPageTitle ? (
               <h1 className="text-lg font-semibold tracking-tight">{pageTitle}</h1>
-            ) : (
-              <h1 className={cn("shrink-0 text-sm font-medium text-muted-foreground", hasSiteId ? "font-mono" : null)}>{title}</h1>
+            ) : title === "" ? null : (
+              <h1 className={cn("shrink-0 text-sm font-medium text-muted-foreground", isNewStation ? null : "font-mono")}>{title}</h1>
             )}
             {badges}
           </div>

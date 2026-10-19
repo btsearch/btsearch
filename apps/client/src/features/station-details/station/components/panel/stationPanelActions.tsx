@@ -7,6 +7,7 @@ import { ShareButton } from "../../../components/shareButton";
 import { stationDialogHeaderIconActionClassName, stationDialogPrimaryActionClassName } from "../../../components/stationDialogHeaderStyles";
 import type { StationEditTarget } from "../../access";
 import type { StationRecord } from "../../types";
+import { getStationNumber } from "../../utils/stations";
 
 type StationPanelActionsProps = {
   station: StationRecord;
@@ -19,7 +20,8 @@ export function StationPanelActions({ station, editTarget, onClose }: StationPan
   const operatorName = station.operator?.name ?? t("main:unknownOperator");
   const city = station.location?.city || t("common:labels.unknownLocation");
   const address = station.location?.address || null;
-  const shareTitle = `${station.siteId} (${operatorName})`;
+  const stationNumber = getStationNumber(station);
+  const shareTitle = stationNumber === "" ? operatorName : `${stationNumber} (${operatorName})`;
   const editLabel = (
     <>
       <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" aria-hidden="true" />

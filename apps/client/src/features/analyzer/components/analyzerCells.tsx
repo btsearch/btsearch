@@ -25,6 +25,7 @@ import { useFloatingDialogStack } from "@/features/floating-dialogs/components/f
 import { useOfficialSource } from "@/features/official/queries";
 import { useCopyText } from "@/features/settings/copyText";
 import { getBandCode, getBandLabel, toRatType } from "@/features/station-details/station/utils/bands";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { LIST_DETAIL_SEPARATOR, ListCountryTile, ListIconMark } from "@/features/stations/list/components/table/listCells";
 import { LIST_ROW_LINK_CLASS } from "@/features/stations/list/components/table/listTableRow";
 import { STATION_ID_CLASS } from "@/features/stations/list/components/table/stationsListCells";
@@ -267,7 +268,8 @@ export function ResultBadge({ status }: { status: RowStatus }) {
 
 export function StationIdButton({ station, className, onOpen }: StationIdButtonProps) {
   const { t } = useTranslation("cellAnalyzer");
-  const label = t("table.openStationWindow", { siteId: station.siteId });
+  const stationNumber = getStationNumber(station);
+  const label = t("table.openStationWindow", { siteId: stationNumber });
 
   return (
     <button
@@ -277,7 +279,7 @@ export function StationIdButton({ station, className, onOpen }: StationIdButtonP
       className={cn(STATION_ID_CLASS, LIST_ROW_LINK_CLASS, "min-w-0 cursor-pointer truncate", className)}
       onClick={() => onOpen(station)}
     >
-      {station.siteId}
+      {stationNumber}
     </button>
   );
 }

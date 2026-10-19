@@ -28,6 +28,7 @@ import { SubmissionPhotosSection } from "@/features/admin/submissions/components
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { bandsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { getBandDuplexMark, getBandLabel, isBandLabelInGhz } from "@/features/station-details/station/utils/bands";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { getStructureTypeKey } from "@/features/station-details/station/utils/structure";
 import { submissionQueryOptions } from "@/features/station-editing/data/submissions";
 import { RAT_FIELDS } from "@/features/station-editing/model/ratFields";
@@ -100,7 +101,7 @@ function listStationPairs(change: StationChange | null, operator: Operator | und
 
   const { backhaul } = change;
   const pairs: ChangePair[] = [];
-  if (change.siteId !== undefined) pairs.push({ label: t("common:labels.stationId"), value: change.siteId });
+  if (change.siteId !== undefined) pairs.push({ label: t("common:labels.stationId"), value: change.siteId ?? EMPTY_VALUE });
   if (change.operatorId !== undefined) pairs.push({ label: t("common:labels.operator"), value: operator?.name ?? `#${change.operatorId}` });
   for (const kind of IDENTIFIER_ORDER) {
     const identifier = change.identifiers?.find((entry) => entry.kind === kind);
@@ -232,7 +233,7 @@ function StationChanges({ submission, operators }: StoredChangesProps) {
           <div className="min-w-0">
             <h3 className="font-medium text-rose-800 dark:text-rose-200">{t("changesSheet.stationDelete")}</h3>
             <p className="mt-0.5 text-sm text-rose-800/80 dark:text-rose-200/80">
-              {t("deletionBanner", { stationId: station?.siteId ?? submission.stationId })}
+              {t("deletionBanner", { stationId: station ? getStationNumber(station) : submission.stationId })}
             </p>
           </div>
         </div>
@@ -420,7 +421,7 @@ export function SubmissionChangesSheet({ submission, listUpdatedAt, operators, o
   });
   const detail = detailQuery.data ?? submission;
   const shown = detailQuery.dataUpdatedAt >= listUpdatedAt ? detail : submission;
-  const siteId = shown.station?.siteId ?? shown.changes.station?.siteId ?? t("common:labels.newStation");
+  const siteId = shown.station ? getStationNumber(shown.station) : (shown.changes.station?.siteId ?? t("common:labels.newStation"));
   const { photos } = shown.changes;
 
   return (

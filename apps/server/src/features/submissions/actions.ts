@@ -73,6 +73,7 @@ import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { writeSectorAzimuths } from "../stations/sectorAzimuths.js";
 import { findSharedSiblingIds, keepSameEnbSiblingIds } from "../stations/sharedSiblings.js";
+import { assertMayLackSiteId, isPlaceholderSiteId, placeholderSiteId, takeStationId, toSiteId } from "../stations/siteIds.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
 import type { StructureOwnerRow } from "../structures/serialize.js";
 import { findOrCreateNamedOwner } from "../structures/write.js";
@@ -460,25 +461,42 @@ async function applyBackhaulUpdate(audit: AuditRecorder, changes: ProposedStatio
   return (await saveStationBackhaul(audit, stationId, values)) ? values : null;
 }
 
+async function insertStation(tx: DbTx, values: Omit<z.infer<typeof stationInsertSchema>, "station_id">, siteId: string | null) {
+  if (siteId !== null) {
+    return tx
+      .insert(stations)
+      .values({ ...values, station_id: siteId })
+      .returning();
+  }
+
+  const id = await takeStationId(tx);
+  return tx
+    .insert(stations)
+    .overridingSystemValue()
+    .values({ ...values, id, station_id: placeholderSiteId(id) })
+    .returning();
+}
+
 async function createStationFromProposal(
   audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
   locationId: number | null,
   proposedCellCount: number,
   isConfirmed: boolean,
-): Promise<{ stationId: number; savedBackhaul: BackhaulValues | null }> {
-  const [newStation] = await audit.tx
-    .insert(stations)
-    .values({
-      station_id: proposedStation.station_id ?? "",
+): Promise<{ stationId: number; savedBackhaul: BackhaulValues | null; takesPlaceholder: boolean }> {
+  const siteId = toSiteId(proposedStation.station_id ?? null);
+  const [newStation] = await insertStation(
+    audit.tx,
+    {
       location_id: locationId,
       operator_id: proposedStation.operator_id,
       notes: typeof proposedStation.notes === "string" && proposedStation.notes.trim() !== "" ? proposedStation.notes : null,
       is_confirmed: isConfirmed,
       status: stationStatusForCellCount(proposedCellCount),
       statusChangedAt: new Date(),
-    })
-    .returning();
+    },
+    siteId,
+  );
   if (!newStation) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station" });
 
   await audit.log({
@@ -492,14 +510,14 @@ async function createStationFromProposal(
 
   await createExtraIdentifierForNewStation(audit, proposedStation, newStation.id);
   const savedBackhaul = await createBackhaulForNewStation(audit, proposedStation, newStation.id);
-  return { stationId: newStation.id, savedBackhaul };
+  return { stationId: newStation.id, savedBackhaul, takesPlaceholder: siteId === null };
 }
 
 async function applyNewSubmission(
   audit: AuditRecorder,
   draft: ApprovalDraft,
   isConfirmed: boolean,
-): Promise<{ stationId: number | null; resolvedLocationId: number | null; savedBackhaul: BackhaulValues | null }> {
+): Promise<{ stationId: number | null; resolvedLocationId: number | null; savedBackhaul: BackhaulValues | null; takesPlaceholder: boolean }> {
   let locationResult: UpsertLocationResult | null = null;
 
   if (draft.proposedLocation) locationResult = await upsertLocation(audit.tx, toLocationValues(draft.proposedLocation.changes));
@@ -507,14 +525,16 @@ async function applyNewSubmission(
 
   let stationId: number | null = null;
   let savedBackhaul: BackhaulValues | null = null;
+  let takesPlaceholder = false;
   if (draft.proposedStation) {
     const created = await createStationFromProposal(audit, draft.proposedStation, locationId, draft.proposedCellRows.length, isConfirmed);
     stationId = created.stationId;
     savedBackhaul = created.savedBackhaul;
+    takesPlaceholder = created.takesPlaceholder;
   }
   if (locationResult) await logLocationChange(audit, locationResult, stationId);
 
-  return { stationId, resolvedLocationId: locationId, savedBackhaul };
+  return { stationId, resolvedLocationId: locationId, savedBackhaul, takesPlaceholder };
 }
 
 async function deleteEmptiedLocation(audit: AuditRecorder, currentLocation: LocationRow, stationId: number): Promise<void> {
@@ -690,26 +710,28 @@ async function applyUpdatedLocation(
   return { locationId, migratedPhotoIds };
 }
 
-async function applyStationIdentityUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number): Promise<void> {
+async function applyStationIdentityUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number): Promise<boolean> {
   const { tx } = audit;
   const currentStation = await tx.query.stations.findFirst({
     where: { id: stationId },
   });
-  if (!currentStation) return;
+  if (!currentStation) return false;
 
   const proposedNotes = normalizeText(changes.notes);
+  const proposedStationStringId =
+    typeof changes.station_id === "string" && isPlaceholderSiteId(changes.station_id) ? placeholderSiteId(stationId) : changes.station_id;
   const nextStationStringId =
-    typeof changes.station_id === "string" && changes.station_id !== currentStation.station_id ? changes.station_id : undefined;
+    typeof proposedStationStringId === "string" && proposedStationStringId !== currentStation.station_id ? proposedStationStringId : undefined;
   const nextOperatorId =
     typeof changes.operator_id === "number" && changes.operator_id !== currentStation.operator_id ? changes.operator_id : undefined;
   const nextNotes = changes.notes !== undefined && proposedNotes !== normalizeText(currentStation.notes) ? proposedNotes : undefined;
 
-  if (nextStationStringId === undefined && nextOperatorId === undefined && nextNotes === undefined) return;
+  if (nextStationStringId === undefined && nextOperatorId === undefined && nextNotes === undefined) return false;
 
   if (nextStationStringId !== undefined || nextOperatorId !== undefined) {
     const candidateStationStringId = nextStationStringId ?? currentStation.station_id;
     const candidateOperatorId = nextOperatorId ?? currentStation.operator_id;
-    if (candidateOperatorId !== null) {
+    if (candidateOperatorId !== null && !isPlaceholderSiteId(candidateStationStringId)) {
       const [duplicate] = await tx
         .select({ id: stations.id })
         .from(stations)
@@ -736,6 +758,7 @@ async function applyStationIdentityUpdate(audit: AuditRecorder, changes: Propose
     metadata: audit.entryMetadata,
   });
   if (nextOperatorId !== undefined) await dropOwnerCodeFromCells(audit, stationId, nextOperatorId);
+  return nextStationStringId !== undefined && isPlaceholderSiteId(nextStationStringId);
 }
 
 async function dropOwnerCodeFromCells(audit: AuditRecorder, stationId: number, operatorId: number): Promise<void> {
@@ -1732,10 +1755,10 @@ function getApprovedStationStringId(
   stationId: number | null,
   stationContext: ApprovalStationContext | null,
 ): string | null {
-  if (submission.type === "new" && proposedStation) return proposedStation.station_id ?? null;
+  if (submission.type === "new" && proposedStation) return toSiteId(proposedStation.station_id ?? null);
   if (!stationId) return null;
-  if (submission.type === "update" && proposedStation?.station_id) return proposedStation.station_id;
-  return stationContext?.stationStringId ?? null;
+  if (submission.type === "update" && proposedStation?.station_id) return toSiteId(proposedStation.station_id);
+  return toSiteId(stationContext?.stationStringId ?? null);
 }
 
 async function syncStatusWithCells(audit: AuditRecorder, stationId: number): Promise<boolean> {
@@ -1784,6 +1807,7 @@ async function applyChange(
   let stationId = draft.stationId;
   let resolvedLocationId: number | null = null;
   let savedBackhaul: BackhaulValues | null = null;
+  let takesPlaceholder = false;
   const changesGroupOrLocation =
     draft.proposedLocation !== undefined ||
     draft.proposedStation?.station_id !== undefined ||
@@ -1797,6 +1821,7 @@ async function applyChange(
     stationId = result.stationId;
     resolvedLocationId = result.resolvedLocationId;
     savedBackhaul = result.savedBackhaul;
+    takesPlaceholder = result.takesPlaceholder;
   }
 
   const submissionPhotoSelectionRows =
@@ -1815,7 +1840,7 @@ async function applyChange(
   }
 
   if (type === "update" && draft.proposedStation && stationId) {
-    await applyStationIdentityUpdate(audit, draft.proposedStation, stationId);
+    takesPlaceholder = await applyStationIdentityUpdate(audit, draft.proposedStation, stationId);
     await applyExtraIdentifierUpdate(audit, draft.proposedStation, stationId);
     savedBackhaul = await applyBackhaulUpdate(audit, draft.proposedStation, stationId);
   }
@@ -1830,6 +1855,7 @@ async function applyChange(
   if (strayCell) throw new ErrorResponse("CONFLICT", { message: `Target cell ${strayCell.id} is on another station` });
   const targetCellsMap = new Map(targetCellsArr.map((targetCell) => [targetCell.id, targetCell] as const));
   const cellChanges = await applyProposedCells(tx, draft.proposedCellRows, stationId, targetCellsMap, sectorIdByLocalId, change?.cells ?? []);
+  if (takesPlaceholder && stationId) await assertMayLackSiteId(tx, stationId);
   const destinationIds = change === null ? [] : getDestinationStationIds(change);
   if (destinationIds.length > 0) await tx.update(stations).set({ updatedAt: new Date() }).where(inArray(stations.id, destinationIds));
 
@@ -2015,7 +2041,7 @@ async function notifyStationChanges({ stationId, cellChanges, photosAdded }: App
     with: { location: { columns: { latitude: true, longitude: true } } },
   });
   const actionUrl = actionStation ? buildInternalStationActionUrl(actionStation) : undefined;
-  const label = stationStringId ?? actionStation?.station_id ?? null;
+  const label = toSiteId(stationStringId ?? actionStation?.station_id ?? null);
   const addedCells = cellChanges.added.length;
   const removedCells = cellChanges.deleted.length;
   const updatedCells = cellChanges.updated.length;

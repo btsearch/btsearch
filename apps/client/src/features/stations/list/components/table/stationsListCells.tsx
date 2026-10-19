@@ -14,6 +14,7 @@ import { HighlightedText } from "@/features/shared/HighlightedText";
 import { StationGuestMarks } from "@/features/shared/operatorMarks";
 import { groupTechnologyBands } from "@/features/station-details/station/utils/bands";
 import { type CellIdentifierField, findCellIdentifierLabel } from "@/features/station-details/station/utils/cells";
+import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import type { StationsListVariant } from "@/features/stations/list/data/stationsListFilters";
 import type { StationsListMatchLine, StationsListRow } from "@/features/stations/list/data/stationsListRows";
@@ -125,6 +126,7 @@ export function StationMarks({ row }: { row: StationsListRow }) {
 
   return (
     <>
+      <StationNumberMark station={row.station} />
       {row.note === null ? null : <ListIconMark icon={Note01Icon} label={`${t("common:labels.notes")}: ${row.note}`} tooltip={row.note} />}
       {row.isConfirmed ? null : <ListIconMark icon={AlertCircleIcon} label={t("list.unconfirmed")} />}
     </>

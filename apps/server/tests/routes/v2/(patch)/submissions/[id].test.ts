@@ -793,14 +793,14 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
-  it.each([{ siteId: "NEW" }, { operatorId: 7 }])("requires both station identifiers when replacing a new station proposal: %j", async (station) => {
+  it("requires an operator when replacing a new station proposal", async () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.query.submissions.findFirst.mockResolvedValue(submissionRow);
     expectError(
-      await injectMutation(route, { ...request, payload: { station } }, options),
+      await injectMutation(route, { ...request, payload: { station: { siteId: "NEW" } } }, options),
       400,
       "BAD_REQUEST",
-      "siteId and operatorId are required for a new station",
+      "operatorId is required for a new station",
     );
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });

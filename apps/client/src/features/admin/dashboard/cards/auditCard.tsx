@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OperationKindBadge } from "@/features/admin/audit-operations/components/operationKindBadge";
 import { getKindLabel } from "@/features/admin/audit-operations/labels";
 import { type MapLookups, getOperatorLook } from "@/features/map/data/mapLookups";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { UserLink } from "@/features/user-profile/components/userLink";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +67,7 @@ function OperationTarget({ operation, lookups }: OperationTargetProps) {
     return (
       <span className="inline-flex min-w-0 items-center gap-1.5">
         <BrandMark brand={getOperatorLook(lookups, onlyStation.operatorId).brand} size={TARGET_BRAND_MARK_SIZE} />
-        <span className="min-w-0 truncate font-mono font-medium tabular-nums">{onlyStation.siteId}</span>
+        <span className="min-w-0 truncate font-mono font-medium tabular-nums">{getStationNumber(onlyStation)}</span>
       </span>
     );
   }

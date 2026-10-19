@@ -2,6 +2,7 @@ import { cells, extraIdentificators, gsmCells, locations, lteCells, nrCells, sta
 import type { SearchMatch, SearchMatchField, SearchMatchType } from "@openbts/shared/contract";
 import { type SQL, sql } from "drizzle-orm";
 
+import { hasOperatorSiteId } from "../stations/siteIds.js";
 import { containsPattern, escapeLike, foldText } from "./text.js";
 
 const TIERS_BEST_FIRST = [
@@ -71,7 +72,7 @@ function siteIdHits(text: string, matchesPartially: boolean): SQL {
       ${siteId}::text AS match_value,
       similarity(${siteId}, ${text}) AS match_score
     FROM ${stations}
-    WHERE ${matchesPartially ? sql`${siteId} ILIKE ${contains} OR ${siteId} % ${text}` : sql`${siteId} = ${exact}`}`;
+    WHERE ${hasOperatorSiteId(siteId)} AND (${matchesPartially ? sql`${siteId} ILIKE ${contains} OR ${siteId} % ${text}` : sql`${siteId} = ${exact}`})`;
 }
 
 function identifierHits(text: string, matchesPartially: boolean): SQL[] {
@@ -200,7 +201,8 @@ export function matchesFreeText(text: string): SQL {
   const isFound = sql`${stations.id} IN (SELECT hits.station_id FROM (${sql.join(hits, sql` UNION ALL `)}) AS hits)`;
   if (!isShort) return isFound;
 
-  return sql`(${isFound} OR ${stations.station_id} ILIKE ${containsPattern(text)} OR ${shortTextPlaces(text)})`;
+  const matchesSiteId = sql`(${hasOperatorSiteId(stations.station_id)} AND ${stations.station_id} ILIKE ${containsPattern(text)})`;
+  return sql`(${isFound} OR ${matchesSiteId} OR ${shortTextPlaces(text)})`;
 }
 
 export function matchesPlace(text: string): SQL {

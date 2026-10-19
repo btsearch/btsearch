@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-import { BSIC_MAX, CELL_FIELD_NOTES, CELL_RATS, CELL_TYPES, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, NR_MODES, PSC_MAX } from "./cells.ts";
+import { BSIC_MAX, CELL_FIELD_NOTES, CELL_RATS, CELL_TYPES, GNBID_MAX, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, NR_MODES, PSC_MAX } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
@@ -24,6 +24,7 @@ import {
 import { photoDetailsShape, photoIdSchema, photoUploadShape, photoUrlsSchema } from "./photos.ts";
 import {
   BACKHAUL_MEDIUMS,
+  RESERVED_SITE_ID_PREFIX,
   SECTOR_AZIMUTH_NOTE,
   STATION_IDENTIFIER_KIND_NOTE,
   STATION_SITE_ID_NOTE,
@@ -67,6 +68,7 @@ export const MAX_CELL_CHANGES = 200;
 
 const knownOrNullSchema = z.number().int().min(0).max(MAX_ID).nullable();
 const identifierSchema = knownOrNullSchema.optional();
+const gnbidSchema = z.number().int().min(0).max(GNBID_MAX).nullable().optional();
 const SWITCH_NOTE = "Rejected with 400 while the site has it disabled";
 const bsicSchema = z.number().int().min(0).max(BSIC_MAX).nullable().optional().describe(`Base station identity code. ${SWITCH_NOTE}`);
 const pscSchema = z.number().int().min(0).max(PSC_MAX).nullable().optional().describe(`Primary scrambling code. ${SWITCH_NOTE}`);
@@ -99,10 +101,37 @@ const backhaulChangeSchema = z
   .strict();
 
 const BACKHAUL_INPUT_NOTE = "How the station is connected to the operator's network";
+const SITE_ID_INPUT_NOTE = `${STATION_SITE_ID_NOTE}. It cannot start with \`${RESERVED_SITE_ID_PREFIX}\``;
+const WITHOUT_SITE_ID = "a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC";
+export const SITE_ID_NEEDED_MESSAGE = `A station needs a station number unless it has ${WITHOUT_SITE_ID}`;
+export const RESERVED_SITE_ID_MESSAGE = `A station number cannot start with ${RESERVED_SITE_ID_PREFIX}`;
+
+const siteIdInputSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(16)
+  .refine((siteId) => !siteId.startsWith(RESERVED_SITE_ID_PREFIX), { message: RESERVED_SITE_ID_MESSAGE });
+
+const NAMING_FIELDS: Readonly<Record<string, string>> = { gsm: "lac", umts: "rnc", lte: "enbid", nr: "gnbid" };
+
+function letsStationLackSiteId(cell: Readonly<Record<string, unknown>>): boolean {
+  const field = typeof cell.rat === "string" ? NAMING_FIELDS[cell.rat] : undefined;
+  if (field === undefined) return false;
+  const nodeId = cell[field];
+  return typeof nodeId === "number" && nodeId > 0;
+}
+
+export function mayLackSiteId(cells: readonly Readonly<Record<string, unknown>>[] | undefined): boolean {
+  return cells?.some(letsStationLackSiteId) ?? false;
+}
 
 export const stationChangeInputSchema = z
   .object({
-    siteId: z.string().trim().min(1).max(16).optional().describe(STATION_SITE_ID_NOTE),
+    siteId: siteIdInputSchema
+      .nullable()
+      .optional()
+      .describe(`${SITE_ID_INPUT_NOTE}. \`null\` takes the number away from a station with ${WITHOUT_SITE_ID}; \`nodeName\` then names it`),
     operatorId: idSchema.optional(),
     notes: z.string().nullable().optional(),
     identifiers: z
@@ -128,7 +157,9 @@ export type StationEditInput = z.infer<typeof stationEditInputSchema>;
 
 export const newStationInputSchema = stationChangeInputSchema
   .extend({
-    siteId: z.string().trim().min(1).max(16).describe(STATION_SITE_ID_NOTE),
+    siteId: siteIdInputSchema
+      .optional()
+      .describe(`${SITE_ID_INPUT_NOTE}. Can be left out for a station with ${WITHOUT_SITE_ID}; \`nodeName\` then names it`),
     operatorId: idSchema,
     isConfirmed: z.boolean().optional().describe("Defaults to `true`"),
   })
@@ -288,7 +319,7 @@ export const newNrCellSchema = z
     rat: z.literal("nr"),
     mode: z.enum(NR_MODES).describe(NR_MODE_NOTE),
     tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
-    gnbid: identifierSchema.describe(CELL_FIELD_NOTES.gnbid),
+    gnbid: gnbidSchema.describe(CELL_FIELD_NOTES.gnbid),
     gnbidLength: gnbidLengthSchema,
     clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
     pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
@@ -315,7 +346,7 @@ const cellRadioUpdateShape = {
   cid: identifierSchema.describe(CELL_FIELD_NOTES.cid),
   rnc: identifierSchema.describe(CELL_FIELD_NOTES.rnc),
   enbid: identifierSchema.describe(CELL_FIELD_NOTES.enbid),
-  gnbid: identifierSchema.describe(CELL_FIELD_NOTES.gnbid),
+  gnbid: gnbidSchema.describe(CELL_FIELD_NOTES.gnbid),
   gnbidLength: gnbidLengthSchema,
   clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
   tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
@@ -455,7 +486,7 @@ const LOCATION_CHANGE_NOTE =
   "With coordinates, the station moves as `move` says. A location sent for a new station needs `latitude` and `longitude`";
 
 const submissionContentShape = {
-  station: stationChangeInputSchema.optional().describe("A new station needs `siteId` and `operatorId`"),
+  station: stationChangeInputSchema.optional().describe(`A new station needs \`operatorId\`, and \`siteId\` unless it has ${WITHOUT_SITE_ID}`),
   location: submittedLocationInputSchema.optional().describe(LOCATION_CHANGE_NOTE),
   sectors: z.array(sectorChangeInputSchema).max(MAX_SECTOR_CHANGES).optional().describe(SECTOR_LIMITS_NOTE),
   cells: cellChangeList(cellChangeInputSchema, "submission").optional(),
@@ -496,8 +527,8 @@ export const submissionCreateSchema = z
     if (body.action !== "create") return;
 
     if (!body.station) ctx.addIssue({ code: "custom", path: ["station"], message: "Required for a new station" });
-    if (body.station && body.station.siteId === undefined) {
-      ctx.addIssue({ code: "custom", path: ["station", "siteId"], message: "Required for a new station" });
+    if (body.station && (body.station.siteId ?? null) === null && !mayLackSiteId(body.cells)) {
+      ctx.addIssue({ code: "custom", path: ["station", "siteId"], message: SITE_ID_NEEDED_MESSAGE });
     }
     if (body.station && body.station.operatorId === undefined) {
       ctx.addIssue({ code: "custom", path: ["station", "operatorId"], message: "Required for a new station" });
@@ -545,7 +576,7 @@ export const submissionReviewSchema = z
 export type SubmissionReview = z.infer<typeof submissionReviewSchema>;
 
 export const stationChangeSchema = z.object({
-  siteId: z.string().optional(),
+  siteId: z.string().nullable().optional(),
   operatorId: z.number().int().optional(),
   notes: z.string().nullable().optional(),
   identifiers: z

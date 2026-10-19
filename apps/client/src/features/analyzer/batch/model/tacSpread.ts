@@ -1,4 +1,4 @@
-import type { Cell } from "@openbts/shared/contract";
+import type { StationCell } from "@openbts/shared/contract";
 
 import type { BatchRow } from "./batchRows";
 import { getNewLteTac } from "./conflicts";
@@ -9,7 +9,7 @@ export type TacSpread = {
   firstRowIndex: number;
 };
 
-export function planTacSpread(activeRows: readonly BatchRow[], stationCells: readonly Cell[]): TacSpread | null {
+export function planTacSpread(activeRows: readonly BatchRow[], stationCells: readonly StationCell[]): TacSpread | null {
   const setters = activeRows.filter((row) => getNewLteTac(row) !== null);
   const newTacs = new Set(setters.map(getNewLteTac));
   const [first] = setters;

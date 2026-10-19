@@ -13,6 +13,6 @@ function normalizeCity(city: string): string {
 
 export function suggestOperatorName({ operator, siteId, city, partnerName }: OperatorNameInput): string | null {
   if (operator.primaryPlmn !== TMOBILE_PLMN) return partnerName || null;
-  if (siteId.startsWith("N") || !city) return null;
+  if (!siteId || siteId.startsWith("N") || !city) return null;
   return `${normalizeCity(city)}_${siteId}`;
 }

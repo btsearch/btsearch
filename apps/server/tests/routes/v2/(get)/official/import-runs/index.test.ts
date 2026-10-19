@@ -9,7 +9,7 @@ import { OTHER_RUN_ID, RUN_ID, STAFF_ID, runRow, scriptRunParts, signInAs } from
 
 const request = { method: "GET" as const, url: "/official/import-runs" };
 const QUEUED_AT_KEY = "1760256000000000";
-const finished = {
+const finished: typeof runRow = {
   ...runRow,
   state: "done",
   attempt: 1,
@@ -18,7 +18,7 @@ const finished = {
   startedAt: new Date("2026-10-12T08:00:05.000Z"),
   finishedAt: new Date("2026-10-12T08:03:00.000Z"),
 };
-const scheduled = {
+const scheduled: typeof runRow = {
   ...runRow,
   id: OTHER_RUN_ID,
   trigger: "scheduled",

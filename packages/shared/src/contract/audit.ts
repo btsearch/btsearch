@@ -19,7 +19,7 @@ import {
   userRefSchema,
   usesCursorOrOffset,
 } from "./common.ts";
-import { STATION_SITE_ID_NOTE } from "./stations.ts";
+import { NODE_NAME_NOTE, STATION_SITE_ID_READ_NOTE } from "./stations.ts";
 
 export const AUDIT_OPERATION_SORTS = ["-createdAt", "createdAt"] as const;
 export type AuditOperationSort = (typeof AUDIT_OPERATION_SORTS)[number];
@@ -84,7 +84,8 @@ export const auditCountSchema = z.object({
 
 export const auditOperationStationSchema = z.object({
   id: idSchema,
-  siteId: z.string().describe(STATION_SITE_ID_NOTE),
+  siteId: z.string().nullable().describe(STATION_SITE_ID_READ_NOTE),
+  nodeName: z.string().nullable().describe(NODE_NAME_NOTE),
   operatorId: idSchema.nullable(),
 });
 export type AuditOperationStation = z.infer<typeof auditOperationStationSchema>;

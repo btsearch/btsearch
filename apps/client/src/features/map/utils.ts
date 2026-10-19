@@ -1,4 +1,4 @@
-import type { Brand, Licensee, MicrowaveLink, OfficialSite, OfficialSitePermit, Cell as StationCell } from "@openbts/shared/contract";
+import type { Brand, Licensee, MicrowaveLink, OfficialSite, OfficialSitePermit, StationCell } from "@openbts/shared/contract";
 import { calculateBearing, calculateDistance, destinationPoint, formatDistance } from "@openbts/shared/geo";
 import { calculateMicrowaveLinkSpeed, formatBandwidth, formatFrequency, formatSpeed, getModulationBits } from "@openbts/shared/microwaveLinkUtils";
 

@@ -4,7 +4,7 @@ import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Brand, LocationStationRecord } from "../../types";
-import { toV1StationStatus } from "../../utils/stations";
+import { getStationNumber, toV1StationStatus } from "../../utils/stations";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { getOperatorTintGradient } from "@/lib/cellular/operators";
@@ -36,7 +36,7 @@ export function HostStationLink({ station, brand, onOpen }: HostStationLinkProps
         <BrandMark brand={brand} size={16} />
         <span className="min-w-0 truncate text-xs font-medium text-foreground">{station.operator?.name ?? t("unknownOperator")}</span>
       </span>
-      <span className="shrink-0 font-mono text-xs font-medium text-foreground tabular-nums">{station.siteId}</span>
+      <span className="shrink-0 font-mono text-xs font-medium text-foreground tabular-nums">{getStationNumber(station)}</span>
       {station.status !== "active" ? <StationStatusBadge status={toV1StationStatus(station.status)} /> : null}
       <HugeiconsIcon
         icon={ArrowUpRight01Icon}

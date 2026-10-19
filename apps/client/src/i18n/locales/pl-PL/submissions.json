@@ -292,6 +292,7 @@
       "stationChanges_other": "Stacja {{station}}: {{count, number}} zmiany w zgłoszeniu",
       "stationCreated": "Powstanie stacja {{station}}",
       "stationDeleted": "Stacja {{station}} zostanie oznaczona jako nieaktywna",
+      "siteIdRemoved": "ID stacji {{siteId}} zostanie usunięte: stacja będzie widoczna jako {{nodeName}}",
       "newOwner": "Powstanie nowy właściciel obiektu: {{name}}",
       "placeChanges_one": "Miejsce {{place}}: {{changes}}, także dla {{count, number}} pozostałej stacji",
       "placeChanges_few": "Miejsce {{place}}: {{changes}}, także dla {{count, number}} pozostałych stacji",

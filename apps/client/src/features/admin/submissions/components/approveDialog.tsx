@@ -1,4 +1,13 @@
-import { AirportTowerIcon, Building03Icon, Image01Icon, Link02Icon, Location01Icon, PencilEdit02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import {
+  AirportTowerIcon,
+  Building03Icon,
+  HashtagIcon,
+  Image01Icon,
+  Link02Icon,
+  Location01Icon,
+  PencilEdit02Icon,
+  Tick02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { SubmissionAction } from "@openbts/shared/contract";
 import { useTranslation } from "react-i18next";
@@ -8,12 +17,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import type { ReviewFacts, SharedPlaceField } from "@/features/admin/submissions/reviewNotices";
+import type { SiteIdRemoval } from "@/features/station-editing/model/changes";
 
 type ApproveDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   action: SubmissionAction;
   stationLabel: string;
+  siteIdRemoval: SiteIdRemoval | null;
   placeLabel: string;
   partnerLabel: string | null;
   changeCount: number;
@@ -56,6 +67,7 @@ export function ApproveDialog({
   onOpenChange,
   action,
   stationLabel,
+  siteIdRemoval,
   placeLabel,
   partnerLabel,
   changeCount,
@@ -83,6 +95,7 @@ export function ApproveDialog({
         </DialogHeader>
         <ul className="flex flex-col gap-1.5">
           <EffectLine icon={AirportTowerIcon}>{stationLine}</EffectLine>
+          {siteIdRemoval === null ? null : <EffectLine icon={HashtagIcon}>{t("review.approve.siteIdRemoved", siteIdRemoval)}</EffectLine>}
           {proposedOwner === null ? null : (
             <EffectLine icon={Building03Icon}>{t("review.approve.newOwner", { name: proposedOwner.name })}</EffectLine>
           )}

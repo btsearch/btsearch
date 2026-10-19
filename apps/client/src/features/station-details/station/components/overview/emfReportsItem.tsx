@@ -18,7 +18,7 @@ export function EmfReportsItem({ station }: EmfReportsItemProps) {
   const { t } = useTranslation("stationDetails");
   const { data: countries } = useQuery(countriesQueryOptions());
   const { id, siteId, hostStationId, location, operator } = station;
-  if (hostStationId !== null || siteId === "" || location === null || operator === null) return null;
+  if (hostStationId !== null || siteId === null || location === null || operator === null) return null;
   if (!hasCountryCapability(countries, location.countryCode, "emf")) return null;
 
   const operatorMnc = toV1OperatorMnc(operator);

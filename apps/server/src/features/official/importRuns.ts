@@ -45,7 +45,7 @@ import type { ChangeKind, RunStepName } from "./import/types.js";
 
 const runSelectSchema = createSelectSchema(officialImportRuns);
 
-type RunRow = z.infer<typeof runSelectSchema>;
+export type RunRow = z.infer<typeof runSelectSchema>;
 type StoredRun = { run: RunRow; sourceKey: string };
 type RunParts = Awaited<ReturnType<typeof loadRunParts>>;
 type SliceRef = { datasetId: number | null; slice: string | null };

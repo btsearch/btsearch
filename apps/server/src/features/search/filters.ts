@@ -21,6 +21,7 @@ import { LEGACY_COUNTRY_CODE } from "../../constants.js";
 import { ErrorResponse } from "../../errors.js";
 import { buildBackhaulCondition, isBackhaulMedium } from "../stations/backhaul.js";
 import { buildHasPhotosCondition, buildHasSectorsCondition } from "../stations/filter.js";
+import { hasOperatorSiteId } from "../stations/siteIds.js";
 
 export type FilterValue = string | number | boolean;
 export type FilterTable = "stations" | "cells" | "gsmCells" | "umtsCells" | "lteCells" | "nrCells" | "locations" | "extraIdentificators";
@@ -211,7 +212,7 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   // stations
   bts_id: {
     table: "stations",
-    buildCondition: (value, refs) => buildLikeAny(refs.stations.station_id)(value),
+    buildCondition: (value, refs) => sql`(${hasOperatorSiteId(refs.stations.station_id)} AND ${buildLikeAny(refs.stations.station_id)(value)})`,
   },
   mnc: {
     table: "stations",
@@ -345,7 +346,7 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   // nrCells
   gnbid: {
     table: "nrCells",
-    buildCondition: (value, refs) => buildInArray(refs.nrCells.gnbid, parseInt32s)(value),
+    buildCondition: (value, refs) => buildInArray(refs.nrCells.gnbid, parseNumbers)(value),
   },
   nci: {
     table: "nrCells",

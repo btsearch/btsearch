@@ -1,4 +1,4 @@
-import { gsmCells } from "@openbts/drizzle";
+import { gsmCells, lteCells, umtsCells } from "@openbts/drizzle";
 import { getTableName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -10,6 +10,8 @@ import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 import { stationRow, visibleStation } from "../../../../helpers/stationFixtures.js";
 
 const payload = { station: { siteId: "A1", operatorId: 1 } };
+const SITE_ID_NEEDED =
+  "A station needs a station number unless it has a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC";
 
 describe("POST /stations", () => {
   it("creates a confirmed station awaiting cells without requiring a location or a photo", async () => {
@@ -110,6 +112,91 @@ describe("POST /stations", () => {
         new_values: expect.objectContaining({ sector_id: 5, details: expect.objectContaining({ lac: 1, cid: 2, e_gsm: false }) }),
       }),
     );
+  });
+
+  it("creates a station without a number under a placeholder and names it after its eNB", async () => {
+    const saved = stationRow({ station_id: "~1" });
+    const created = storedCell(cellInputs.lte);
+    const named = { stationId: 1, enbid: 100, gnbid: null, longCid: null, gsmCellKey: null };
+    dbMock.enqueueFor("select", "operators", [{ id: 1 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "bands", [{ id: 3 }], cellBands);
+    dbMock.enqueueFor("select", "country_bands", [{ bandId: 3 }]);
+    dbMock.query.stations.findFirst.mockResolvedValue(saved);
+    dbMock.enqueueFor("select", getTableName(lteCells), []);
+    dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
+    dbMock.enqueueFor("execute", undefined, [{ id: 1 }]);
+    dbMock.enqueueFor("insert", "stations", [saved]);
+    dbMock.enqueueFor("insert", "audit_logs", [], []);
+    dbMock.enqueueFor("select", "station_photo_selections", [], []);
+    dbMock.enqueueFor("insert", "cells", [created.cell]);
+    dbMock.enqueueFor("insert", getTableName(lteCells), [created.radio]);
+    dbMock.query.cells.findMany.mockResolvedValue([{ ...created.cell, gsm: null, umts: null, lte: created.radio, nr: null }]);
+    dbMock.enqueueFor("select", "cells", [named], [{ bandId: 3, rat: "LTE", bandRat: "LTE", countryCode: "PL", plannedBandId: 3 }], [named]);
+    dbMock.enqueueFor("select", "audit_logs", []);
+    dbMock.enqueueFor("update", "audit_operations", []);
+    dbMock.enqueueFor("select", "station_watches", []);
+    dbMock.enqueueFor("select", "user_lists", []);
+    dbMock.enqueueFor("select", "stations", []);
+    visibleStation(saved);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    const errors: Error[] = [];
+    const app = await createRouteHarness(route, { session: userSession(), onError: (error) => errors.push(error) });
+    const response = await app.inject({ method: "POST", url: "/stations", payload: { station: { operatorId: 1 }, cells: [cellInputs.lte] } });
+
+    expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(201);
+    expect(response.json().data).toMatchObject({ id: 1, siteId: null, nodeName: "4G 100" });
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "stations")?.values).toMatchObject({ id: 1, station_id: "~1" });
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("creates a station without a number from a UMTS cell and names it after that cell", async () => {
+    const saved = stationRow({ station_id: "~1" });
+    const created = storedCell(cellInputs.umts);
+    const named = { stationId: 1, enbid: null, gnbid: null, longCid: 65_538, gsmCellKey: null };
+    dbMock.enqueueFor("select", "operators", [{ id: 1 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "bands", [{ id: 2 }], cellBands);
+    dbMock.enqueueFor("select", "country_bands", [{ bandId: 2 }]);
+    dbMock.query.stations.findFirst.mockResolvedValue(saved);
+    dbMock.enqueueFor("select", getTableName(umtsCells), []);
+    dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
+    dbMock.enqueueFor("execute", undefined, [{ id: 1 }]);
+    dbMock.enqueueFor("insert", "stations", [saved]);
+    dbMock.enqueueFor("insert", "audit_logs", [], []);
+    dbMock.enqueueFor("select", "station_photo_selections", [], []);
+    dbMock.enqueueFor("insert", "cells", [created.cell]);
+    dbMock.enqueueFor("insert", getTableName(umtsCells), [created.radio]);
+    dbMock.query.cells.findMany.mockResolvedValue([{ ...created.cell, gsm: null, umts: created.radio, lte: null, nr: null }]);
+    dbMock.enqueueFor("select", "cells", [named], [{ bandId: 2, rat: "UMTS", bandRat: "UMTS", countryCode: "PL", plannedBandId: 2 }], [named]);
+    dbMock.enqueueFor("select", "audit_logs", []);
+    dbMock.enqueueFor("update", "audit_operations", []);
+    dbMock.enqueueFor("select", "station_watches", []);
+    dbMock.enqueueFor("select", "user_lists", []);
+    dbMock.enqueueFor("select", "stations", []);
+    visibleStation(saved);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    const errors: Error[] = [];
+    const app = await createRouteHarness(route, { session: userSession(), onError: (error) => errors.push(error) });
+    const response = await app.inject({ method: "POST", url: "/stations", payload: { station: { operatorId: 1 }, cells: [cellInputs.umts] } });
+
+    expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(201);
+    expect(response.json().data).toMatchObject({ id: 1, siteId: null, nodeName: "3G 1:2" });
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it.each([
+    ["no number and no cell", { station: { operatorId: 1 } }, SITE_ID_NEEDED],
+    ["no number and a UMTS cell without an RNC", { station: { operatorId: 1 }, cells: [{ ...cellInputs.umts, rnc: null }] }, SITE_ID_NEEDED],
+    ["no number and an LTE cell without an eNB", { station: { operatorId: 1 }, cells: [{ ...cellInputs.lte, enbid: null }] }, SITE_ID_NEEDED],
+    ["a number that starts with ~", { station: { siteId: "~1234", operatorId: 1 } }, "A station number cannot start with ~"],
+  ])("refuses %s at station/siteId", async (_name, invalid, validationMessage) => {
+    const app = await createRouteHarness(route, { session: userSession() });
+    const response = await app.inject({ method: "POST", url: "/stations", payload: invalid });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      errors: [{ code: "VALIDATION_ERROR", message: "Validation error", details: [{ field: "station/siteId", validationMessage }] }],
+    });
+    expect(dbMock.calls).toEqual([]);
   });
 
   it("rejects a duplicate site id within the same operator before any writes", async () => {

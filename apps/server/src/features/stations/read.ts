@@ -57,7 +57,8 @@ import {
   buildStationFilterConditions,
 } from "./filter.js";
 import { findHostStationIds } from "./physicalStations.js";
-import { DATABASE_RATS, DATABASE_STATUSES, type StationRow, toBackhaul, toCell, toSector, toStation, toStationLocation } from "./serialize.js";
+import { DATABASE_RATS, DATABASE_STATUSES, type StationRow, toBackhaul, toSector, toStation, toStationCell, toStationLocation } from "./serialize.js";
+import { isPlaceholderSiteId, loadNodeNames } from "./siteIds.js";
 
 type ListedStationFilter = "keepOtherCountries" | "hasPhotos" | "hasSectors" | "isConfirmed";
 type VisibleStation = { station: StationRow; countryCode: string | null };
@@ -347,6 +348,7 @@ export async function serializeStations(
     featuresByStation,
     cellExtras,
     ownerCodes,
+    nodeNames,
   ] = await Promise.all([
     db.select().from(extraIdentificators).where(inArray(extraIdentificators.station_id, stationIds)).orderBy(asc(extraIdentificators.id)),
     findHostStationIds(locationIds),
@@ -382,6 +384,7 @@ export async function serializeStations(
     getStationCountryFeatures(wantsCells ? stationIds : []),
     loadCellExtras(stationIds),
     loadOwnerCodes(wantsCells ? stationIds : []),
+    loadNodeNames(rows.filter((row) => isPlaceholderSiteId(row.station_id)).map((row) => row.id)),
   ]);
 
   const identifiersByStation = Map.groupBy(identifierRows, (row) => row.station_id);
@@ -391,29 +394,31 @@ export async function serializeStations(
   const backhaulByStation = new Map(backhaulRows.map((row) => [row.station_id, row]));
   const extraCodes = extraCodesByCell(cellExtras);
   const guestOperatorIds = guestOperatorIdsByStation(cellExtras, new Map(rows.map((row) => [row.id, row.operator_id])));
-  const cellsByStation = Map.groupBy(
-    cellRows.flatMap(
-      (row) =>
-        toCell(
-          row,
-          bandsById.get(row.cell.band_id),
-          wants("cells.band"),
-          featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures,
-          cellNetworkCodes(ownerCodes.get(row.cell.station_id), extraCodes.get(row.cell.id)),
-        ) ?? [],
-    ),
-    (cell) => cell.stationId,
-  );
+  const cellRowsByStation = Map.groupBy(cellRows, (row) => row.cell.station_id);
+  const toNestedCell = (row: (typeof cellRows)[number]) =>
+    toStationCell(
+      row,
+      bandsById.get(row.cell.band_id),
+      wants("cells.band"),
+      featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures,
+      cellNetworkCodes(ownerCodes.get(row.cell.station_id), extraCodes.get(row.cell.id)),
+    ) ?? [];
 
   return rows.map((row) => {
-    const station = toStation(row, identifiersByStation.get(row.id) ?? [], hostStationIds.get(row.id) ?? null, guestOperatorIds.get(row.id) ?? []);
+    const station = toStation(
+      row,
+      identifiersByStation.get(row.id) ?? [],
+      hostStationIds.get(row.id) ?? null,
+      guestOperatorIds.get(row.id) ?? [],
+      nodeNames.get(row.id) ?? null,
+    );
     const operator = row.operator_id === null ? undefined : operatorsById.get(row.operator_id);
     const placement = row.location_id === null ? undefined : locationsById.get(row.location_id);
     const backhaul = backhaulByStation.get(row.id);
 
     if (wants("operator")) station.operator = operator ?? null;
     if (wantsLocation) station.location = placement ? toLocation(placement, wants("location.region")) : null;
-    if (wantsCells) station.cells = cellsByStation.get(row.id) ?? [];
+    if (wantsCells) station.cells = cellRowsByStation.get(row.id)?.flatMap(toNestedCell) ?? [];
     if (wants("sectors")) station.sectors = (sectorsByStation.get(row.id) ?? []).map(toSector);
     if (wants("backhaul")) station.backhaul = backhaul ? toBackhaul(backhaul) : null;
     return station;

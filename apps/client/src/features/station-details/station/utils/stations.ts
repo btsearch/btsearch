@@ -7,7 +7,8 @@ export type PlacedStation = {
   location?: Pick<StationLocationRecord, "countryCode"> | null;
   operator: Pick<Operator, "countryCode"> | null;
 };
-type ListedStation = Pick<LocationStationRecord, "id" | "siteId" | "operator">;
+type ListedStation = Pick<LocationStationRecord, "id" | "siteId" | "nodeName" | "operator">;
+export type NumberedStation = Pick<LocationStationRecord, "siteId" | "nodeName">;
 type HostedStation = { hostStationId: number | null };
 type IdentifiedStation = { id: number };
 type AddressedLocation = Pick<StationLocationRecord, "city" | "address">;
@@ -63,6 +64,10 @@ export function getLocationLabel(location: AddressedLocation): string | null {
   return parts.length > 0 ? parts.join(ADDRESS_SEPARATOR) : null;
 }
 
+export function getStationNumber(station: NumberedStation): string {
+  return station.siteId ?? station.nodeName ?? "";
+}
+
 function getOperatorRank(station: ListedStation): number {
   return station.operator?.sortPriority ?? UNRANKED_OPERATOR;
 }
@@ -72,7 +77,7 @@ function compareLocationStations(left: ListedStation, right: ListedStation): num
     getOperatorRank(left) - getOperatorRank(right) ||
     Number(left.operator === null) - Number(right.operator === null) ||
     (left.operator?.name ?? "").localeCompare(right.operator?.name ?? "") ||
-    left.siteId.localeCompare(right.siteId, undefined, { numeric: true }) ||
+    getStationNumber(left).localeCompare(getStationNumber(right), undefined, { numeric: true }) ||
     left.id - right.id
   );
 }

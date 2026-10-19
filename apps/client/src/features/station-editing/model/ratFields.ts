@@ -95,7 +95,7 @@ export const RAT_FIELDS: Record<Rat, RatSpec> = {
     generation: "5G",
     numbers: [
       saOnlyField("tac", 16_777_215),
-      saOnlyField("gnbid", 2_147_483_647),
+      saOnlyField("gnbid", 4_294_967_295),
       saOnlyField("clid", 16_383),
       numberField("pci", 1007),
       numberField("arfcn", 3_279_165),

@@ -7,12 +7,12 @@ import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
 import { findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
-import { getLocationLabel } from "@/features/station-details/station/utils/stations";
+import { getLocationLabel, getStationNumber } from "@/features/station-details/station/utils/stations";
 
 type PhotoStationsPlace = {
   location: Pick<StationLocation, "id" | "city" | "address">;
   selections: readonly {
-    station: Pick<StationBase, "id" | "siteId" | "operatorId"> & { operator?: Pick<Operator, "name"> | null };
+    station: Pick<StationBase, "id" | "siteId" | "nodeName" | "operatorId"> & { operator?: Pick<Operator, "name"> | null };
     isMain: boolean;
   }[];
 };
@@ -47,7 +47,7 @@ export function PhotoStationsInfo({ places }: { places: readonly PhotoStationsPl
                   params={{ id: String(station.id) }}
                   className="font-mono font-medium text-white/80 tabular-nums underline-offset-2 hover:text-white hover:underline"
                 >
-                  {station.siteId}
+                  {getStationNumber(station)}
                 </Link>
               </Fragment>
             );

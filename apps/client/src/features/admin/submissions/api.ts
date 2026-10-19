@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import type { SubmissionListFilters, SubmissionListRow } from "./types";
 import { resolveDisplayName } from "@/features/admin/users/utils/identity";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import type { CellOperation } from "@/features/submissions/types";
 import { API_V2_BASE, appendList, fetchJson } from "@/lib/api";
 
@@ -61,7 +62,7 @@ export function toSubmissionListRow(submission: Submission): SubmissionListRow {
     countryCode: submission.countryCode,
     status: toV1SubmissionStatus(submission.status),
     type: toV1SubmissionType(submission.action),
-    siteId: station?.siteId ?? changes.station?.siteId ?? null,
+    siteId: station ? getStationNumber(station) : (changes.station?.siteId ?? null),
     operatorId: station?.operatorId ?? changes.station?.operatorId ?? null,
     submitter:
       submitter === null ? null : { id: submitter.id, name: resolveDisplayName(submitter), image: submitter.image, username: submitter.username },

@@ -46,7 +46,6 @@ const INTEGER_KEYWORDS: ReadonlySet<SearchKeyword> = new Set([
   "tac",
   "lte_pci",
   "earfcn",
-  "gnbid",
   "nr_clid",
   "nrtac",
   "nr_pci",
@@ -87,7 +86,7 @@ function legacyValue(keyword: SearchKeyword, value: string): FilterValue {
   if (DATE_KEYWORDS.has(keyword)) return readableDate(value);
   if (PATTERN_KEYWORDS.has(keyword)) return escapeLike(value);
   if (INTEGER_KEYWORDS.has(keyword)) return numbersWithin(value, MAX_ID);
-  if (keyword === "nci") return numbersWithin(value, Number.MAX_SAFE_INTEGER);
+  if (keyword === "gnbid" || keyword === "nci") return numbersWithin(value, Number.MAX_SAFE_INTEGER);
   if (keyword !== "status") return value;
 
   return splitList(value.toLowerCase())

@@ -2,6 +2,7 @@ import type { Operator, Region, StationBase } from "@openbts/shared/contract";
 
 import { type PhotosGalleryFilters, getPhotosGallerySortParts } from "./galleryFilters";
 import type { GalleryPhoto, GallerySelection, PhotoListPage } from "./galleryRequests";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 
 type GalleryLocation = GalleryPhoto["location"];
 
@@ -105,13 +106,15 @@ function listMatchingSelections(
   const placeTexts = [photo.location.city, photo.location.address, photo.note, region?.name, region?.code];
   if (searchText === "" || placeTexts.some((text) => containsText(text, searchText))) return selections;
 
-  const namedSelections = selections.filter((selection) => containsText(selection.station.siteId, searchText));
+  const namedSelections = selections.filter((selection) => containsText(getStationNumber(selection.station), searchText));
   return namedSelections.length > 0 ? namedSelections : selections;
 }
 
 function compareSiteIds(left: GallerySelection, right: GallerySelection): number {
-  if (left.station.siteId === right.station.siteId) return 0;
-  return left.station.siteId < right.station.siteId ? -1 : 1;
+  const leftNumber = getStationNumber(left.station);
+  const rightNumber = getStationNumber(right.station);
+  if (leftNumber === rightNumber) return 0;
+  return leftNumber < rightNumber ? -1 : 1;
 }
 
 function orderSelections(selections: readonly GallerySelection[], filters: PhotosGalleryFilters): GallerySelection[] {

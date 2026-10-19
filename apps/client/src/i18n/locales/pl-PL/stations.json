@@ -141,8 +141,9 @@
       "photosHidden_other": "Stacja przestanie pokazywać {{count, number}} zdjęcia",
       "mainPhoto": "Nowe zdjęcie główne"
     },
+    "siteIdRemoval": "ID stacji {{siteId}} zostanie usunięte. Stacja będzie widoczna jako {{nodeName}}",
     "errors": {
-      "siteIdRequired": "ID stacji: wymagane",
+      "siteIdRequiredWithoutNode": "ID stacji: wymagane, chyba że komórka ma eNB, gNB, RNC albo LAC",
       "siteIdTooLong": "ID stacji: najwyżej {{max}} znaków",
       "operatorRequired": "Operator: wymagany",
       "networksIdInvalid": "N! ID: najwyżej {{max}} cyfr, bez innych znaków",
@@ -424,6 +425,11 @@
       "delete": {
         "title": "Usunąć stację?",
         "description": "Stacja zostanie oznaczona jako nieaktywna i zniknie z mapy. Komórki, zdjęcia i historia zostają. Po 6 miesiącach bez zmian serwer usunie ją na stałe - do tego czasu można ją przywrócić"
+      },
+      "removeSiteId": {
+        "title": "Usunąć ID stacji {{siteId}}?",
+        "description": "Stacja będzie widoczna jako {{nodeName}}, od jednej ze swoich komórek, dopóki ktoś znów nie wpisze ID. Wyszukiwanie po {{siteId}} przestanie ją znajdować",
+        "confirm": "Usuń i zapisz"
       },
       "inactiveStrip": {
         "description": "nie widać jej na mapie. Po 6 miesiącach bez zmian serwer usunie ją razem z komórkami"

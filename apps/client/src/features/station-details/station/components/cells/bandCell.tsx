@@ -2,7 +2,7 @@ import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
-import type { Cell, NrMode } from "../../types";
+import type { NrMode, StationCell } from "../../types";
 import { type DuplexMark, getBandCode, getBandDuplexMark, getBandLabel } from "../../utils/bands";
 import { getCellTypeNameKey, getNrMode, isEGsmCell } from "../../utils/cells";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -20,7 +20,7 @@ const E_GSM_MARK_CLASS =
 const UNCONFIRMED_MARK_CLASS = "inline-flex items-center justify-center size-5 rounded-md bg-destructive/10 text-destructive cursor-help";
 
 type BandCellProps = {
-  cell: Cell;
+  cell: StationCell;
 };
 
 type TextMarkProps = {

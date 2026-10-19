@@ -67,6 +67,7 @@ function locatedStation(id: number, locationId: number, guestOperatorIds: number
   return {
     id,
     siteId: `S${id}`,
+    nodeName: null,
     operatorId: id,
     locationId,
     hostStationId: null,
@@ -107,7 +108,7 @@ function fetchedPoint(): MapPoint {
     city: "Fetched city",
     address: "Fetched address",
     regionName: REGION.name,
-    stations: [mapPoints.createMapPointStation({ id: 1, siteId: "S1", operatorId: 1 }, LOOKUPS)],
+    stations: [mapPoints.createMapPointStation({ id: 1, siteId: "S1", nodeName: null, operatorId: 1 }, LOOKUPS)],
   };
 }
 

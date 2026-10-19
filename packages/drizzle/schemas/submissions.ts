@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   char,
   check,
@@ -207,7 +208,7 @@ export const proposedNRCells = SubmissionsSchema.table(
       .primaryKey()
       .references(() => proposedCells.id, { onDelete: "cascade", onUpdate: "cascade" }),
     nrtac: integer("nrtac"),
-    gnbid: integer("gnbid"),
+    gnbid: bigint("gnbid", { mode: "number" }),
     gnbid_length: integer("gnbid_length").default(24),
     clid: integer("clid"),
     pci: integer("pci"),

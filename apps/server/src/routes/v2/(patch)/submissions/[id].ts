@@ -75,8 +75,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   const { photos, ...changes } = req.body;
   const { station } = changes;
-  if (submission.type === "new" && station && (station.siteId === undefined || station.operatorId === undefined)) {
-    throw new ErrorResponse("BAD_REQUEST", { message: "siteId and operatorId are required for a new station" });
+  if (submission.type === "new" && station && station.operatorId === undefined) {
+    throw new ErrorResponse("BAD_REQUEST", { message: "operatorId is required for a new station" });
   }
   if (submission.type === "new" && station?.backhaul && station.backhaul.medium === undefined) {
     throw new ErrorResponse("BAD_REQUEST", { message: "medium is required for a new station's backhaul" });

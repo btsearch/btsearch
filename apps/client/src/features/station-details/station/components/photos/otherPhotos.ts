@@ -1,5 +1,5 @@
 import type { LocationStationRecord, PhotoRecord } from "../../types";
-import { getOperatorShortLabel, sortLocationStations } from "../../utils/stations";
+import { getOperatorShortLabel, getStationNumber, sortLocationStations } from "../../utils/stations";
 
 export type OtherLocationPhoto = {
   photo: PhotoRecord;
@@ -11,7 +11,8 @@ const STATION_NAME_SEPARATOR = ", ";
 
 function getStationName(station: LocationStationRecord): string {
   const operatorLabel = getOperatorShortLabel(station.operator);
-  return operatorLabel === null ? station.siteId : `${operatorLabel} ${station.siteId}`;
+  const stationNumber = getStationNumber(station);
+  return operatorLabel === null ? stationNumber : `${operatorLabel} ${stationNumber}`;
 }
 
 export function listOtherLocationPhotos(

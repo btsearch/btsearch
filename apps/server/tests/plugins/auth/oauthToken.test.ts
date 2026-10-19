@@ -14,6 +14,7 @@ type TokenRecord = {
   expiresAt: Date;
   createdAt: Date;
   scopes: string[] | null;
+  client: { disabled: boolean | null } | null;
 };
 const userId = userSession().user.id;
 function tokenRecord(overrides: Partial<TokenRecord> = {}): TokenRecord {
@@ -26,6 +27,7 @@ function tokenRecord(overrides: Partial<TokenRecord> = {}): TokenRecord {
     expiresAt: new Date(now.getTime() + 1000),
     createdAt: now,
     scopes: ["read:stations"],
+    client: { disabled: false },
     ...overrides,
   };
 }
@@ -55,6 +57,7 @@ describe("verifyOAuthAccessToken", () => {
     const result = await verifyOAuthAccessToken("oat_secret");
     expect(dbMock.query.oauthAccessTokens.findFirst).toHaveBeenCalledWith({
       where: { token: createHash("sha256").update("secret").digest("base64url") },
+      with: { client: { columns: { disabled: true } } },
     });
     expect(result?.token).toEqual({ clientId: "client-id", userId: userId, scopes: ["read:stations"] });
     expect(result?.userSession.session).toMatchObject({ id: "token-id", userId: userId, token: "" });
@@ -70,10 +73,16 @@ describe("verifyOAuthAccessToken", () => {
     { title: "revoked token", value: tokenRecord({ revoked: true }) },
     { title: "expired token", value: tokenRecord({ expiresAt: new Date(now.getTime() - 1) }) },
     { title: "token expiring now", value: tokenRecord({ expiresAt: now }) },
+    { title: "token of a disabled client", value: tokenRecord({ client: { disabled: true } }) },
+    { title: "token without its client", value: tokenRecord({ client: null }) },
   ])("rejects a $title", async ({ value }) => {
     dbMock.query.oauthAccessTokens.findFirst.mockResolvedValue(value);
     expect(await verifyOAuthAccessToken("oat_secret")).toBeNull();
     expect(dbMock.query.users.findFirst).not.toHaveBeenCalled();
+  });
+  it("accepts a client that was never disabled", async () => {
+    dbMock.query.oauthAccessTokens.findFirst.mockResolvedValue(tokenRecord({ client: { disabled: null } }));
+    expect((await verifyOAuthAccessToken("oat_secret"))?.token.clientId).toBe("client-id");
   });
   it("accepts a linked session that is still active", async () => {
     const session = { ...userSession().session, expiresAt: new Date(now.getTime() + 1) };

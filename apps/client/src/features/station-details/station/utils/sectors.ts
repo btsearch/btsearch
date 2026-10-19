@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 
-import type { Cell, Sector } from "../types";
+import type { Sector, StationCell } from "../types";
 
 export type SectorInfo = { id: number; label: string; azimuth: number | null };
 export type SectorIndex = ReadonlyMap<number, SectorInfo>;
@@ -19,7 +19,7 @@ export function indexSectorInfo(sectors: readonly Sector[]): Map<number, SectorI
   return new Map(listSectorInfo(sectors).map((sector) => [sector.id, sector]));
 }
 
-export function findCellSector(cell: Cell, sectorsById: SectorIndex): SectorInfo | null {
+export function findCellSector(cell: StationCell, sectorsById: SectorIndex): SectorInfo | null {
   if (cell.sectorId === null) return null;
   return sectorsById.get(cell.sectorId) ?? null;
 }

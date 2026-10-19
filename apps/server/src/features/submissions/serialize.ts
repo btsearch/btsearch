@@ -39,6 +39,7 @@ import { type PhotoRow, photoColumns, photoUrls, toPhotoDetails } from "../photo
 import { disabledCountryFeatures, getCountryFeaturesByCode } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { CELL_TYPES, CONTRACT_RATS, type StationRow, toAzimuth } from "../stations/serialize.js";
+import { toSiteId } from "../stations/siteIds.js";
 import { toStructureType } from "../structures/serialize.js";
 import { type UserRefViewer, loadUserRefViewer, toPublicUserRef } from "../users/userRef.js";
 import {
@@ -90,10 +91,11 @@ function toBackhaulChange(changes: ProposedStationChanges): StationChange["backh
   return backhaul;
 }
 
-function toStationChange(row: ProposedStationRow): StationChange {
+function toStationChange(row: ProposedStationRow, isNewStation: boolean): StationChange {
   const changes = getProposedStationChanges(row);
   const station: StationChange = {};
-  if (typeof changes.station_id === "string") station.siteId = changes.station_id;
+  if (typeof changes.station_id === "string") station.siteId = toSiteId(changes.station_id);
+  else if (isNewStation) station.siteId = null;
   if (typeof changes.operator_id === "number") station.operatorId = changes.operator_id;
   if (changes.notes !== undefined) station.notes = changes.notes;
 
@@ -340,7 +342,7 @@ export async function serializeSubmissions(
       updatedAt: row.updatedAt.toISOString(),
       reviewedAt: row.reviewed_at?.toISOString() ?? null,
       changes: {
-        station: proposedStation ? toStationChange(proposedStation) : null,
+        station: proposedStation ? toStationChange(proposedStation, row.type === "new") : null,
         location: proposedLocation ? toLocationChange(proposedLocation) : null,
         sectors: (sectorsBySubmission.get(row.id) ?? []).map(toSectorChange),
         cells: (cellsBySubmission.get(row.id) ?? []).map((cell) => toCellChange(cell, liveNotes, unknownBandIds, countryFeatures)),

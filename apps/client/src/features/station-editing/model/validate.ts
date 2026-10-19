@@ -3,7 +3,7 @@ import { isChannelValidForBand } from "@openbts/shared/bandCatalog";
 import type { Band, Operator, StationIdentifierKind } from "@openbts/shared/contract";
 
 import { countCellEntries } from "./bodies";
-import { getAreaValue, getRowKind, normalizeText } from "./changes";
+import { findNodeName, getAreaValue, getRowKind, normalizeText } from "./changes";
 import { EXTRA_PLMN_LIMITS, listNetworkOptions } from "./networks";
 import {
   CELL_FLAG_LABELS,
@@ -136,15 +136,21 @@ function isOutOfRange(value: number, min: number, max: number): boolean {
   return !Number.isInteger(value) || value < min || value > max;
 }
 
+function findMissingSiteIdKey({ live, draft }: EditSession): string | null {
+  if (live !== null && normalizeText(live.station.siteId) === "") return null;
+  return findNodeName(draft) === null ? "stations:edit.errors.siteIdRequiredWithoutNode" : null;
+}
+
 function validateStation(session: EditSession): EditError[] {
   const { station } = session.draft;
   const isNewStation = session.live === null;
   const siteId = normalizeText(station.siteId);
+  const missingSiteIdKey = siteId === "" ? findMissingSiteIdKey(session) : null;
   const networksId = normalizeText(station.identifiers.networksId);
   const { medium, speedMbps, model } = station.backhaul;
   const errors: EditError[] = [];
 
-  if (siteId === "") errors.push(toError(stationTarget("siteId"), "stations:edit.errors.siteIdRequired", undefined, isNewStation));
+  if (missingSiteIdKey !== null) errors.push(toError(stationTarget("siteId"), missingSiteIdKey, undefined, isNewStation));
   if (siteId.length > EDIT_LIMITS.siteId) {
     errors.push(toError(stationTarget("siteId"), "stations:edit.errors.siteIdTooLong", { max: EDIT_LIMITS.siteId }));
   }

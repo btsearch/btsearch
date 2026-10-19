@@ -189,6 +189,12 @@
     "twoFactor": "Weryfikacja dwuetapowa",
     "added": "Dodano"
   },
+  "stationNumber": {
+    "enb": "Numer stacji nie jest znany. Nazwa pochodzi od eNBID stacji",
+    "gnb": "Numer stacji nie jest znany. Nazwa pochodzi od gNBID stacji",
+    "cell": "Numer stacji nie jest znany. Nazwa pochodzi od jednej z komórek stacji",
+    "none": "Numer stacji nie jest znany"
+  },
   "placeholder": {
     "search": "Szukaj...",
     "notes": "Dodatkowe informacje (opcjonalnie)...",

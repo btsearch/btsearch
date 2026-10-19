@@ -13,6 +13,7 @@ import {
 import type { RowOpeners, RowView, StationView } from "./rowView";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { ListCell, ListIconMark } from "@/features/stations/list/components/table/listCells";
 import { ListRowActionButton, ListRowActions, ListRowMapLink } from "@/features/stations/list/components/table/listRowActions";
 import { LIST_HEAD_ROW_CLASS, LIST_ROW_CLASS } from "@/features/stations/list/components/table/listTableRow";
@@ -154,7 +155,7 @@ export function StationGroupRow({ stationView, rowIndexes, mark, differenceCount
   return (
     <div role="row" className={GROUP_ROW_CLASS}>
       <div role="cell" className="flex w-9 shrink-0">
-        <GroupTick mark={mark} label={t("selection.selectStation", { siteId: station.siteId })} onToggle={() => onToggle(rowIndexes)} />
+        <GroupTick mark={mark} label={t("selection.selectStation", { siteId: getStationNumber(station) })} onToggle={() => onToggle(rowIndexes)} />
       </div>
       <div role="cell" className="flex min-w-0 flex-1 items-center gap-2">
         <BrandMark brand={operator?.brand} />

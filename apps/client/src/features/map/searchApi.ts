@@ -1,5 +1,4 @@
 import type {
-  Cell,
   MicrowaveLink,
   MicrowaveLinkInclude,
   OfficialSite,
@@ -7,6 +6,7 @@ import type {
   Operator,
   Paging,
   SearchResult,
+  StationCell,
 } from "@openbts/shared/contract";
 import { queryOptions, skipToken } from "@tanstack/react-query";
 
@@ -27,7 +27,7 @@ export type GpsCoordinates = {
 export type StationSearchHit = Omit<SearchResult, "operator" | "location" | "cells" | "sectors" | "backhaul"> & {
   operator: Operator | null;
   location: StationLocationRecord | null;
-  cells: Cell[];
+  cells: StationCell[];
 };
 
 export type StationSearchResults = {

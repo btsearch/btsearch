@@ -5,8 +5,6 @@ import { dbMock } from "../../../../../helpers/boundaries.js";
 import { expectError, injectMutation, scriptAudit, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import { OTHER_RUN_ID, RUN_ID, STAFF_ID, licenseeRow, runRow, scriptStoredRun, signInAs } from "../../../../../helpers/officialFixtures.js";
 
-type StoredLicensee = Omit<typeof licenseeRow, "operatorId" | "brandId"> & { operatorId: number | null; brandId: number | null };
-
 const request = { method: "PATCH" as const, url: "/official/licensees/5", payload: { operatorId: 4 } };
 const mapped = { ...licenseeRow, operatorId: 4 };
 const branded = { ...licenseeRow, brandId: 3 };
@@ -38,7 +36,7 @@ function recordedKinds() {
   return writes("audit_operations").flatMap((call) => (call.operation === "insert" ? [(call.values as { kind: string }).kind] : []));
 }
 
-function licenseeEntry(old: StoredLicensee, saved: StoredLicensee) {
+function licenseeEntry(old: typeof licenseeRow, saved: typeof licenseeRow) {
   return [
     { operation_id: 1, entity: "licensees", op: "update", record_id: "5", station_id: null, old_values: old, new_values: saved, metadata: null },
   ];

@@ -121,8 +121,9 @@
       "photosHidden_other": "The station will stop showing {{count, number}} photos",
       "mainPhoto": "New main photo"
     },
+    "siteIdRemoval": "Station ID {{siteId}} will be removed. The station will be shown as {{nodeName}}",
     "errors": {
-      "siteIdRequired": "Station ID: required",
+      "siteIdRequiredWithoutNode": "Station ID: required unless a cell has its eNB, gNB, RNC or LAC",
       "siteIdTooLong": "Station ID: at most {{max}} characters",
       "operatorRequired": "Operator: required",
       "networksIdInvalid": "N! ID: at most {{max}} digits and nothing else",
@@ -382,6 +383,11 @@
       "delete": {
         "title": "Delete this station?",
         "description": "The station will be marked as inactive and will disappear from the map. Its cells, photos and history stay. After 6 months without changes the server deletes it for good - until then you can restore it"
+      },
+      "removeSiteId": {
+        "title": "Remove station ID {{siteId}}?",
+        "description": "The station will be shown as {{nodeName}}, after one of its cells, until someone enters an ID again. Searching for {{siteId}} will no longer find it",
+        "confirm": "Remove and save"
       },
       "inactiveStrip": {
         "description": "it is not shown on the map. After 6 months without changes the server deletes it together with its cells"

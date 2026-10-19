@@ -33,9 +33,9 @@ async function fetchDuplicateStation(siteId: string, operatorId: number, signal?
   });
   const page = await fetchJson<SiteIdSearchPage>(`${API_V2_BASE}/search?${params.toString()}`, { signal });
   const wanted = siteId.toLowerCase();
-  const match = page.data.find((station) => station.operatorId === operatorId && station.siteId.trim().toLowerCase() === wanted);
+  const match = page.data.find((station) => station.operatorId === operatorId && station.siteId?.trim().toLowerCase() === wanted);
 
-  return match === undefined ? null : { stationId: match.id, siteId: match.siteId };
+  return match === undefined || match.siteId === null ? null : { stationId: match.id, siteId: match.siteId };
 }
 
 export function duplicateSiteIdQueryOptions(siteId: string, operatorId: number | null) {

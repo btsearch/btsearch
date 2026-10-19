@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { stationDialogInlineActionClassName } from "../../../components/stationDialogActionBar";
 import { StationDialogActions } from "../../../components/stationDialogShell";
 import type { StationRecord } from "../../types";
-import { getStationCountryCode } from "../../utils/stations";
+import { getStationCountryCode, getStationNumber } from "../../utils/stations";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
@@ -21,6 +21,7 @@ export function StationPanelToolbar({ station, onStartTerrainProfile, onClose }:
   const { t } = useTranslation(["stationDetails", "main"]);
   const { openStationHistoryDialog } = useFloatingDialogStack();
   const operatorName = station.operator?.name ?? t("main:unknownOperator");
+  const stationNumber = getStationNumber(station);
 
   return (
     <>
@@ -31,7 +32,7 @@ export function StationPanelToolbar({ station, onStartTerrainProfile, onClose }:
         onClick={() =>
           openStationHistoryDialog({
             stationId: station.id,
-            stationCode: station.siteId,
+            stationCode: stationNumber,
             operatorName,
             operatorBrandId: station.operator?.brandId ?? null,
           })
@@ -44,7 +45,7 @@ export function StationPanelToolbar({ station, onStartTerrainProfile, onClose }:
       <StationDialogActions
         source="internal"
         id={station.id}
-        stationCode={station.siteId}
+        stationCode={stationNumber}
         operatorId={station.operatorId}
         operatorName={operatorName}
         countryCode={getStationCountryCode(station)}

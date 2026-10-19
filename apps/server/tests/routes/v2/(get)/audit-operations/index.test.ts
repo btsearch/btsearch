@@ -39,8 +39,8 @@ describe("GET /audit-operations", () => {
     const response = await injectMutation(route, { ...request, url: "/audit-operations?include=stations" }, options);
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data).toMatchObject([
-      { id: 7, stationIds: [12, 13], stations: [{ id: 13, siteId: "BT-13", operatorId: 4 }] },
-      { id: 8, stationIds: [13], stations: [{ id: 13, siteId: "BT-13", operatorId: 4 }] },
+      { id: 7, stationIds: [12, 13], stations: [{ id: 13, siteId: "BT-13", nodeName: null, operatorId: 4 }] },
+      { id: 8, stationIds: [13], stations: [{ id: 13, siteId: "BT-13", nodeName: null, operatorId: 4 }] },
     ]);
     expect(dbMock.calls.filter((call) => call.table === "stations")).toHaveLength(1);
     expect(whereQuery("stations", "select").params).toEqual([12, 13]);
@@ -72,8 +72,8 @@ describe("GET /audit-operations", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data[0].stationIds).toHaveLength(5001);
     expect(response.json().data[0].stations).toEqual([
-      { id: 1, siteId: "BT-1", operatorId: 4 },
-      { id: 5001, siteId: "BT-5001", operatorId: null },
+      { id: 1, siteId: "BT-1", nodeName: null, operatorId: 4 },
+      { id: 5001, siteId: "BT-5001", nodeName: null, operatorId: null },
     ]);
     expect(dbMock.calls.filter((call) => call.table === "stations")).toHaveLength(2);
     expect(whereQuery("stations", "select").params).toHaveLength(5000);

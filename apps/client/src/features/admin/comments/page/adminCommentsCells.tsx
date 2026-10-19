@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { EDITOR_STATION_SEARCH } from "@/features/admin/stations/editorStationSearch";
 import { getPickerUserHandle, toPickerAvatarUser } from "@/features/admin/users/picker/pickerUser";
 import { getOperatorLook } from "@/features/map/data/mapLookups";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { UserLink } from "@/features/user-profile/components/userLink";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -75,7 +76,9 @@ export function CommentStationLink({ comment }: { comment: Comment }) {
           <span className="min-w-0 truncate text-xs font-medium text-foreground group-hover:underline">{operator.name}</span>
         </span>
       )}
-      <span className={cn("block truncate font-mono text-xs text-muted-foreground", operator === null ? null : "pl-5.5")}>{station.siteId}</span>
+      <span className={cn("block truncate font-mono text-xs text-muted-foreground", operator === null ? null : "pl-5.5")}>
+        {getStationNumber(station)}
+      </span>
     </Link>
   );
 }

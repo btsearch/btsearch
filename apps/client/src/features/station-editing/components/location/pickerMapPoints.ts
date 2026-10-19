@@ -21,6 +21,7 @@ function toPickerPointStation(station: PickerStation, lookups: MapLookups): MapP
     {
       id: station.id,
       siteId: station.siteId,
+      nodeName: station.nodeName,
       operatorId: station.operatorId,
       azimuths: station.sectors?.map((sector) => sector.azimuth),
     },

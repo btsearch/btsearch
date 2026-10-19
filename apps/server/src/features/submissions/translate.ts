@@ -18,6 +18,7 @@ import {
   submissions,
   umtsCells,
 } from "@openbts/drizzle";
+import { RESERVED_SITE_ID_PREFIX } from "@openbts/shared/contract";
 import type {
   CellEditInput,
   CellRat,
@@ -127,7 +128,7 @@ function toStationInput(station: StationChangeInput): StationInput {
   const networksId = identifiers.get("networksId");
 
   return {
-    station_id: station.siteId,
+    station_id: station.siteId === null ? RESERVED_SITE_ID_PREFIX : station.siteId,
     operator_id: station.operatorId,
     notes: station.notes,
     networks_id: typeof networksId === "string" ? Number(networksId) : networksId,

@@ -9,7 +9,7 @@ import { RELEASE_SHA256, RUN_ID, runRow, scriptStoredRun, signInAs } from "../..
 const request = { method: "GET" as const, url: `/official/import-runs/${RUN_ID}` };
 const startedAt = new Date("2026-10-12T08:00:05.000Z");
 const finishedAt = new Date("2026-10-12T08:03:00.000Z");
-const done = { ...runRow, state: "done", attempt: 1, startedAt, claimedAt: startedAt, heartbeatAt: finishedAt, finishedAt };
+const done: typeof runRow = { ...runRow, state: "done", attempt: 1, startedAt, claimedAt: startedAt, heartbeatAt: finishedAt, finishedAt };
 const sliceRow = {
   datasetId: 11,
   datasetKey: "permits",
@@ -167,7 +167,7 @@ describe("GET /official/import-runs/:id", () => {
   });
 
   it("returns what a remap dry run would do to the licensee's sites and permits", async () => {
-    const remapRun = { ...done, kind: "remap", isDryRun: true };
+    const remapRun: typeof runRow = { ...done, kind: "remap", isDryRun: true };
     scriptStoredRun(remapRun, { remaps: [{ runId: RUN_ID, licenseeId: 5, fromOperatorId: 4, toOperatorId: 7 }] });
     scriptDetail();
     await saveDryRunReport(RUN_ID, {

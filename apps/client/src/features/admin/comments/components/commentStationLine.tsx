@@ -2,6 +2,7 @@ import type { CommentStation } from "@openbts/shared/contract";
 import { useTranslation } from "react-i18next";
 
 import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { cn } from "@/lib/utils";
 
 type CommentStationLineProps = {
@@ -18,13 +19,14 @@ export function CommentStationLine({ station, brand, operatorName, onStationOpen
   const { t } = useTranslation("terrainProfile");
   const city = station.location?.city ?? null;
   const siteIdClass = operatorName === undefined ? LEADING_SITE_ID_CLASS : NAMED_SITE_ID_CLASS;
+  const stationNumber = getStationNumber(station);
 
   return (
     <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
       <BrandMark brand={brand} />
       {operatorName === undefined ? null : <span className="shrink-0 font-medium text-foreground">{operatorName}</span>}
       {onStationOpen === undefined ? (
-        <span className={siteIdClass}>{station.siteId}</span>
+        <span className={siteIdClass}>{stationNumber}</span>
       ) : (
         <button
           type="button"
@@ -36,7 +38,7 @@ export function CommentStationLine({ station, brand, operatorName, onStationOpen
           aria-haspopup="dialog"
           onClick={onStationOpen}
         >
-          {station.siteId}
+          {stationNumber}
         </button>
       )}
       {city === null ? null : (

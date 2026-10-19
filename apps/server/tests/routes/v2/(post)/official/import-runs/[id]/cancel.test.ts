@@ -6,7 +6,7 @@ import { expectError, injectMutation, whereQuery } from "../../../../../../helpe
 import { RUN_ID, runRow, scriptStoredRun, signInAs } from "../../../../../../helpers/officialFixtures.js";
 
 const request = { method: "POST" as const, url: `/official/import-runs/${RUN_ID}/cancel` };
-const cancelled = { ...runRow, state: "cancelled", finishedAt: new Date("2026-10-12T08:01:00.000Z") };
+const cancelled: typeof runRow = { ...runRow, state: "cancelled", finishedAt: new Date("2026-10-12T08:01:00.000Z") };
 
 describe("POST /official/import-runs/:id/cancel", () => {
   it("cancels a queued or running run and answers it", async () => {

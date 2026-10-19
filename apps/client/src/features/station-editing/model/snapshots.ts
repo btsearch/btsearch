@@ -1,10 +1,10 @@
 import type {
-  Cell,
   CellChange,
   LocationChange,
   Operator,
   Region,
   SectorChange,
+  StationCell,
   StationChange,
   StationIdentifier,
   StationIdentifierKind,
@@ -189,7 +189,7 @@ function readFlags(rat: Rat, source: FlagSource, fallback: CellFlags): CellFlags
   return flags;
 }
 
-function toCellDraft(cell: Cell, ownerPlmn: string | null): CellDraft {
+function toCellDraft(cell: StationCell, ownerPlmn: string | null): CellDraft {
   const numbers: NumberSource = cell;
   const flags: FlagSource = cell.rat === "umts" ? {} : cell;
 
@@ -236,7 +236,7 @@ function getCellRank(cell: CellDraft): number {
   return field === null ? 0 : (getCellNumber(cell, field) ?? 0);
 }
 
-function sortRecordCells(cells: readonly Cell[], ownerPlmn: string | null): CellDraft[] {
+function sortRecordCells(cells: readonly StationCell[], ownerPlmn: string | null): CellDraft[] {
   const rows = cells.map((cell) => ({ draft: toCellDraft(cell, ownerPlmn), bandRank: cell.band?.labelMhz ?? 0 }));
   rows.sort(
     (left, right) =>
@@ -333,7 +333,7 @@ export function toStationSnapshot(record: StationRecord): StationSnapshot {
 
   return {
     station: {
-      siteId: record.siteId,
+      siteId: record.siteId ?? "",
       operatorId: record.operatorId,
       status: record.status,
       isConfirmed: record.isConfirmed,
@@ -372,7 +372,7 @@ function layStation(base: StationDraft, change: StationChange | null): StationDr
 
   return {
     ...base,
-    siteId: change.siteId ?? base.siteId,
+    siteId: change.siteId === undefined ? base.siteId : (change.siteId ?? ""),
     operatorId: change.operatorId ?? base.operatorId,
     notes: change.notes === undefined ? base.notes : (change.notes ?? ""),
     identifiers: layIdentifiers(base.identifiers, change.identifiers),

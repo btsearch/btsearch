@@ -29,10 +29,10 @@ const COMPUTED: NameCase[] = [
   [TMOBILE, "12345", " ", null, "_12345"],
   [TMOBILE, "n1234", "Warszawa", null, "Warszawa_n1234"],
   [TMOBILE, "1N234", "Warszawa", null, "Warszawa_1N234"],
-  [TMOBILE, "", "Warszawa", null, "Warszawa_"],
 ];
 
 const NOT_COMPUTED: NameCase[] = [
+  [TMOBILE, "", "Warszawa", null, null],
   [TMOBILE, "N1234", "Warszawa", "WAW_CENTRUM", null],
   [TMOBILE, "N", "Warszawa", null, null],
   [TMOBILE, "12345", "", "WAW_CENTRUM", null],

@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { csvBandIdsSchema } from "./bands.ts";
-import { CELL_RATS, cellSchema } from "./cells.ts";
+import { CELL_RATS, stationCellSchema } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
@@ -107,7 +107,30 @@ const locationShape = {
 export const stationLocationSchema = z.object(locationShape);
 export type StationLocation = z.infer<typeof stationLocationSchema>;
 
+export const RESERVED_SITE_ID_PREFIX = "~";
 export const STATION_SITE_ID_NOTE = "The id the operator uses for the station, unique among the operator's stations";
+export const STATION_SITE_ID_READ_NOTE = `${STATION_SITE_ID_NOTE}. \`null\` while no number is known`;
+export const NODE_NAME_NOTE =
+  "A name you can show in place of `siteId` while the station has no number, taken from the first of these it has: " +
+  "its lowest eNB (`4G 412345`), its lowest gNB (`5G 1234567`), its lowest UMTS cell (`3G 12:34561`, RNC and cell id) " +
+  "or its lowest GSM cell (`2G 1234:5678`, LAC and cell id). `null` for a station with a number, and for one with none of these";
+
+export const CID_RANGE = 65_536;
+
+export type NodeIds = { enbid: number | null; gnbid: number | null; longCid: number | null; gsmCellKey: number | null };
+
+function toCellPair(key: number): string {
+  return `${Math.floor(key / CID_RANGE)}:${key % CID_RANGE}`;
+}
+
+export function toNodeName({ enbid, gnbid, longCid, gsmCellKey }: NodeIds): string | null {
+  if (enbid !== null) return `4G ${enbid}`;
+  if (gnbid !== null) return `5G ${gnbid}`;
+  if (longCid !== null) return `3G ${toCellPair(longCid)}`;
+  if (gsmCellKey !== null) return `2G ${toCellPair(gsmCellKey)}`;
+  return null;
+}
+
 const HOST_STATION_NOTE =
   "The station that hosts this one in a shared network: another member's station at the same location, " +
   "which holds the official permits while this station has none";
@@ -117,7 +140,8 @@ const STATION_STATUS_NOTE =
 
 const stationOwnShape = {
   id: z.number().int(),
-  siteId: z.string().describe(STATION_SITE_ID_NOTE),
+  siteId: z.string().nullable().describe(STATION_SITE_ID_READ_NOTE),
+  nodeName: z.string().nullable().describe(NODE_NAME_NOTE),
   operatorId: z.number().int().nullable(),
   locationId: z.number().int().nullable(),
   hostStationId: z.number().int().nullable().describe(HOST_STATION_NOTE),
@@ -140,7 +164,7 @@ export const stationSchema = z.object({
   guestOperatorIds: z.array(z.number().int()).describe(GUEST_OPERATORS_NOTE),
   operator: operatorSchema.nullable().optional().describe(INCLUDE_NOTE),
   location: stationLocationSchema.nullable().optional().describe(INCLUDE_NOTE),
-  cells: z.array(cellSchema).optional().describe(INCLUDE_NOTE),
+  cells: z.array(stationCellSchema).optional().describe(INCLUDE_NOTE),
   sectors: z.array(sectorSchema).optional().describe(INCLUDE_NOTE),
   backhaul: backhaulSchema.nullable().optional().describe(INCLUDE_NOTE),
 });

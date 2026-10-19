@@ -2,6 +2,7 @@ import { operators, proposedStations, stations } from "@openbts/drizzle";
 import { eq, inArray } from "drizzle-orm";
 
 import db from "../../database/psql.js";
+import { toSiteId } from "../stations/siteIds.js";
 
 export type StationLabel = { stationId: string | null; operatorName: string | null; operatorMnc: number | null };
 
@@ -51,8 +52,9 @@ export async function getSubmissionStationLabels(rows: { id: string; station_id:
 }
 
 export function stationLabelMetadata(label: Partial<StationLabel> | undefined): Record<string, string | number> {
+  const siteId = toSiteId(label?.stationId ?? null);
   return {
-    ...(label?.stationId ? { station_id: label.stationId } : {}),
+    ...(siteId ? { station_id: siteId } : {}),
     ...(label?.operatorName ? { station_operator_name: label.operatorName } : {}),
     ...(typeof label?.operatorMnc === "number" ? { station_operator_mnc: label.operatorMnc } : {}),
   };

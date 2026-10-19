@@ -24,7 +24,7 @@ import { type OfficialVisibility, officialSourceIsPublic } from "./visibility.js
 
 const licenseeSelectSchema = createSelectSchema(licensees);
 
-type LicenseeRow = z.infer<typeof licenseeSelectSchema>;
+export type LicenseeRow = z.infer<typeof licenseeSelectSchema>;
 
 const SORT = "name";
 const SORT_COLUMNS = { name: { column: licensees.name, kind: "text" } } as const;

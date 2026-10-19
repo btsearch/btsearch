@@ -188,6 +188,12 @@
     "twoFactor": "Two-factor authentication",
     "added": "Added"
   },
+  "stationNumber": {
+    "enb": "No station number is known. The station is named after its eNBID",
+    "gnb": "No station number is known. The station is named after its gNBID",
+    "cell": "No station number is known. The station is named after one of its cells",
+    "none": "No station number is know."
+  },
   "placeholder": {
     "search": "Search...",
     "notes": "Additional information (optional)...",

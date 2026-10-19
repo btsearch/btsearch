@@ -10,13 +10,14 @@ import { buttonVariants } from "@/components/ui/button";
 import { EDITOR_STATION_SEARCH } from "@/features/admin/stations/editorStationSearch";
 import { locationRecordQueryOptions } from "@/features/station-details/station/api";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { cn } from "@/lib/utils";
 
 export type PlaceStation = {
   id: number;
-  siteId: string;
+  siteId: string | null;
+  nodeName: string | null;
   operatorId: number | null;
   status: StationStatus;
 };
@@ -52,7 +53,7 @@ function PlaceStationChip({ station, operator, brand, opensEditor }: PlaceStatio
     <>
       <BrandMark brand={brand} size={14} />
       <span className="font-medium">{operator?.name ?? t("main:unknownOperator")}</span>
-      <span className="font-mono font-semibold">{station.siteId}</span>
+      <span className="font-mono font-semibold">{getStationNumber(station)}</span>
       {station.status === "active" ? null : <StationStatusBadge status={toV1StationStatus(station.status)} className="pointer-events-none" />}
       <HugeiconsIcon icon={ArrowUpRight01Icon} aria-hidden="true" className="size-3 text-muted-foreground" />
     </>

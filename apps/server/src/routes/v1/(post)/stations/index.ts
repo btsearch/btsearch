@@ -1,4 +1,5 @@
 import { bands, cells, gsmCells, locations, lteCells, nrCells, operators, stations, umtsCells } from "@openbts/drizzle";
+import { RESERVED_SITE_ID_MESSAGE } from "@openbts/shared/contract";
 import { DrizzleQueryError } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -24,12 +25,15 @@ import {
 import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
 import { correctStationLinks } from "../../../../features/official/links.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
+import { isPlaceholderSiteId } from "../../../../features/stations/siteIds.js";
 import { stationStatusForCellCount } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const stationsInsertSchema = createInsertSchema(stations).omit({ extra_address: true, status: true, statusChangedAt: true });
+const stationsInsertSchema = createInsertSchema(stations, {
+  station_id: (column) => column.refine((siteId) => !isPlaceholderSiteId(siteId), { message: RESERVED_SITE_ID_MESSAGE }),
+}).omit({ extra_address: true, status: true, statusChangedAt: true });
 const stationSchema = createSelectSchema(stations);
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true });
 const bandsSchema = createSelectSchema(bands);

@@ -6,7 +6,7 @@ import type { Gallery } from "../galleryTiles";
 import { GalleryGroupHeader } from "./galleryGroupHeader";
 import { GalleryPhotoTile, type GalleryPhotoTileLabels } from "./galleryPhotoTile";
 import type { MapLookups } from "@/features/map/data/mapLookups";
-import { getLocationLabel } from "@/features/station-details/station/utils/stations";
+import { getLocationLabel, getStationNumber } from "@/features/station-details/station/utils/stations";
 import { cn } from "@/lib/utils";
 
 type GalleryGridProps = {
@@ -58,7 +58,7 @@ export function GalleryGrid({ gallery, layout, lookups, hasCountryTiles, onPhoto
                 <GalleryPhotoTile
                   key={tile.key}
                   photo={tile.photo}
-                  siteId={tile.station.siteId}
+                  siteId={getStationNumber(tile.station)}
                   isMain={tile.isMain}
                   slideIndex={tile.slideIndex}
                   tileIndex={tile.tileIndex}

@@ -67,7 +67,7 @@ type ReviewInput = {
 type IdentifierPart = { kind: StationIdentifierKind; value: string | null };
 type BackhaulPart = { medium?: BackhaulMedium; speedMbps?: number | null; model?: string | null };
 type StationPart = {
-  siteId?: string;
+  siteId?: string | null;
   operatorId?: number;
   notes?: string | null;
   identifiers?: IdentifierPart[];
@@ -212,7 +212,7 @@ function buildStationPart(station: StationDraft, base: StationDraft, isDirect: b
   });
   const backhaul = buildBackhaulPart(station, base);
 
-  if (siteId !== "" && siteId !== normalizeText(base.siteId)) part.siteId = siteId;
+  if (siteId !== normalizeText(base.siteId)) part.siteId = toNullableText(siteId);
   if (station.operatorId !== null && station.operatorId !== base.operatorId) part.operatorId = station.operatorId;
   if (notes !== normalizeText(base.notes)) part.notes = toNullableText(notes);
   if (identifiers.length > 0) part.identifiers = identifiers;
@@ -503,12 +503,13 @@ export function buildStationCreate(session: EditSession, owner: DraftOwner): Bui
   const { draft } = session;
   const options: PartOptions = { ...DIRECT_OPTIONS, owner };
   const parts = buildParts(draft, EMPTY_SNAPSHOT, options);
-  const { siteId, operatorId, status: _status, ...station } = parts.station;
+  const { operatorId, status: _status, siteId, ...station } = parts.station;
   const { location } = parts;
   const { cells, cellKeys } = toNewCells(draft, options);
-  if (siteId === undefined || operatorId === undefined) return nothingBuilt();
+  if (operatorId === undefined) return nothingBuilt();
 
-  const body: StationCreate = { station: { ...station, siteId, operatorId, isConfirmed: draft.station.isConfirmed } };
+  const body: StationCreate = { station: { ...station, operatorId, isConfirmed: draft.station.isConfirmed } };
+  if (typeof siteId === "string") body.station.siteId = siteId;
   if (location !== null && location.latitude !== undefined && location.longitude !== undefined) {
     const { move: _move, ...place } = location;
     body.location = { ...place, latitude: location.latitude, longitude: location.longitude };

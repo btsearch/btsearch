@@ -9,6 +9,7 @@ import {
   submissions,
 } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
+import { SITE_ID_NEEDED_MESSAGE } from "@openbts/shared/contract";
 import { and, count, eq, inArray } from "drizzle-orm/sql";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import z from "zod";
@@ -32,6 +33,7 @@ import {
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { assertCellUpdateFitsStoredRat, refuseNsaFields } from "../cells/ratCellSchemas.js";
 import { backhaulSpeedSchema } from "../stations/backhaul.js";
+import { toSiteId } from "../stations/siteIds.js";
 import type { StationStatus } from "../stations/status.js";
 import {
   type ProposedLocationChanges,
@@ -277,6 +279,14 @@ async function checkChangedCellIdentities(
   return cellNetworks;
 }
 
+const NAMING_FIELDS = { GSM: "lac", UMTS: "rnc", LTE: "enbid", NR: "gnbid" } as const;
+
+function letsStationLackSiteId({ rat, details }: ChangeCell): boolean {
+  if (!rat) return false;
+  const nodeId = (details as Record<string, unknown> | undefined)?.[NAMING_FIELDS[rat]];
+  return typeof nodeId === "number" && nodeId > 0;
+}
+
 export async function validateChange(input: SubmissionChange, handling: "review" | "direct"): Promise<string[][]> {
   const { station_id, type, station: stationData } = input;
   const locationData = input.location ?? undefined;
@@ -288,7 +298,10 @@ export async function validateChange(input: SubmissionChange, handling: "review"
     throw new ErrorResponse("BAD_REQUEST", { message: "At least one photo is required when submitting a new station without cells" });
   }
 
-  if (isNewStation && !stationData?.station_id?.trim()) throw new ErrorResponse("BAD_REQUEST", { message: "A new station needs a station ID" });
+  const proposesSiteId = toSiteId(stationData?.station_id?.trim() || null) !== null;
+  if (isNewStation && !proposesSiteId && !input.cells?.some(letsStationLackSiteId)) {
+    throw new ErrorResponse("BAD_REQUEST", { message: SITE_ID_NEEDED_MESSAGE });
+  }
   if (isNewStation && stationData && typeof stationData.operator_id !== "number")
     throw new ErrorResponse("BAD_REQUEST", { message: "operator_id is required for new stations" });
   if (isNewStation && stationData && !stationData.uplink_type && typeof stationData.uplink_speed === "number") {

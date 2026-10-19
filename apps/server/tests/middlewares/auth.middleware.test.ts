@@ -255,6 +255,7 @@ describe("authHook", () => {
       expiresAt: new Date("2099-01-01"),
       revoked: false,
       sessionId: null,
+      client: { disabled: false },
     });
     dbMock.query.users.findFirst.mockResolvedValue(userSession().user);
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: permitted });
@@ -272,6 +273,7 @@ describe("authHook", () => {
       createdAt: new Date(),
       expiresAt: new Date("2099-01-01"),
       revoked: false,
+      client: { disabled: false },
     });
     dbMock.query.users.findFirst.mockResolvedValue({ ...userSession().user, forceTotp: true, twoFactorEnabled: false });
     expectFailure(await request({}, { authorization: "Bearer oat_secret" }), 403, "TWO_FACTOR_REQUIRED");

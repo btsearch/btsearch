@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useLightbox } from "@/components/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { cn } from "@/lib/utils";
 
 export type CommentThumbnailSize = "sm" | "md";
@@ -19,7 +20,7 @@ const LIST_CLASSES: Record<CommentThumbnailSize, string> = { sm: "gap-1", md: "g
 const TILE_CLASSES: Record<CommentThumbnailSize, string> = { sm: "size-10 rounded", md: "size-16 rounded-md" };
 
 function toLightboxPhotos(comment: Comment, stationLabel: string): LightboxPhoto[] {
-  const extra = comment.station === undefined ? undefined : `${stationLabel}: ${comment.station.siteId}`;
+  const extra = comment.station === undefined ? undefined : `${stationLabel}: ${getStationNumber(comment.station)}`;
 
   return comment.attachments.map((attachment) => ({
     id: attachment.id,

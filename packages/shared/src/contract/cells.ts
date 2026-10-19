@@ -14,6 +14,7 @@ export type NrMode = (typeof NR_MODES)[number];
 
 export const BSIC_MAX = 63;
 export const PSC_MAX = 511;
+export const GNBID_MAX = 4_294_967_295;
 export const GNBID_MIN_LENGTH = 22;
 export const GNBID_MAX_LENGTH = 32;
 export const DEFAULT_GNBID_LENGTH = 24;
@@ -94,7 +95,7 @@ export const nrCellSchema = z.object({
   gnbid: identifierSchema.describe(CELL_FIELD_NOTES.gnbid),
   gnbidLength: identifierSchema.describe(CELL_FIELD_NOTES.gnbidLength),
   clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
-  nci: identifierSchema.describe("The NR cell identity, made up of `gnbid` and `clid`"),
+  nci: identifierSchema.describe("The NR cell identity, equal to `gnbid * 2^(36 - gnbidLength) + clid`"),
   pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
   arfcn: identifierSchema.describe(CELL_FIELD_NOTES.arfcn),
   supportsRedCap: z.boolean().describe(CELL_FIELD_NOTES.supportsRedCap),
@@ -102,3 +103,18 @@ export const nrCellSchema = z.object({
 
 export const cellSchema = z.discriminatedUnion("rat", [gsmCellSchema, umtsCellSchema, lteCellSchema, nrCellSchema]);
 export type Cell = z.infer<typeof cellSchema>;
+
+const IMPLIED_BY_STATION = { stationId: true } as const;
+
+export const stationGsmCellSchema = gsmCellSchema.omit(IMPLIED_BY_STATION);
+export const stationUmtsCellSchema = umtsCellSchema.omit(IMPLIED_BY_STATION);
+export const stationLteCellSchema = lteCellSchema.omit(IMPLIED_BY_STATION);
+export const stationNrCellSchema = nrCellSchema.omit(IMPLIED_BY_STATION);
+
+export const stationCellSchema = z.discriminatedUnion("rat", [
+  stationGsmCellSchema,
+  stationUmtsCellSchema,
+  stationLteCellSchema,
+  stationNrCellSchema,
+]);
+export type StationCell = z.infer<typeof stationCellSchema>;

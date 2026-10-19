@@ -18,6 +18,7 @@ import { useFloatingDialogStack } from "@/features/floating-dialogs/components/f
 import { SettingsCard, SettingsCardFooter, SettingsRow, SettingsSection } from "@/features/settings/components/settingsPrimitives";
 import { brandsQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { useIsMobile } from "@/hooks/useMobile";
 
 const ALL_OPERATORS = "all";
@@ -131,7 +132,7 @@ function CommentRow({
   const { t } = useTranslation("main");
   const { openStationDialog } = useFloatingDialogStack();
   const { station } = comment;
-  const stationId = station?.siteId ?? String(comment.stationId);
+  const stationId = station ? getStationNumber(station) : String(comment.stationId);
   const stationLabel = operator ? `${operator.name} ${stationId}` : stationId;
   const city = station?.location?.city;
 

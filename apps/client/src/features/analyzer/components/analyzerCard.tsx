@@ -16,6 +16,7 @@ import { ANALYZER_SECOND_LINE_CLASS } from "./analyzerLayout";
 import { GroupTick, type StationGroupProps } from "./analyzerRow";
 import type { RowOpeners, RowView } from "./rowView";
 import { BrandMark } from "@/components/cellular/brandMark";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { cn } from "@/lib/utils";
 
 type AnalyzerCardProps = {
@@ -81,7 +82,7 @@ export function StationGroupCard({ stationView, rowIndexes, mark, differenceCoun
 
   return (
     <li className={GROUP_CARD_CLASS}>
-      <GroupTick mark={mark} label={t("selection.selectStation", { siteId: station.siteId })} onToggle={() => onToggle(rowIndexes)} />
+      <GroupTick mark={mark} label={t("selection.selectStation", { siteId: getStationNumber(station) })} onToggle={() => onToggle(rowIndexes)} />
       <BrandMark brand={operator?.brand} />
       <StationIdButton station={station} className="shrink-0 text-[13px]" onOpen={openers.openStation} />
       <div className={cn("flex min-w-0 flex-1 items-center gap-1.5", ANALYZER_SECOND_LINE_CLASS)}>

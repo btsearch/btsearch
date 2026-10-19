@@ -5,11 +5,12 @@ import { useTranslation } from "react-i18next";
 import { StationDialogHeading } from "../../../components/stationDialogShell";
 import type { Brand, LocationStationRecord, Operator, StationRecord } from "../../types";
 import { getOperatorBrand } from "../../utils/brands";
-import { findHostStation, toV1StationStatus } from "../../utils/stations";
+import { findHostStation, getStationNumber, toV1StationStatus } from "../../utils/stations";
 import { getStructureOwnerBrand } from "../../utils/structure";
 import { HostedStationBadge } from "./hostedStationBadge";
 import { StationStructureLine } from "./stationStructureLine";
 import { listOperatorMarks } from "@/features/shared/operatorMarks";
+import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 
 type StationPanelHeadingProps = {
@@ -29,10 +30,11 @@ export function StationPanelHeading({ station, brands, operators, locationStatio
     <StationDialogHeading
       operatorName={station.operator?.name ?? t("main:unknownOperator")}
       operatorBrand={getOperatorBrand(station.operator, brands)}
-      stationCode={station.siteId}
+      stationCode={getStationNumber(station)}
       guests={listOperatorMarks(station.guestOperatorIds, operators, brands)}
       badges={
         <>
+          <StationNumberMark station={station} />
           {station.hostStationId !== null ? (
             <HostedStationBadge
               hostStation={hostStation}

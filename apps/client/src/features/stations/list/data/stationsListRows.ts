@@ -12,7 +12,7 @@ import type { StationRecord } from "@/features/station-details/station/types";
 import { toRatType } from "@/features/station-details/station/utils/bands";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { type CellIdentifierField, findCellIdentifierLabel, getCellIdentifier } from "@/features/station-details/station/utils/cells";
-import { getStationCountryCode, toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { getStationCountryCode, getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import type { StationStatus as V1StationStatus } from "@/types/station";
 
 type IdentifierMatchField = "networksId" | "networksName" | "operatorName";
@@ -118,7 +118,7 @@ function toStationsListRow({ station, match }: StationsListHit, context: RowCont
 
   return {
     id: station.id,
-    siteId: station.siteId,
+    siteId: getStationNumber(station),
     siteIdMark: marks.siteId,
     brand: context.lookups === undefined ? undefined : getOperatorBrand(station.operator, context.lookups.brands),
     operatorName: station.operator?.name ?? null,

@@ -1,3 +1,5 @@
+import type { RunRow } from "../../src/features/official/importRuns.js";
+import type { LicenseeRow } from "../../src/features/official/licensees.js";
 import { adminRole, editorRole } from "../../src/plugins/auth/permissions.js";
 import { authBoundary, dbMock, userSession } from "./boundaries.js";
 
@@ -46,7 +48,7 @@ export const datasetRow = {
   updatedAt: queuedAt,
 };
 
-export const runRow = {
+export const runRow: RunRow = {
   id: RUN_ID,
   sourceId: 1,
   kind: "import",
@@ -64,7 +66,14 @@ export const runRow = {
   createdAt: queuedAt,
 };
 
-export const licenseeRow = { id: 5, name: "Example Mobile", full_name: "Example Mobile S.A.", brandId: null, sourceId: 1, operatorId: null };
+export const licenseeRow: LicenseeRow = {
+  id: 5,
+  name: "Example Mobile",
+  full_name: "Example Mobile S.A.",
+  brandId: null,
+  sourceId: 1,
+  operatorId: null,
+};
 
 export function signInAs(role: keyof typeof ROLES) {
   const session = userSession(STAFF_ID, role);

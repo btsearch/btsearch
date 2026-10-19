@@ -1,6 +1,5 @@
 import type {
   Brand,
-  Cell,
   Location,
   LocationStation,
   OfficialLocation,
@@ -9,6 +8,7 @@ import type {
   OfficialSiteLocation,
   Operator,
   Sector,
+  StationCell,
   StationIdentifier,
   StationStatus,
 } from "@openbts/shared/contract";
@@ -25,7 +25,8 @@ export type MapStationGuest = { operatorId: number; name: string; code: string |
 
 export type MapPointStation = {
   id: number;
-  siteId: string;
+  siteId: string | null;
+  nodeName: string | null;
   operatorId: number | null;
   operator: Operator | null;
   operatorName: string | null;
@@ -56,11 +57,12 @@ export type MapPoint = {
 
 export type MapPlace = Pick<MapPoint, "id" | "city" | "address" | "regionName" | "latitude" | "longitude" | "structure">;
 
-export type MapPopupStation = MapPointStation & { cells: readonly Cell[] };
+export type MapPopupStation = MapPointStation & { cells: readonly StationCell[] };
 
 export type MapPointStationSeed = {
   id: number;
-  siteId: string;
+  siteId: string | null;
+  nodeName: string | null;
   operatorId: number | null;
   operatorName?: string | null;
   guestOperatorIds?: readonly number[];
@@ -74,7 +76,7 @@ export type MapPointStationSeed = {
 
 type ListedStationRecord = Pick<
   LocationStation,
-  "id" | "siteId" | "operatorId" | "guestOperatorIds" | "status" | "statusChangedAt" | "hostStationId" | "identifiers"
+  "id" | "siteId" | "nodeName" | "operatorId" | "guestOperatorIds" | "status" | "statusChangedAt" | "hostStationId" | "identifiers"
 > & {
   sectors?: Sector[];
 };
@@ -103,6 +105,7 @@ export function createMapPointStation(seed: MapPointStationSeed, lookups: MapLoo
   return {
     id: seed.id,
     siteId: seed.siteId,
+    nodeName: seed.nodeName,
     operatorId: seed.operatorId,
     operator: operatorLook.operator,
     operatorName: operatorLook.operator?.name ?? seed.operatorName ?? null,
@@ -135,6 +138,7 @@ function toMapPointStation(station: ListedStationRecord, lookups: MapLookups, fa
     {
       id: station.id,
       siteId: station.siteId,
+      nodeName: station.nodeName,
       operatorId: station.operatorId,
       operatorName: fallbackOperatorName,
       guestOperatorIds: station.guestOperatorIds,
@@ -168,6 +172,7 @@ function officialSiteToMapPointStation(site: OfficialLocationSite, place: Offici
     {
       id: site.id,
       siteId: site.siteId ?? "",
+      nodeName: null,
       operatorId: site.operatorId,
       azimuths: listOfficialSiteAzimuths(site),
       officialSite: { ...site, location: place },

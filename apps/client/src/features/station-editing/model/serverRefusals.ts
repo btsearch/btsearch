@@ -298,7 +298,12 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     findTargets: atRat("nr"),
     readValues: () => ({ field: CELL_FLAG_LABELS.supportsRedCap }),
   },
-  { pattern: /^A new station needs a station ID$/, messageKey: "stations:edit.errors.siteIdRequired", findTargets: atStation("siteId") },
+  {
+    pattern:
+      /^A station needs a station number unless it has a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC$/,
+    messageKey: "stations:edit.errors.siteIdRequiredWithoutNode",
+    findTargets: atStation("siteId"),
+  },
   {
     pattern: /^(A new station's backhaul speed needs a backhaul type|medium is required for a new station's backhaul)$/,
     messageKey: "stations:edit.errors.backhaulMediumRequired",

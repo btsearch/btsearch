@@ -21,7 +21,7 @@ import { StationInfoItem } from "@/features/station-details/components/stationIn
 import { locationPhotoRecordsQueryOptions, locationRecordQueryOptions } from "@/features/station-details/station/api";
 import { StructureNoteItem, StructureOwnerItem, StructureTypeItem } from "@/features/station-details/station/components/overview/structureItems";
 import type { LocationRecord } from "@/features/station-details/station/types";
-import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { LocationStationList } from "@/features/stations/components/LocationStationList";
 import { usePreferences } from "@/hooks/usePreferences";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
@@ -47,7 +47,7 @@ function locationHead(location: LocationRecord, sources: readonly OfficialSource
         longitude: location.longitude,
         stations: location.stations.map((station) => ({
           id: station.id,
-          stationCode: station.siteId,
+          stationCode: getStationNumber(station),
           operatorName: station.operator?.name,
           status: toV1StationStatus(station.status),
         })),

@@ -6,6 +6,7 @@ import type {
   CountryFeatures,
   Sector,
   Station,
+  StationCell,
   StationIdentifier,
   StationLocation,
   StationStatus,
@@ -18,6 +19,7 @@ import { isUnknownBand } from "../bands/unknown.js";
 import { toStructure } from "../locations/structure.js";
 import type { LocationRow } from "../locations/write.js";
 import type { StructureOwnerRow } from "../structures/serialize.js";
+import { toSiteId } from "./siteIds.js";
 
 const stationSelectSchema = createSelectSchema(stations);
 const identifierSelectSchema = createSelectSchema(extraIdentificators);
@@ -104,15 +106,25 @@ export function toLegacyCellDetails(
 }
 
 export function toCell(
-  { cell, gsm, umts, lte, nr }: CellRows,
+  rows: CellRows,
   band: BandRow | undefined,
   embedBand: boolean,
   features: Readonly<CountryFeatures>,
   plmns: string[],
 ): Cell | null {
+  const stationCell = toStationCell(rows, band, embedBand, features, plmns);
+  return stationCell === null ? null : { ...stationCell, stationId: rows.cell.station_id };
+}
+
+export function toStationCell(
+  { cell, gsm, umts, lte, nr }: CellRows,
+  band: BandRow | undefined,
+  embedBand: boolean,
+  features: Readonly<CountryFeatures>,
+  plmns: string[],
+): StationCell | null {
   const common = {
     id: cell.id,
-    stationId: cell.station_id,
     bandId: band && isUnknownBand(band) ? null : cell.band_id,
     sectorId: cell.sector_id,
     cellType: cell.type === null ? null : CELL_TYPES[cell.type],
@@ -178,10 +190,17 @@ export function toCell(
   return null;
 }
 
-export function toStation(row: StationRow, identifiers: readonly IdentifierRow[], hostStationId: number | null, guestOperatorIds: number[]): Station {
+export function toStation(
+  row: StationRow,
+  identifiers: readonly IdentifierRow[],
+  hostStationId: number | null,
+  guestOperatorIds: number[],
+  nodeName: string | null,
+): Station {
   return {
     id: row.id,
-    siteId: row.station_id,
+    siteId: toSiteId(row.station_id),
+    nodeName,
     operatorId: row.operator_id,
     guestOperatorIds,
     locationId: row.location_id,

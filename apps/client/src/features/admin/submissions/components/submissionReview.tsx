@@ -26,7 +26,7 @@ import { stationHistoryQueryOptions } from "@/features/station-details/station/h
 import type { StationHistoryItem } from "@/features/station-details/station/history/types";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { getStationCountryCode } from "@/features/station-details/station/utils/stations";
+import { getStationCountryCode, getStationNumber } from "@/features/station-details/station/utils/stations";
 import { CellsPanel } from "@/features/station-editing/components/cells/cellsPanel";
 import { EditPage, type EditPageCard } from "@/features/station-editing/components/frame/editPage";
 import { HistoryCard } from "@/features/station-editing/components/frame/historyCard";
@@ -41,7 +41,7 @@ import { retryEditLookups } from "@/features/station-editing/data/lookups";
 import { submissionPhotosQueryOptions } from "@/features/station-editing/data/submissionPhotos";
 import { type StationDraftApi, useBlockedSaves, useEditText, useStationDraft } from "@/features/station-editing/hooks/useStationDraft";
 import { buildSubmissionReview, buildSubmissionUpdate } from "@/features/station-editing/model/bodies";
-import { buildPhotoChanges, countDraftCells, formatCoordinatePair } from "@/features/station-editing/model/changes";
+import { buildPhotoChanges, countDraftCells, findNodeName, findSiteIdRemoval, formatCoordinatePair } from "@/features/station-editing/model/changes";
 import type { SessionInput } from "@/features/station-editing/model/draftReducer";
 import { type BuiltKeys, isServerRefusal, toEditErrors } from "@/features/station-editing/model/serverRefusals";
 import { findDraftOperator, listProposalOrphans, toProposedSnapshot, toStationSnapshot } from "@/features/station-editing/model/snapshots";
@@ -317,7 +317,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
   function showHistory(shownStation: StationRecord) {
     openStationHistoryDialog({
       stationId: shownStation.id,
-      stationCode: shownStation.siteId,
+      stationCode: getStationNumber(shownStation),
       operatorName: shownStation.operator?.name ?? t("main:unknownOperator"),
       operatorBrandId: shownStation.operator?.brandId ?? null,
     });
@@ -338,7 +338,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
   const { operatorsById, brands } = edit.lookups;
   const draftOperator = findDraftOperator(draft, operatorsById);
   const headOperator = draftOperator ?? station?.operator ?? null;
-  const stationLabel = describeStation(draftOperator?.name, draft.station.siteId.trim());
+  const stationLabel = describeStation(draftOperator?.name, draft.station.siteId.trim() || (findNodeName(draft) ?? ""));
   const photoPicks = submission.changes.photos;
   const uploadedCount = uploadedPhotos?.length ?? photoPicks.uploadedCount;
   const missingPhotoCount = Math.max(photoPicks.announcedCount - uploadedCount, 0);
@@ -366,7 +366,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
   });
   const { partnerStation } = facts;
   const partnerOperator = partnerStation === null || partnerStation.operatorId === null ? null : operatorsById.get(partnerStation.operatorId);
-  const partnerLabel = partnerStation === null ? null : describeStation(partnerOperator?.name, partnerStation.siteId);
+  const partnerLabel = partnerStation === null ? null : describeStation(partnerOperator?.name, getStationNumber(partnerStation));
   const submissionTabLabel = t("review.tabs.submission");
   const hasPhotos = uploadedCount > 0 || missingPhotoCount > 0 || photoPicks.selected.length > 0 || photoPicks.removed.length > 0;
 
@@ -400,7 +400,12 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
         />
       ),
     },
-    { id: "station", label: t("common:labels.station"), scopes: ["station"], node: <StationCard edit={edit} stationId={editedStationId} /> },
+    {
+      id: "station",
+      label: t("common:labels.station"),
+      scopes: ["station"],
+      node: <StationCard edit={edit} stationId={editedStationId} />,
+    },
     { id: "place", label: t("common:labels.location"), scopes: ["place"], node: <LocationCard edit={edit} stationId={editedStationId} /> },
     {
       id: "sectors",
@@ -430,7 +435,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
       label: t("stations:edit.historyCard.title"),
       node: (
         <HistoryCard
-          station={{ id: station.id, siteId: station.siteId, operator: station.operator }}
+          station={{ id: station.id, siteId: getStationNumber(station), operator: station.operator }}
           markedSince={isPending ? submission.createdAt : null}
         />
       ),
@@ -477,7 +482,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
             ) : null}
             {submission.action === "delete" ? (
               <StatusStrip tone="danger" icon={Delete02Icon} title={t("common:submissionType.delete")}>
-                {t("deletionBanner", { stationId: station?.siteId ?? submission.stationId })}
+                {t("deletionBanner", { stationId: station === null ? submission.stationId : getStationNumber(station) })}
               </StatusStrip>
             ) : null}
           </>
@@ -492,6 +497,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
         onOpenChange={closeDialog}
         action={submission.action}
         stationLabel={stationLabel === "" ? t("common:labels.newStation") : stationLabel}
+        siteIdRemoval={findSiteIdRemoval(session)}
         placeLabel={describePlace(draft.place)}
         partnerLabel={partnerLabel}
         changeCount={changes.length}

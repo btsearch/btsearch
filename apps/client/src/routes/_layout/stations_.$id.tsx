@@ -48,7 +48,7 @@ import type { Sector, StationRecord } from "@/features/station-details/station/t
 import { getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
 import { formatSectorAzimuth } from "@/features/station-details/station/utils/sectors";
-import { findHostStation, getStationCountryCode, toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { findHostStation, getStationCountryCode, getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { usePreferences } from "@/hooks/usePreferences";
 import { settingsQueryOptions, useSettings } from "@/hooks/useSettings";
 import { i18n } from "@/i18n";
@@ -69,7 +69,7 @@ function stationHead(station: StationRecord, sources: readonly OfficialSource[])
       { name: APP_NAME, url: getBrowserOrigin() },
       {
         id: station.id,
-        stationCode: station.siteId,
+        stationCode: getStationNumber(station),
         status: toV1StationStatus(station.status),
         operatorName: station.operator?.name ?? i18n.t("main:unknownOperator"),
         networksLabel: getNetworksIdLabel(station),
@@ -142,7 +142,9 @@ function StationPage() {
   const operatorName = station.operator?.name ?? t("main:unknownOperator");
   const operatorColor = getBrandColor(getOperatorBrand(station.operator, brands));
   const stationNotes = station.notes?.trim();
-  const pageTitle = `${operatorName} ${station.siteId}`;
+  const stationNumber = getStationNumber(station);
+  const pageTitle = `${operatorName} ${stationNumber}`.trim();
+  const shareTitle = stationNumber === "" ? operatorName : `${stationNumber} (${operatorName})`;
   const city = station.location?.city || tCommon("labels.unknownLocation");
   const hostStation = findHostStation(station, location?.stations);
 
@@ -173,7 +175,7 @@ function StationPage() {
                   onClick={() =>
                     openStationHistoryDialog({
                       stationId: station.id,
-                      stationCode: station.siteId,
+                      stationCode: stationNumber,
                       operatorName,
                       operatorBrandId: station.operator?.brandId ?? null,
                     })
@@ -205,8 +207,8 @@ function StationPage() {
           </div>
           <div className="absolute top-3 right-3 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
             <ShareButton
-              title={`${station.siteId} (${operatorName})`}
-              text={`${station.siteId} (${operatorName}) - ${city} ${station.location?.address || ""}`.trim()}
+              title={shareTitle}
+              text={`${shareTitle} - ${city} ${station.location?.address || ""}`.trim()}
               url={`${window.location.origin}/stations/${station.id}`}
               size="md"
               className={stationDialogHeaderIconActionClassName}

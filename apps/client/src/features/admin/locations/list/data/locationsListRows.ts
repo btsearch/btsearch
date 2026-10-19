@@ -4,7 +4,7 @@ import type { LocationsListPageData, LocationsListRecord, LocationsListStationRe
 import type { BrandLook } from "@/components/cellular/brandMark";
 import type { MapLookups } from "@/features/map/data/mapLookups";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { sortLocationStations, toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { getStationNumber, sortLocationStations, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { type ListRowStructure, toListRowStructure, toShownText } from "@/features/stations/list/data/listStructures";
 import type { StationStatus as V1StationStatus } from "@/types/station";
 
@@ -37,7 +37,7 @@ const NO_ROWS: LocationsListRow[] = [];
 function toLocationsListRowStation(station: LocationsListStationRecord, lookups: MapLookups | undefined): LocationsListRowStation {
   return {
     id: station.id,
-    siteId: station.siteId,
+    siteId: getStationNumber(station),
     brand: lookups === undefined ? undefined : getOperatorBrand(station.operator, lookups.brands),
     operatorName: station.operator?.name ?? null,
     status: station.status,

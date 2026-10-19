@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useOpeningCount } from "@/features/admin/reference/components/shared/useOpeningCount";
 import { EDITOR_STATION_SEARCH } from "@/features/admin/stations/editorStationSearch";
 import { getOperatorLook } from "@/features/map/data/mapLookups";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { formatFullDate } from "@/lib/format";
 import { getCountryName } from "@/lib/geo/countryName";
@@ -92,7 +93,7 @@ function CommentStationSummary({ comment, onStationOpen }: { comment: Comment; o
             <p className="flex min-w-0 items-center gap-1.5">
               <BrandMark brand={brand} />
               {operator === null ? null : <span className="text-sm font-medium whitespace-nowrap">{operator.name}</span>}
-              <span className="min-w-0 truncate font-mono text-[13px] leading-5 text-muted-foreground">{station.siteId}</span>
+              <span className="min-w-0 truncate font-mono text-[13px] leading-5 text-muted-foreground">{getStationNumber(station)}</span>
             </p>
             {placeParts.length === 0 ? null : (
               <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">

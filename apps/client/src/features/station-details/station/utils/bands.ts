@@ -1,4 +1,4 @@
-import type { Band, Cell, CellRat } from "../types";
+import type { Band, CellRat, StationCell } from "../types";
 import type { RatType } from "@/features/shared/rat";
 
 export type DuplexMark = "FDD" | "TDD" | "SDL";
@@ -60,7 +60,7 @@ export function getBandSortValue(band: Band | undefined): number {
   return band?.labelMhz ?? UNLABELLED_BAND_MHZ;
 }
 
-export function getCellChannel(cell: Cell): number | null {
+export function getCellChannel(cell: StationCell): number | null {
   if (cell.rat === "umts") return cell.uarfcn;
   if (cell.rat === "lte") return cell.earfcn;
   if (cell.rat === "nr") return cell.arfcn;

@@ -358,9 +358,6 @@ export async function updateSubmission(
   });
   if (changesContent && submission.status === "pending") await assertStationTakesChanges(stationId);
 
-  if (submission.type === "new" && body.station && !body.station.station_id?.trim()) {
-    throw new ErrorResponse("BAD_REQUEST", { message: "A new station needs a station ID" });
-  }
   if (submission.type === "new" && body.station && typeof body.station.operator_id !== "number") {
     throw new ErrorResponse("BAD_REQUEST", { message: "operator_id is required for new stations" });
   }

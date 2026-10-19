@@ -13,6 +13,7 @@ import type { DbTx } from "../../types/global.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
 import { containsPattern } from "../search/text.js";
 import { stationAreaConditions } from "../stations/read.js";
+import { isPlaceholderSiteId, loadNodeNames, toSiteId } from "../stations/siteIds.js";
 import type { AuditReach } from "./access.js";
 import { toAuditMetadata } from "./metadata.js";
 import { getEntryRevertibility, loadRevertedEntryIds } from "./revert/revertibility.js";
@@ -173,7 +174,8 @@ export async function fetchReadableStations(
       .select({ id: stations.id, siteId: stations.station_id, operatorId: stations.operator_id })
       .from(stations)
       .where(and(inArray(stations.id, chunk), ...area));
-    for (const row of rows) readable.set(row.id, row);
+    const nodeNames = await loadNodeNames(rows.filter((row) => isPlaceholderSiteId(row.siteId)).map((row) => row.id));
+    for (const row of rows) readable.set(row.id, { ...row, siteId: toSiteId(row.siteId), nodeName: nodeNames.get(row.id) ?? null });
   });
   await runLimited(lookups);
   return readable;

@@ -213,7 +213,7 @@ describe("GET /submissions/11111111-1111-4111-8111-111111111111", () => {
     {
       name: "explicit clear",
       station: { ...proposedStation, changed_fields: ["notes", "uplink_type"] as typeof proposedStation.changed_fields, uplink_type: null },
-      expected: { notes: null, backhaul: null },
+      expected: { siteId: null, notes: null, backhaul: null },
     },
     {
       name: "legacy populated fields",
@@ -227,9 +227,9 @@ describe("GET /submissions/11111111-1111-4111-8111-111111111111", () => {
         uplink_type: null,
         uplink_model: null,
       },
-      expected: { backhaul: { speedMbps: 100 } },
+      expected: { siteId: null, backhaul: { speedMbps: 100 } },
     },
-    { name: "no changed fields", station: { ...proposedStation, changed_fields: [] }, expected: {} },
+    { name: "no changed fields", station: { ...proposedStation, changed_fields: [] }, expected: { siteId: null } },
   ])("keeps $name distinct from omitted proposal fields", async ({ station, expected }) => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.enqueueFor("select", "submissions", [submissionRow]);

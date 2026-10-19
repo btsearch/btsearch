@@ -6,6 +6,7 @@ import { ANALYZER_RATS, DIFFERENCE_FIELDS } from "./filters";
 import { findNetworkDifference, findStoredCell } from "./rows";
 import { type AnalyzerSearch, parseAnalyzerSearch } from "./search";
 import type { AnalyzerLookups, LogFormat, RowFacts, TickAction } from "./types";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { toPlmnList } from "@/features/station-editing/model/networks";
 
 export type DraftStation = {
@@ -65,7 +66,7 @@ function toDraftStation(station: Station): DraftStation {
 
   return {
     id: station.id,
-    siteId: station.siteId,
+    siteId: getStationNumber(station),
     operatorId: station.operatorId,
     place:
       location === null

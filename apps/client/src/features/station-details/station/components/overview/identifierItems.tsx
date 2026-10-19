@@ -8,15 +8,16 @@ import NetWorksIcon from "../../../components/logos/networks.svg?react";
 import { StationInfoItem } from "../../../components/stationInfoItem";
 import type { Operator, StationIdentifier } from "../../types";
 import { getOperatorBrand } from "../../utils/brands";
-import { NETWORKS_ID_KIND, findStationIdentifier, getOperatorShortLabel } from "../../utils/stations";
+import { NETWORKS_ID_KIND, type NumberedStation, findStationIdentifier, getOperatorShortLabel, getStationNumber } from "../../utils/stations";
 import { BrandLead } from "./brandLead";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { brandsQueryOptions } from "@/features/shared/lookups";
+import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 
 const GENERIC_OPERATOR_CODE = "MNO";
 
 type SiteIdItemProps = {
-  siteId: string;
+  station: NumberedStation;
 };
 
 type IdentifierItemsProps = {
@@ -29,13 +30,15 @@ type OperatorNameItemProps = {
   operator: Operator | null;
 };
 
-export function SiteIdItem({ siteId }: SiteIdItemProps) {
+export function SiteIdItem({ station }: SiteIdItemProps) {
   const { t } = useTranslation("common");
+  const stationNumber = getStationNumber(station);
 
   return (
     <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} aria-hidden="true" className="size-4" />} label={t("labels.stationId")}>
-      <span className="font-mono">{siteId}</span>
-      <CopyButton text={siteId} fieldLabel={t("labels.stationId")} />
+      <span className="font-mono">{stationNumber}</span>
+      <StationNumberMark station={station} />
+      {stationNumber === "" ? null : <CopyButton text={stationNumber} fieldLabel={t("labels.stationId")} />}
     </StationInfoItem>
   );
 }

@@ -155,6 +155,7 @@ export function PopupOperatorName({ name }: { name: string }) {
 }
 
 export function PopupStationId({ id }: { id: string }) {
+  if (id === "") return null;
   return <span className="shrink-0 font-mono text-xs font-medium text-foreground/70 tabular-nums">{id}</span>;
 }
 

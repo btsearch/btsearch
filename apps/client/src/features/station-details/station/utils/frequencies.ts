@@ -1,9 +1,9 @@
 import { calcExactFrequency } from "@openbts/shared/frequency";
 
-import type { Cell } from "../types";
+import type { StationCell } from "../types";
 import { DUPLEX_MARKS, UNLABELLED_BAND_MHZ, getCellChannel, toRatType } from "./bands";
 
-export function getCellDownlinkFrequency(cell: Cell): string | null {
+export function getCellDownlinkFrequency(cell: StationCell): string | null {
   const { band } = cell;
   if (band === undefined) return null;
 

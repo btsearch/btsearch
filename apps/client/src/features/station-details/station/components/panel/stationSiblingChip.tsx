@@ -4,7 +4,7 @@ import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Brand, LocationStationRecord } from "../../types";
-import { toV1StationStatus } from "../../utils/stations";
+import { getStationNumber, toV1StationStatus } from "../../utils/stations";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
@@ -26,6 +26,7 @@ type StationSiblingChipProps = {
 export function StationSiblingChip({ station, brand, isCurrent, onSelect, onPrefetch }: StationSiblingChipProps) {
   const { t } = useTranslation(["stationDetails", "main"]);
   const operatorName = station.operator?.name ?? t("main:unknownOperator");
+  const stationNumber = getStationNumber(station);
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (hasModifierKey(event)) return;
@@ -51,7 +52,7 @@ export function StationSiblingChip({ station, brand, isCurrent, onSelect, onPref
       <TooltipTrigger render={chip}>
         <BrandMark brand={brand} size={14} />
         <span className="sr-only">{operatorName}</span>
-        <span className={cn("font-mono text-[11px] leading-4", isCurrent ? "text-foreground" : "text-foreground/70")}>{station.siteId}</span>
+        <span className={cn("font-mono text-[11px] leading-4", isCurrent ? "text-foreground" : "text-foreground/70")}>{stationNumber}</span>
         {station.hostStationId !== null ? (
           <>
             <HugeiconsIcon icon={Link02Icon} className="size-3 shrink-0 text-amber-800 dark:text-amber-300" aria-hidden="true" />
@@ -60,7 +61,7 @@ export function StationSiblingChip({ station, brand, isCurrent, onSelect, onPref
         ) : null}
         {station.status !== "active" ? <StationStatusBadge status={toV1StationStatus(station.status)} className="pointer-events-none" /> : null}
       </TooltipTrigger>
-      <TooltipContent>{`${operatorName} ${station.siteId}`}</TooltipContent>
+      <TooltipContent>{`${operatorName} ${stationNumber}`}</TooltipContent>
     </Tooltip>
   );
 }

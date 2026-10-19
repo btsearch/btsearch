@@ -32,6 +32,8 @@ import { HighlightedText } from "@/features/shared/HighlightedText";
 import { type OperatorMark, StationGuestMarks, listOperatorMarks } from "@/features/shared/operatorMarks";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
+import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { useGpsFormat } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import type { GeocodingKind } from "@/lib/geo/geocoding";
@@ -352,12 +354,13 @@ export function SearchResults({
                           >
                             <div className="flex min-w-0 items-center gap-2">
                               <StationResultTitle
-                                siteId={hit.siteId}
+                                siteId={getStationNumber(hit)}
                                 operatorName={hit.operator?.name}
                                 brand={getHitBrand(hit, lookups)}
                                 guests={listOperatorMarks(hit.guestOperatorIds, lookups?.operators, lookups?.brands)}
                                 query={normalizedQuery}
                               />
+                              <StationNumberMark station={hit} />
                               {networksIdLabel ? (
                                 <span className="shrink-0 font-mono text-[11px] text-foreground/70">
                                   <HighlightedText text={networksIdLabel} query={normalizedQuery} />

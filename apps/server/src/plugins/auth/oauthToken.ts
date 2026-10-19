@@ -26,10 +26,12 @@ export async function verifyOAuthAccessToken(bearerToken: string): Promise<{ use
 
   const accessToken = await db.query.oauthAccessTokens.findFirst({
     where: { token: hashToken(rawToken) },
+    with: { client: { columns: { disabled: true } } },
   });
   if (!accessToken?.userId) return null;
   if (accessToken.revoked) return null;
   if (accessToken.expiresAt.getTime() <= Date.now()) return null;
+  if (!accessToken.client || accessToken.client.disabled) return null;
 
   const [session, user] = await Promise.all([
     accessToken.sessionId ? db.query.sessions.findFirst({ where: { id: accessToken.sessionId } }) : Promise.resolve(undefined),

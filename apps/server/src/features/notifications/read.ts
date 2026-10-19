@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 
 import db from "../../database/psql.js";
 import { unique } from "../../lib/collections.js";
+import { toSiteId } from "../stations/siteIds.js";
 import { type UserRefViewer, toPublicUserRef } from "../users/userRef.js";
 import { type MapCoordinates, parseActionUrlCoordinates } from "./actionUrls.js";
 
@@ -45,7 +46,7 @@ function toSiteDetails({ siteId, operatorId, latitude, longitude }: SiteRow): Si
 }
 
 function toSite(id: number | null, live: SiteDetails | undefined, stored: SiteDetails): NotificationSite | null {
-  const siteId = live?.siteId ?? stored.siteId;
+  const siteId = toSiteId(live?.siteId ?? stored.siteId);
   const operatorId = live ? live.operatorId : stored.operatorId;
   const location = live?.location ?? stored.location;
   if (id === null && siteId === null && operatorId === null && location === null) return null;

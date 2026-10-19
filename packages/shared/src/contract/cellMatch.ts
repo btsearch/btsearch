@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
-import { BSIC_MAX, CELL_FIELD_NOTES, PSC_MAX, cellSchema } from "./cells.ts";
-import { MAX_ID, csvEnumSchema } from "./common.ts";
+import { BSIC_MAX, CELL_FIELD_NOTES, GNBID_MAX, PSC_MAX, cellSchema } from "./cells.ts";
+import { csvEnumSchema } from "./common.ts";
 import { stationSchema } from "./stations.ts";
 
 export const CELL_MATCH_LIMIT = 5000;
@@ -91,7 +91,7 @@ export const observedNrCellSchema = z
       .nullable()
       .optional()
       .describe("The 36-bit cell identity of a standalone cell. The server splits it into the gNBID and the cell id"),
-    gnbid: identifierSchema(MAX_ID).nullable().optional().describe("Send it only if the log already has the identity split, together with `clid`"),
+    gnbid: identifierSchema(GNBID_MAX).nullable().optional().describe("Send it only if the log already has the identity split, together with `clid`"),
     clid: identifierSchema(16_383).nullable().optional().describe("Send it only if the log already has the identity split, together with `gnbid`"),
     tac: observedValueSchema(16_777_215),
     pci: observedValueSchema(1007),

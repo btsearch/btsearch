@@ -1,4 +1,4 @@
-import type { Cell, Sector } from "../../types";
+import type { Sector, StationCell } from "../../types";
 import { getBandCode, getBandLabel, getBandSortValue, toRatType } from "../../utils/bands";
 import { type SectorInfo, findCellSector, indexSectorInfo, listSectorInfo } from "../../utils/sectors";
 import { RAT_ORDER, type RatType } from "@/features/shared/rat";
@@ -11,7 +11,7 @@ type RankedSectorBand = { band: SectorBand; labelMhz: number };
 
 const BAND_KEY_SEPARATOR = "|";
 
-function toRankedSectorBand(cell: Cell, language: string): RankedSectorBand {
+function toRankedSectorBand(cell: StationCell, language: string): RankedSectorBand {
   const rat = toRatType(cell.rat);
   const label = getBandLabel(cell.band, language);
   const code = getBandCode(cell.band);
@@ -28,7 +28,7 @@ function compareRankedSectorBands(left: RankedSectorBand, right: RankedSectorBan
   );
 }
 
-function listSectorBands(cells: readonly Cell[], language: string): SectorBand[] {
+function listSectorBands(cells: readonly StationCell[], language: string): SectorBand[] {
   const rankedBands = new Map<string, RankedSectorBand>();
   for (const cell of cells) {
     const rankedBand = toRankedSectorBand(cell, language);
@@ -38,7 +38,7 @@ function listSectorBands(cells: readonly Cell[], language: string): SectorBand[]
   return [...rankedBands.values()].sort(compareRankedSectorBands).map((rankedBand) => rankedBand.band);
 }
 
-export function summarizeSectorBands(sectors: readonly Sector[], cells: readonly Cell[], language: string): SectorBandSummary {
+export function summarizeSectorBands(sectors: readonly Sector[], cells: readonly StationCell[], language: string): SectorBandSummary {
   const sectorsById = indexSectorInfo(sectors);
   const unlinkedCellCount = cells.filter((cell) => findCellSector(cell, sectorsById) === null).length;
 

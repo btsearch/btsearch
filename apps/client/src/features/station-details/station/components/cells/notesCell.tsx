@@ -2,7 +2,7 @@ import { BatteryLowIcon, Clock01Icon, WifiConnected01Icon } from "@hugeicons/cor
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
-import type { Cell } from "../../types";
+import type { StationCell } from "../../types";
 import { type CellFreshness, getCellNote, hasIotSupport, hasRedCapSupport } from "../../utils/cells";
 import { Badge } from "@/components/ui/badge";
 import { EmptyValue } from "@/components/ui/emptyValue";
@@ -16,7 +16,7 @@ const NEW_BADGE_CLASS = "bg-green-500/10 text-green-800 dark:text-green-400 text
 const UPDATED_BADGE_CLASS = "bg-amber-500/10 text-amber-800 dark:text-amber-400 text-[11px] pl-1 pr-1.5 py-0 cursor-help";
 
 type NotesCellProps = {
-  cell: Cell;
+  cell: StationCell;
   freshness: CellFreshness | null;
 };
 

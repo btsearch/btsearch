@@ -1,7 +1,7 @@
 import { Trans, useTranslation } from "react-i18next";
 
 import { MocnLink } from "../../../components/sharingLinks";
-import type { Cell } from "../../types";
+import type { StationCell } from "../../types";
 import { getCellChannel } from "../../utils/bands";
 import {
   type CellColumn,
@@ -24,7 +24,7 @@ const MONO_CELL_CLASS = "px-4 py-2 font-mono";
 const CELL_CONTENT_CLASS = "flex items-center gap-1.5 whitespace-nowrap";
 
 type CellTableRowProps = {
-  cell: Cell;
+  cell: StationCell;
   columns: readonly CellColumn[];
   sector: SectorInfo | null;
   networks: CellNetworks;
@@ -32,14 +32,14 @@ type CellTableRowProps = {
 
 type RowCellProps = {
   column: CellColumn;
-  cell: Cell;
+  cell: StationCell;
   sector: SectorInfo | null;
   freshness: CellFreshness | null;
   networks: CellNetworks;
 };
 
 type NetworksCellProps = {
-  cell: Cell;
+  cell: StationCell;
   networks: CellNetworks;
 };
 
@@ -48,7 +48,7 @@ type SectorCellProps = {
 };
 
 type ChannelCellProps = {
-  cell: Cell;
+  cell: StationCell;
 };
 
 export function CellTableRow({ cell, columns, sector, networks }: CellTableRowProps) {

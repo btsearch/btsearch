@@ -207,6 +207,51 @@ describe("PATCH /stations/:id", () => {
     expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "locations")).toBe(false);
   });
 
+  it("takes the number away with siteId null, after which the station is named after its eNB", async () => {
+    editableStation();
+    const named = { stationId: 1, enbid: 100, gnbid: null, longCid: null, gsmCellKey: null };
+    dbMock.enqueueFor("select", "cells", [named], [named]);
+    writeStation(stationRow({ station_id: "~1" }));
+    const errors: Error[] = [];
+    const app = await createRouteHarness(route, { session: userSession(), onError: (error) => errors.push(error) });
+    const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { station: { siteId: null } } });
+
+    expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
+    expect(response.json().data).toMatchObject({ id: 1, siteId: null, nodeName: "4G 100" });
+    expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "stations")?.values).toEqual({
+      updatedAt: expect.any(Date),
+      station_id: "~1",
+    });
+  });
+
+  it("refuses siteId null on a station without a cell that names it, at its field", async () => {
+    editableStation();
+    dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
+    dbMock.enqueueFor("select", "station_photo_selections", [], []);
+    dbMock.enqueueFor("update", "stations", [stationRow({ station_id: "~1" })]);
+    dbMock.enqueueFor("insert", "audit_logs", []);
+    dbMock.enqueueFor("select", "cells", []);
+    const app = await createRouteHarness(route, { session: userSession() });
+    const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { station: { siteId: null } } });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      errors: [
+        {
+          code: "VALIDATION_ERROR",
+          message: "Validation error.",
+          details: [
+            {
+              field: "station/siteId",
+              validationMessage:
+                "A station needs a station number unless it has a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC",
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("refuses an address that a location in Poland does not take, at its field and before any writes", async () => {
     placedStation();
     dbMock.enqueueFor("select", "stations", [{ locationCountry: "PL", operatorCountry: "PL" }]);

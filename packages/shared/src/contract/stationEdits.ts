@@ -5,9 +5,11 @@ import {
   MAX_CELL_CHANGES,
   MAX_SECTOR_CHANGES,
   SECTOR_LIMITS_NOTE,
+  SITE_ID_NEEDED_MESSAGE,
   cellChangeList,
   cellEditInputSchema,
   locationChangeInputSchema,
+  mayLackSiteId,
   newCellInputSchema,
   newLocationInputSchema,
   newSectorInputSchema,
@@ -28,7 +30,12 @@ export const stationCreateSchema = z
     sectors: z.array(newSectorInputSchema).max(MAX_SECTOR_CHANGES).optional().describe(SECTOR_LIMITS_NOTE),
     cells: z.array(newCellInputSchema).max(MAX_CELL_CHANGES).optional().describe("A station created without cells gets the status `awaitingCells`"),
   })
-  .strict();
+  .strict()
+  .superRefine((body, ctx) => {
+    if (body.station.siteId === undefined && !mayLackSiteId(body.cells)) {
+      ctx.addIssue({ code: "custom", path: ["station", "siteId"], message: SITE_ID_NEEDED_MESSAGE });
+    }
+  });
 export type StationCreate = z.infer<typeof stationCreateSchema>;
 
 export const stationUpdateSchema = z

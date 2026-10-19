@@ -32,6 +32,7 @@ import {
 } from "./history.js";
 import type { AuditRow } from "./historyRows.js";
 import { CELL_TYPES, CONTRACT_RATS, toAzimuth, toStationStatus } from "./serialize.js";
+import { toSiteId } from "./siteIds.js";
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 type ChangeBody = DistributiveOmit<StationHistoryChange, "revertStatus" | "isRevertible" | "entryIds">;
@@ -145,9 +146,14 @@ function stationFields(oldValues: HistoryObject | null, newValues: HistoryObject
 
     if (field === "location") fields.push({ field, from: locationRef(pair.from, context), to: locationRef(pair.to, context) });
     else if (field === "status") fields.push({ field, from: statusValue(pair.from), to: statusValue(pair.to) });
+    else if (field === "siteId") fields.push({ field, from: siteIdValue(pair.from), to: siteIdValue(pair.to) });
     else fields.push({ field, from: pair.from, to: pair.to });
   }
   return fields;
+}
+
+function siteIdValue(value: StationHistoryValue): StationHistoryValue {
+  return typeof value === "string" ? toSiteId(value) : value;
 }
 
 function statusValue(value: StationHistoryValue): StationHistoryValue {

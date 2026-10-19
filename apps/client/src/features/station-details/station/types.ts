@@ -1,10 +1,9 @@
-import type { Cell, Location, LocationStation, Photo, PhotoSelection, Station, StationLocation } from "@openbts/shared/contract";
+import type { Location, LocationStation, Photo, PhotoSelection, Station, StationCell, StationLocation } from "@openbts/shared/contract";
 
 export type {
   Backhaul,
   Band,
   Brand,
-  Cell,
   CellRat,
   CellType,
   Country,
@@ -14,6 +13,7 @@ export type {
   PhotoUpdate,
   Region,
   Sector,
+  StationCell,
   StationIdentifier,
   StationIdentifierKind,
   StationStatus,
@@ -32,4 +32,4 @@ export type LocationStationRecord = Omit<LocationStation, StationParts> & Includ
 export type LocationRecord = Omit<Location, "region" | "stations"> & Included<Location, "region"> & { stations: LocationStationRecord[] };
 export type PhotoRecord = Omit<Photo, "location" | "selections"> & { selections: Omit<PhotoSelection, "station">[] };
 
-export type NrCell = Extract<Cell, { rat: "nr" }>;
+export type NrCell = Extract<StationCell, { rat: "nr" }>;

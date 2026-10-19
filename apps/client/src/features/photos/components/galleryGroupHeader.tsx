@@ -9,7 +9,7 @@ import { BrandMark } from "@/components/cellular/brandMark";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import type { MapOperator } from "@/features/map/data/mapLookups";
-import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { hasModifierKey } from "@/lib/dom/keyboard";
 import { getCountryName } from "@/lib/geo/countryName";
@@ -61,7 +61,7 @@ function GalleryGroupHeaderInner({ station, location, photoCount, operator, loca
                   compact ? "max-sm:text-xs" : null,
                 )}
               >
-                {station.siteId}
+                {getStationNumber(station)}
               </span>
             </span>
             {station.status === "active" ? null : <StationStatusBadge status={toV1StationStatus(station.status)} />}

@@ -6,6 +6,7 @@ import type { BrandLook } from "@/components/cellular/brandMark";
 import { Badge } from "@/components/ui/badge";
 import { toV1SubmissionStatus, toV1SubmissionType } from "@/features/admin/submissions/api";
 import type { StationRecord } from "@/features/station-details/station/types";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import {
   EditPageHead,
   EditPageHeadId,
@@ -14,6 +15,7 @@ import {
   EditPageHeadStationLinks,
   EditPageHeadTimestamp,
 } from "@/features/station-editing/components/frame/editPageHead";
+import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 
@@ -36,9 +38,10 @@ export function SubmissionDetailHeader({ submission, station, operator }: Submis
   return (
     <EditPageHead
       operator={operator}
-      siteId={station?.siteId ?? submission.changes.station?.siteId}
+      siteId={station === null ? submission.changes.station?.siteId : getStationNumber(station)}
       badges={
         <>
+          {station === null ? null : <StationNumberMark station={station} />}
           <SubmissionTypeBadge type={toV1SubmissionType(submission.action)} />
           {submission.origin === "analyzer" ? (
             <Badge variant="outline" className="h-6 rounded-md px-2 text-xs font-medium text-muted-foreground">

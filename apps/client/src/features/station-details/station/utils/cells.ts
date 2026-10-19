@@ -1,4 +1,4 @@
-import type { Brand, Cell, CellType, NrCell, NrMode, Operator } from "../types";
+import type { Brand, CellType, NrCell, NrMode, Operator, StationCell } from "../types";
 import { getBandSortValue, getCellChannel, toRatType } from "./bands";
 import { type SectorIndex, findCellSector } from "./sectors";
 import { RAT_ORDER, type RatType } from "@/features/shared/rat";
@@ -27,7 +27,7 @@ export type CellNetworks = {
 
 export type CellTable = {
   rat: RatType;
-  cells: Cell[];
+  cells: StationCell[];
   sharedValues: SharedCellValue[];
   sharedExtraPlmns: string[];
   columns: CellColumn[];
@@ -80,7 +80,7 @@ const NCI_BITS = 36;
 const ECI_ENBID_FACTOR = 256;
 const LONG_CID_RNC_FACTOR = 65536;
 
-export function getCellIdentifier(cell: Cell, field: CellIdentifierField): number | null {
+export function getCellIdentifier(cell: StationCell, field: CellIdentifierField): number | null {
   const identifiers: CellIdentifiers = cell;
   return identifiers[field] ?? null;
 }
@@ -89,31 +89,31 @@ export function findCellIdentifierLabel(field: string): string | undefined {
   return IDENTIFIER_LABELS_BY_FIELD.get(field);
 }
 
-export function getNrMode(cell: Cell): NrMode | null {
+export function getNrMode(cell: StationCell): NrMode | null {
   return cell.rat === "nr" ? cell.mode : null;
 }
 
-export function isEGsmCell(cell: Cell): boolean {
+export function isEGsmCell(cell: StationCell): boolean {
   return cell.rat === "gsm" && cell.isEGsm;
 }
 
-export function hasIotSupport(cell: Cell): boolean {
+export function hasIotSupport(cell: StationCell): boolean {
   return cell.rat === "lte" && cell.supportsIot;
 }
 
-export function hasRedCapSupport(cell: Cell): boolean {
+export function hasRedCapSupport(cell: StationCell): boolean {
   return cell.rat === "nr" && cell.supportsRedCap;
 }
 
-export function getCellNote(cell: Cell): string | null {
+export function getCellNote(cell: StationCell): string | null {
   return cell.notes === null || cell.notes === "" ? null : cell.notes;
 }
 
-export function getExtraPlmns(cell: Cell, ownerPlmn: string | null): string[] {
+export function getExtraPlmns(cell: StationCell, ownerPlmn: string | null): string[] {
   return cell.plmns.filter((code) => code !== ownerPlmn);
 }
 
-export function getCellFreshness(cell: Cell): CellFreshness | null {
+export function getCellFreshness(cell: StationCell): CellFreshness | null {
   if (isRecent(cell.createdAt)) return "new";
   return isRecent(cell.updatedAt) ? "updated" : null;
 }
@@ -130,7 +130,7 @@ export function getColumnKey(column: CellColumn): string {
   return column.kind === "identifier" ? column.field : column.kind;
 }
 
-function getModeSortValue(cell: Cell): number {
+function getModeSortValue(cell: StationCell): number {
   return cell.rat === "nr" && cell.mode !== "sa" ? 1 : 0;
 }
 
@@ -142,14 +142,14 @@ function getStandaloneIdentity(cell: NrCell): number {
   return gnbid * 2 ** (NCI_BITS - gnbidBits) + (cell.clid ?? 0);
 }
 
-function getIdentitySortValue(cell: Cell): number {
+function getIdentitySortValue(cell: StationCell): number {
   if (cell.rat === "gsm") return cell.cid;
   if (cell.rat === "umts") return cell.longCid ?? (cell.rnc ?? 0) * LONG_CID_RNC_FACTOR + (cell.cid ?? 0);
   if (cell.rat === "lte") return cell.eci ?? (cell.enbid ?? 0) * ECI_ENBID_FACTOR + (cell.clid ?? 0);
   return cell.mode === "sa" ? getStandaloneIdentity(cell) : (cell.pci ?? 0);
 }
 
-function compareCells(left: Cell, right: Cell): number {
+function compareCells(left: StationCell, right: StationCell): number {
   return (
     getModeSortValue(left) - getModeSortValue(right) ||
     getBandSortValue(left.band) - getBandSortValue(right.band) ||
@@ -157,7 +157,7 @@ function compareCells(left: Cell, right: Cell): number {
   );
 }
 
-function findSharedValue(cells: readonly Cell[], field: CellIdentifierField): number | null {
+function findSharedValue(cells: readonly StationCell[], field: CellIdentifierField): number | null {
   const values = new Set(cells.map((cell) => getCellIdentifier(cell, field)));
   if (values.size !== 1) return null;
 
@@ -165,14 +165,14 @@ function findSharedValue(cells: readonly Cell[], field: CellIdentifierField): nu
   return value;
 }
 
-function listSharedValues(rat: RatType, cells: readonly Cell[]): SharedCellValue[] {
+function listSharedValues(rat: RatType, cells: readonly StationCell[]): SharedCellValue[] {
   return TABLE_LAYOUTS[rat].hoistable.flatMap((field) => {
     const value = findSharedValue(cells, field);
     return value === null ? [] : [{ field, label: IDENTIFIER_LABELS[field], value }];
   });
 }
 
-function findSharedExtraPlmns(cells: readonly Cell[], ownerPlmn: string | null): string[] {
+function findSharedExtraPlmns(cells: readonly StationCell[], ownerPlmn: string | null): string[] {
   const [first, ...rest] = cells.map((cell) => getExtraPlmns(cell, ownerPlmn).sort());
   if (first === undefined) return [];
 
@@ -204,11 +204,11 @@ function listColumns(rat: RatType, sharedValues: readonly SharedCellValue[], has
   return [{ kind: "band" }, ...networkColumns, { kind: "sector" }, ...identifierColumns, ...channelColumns, { kind: "notes" }];
 }
 
-function hasNotesContent(cell: Cell): boolean {
+function hasNotesContent(cell: StationCell): boolean {
   return getCellNote(cell) !== null || hasIotSupport(cell) || hasRedCapSupport(cell) || getCellFreshness(cell) !== null;
 }
 
-function hasColumnContent(column: CellColumn, cells: readonly Cell[], sectorsById: SectorIndex, ownerPlmn: string | null): boolean {
+function hasColumnContent(column: CellColumn, cells: readonly StationCell[], sectorsById: SectorIndex, ownerPlmn: string | null): boolean {
   if (column.kind === "band") return true;
   if (column.kind === "networks") return cells.some((cell) => getExtraPlmns(cell, ownerPlmn).length > 0);
   if (column.kind === "sector") return cells.some((cell) => findCellSector(cell, sectorsById) !== null);
@@ -219,7 +219,7 @@ function hasColumnContent(column: CellColumn, cells: readonly Cell[], sectorsByI
   return cells.some((cell) => getCellIdentifier(cell, field) !== null);
 }
 
-function buildCellTable(rat: RatType, cells: readonly Cell[], sectorsById: SectorIndex, ownerPlmn: string | null): CellTable {
+function buildCellTable(rat: RatType, cells: readonly StationCell[], sectorsById: SectorIndex, ownerPlmn: string | null): CellTable {
   const sortedCells = [...cells].sort(compareCells);
   const sharedValues = listSharedValues(rat, sortedCells);
   const sharedExtraPlmns = findSharedExtraPlmns(sortedCells, ownerPlmn);
@@ -230,7 +230,7 @@ function buildCellTable(rat: RatType, cells: readonly Cell[], sectorsById: Secto
   return { rat, cells: sortedCells, sharedValues, sharedExtraPlmns, columns };
 }
 
-export function listCellTables(cells: readonly Cell[], sectorsById: SectorIndex, ownerPlmn: string | null): CellTable[] {
+export function listCellTables(cells: readonly StationCell[], sectorsById: SectorIndex, ownerPlmn: string | null): CellTable[] {
   return RAT_ORDER.flatMap((rat) => {
     const ratCells = cells.filter((cell) => toRatType(cell.rat) === rat);
     return ratCells.length === 0 ? [] : [buildCellTable(rat, ratCells, sectorsById, ownerPlmn)];

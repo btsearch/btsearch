@@ -53,14 +53,14 @@ export function StationOverviewCard({ station, onClose }: StationOverviewCardPro
 }
 
 export function StationOverviewGrid({ station }: StationOverviewGridProps): ReactNode {
-  const { siteId, location, operator, backhaul, identifiers } = station;
+  const { location, operator, backhaul, identifiers } = station;
   const structure = location?.structure ?? NO_STRUCTURE;
 
   return (
     <div className={GRID_CLASS}>
       {location !== null ? <CoordinatesItem latitude={location.latitude} longitude={location.longitude} /> : null}
       {location !== null ? <RegionItem countryCode={location.countryCode} regionName={location.region.name} /> : null}
-      <SiteIdItem siteId={siteId} />
+      <SiteIdItem station={station} />
       {structure.type !== null ? <StructureTypeItem type={structure.type} /> : null}
       {structure.owner !== null ? <StructureOwnerItem owner={structure.owner} /> : null}
       <EmfReportsItem station={station} />

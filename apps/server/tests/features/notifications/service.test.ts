@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import type { ClientRequest, IncomingMessage } from "node:http";
+import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
 import https from "node:https";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import webpush from "web-push";
@@ -26,12 +26,12 @@ beforeEach(async () => {
     headers: {},
     body: Buffer.from("encrypted-payload"),
   });
-  vi.mocked(https.request).mockImplementation((_options, callback) => {
+  vi.mocked(https.request).mockImplementation(((_options: RequestOptions, callback?: (response: IncomingMessage) => void) => {
     const response = Object.assign(new EventEmitter(), { resume: vi.fn(), statusCode: 201 });
     const request = Object.assign(new EventEmitter(), { end: vi.fn(() => response.emit("end")) });
     callback?.(response as unknown as IncomingMessage);
     return request as unknown as ClientRequest;
-  });
+  }) as typeof https.request);
 });
 
 describe("deliverQueuedStationWatchNotifications", () => {

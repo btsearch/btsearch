@@ -1,5 +1,6 @@
 import type { AnalyzerFilters } from "./filters";
 import type { MatchTables, RowFacts, RowStatus } from "./types";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { FIRST_LIST_PAGE, getListPageCount } from "@/features/stations/list/data/listPaging";
 
 export type TableItem = { kind: "station"; stationId: number; rowIndexes: readonly number[] } | { kind: "row"; index: number };
@@ -8,6 +9,11 @@ const STATUS_RANKS: Record<RowStatus, number> = { found: 0, probable: 1, notFoun
 const SMALLEST_PAGE_SIZE = 1;
 const siteIdCollator = new Intl.Collator(undefined, { numeric: true });
 
+function findStationNumber(stationId: number, tables: MatchTables): string {
+  const station = tables.stationsById.get(stationId);
+  return station === undefined ? "" : getStationNumber(station);
+}
+
 function rankStations(indexes: readonly number[], facts: readonly RowFacts[], tables: MatchTables): Map<number, number> {
   const stationIds = new Set<number>();
   for (const index of indexes) {
@@ -15,11 +21,9 @@ function rankStations(indexes: readonly number[], facts: readonly RowFacts[], ta
     if (stationId !== null) stationIds.add(stationId);
   }
 
-  const ordered = [...stationIds].sort((left, right) => {
-    const leftSiteId = tables.stationsById.get(left)?.siteId ?? "";
-    const rightSiteId = tables.stationsById.get(right)?.siteId ?? "";
-    return siteIdCollator.compare(leftSiteId, rightSiteId) || left - right;
-  });
+  const ordered = [...stationIds].sort(
+    (left, right) => siteIdCollator.compare(findStationNumber(left, tables), findStationNumber(right, tables)) || left - right,
+  );
   return new Map(ordered.map((stationId, rank) => [stationId, rank]));
 }
 

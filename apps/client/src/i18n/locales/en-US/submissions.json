@@ -272,6 +272,7 @@
       "stationChanges_other": "Station {{station}}: {{count, number}} changes in the submission",
       "stationCreated": "Station {{station}} will be created",
       "stationDeleted": "Station {{station}} will be marked as inactive",
+      "siteIdRemoved": "Station ID {{siteId}} will be removed: the station will be shown as {{nodeName}}",
       "newOwner": "A new structure owner will be created: {{name}}",
       "placeChanges_one": "Place {{place}}: {{changes}}, also for {{count, number}} other station",
       "placeChanges_other": "Place {{place}}: {{changes}}, also for {{count, number}} other stations",

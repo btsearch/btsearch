@@ -1,6 +1,6 @@
 import { ArrowUpRight01Icon, Image01Icon, Link02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Cell, OfficialSite } from "@openbts/shared/contract";
+import type { OfficialSite, StationCell } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { type MouseEvent, type RefObject, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -33,14 +33,15 @@ import { RanSharingLink } from "@/features/station-details/components/sharingLin
 import { locationPhotoRecordsQueryOptions } from "@/features/station-details/station/api";
 import { StationStructureLine } from "@/features/station-details/station/components/panel/stationStructureLine";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
-import { findHostStation } from "@/features/station-details/station/utils/stations";
+import { findHostStation, getStationNumber } from "@/features/station-details/station/utils/stations";
 import { getStructureOwnerBrand } from "@/features/station-details/station/utils/structure";
+import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { getOperatorTintGradient } from "@/lib/cellular/operators";
 import { hasModifierKey } from "@/lib/dom/keyboard";
 import { cn } from "@/lib/utils";
 import type { StationSource } from "@/types/station";
 
-export type PopupStationEntry = MapPointStation & { cells: readonly Cell[] | null };
+export type PopupStationEntry = MapPointStation & { cells: readonly StationCell[] | null };
 
 const NO_PERMITS: NonNullable<OfficialSite["permits"]> = [];
 
@@ -78,7 +79,7 @@ function PopupHostStationLink({ station, onOpen }: PopupHostStationLinkProps) {
         <PopupBrandMark brand={station.brand} color={station.color} />
         <span className="min-w-0 truncate text-xs font-medium text-foreground">{station.operatorName || t("unknownOperator")}</span>
       </span>
-      <span className="shrink-0 font-mono text-xs font-medium text-foreground tabular-nums">{station.siteId}</span>
+      <span className="shrink-0 font-mono text-xs font-medium text-foreground tabular-nums">{getStationNumber(station)}</span>
       <PopupStatusBadge status={station.status} />
       <HugeiconsIcon
         icon={ArrowUpRight01Icon}
@@ -183,7 +184,7 @@ function PopupHostedStationButton({ badgeRef, hostStation, isHostLoading, onOpen
 }
 
 type PopupStationTechnologiesProps = {
-  cells: readonly Cell[] | null;
+  cells: readonly StationCell[] | null;
   loadFailed: boolean;
 };
 
@@ -216,7 +217,8 @@ function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, l
         <>
           <PopupOperatorName name={station.operatorName || t("unknownOperator")} />
           <PopupGuestMarks guests={station.guests} />
-          <PopupStationId id={station.siteId} />
+          <PopupStationId id={getStationNumber(station)} />
+          <StationNumberMark station={station} />
           {networksIdLabel ? <span className="font-mono text-[11px] text-foreground/70">{networksIdLabel}</span> : null}
           {isHosted ? (
             <PopupHostedStationBadge

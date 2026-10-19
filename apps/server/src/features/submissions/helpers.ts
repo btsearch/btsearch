@@ -25,6 +25,7 @@ import { type PciDuplicateDetails, getPciDuplicateKey } from "../cells/pciDuplic
 import { gnbidLengthSchema } from "../cells/ratCellSchemas.js";
 import type { StructureChange } from "../locations/structure.js";
 import { findPlacementCountryCode } from "../stations/country.js";
+import { isSameSiteId } from "../stations/siteIds.js";
 
 export const gsmInsertSchema = createInsertSchema(proposedGSMCells)
   .omit({ proposed_cell_id: true })
@@ -58,7 +59,7 @@ export const nrInsertSchemaBase = createInsertSchema(proposedNRCells)
   .omit({ proposed_cell_id: true })
   .extend({
     nrtac: z.number().int().min(0).max(16777215).nullable().optional(),
-    gnbid: z.number().int().min(0).max(2147483647).nullable().optional(),
+    gnbid: z.number().int().min(0).max(4294967295).nullable().optional(),
     gnbid_length: gnbidLengthSchema.nullable(),
     clid: z.number().int().min(0).max(16383).nullable().optional(),
     pci: z.number().int().min(0).max(1007).nullable().optional(),
@@ -150,7 +151,7 @@ export function diffProposedStation(
   currentBackhaul: CurrentBackhaulForDiff,
 ): ProposedStationChanges {
   const changes: ProposedStationChanges = {};
-  if (stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== currentStation.station_id)
+  if (stationData.station_id !== undefined && stationData.station_id !== null && !isSameSiteId(stationData.station_id, currentStation.station_id))
     changes.station_id = stationData.station_id;
   if (stationData.operator_id !== undefined && stationData.operator_id !== null && stationData.operator_id !== currentStation.operator_id)
     changes.operator_id = stationData.operator_id;

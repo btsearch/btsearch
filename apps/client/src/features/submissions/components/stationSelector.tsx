@@ -19,12 +19,13 @@ import { brandsQueryOptions } from "@/features/shared/lookups";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { normalizeSearchText } from "@/lib/apiValues";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
 
-export type TargetStation = Pick<StationRecord, "id" | "siteId" | "operator" | "identifiers" | "location" | "cells">;
+export type TargetStation = Pick<StationRecord, "id" | "siteId" | "nodeName" | "operator" | "identifiers" | "location" | "cells">;
 
 type StationSelectorProps = {
   mode: SubmissionMode;
@@ -77,7 +78,7 @@ function StationSummary({ station, action }: StationSummaryProps) {
             <span className="min-w-0 truncate text-xs font-medium text-foreground">{operator.name}</span>
           </span>
         )}
-        <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline">{station.siteId}</span>
+        <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline">{getStationNumber(station)}</span>
         {networksIdLabel === null ? null : <span className="shrink-0 font-mono text-[11px] text-foreground/70">{networksIdLabel}</span>}
         {action === undefined ? null : <div className="ml-auto shrink-0">{action}</div>}
       </div>

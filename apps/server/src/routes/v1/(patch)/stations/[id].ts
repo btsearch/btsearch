@@ -1,4 +1,5 @@
 import { stations } from "@openbts/drizzle";
+import { RESERVED_SITE_ID_MESSAGE } from "@openbts/shared/contract";
 import { eq } from "drizzle-orm";
 import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -17,12 +18,15 @@ import { lockAndCheckStoredCells } from "../../../../features/cells/duplicateChe
 import { deleteLocationWithPhotos } from "../../../../features/locations/deleteWithPhotos.js";
 import { correctStationLinks } from "../../../../features/official/links.js";
 import { migrateStationPhotosToLocation } from "../../../../features/stations/photoMigration.js";
+import { isPlaceholderSiteId } from "../../../../features/stations/siteIds.js";
 import { stationStatusUpdate } from "../../../../features/stations/status.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { deletePhotoFiles } from "../../../../utils/photoFiles.js";
 
-const stationsUpdateSchema = createUpdateSchema(stations)
+const stationsUpdateSchema = createUpdateSchema(stations, {
+  station_id: (column) => column.refine((siteId) => !isPlaceholderSiteId(siteId), { message: RESERVED_SITE_ID_MESSAGE }),
+})
   .omit({
     createdAt: true,
     updatedAt: true,

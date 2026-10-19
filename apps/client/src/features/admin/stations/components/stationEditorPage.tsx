@@ -19,11 +19,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { moderatedStationCommentsQueryOptions } from "@/features/admin/comments/queries";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { ConfirmDialog } from "@/features/settings/components/confirmDialog";
 import { locationRecordQueryOptions, stationPhotoRecordsQueryOptions } from "@/features/station-details/station/api";
 import { HostedStationBadge } from "@/features/station-details/station/components/panel/hostedStationBadge";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { findHostStation, getStationCountryCode, toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { findHostStation, getStationCountryCode, getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { CellsPanel } from "@/features/station-editing/components/cells/cellsPanel";
 import { EditPage, type EditPageCard } from "@/features/station-editing/components/frame/editPage";
 import {
@@ -43,7 +44,7 @@ import { StationCard } from "@/features/station-editing/components/station/stati
 import { type EditLookups, retryEditLookups } from "@/features/station-editing/data/lookups";
 import { type StationDraftApi, useBlockedSaves, useEditText, useStationDraft } from "@/features/station-editing/hooks/useStationDraft";
 import { buildStationCreate, buildStationUpdate } from "@/features/station-editing/model/bodies";
-import { buildPhotoChanges, countDraftCells } from "@/features/station-editing/model/changes";
+import { type SiteIdRemoval, buildPhotoChanges, countDraftCells, findSiteIdRemoval } from "@/features/station-editing/model/changes";
 import type { SessionInput } from "@/features/station-editing/model/draftReducer";
 import { RAT_FIELDS } from "@/features/station-editing/model/ratFields";
 import { REGISTER_PREFILL_RULES, listRegisterStationActions } from "@/features/station-editing/model/registerPrefill";
@@ -51,6 +52,7 @@ import { type BuiltKeys, isServerRefusal, toEditErrors } from "@/features/statio
 import { toStationSnapshot } from "@/features/station-editing/model/snapshots";
 import type { EditError, EditSession, Rat, StationSnapshot } from "@/features/station-editing/model/types";
 import { findDraftOwner } from "@/features/station-editing/model/validate";
+import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { PhotoUploadSection } from "@/features/submissions/components/photoUploadSection";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
@@ -85,6 +87,11 @@ type RestoreButtonProps = {
 
 type EditorCellsProps = {
   edit: StationDraftApi;
+};
+
+type RemovalAsk = {
+  reveal: RevealField;
+  removal: SiteIdRemoval;
 };
 
 const ADMIN_ROLE = "admin";
@@ -215,9 +222,10 @@ function SavedStationHead({ record, operatorId, lookups }: SavedStationHeadProps
   return (
     <EditPageHead
       operator={findHeadOperator(operatorId, lookups, record.operator)}
-      siteId={record.siteId}
+      siteId={getStationNumber(record)}
       badges={
         <>
+          <StationNumberMark station={record} />
           {record.hostStationId === null ? null : (
             <HostedStationBadge
               hostStation={hostStation}
@@ -264,6 +272,8 @@ export function SavedStationEditor({ record }: SavedStationEditorProps) {
   const saveMutation = useSaveStationMutation();
   const statusMutation = useSaveStationMutation();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [removalAsk, setRemovalAsk] = useState<RemovalAsk | null>(null);
+  const [isRemovalOpen, setIsRemovalOpen] = useState(false);
   const stationId = record.id;
   const locationId = record.location?.id ?? null;
   const hasComments = edit.lookups.features?.comments === true;
@@ -288,6 +298,21 @@ export function SavedStationEditor({ record }: SavedStationEditorProps) {
       return;
     }
 
+    const removal = findSiteIdRemoval(edit.session);
+    if (removal === null) {
+      commitSave(reveal);
+      return;
+    }
+    setRemovalAsk({ reveal, removal });
+    setIsRemovalOpen(true);
+  }
+
+  function confirmRemoval() {
+    setIsRemovalOpen(false);
+    if (removalAsk !== null) commitSave(removalAsk.reveal);
+  }
+
+  function commitSave(reveal: RevealField) {
     const { session } = edit;
     const built = buildStationUpdate(session, findDraftOwner(session.draft, edit.lookups.operatorsById));
     if (built.body === null) return;
@@ -320,9 +345,14 @@ export function SavedStationEditor({ record }: SavedStationEditorProps) {
 
   const photosCard = locationId === null ? null : <StationPhotoSelector stationId={stationId} locationId={locationId} />;
   const commentsCard = hasComments ? <StationCommentsSection stationId={stationId} /> : null;
-  const historyCard = <HistoryCard station={{ id: stationId, siteId: record.siteId, operator: record.operator }} />;
+  const historyCard = <HistoryCard station={{ id: stationId, siteId: getStationNumber(record), operator: record.operator }} />;
   const cards: EditPageCard[] = [
-    { id: "station", label: t("common:labels.station"), scopes: ["station"], node: <StationCard edit={edit} stationId={stationId} /> },
+    {
+      id: "station",
+      label: t("common:labels.station"),
+      scopes: ["station"],
+      node: <StationCard edit={edit} stationId={stationId} />,
+    },
     { id: "place", label: t("common:labels.location"), scopes: ["place"], node: <LocationCard edit={edit} stationId={stationId} /> },
     {
       id: "sectors",
@@ -388,6 +418,14 @@ export function SavedStationEditor({ record }: SavedStationEditorProps) {
         isPending={statusMutation.isPending}
         onOpenChange={setIsDeleteOpen}
         onConfirm={() => changeStatus("inactive", t("edit.editor.toast.deactivated"))}
+      />
+      <ConfirmDialog
+        open={isRemovalOpen}
+        onOpenChange={setIsRemovalOpen}
+        title={t("edit.editor.removeSiteId.title", removalAsk?.removal)}
+        description={t("edit.editor.removeSiteId.description", removalAsk?.removal)}
+        confirmLabel={t("edit.editor.removeSiteId.confirm")}
+        onConfirm={confirmRemoval}
       />
     </>
   );

@@ -1,3 +1,5 @@
+import { AlertCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { conventionsFor } from "@openbts/country-packs";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -5,7 +7,7 @@ import { toast } from "sonner";
 
 import { fetchPartnerIdentifiers, findPartnerOperator } from "../../data/partner";
 import type { StationDraftApi } from "../../hooks/useStationDraft";
-import { keepDigits } from "../../model/changes";
+import { findNodeName, findSiteIdRemoval, keepDigits } from "../../model/changes";
 import { findDraftOperator } from "../../model/snapshots";
 import { EDIT_LIMITS, listIdentifierKinds } from "../../model/validate";
 import { DuplicateSiteIdNotice } from "./duplicateSiteIdNotice";
@@ -43,6 +45,8 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
   const isLocked = !edit.canEdit;
   const isForm = session.kind === "form";
   const checksDuplicate = session.live === null && session.kind !== "review";
+  const removal = findSiteIdRemoval(session);
+  const draftNodeName = session.live === null ? null : findNodeName(session.draft);
   const siteIdView = getStationFieldView(edit, "siteId", idPrefix);
   const ownNameView = getStationFieldView(edit, "operatorName", idPrefix);
   const networksIdView = getStationFieldView(edit, "networksId", idPrefix);
@@ -86,7 +90,7 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
             onFocus={() => setIsSiteIdFocused(true)}
             onBlur={() => setIsSiteIdFocused(false)}
             maxLength={EDIT_LIMITS.siteId}
-            placeholder={isForm ? SITE_ID_EXAMPLE : undefined}
+            placeholder={draftNodeName ?? (isForm ? SITE_ID_EXAMPLE : undefined)}
             disabled={isLocked}
             className={cn(isForm ? "font-mono" : null, siteIdView.className)}
           />
@@ -116,6 +120,12 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
           />
         </FieldGroup>
       ) : null}
+      {removal === null ? null : (
+        <p role="status" className="col-span-full -mt-1.5 flex items-start gap-1 text-xs">
+          <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" className="mt-px size-3.5 shrink-0 text-chart-2" />
+          <span className="min-w-0 flex-1">{t("stations:edit.siteIdRemoval", removal)}</span>
+        </p>
+      )}
       {isForm ? <p className="col-span-full -mt-1.5 text-xs text-muted-foreground">{t("submissions:stationInfo.stationIdHint")}</p> : null}
       {hasNetworksFields ? (
         <>

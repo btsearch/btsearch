@@ -10,6 +10,7 @@ import type { ReviewFacts, SharedPlaceEffect } from "@/features/admin/submission
 import { resolveDisplayName } from "@/features/admin/users/utils/identity";
 import { OwnerNameDialog } from "@/features/shared/location/ownerNameDialog";
 import { getPartTitleKey } from "@/features/station-details/station/history/entries";
+import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { ChangesList } from "@/features/station-editing/components/frame/changesList";
 import { EditCard } from "@/features/station-editing/components/frame/editCard";
 import { type StationDraftApi, useEditText } from "@/features/station-editing/hooks/useStationDraft";
@@ -236,7 +237,7 @@ export function SubmissionChangesCard({
         ) : null}
         {isDeletion && !showsStoredContent ? (
           <p className="px-4 py-3 text-sm text-muted-foreground">
-            {t("deletionBanner", { stationId: submission.station?.siteId ?? submission.stationId })}
+            {t("deletionBanner", { stationId: submission.station ? getStationNumber(submission.station) : submission.stationId })}
           </p>
         ) : null}
         {showsList && changes.length > 0 ? (

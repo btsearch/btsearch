@@ -148,7 +148,12 @@ export function SubmissionFormPage({ seed, controls, focusesModeSwitch = false, 
         scopes: ["place"],
         node: <LocationCard edit={edit} stationId={stationId} onRegisterStationPick={isNewStation && !isStored ? pickRegisterStation : undefined} />,
       },
-      { id: "station", label: t("common:labels.station"), scopes: ["station"], node: <StationCard edit={edit} stationId={stationId} /> },
+      {
+        id: "station",
+        label: t("common:labels.station"),
+        scopes: ["station"],
+        node: <StationCard edit={edit} stationId={stationId} />,
+      },
       {
         id: "sectors",
         label: t("common:labels.azimuths"),

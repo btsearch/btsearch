@@ -286,6 +286,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     const current = stationRow();
     const saved = { ...current, operator_id: 2 };
     dbMock.query.stations.findFirst.mockResolvedValue(current);
+    dbMock.query.cells.findMany.mockResolvedValue([]);
     scriptAudit();
     dbMock.enqueueFor("update", "stations", [saved]);
     const { app, errors } = await createRouteHarnessWithErrors(patchStationV1, admin);
@@ -294,6 +295,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
     expect(correctedGroups()).toEqual([[A1, { operatorId: 2, siteId: "A1" }]]);
     expectLinkedInsideTheWrite(writes("update", "stations"));
+    expect(dbMock.query.cells.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { OR: [{ id: { in: [] } }, { station_id: 1 }] } }));
 
     dbMock.calls.length = 0;
     scriptAudit();

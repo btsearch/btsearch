@@ -1,4 +1,4 @@
-import type { BackhaulMedium, CellType, StationIdentifierKind, StationStatus } from "@openbts/shared/contract";
+import { type BackhaulMedium, CID_RANGE, type CellType, type StationIdentifierKind, type StationStatus, toNodeName } from "@openbts/shared/contract";
 import { calculateDistance, formatDistance } from "@openbts/shared/geo";
 
 import { isSameCodes, toPlmnList } from "./networks";
@@ -42,6 +42,7 @@ import type {
 } from "./types";
 
 export type Translate = (key: string, values?: TextValues) => string;
+export type SiteIdRemoval = { siteId: string; nodeName: string };
 
 export type ChangeContext = {
   bandText: (bandId: number | null) => string;
@@ -217,6 +218,36 @@ export function getAreaValue(snapshot: StationSnapshot, cell: CellDraft): number
 
   const areaCode = snapshot.areaCodes[cell.rat];
   return areaCode.mode === "shared" ? areaCode.value : getCellNumber(cell, getAreaCodeField(cell.rat));
+}
+
+function toCellKey(node: number | null, cellId: number | null): number | null {
+  return node === null || node === 0 || cellId === null ? null : node * CID_RANGE + cellId;
+}
+
+function getNamingKey(snapshot: StationSnapshot, cell: CellDraft): number | null {
+  if (cell.rat === "gsm") return toCellKey(getAreaValue(snapshot, cell), getCellNumber(cell, "cid"));
+  if (cell.rat === "umts") return toCellKey(getCellNumber(cell, "rnc"), getCellNumber(cell, "cid"));
+  const node = getCellNumber(cell, cell.rat === "lte" ? "enbid" : "gnbid");
+  return node === 0 ? null : node;
+}
+
+export function findNodeName(snapshot: StationSnapshot): string | null {
+  const lowest: Record<Rat, number | null> = { gsm: null, umts: null, lte: null, nr: null };
+  for (const cell of snapshot.cells) {
+    if (cell.isDeleted) continue;
+    const key = getNamingKey(snapshot, cell);
+    const current = lowest[cell.rat];
+    if (key !== null && (current === null || key < current)) lowest[cell.rat] = key;
+  }
+  return toNodeName({ enbid: lowest.lte, gnbid: lowest.nr, longCid: lowest.umts, gsmCellKey: lowest.gsm });
+}
+
+export function findSiteIdRemoval({ live, draft }: EditSession): SiteIdRemoval | null {
+  const siteId = live === null ? "" : normalizeText(live.station.siteId);
+  if (siteId === "" || normalizeText(draft.station.siteId) !== "") return null;
+
+  const nodeName = findNodeName(draft);
+  return nodeName === null ? null : { siteId, nodeName };
 }
 
 export function listSectorEntries(sectors: readonly SectorDraft[]): SectorEntry[] {
