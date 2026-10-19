@@ -61,7 +61,7 @@
       "status": "Status stacji (published, pending, inactive)",
       "hasPhoto": "Ma zdjęcie (true, false)",
       "hasAzimuth": "Ma co najmniej jeden azymut (true, false)",
-      "uplink": "Typ łącza dosyłowego (fiber, microwave, satellite)",
+      "uplink": "Typ łącza dosyłowego (fiber, microwave, satellite, xdsl)",
       "createdAfter": "Utworzono po dacie (YYYY-MM-DD)",
       "createdBefore": "Utworzono przed datą (YYYY-MM-DD)",
       "updatedAfter": "Zaktualizowano po dacie (YYYY-MM-DD)",

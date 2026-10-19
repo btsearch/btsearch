@@ -111,6 +111,7 @@ export const BACKHAUL_MEDIUM_KEYS: Record<BackhaulMedium, string> = {
   fiber: "common:labels.backhaulFiber",
   microwave: "common:labels.backhaulMicrowave",
   satellite: "common:labels.backhaulSatellite",
+  xdsl: "common:labels.backhaulXdsl",
 };
 const CELL_TYPE_KEYS: Record<CellType, string> = {
   macro: "stations:cells.cellTypes.macrocell",

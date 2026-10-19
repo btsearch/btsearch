@@ -15,7 +15,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 const backhaulSelectSchema = createSelectSchema(stationBackhauls);
 
 const requestSchema = z.object({
-  type: z.enum(["fiber", "microwave", "satellite"]).nullable(),
+  type: z.enum(["fiber", "microwave", "satellite", "xdsl"]).nullable(),
   speed: backhaulSpeedSchema.nullable().optional(),
   model: z.string().max(100).nullable().optional(),
 });

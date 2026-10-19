@@ -20,7 +20,7 @@ import { hasStaffPermission } from "../access/staff.js";
 import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../audit/index.js";
 import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
 import { checkOwnerCellDuplicates, checkPciDuplicates, getOperatorIdForStation } from "../cells/duplicateCheck.js";
-import { type NetworkOwner, loadNetworkOwner, withoutOwnerCode } from "../cells/networkWrites.js";
+import { type NetworkOwner, cellNetworkKeys, loadNetworkOwner, withoutOwnerCode } from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { backhaulSpeedSchema } from "../stations/backhaul.js";
 import { assertCountriesOpen, loadCurrentLocations } from "./contributions.js";
@@ -29,7 +29,6 @@ import {
   assertTargetCellsFit,
   getCellDuplicateEntries,
   insertPhotoPicks,
-  loadCellNetworks,
   loadSubmissionOwner,
   nrInsertSchema,
   resolveCellExtras,
@@ -152,7 +151,10 @@ async function validateCellConflicts(
   const operatorId = sentOperatorId ?? (stationId === null ? await getProposedOperatorId(submissionId) : await getOperatorIdForStation(stationId));
   const owner = await loadNetworkOwner(db, operatorId, countryCode);
   const cellExtras = await resolveCellExtras(cells, owner);
-  validateCellDuplicates(cells, await loadCellNetworks(cells, owner, cellExtras));
+  validateCellDuplicates(
+    cells,
+    cellExtras.map((extras) => cellNetworkKeys(owner, extras ?? [])),
+  );
   if (owner.operatorId === null) return;
 
   const entries = getCellDuplicateEntries(cells, cellExtras);

@@ -41,7 +41,7 @@ export type StationStatus = (typeof STATION_STATUSES)[number];
 
 export const DEFAULT_STATION_STATUSES: readonly StationStatus[] = ["active", "awaitingCells"];
 
-export const BACKHAUL_MEDIUMS = ["fiber", "microwave", "satellite"] as const;
+export const BACKHAUL_MEDIUMS = ["fiber", "microwave", "satellite", "xdsl"] as const;
 export type BackhaulMedium = (typeof BACKHAUL_MEDIUMS)[number];
 
 export const STATION_INCLUDES = ["operator", "location", "location.region", "cells", "cells.band", "sectors", "backhaul"] as const;

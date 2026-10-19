@@ -79,6 +79,7 @@ const MEDIUM_KEYS: Record<BackhaulMedium, string> = {
   fiber: "common:labels.backhaulFiber",
   microwave: "common:labels.backhaulMicrowave",
   satellite: "common:labels.backhaulSatellite",
+  xdsl: "common:labels.backhaulXdsl",
 };
 const EMPTY_VALUE = "-";
 const FALLBACK_OPERATOR_BRAND = "MNO";

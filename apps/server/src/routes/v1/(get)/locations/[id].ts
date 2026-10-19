@@ -82,7 +82,7 @@ const schemaRoute = {
       }),
     uplink: z
       .string()
-      .regex(/^(?:fiber|microwave|satellite)(?:,(?:fiber|microwave|satellite))*$/)
+      .regex(/^(?:fiber|microwave|satellite|xdsl)(?:,(?:fiber|microwave|satellite|xdsl))*$/)
       .optional()
       .transform(parseBackhaulMediumsParam),
   }),

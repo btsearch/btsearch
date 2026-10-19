@@ -143,6 +143,7 @@
     "backhaulFiber": "Światłowód",
     "backhaulMicrowave": "Radiolinia",
     "backhaulSatellite": "Satelita",
+    "backhaulXdsl": "xDSL",
     "mnoName": "Nazwa {{brand}}",
     "cells": "Komórki",
     "newStation": "Nowa stacja",

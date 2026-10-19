@@ -1405,7 +1405,7 @@ paths:
         - name: uplink
           in: query
           description: Comma-separated uplink types. Only stations with one of these uplinks are included
-          schema: { type: string, pattern: "^(?:fiber|microwave|satellite)(?:,(?:fiber|microwave|satellite))*$" }
+          schema: { type: string, pattern: "^(?:fiber|microwave|satellite|xdsl)(?:,(?:fiber|microwave|satellite|xdsl))*$" }
       responses:
         "200":
           description: OK
@@ -1475,7 +1475,7 @@ paths:
         - name: uplink
           in: query
           description: Comma-separated uplink types. Only stations with one of these uplinks are included
-          schema: { type: string, pattern: "^(?:fiber|microwave|satellite)(?:,(?:fiber|microwave|satellite))*$" }
+          schema: { type: string, pattern: "^(?:fiber|microwave|satellite|xdsl)(?:,(?:fiber|microwave|satellite|xdsl))*$" }
       responses:
         "200":
           description: OK
@@ -1948,7 +1948,7 @@ paths:
       description: |
         Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string. Stations of every status (published, pending, inactive) are searched.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
-        - **stations**: bts_id, mnc (plmn), status (published, pending, inactive), has_azimuth (true, false), uplink (fiber, microwave, satellite)
+        - **stations**: bts_id, mnc (plmn), status (published, pending, inactive), has_azimuth (true, false), uplink (fiber, microwave, satellite, xdsl)
         - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed, cell_type (macro/MACROCELL, micro/MICROCELL, pico/PICOCELL, femto/FEMTOCELL)
         - **gsmCells**: lac, cid
         - **umtsCells**: rnc, umts_cid, cid_long, umts_lac, uarfcn
@@ -4109,14 +4109,19 @@ components:
       required: [id, type, speed, model]
       properties:
         id: { type: integer }
-        type: { type: string, enum: [fiber, microwave, satellite], description: "Backhaul type: fiber, microwave radio link or satellite link" }
+        type:
+          {
+            type: string,
+            enum: [fiber, microwave, satellite, xdsl],
+            description: "Backhaul type: fiber, microwave radio link, satellite link or xDSL",
+          }
         speed: { type: integer, nullable: true, minimum: 1, description: "Link capacity in Mbps" }
         model: { type: string, nullable: true, maxLength: 100, description: "Microwave link equipment model. Always null for other types" }
     StationUplinkPatch:
       type: object
       required: [type]
       properties:
-        type: { type: string, enum: [fiber, microwave, satellite], nullable: true, description: "Uplink type. `null` removes the uplink" }
+        type: { type: string, enum: [fiber, microwave, satellite, xdsl], nullable: true, description: "Uplink type. `null` removes the uplink" }
         speed: { type: integer, nullable: true, minimum: 1, maximum: 2147483647, description: "Link capacity in Mbps" }
         model: { type: string, nullable: true, maxLength: 100, description: "Microwave link equipment model. Cleared for other types" }
 

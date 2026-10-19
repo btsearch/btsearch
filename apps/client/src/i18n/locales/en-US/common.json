@@ -144,6 +144,7 @@
     "backhaulFiber": "Fiber",
     "backhaulMicrowave": "Microwave",
     "backhaulSatellite": "Satellite",
+    "backhaulXdsl": "xDSL",
     "mnoName": "{{brand}} name",
     "cells": "Cells",
     "newStation": "New station",

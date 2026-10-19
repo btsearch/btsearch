@@ -1,4 +1,4 @@
-import { CableIcon, Satellite01Icon, Satellite02Icon } from "@hugeicons/core-free-icons";
+import { CableIcon, Router01Icon, Satellite01Icon, Satellite02Icon } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 import { BACKHAUL_MEDIUMS, type BackhaulMedium } from "@openbts/shared/contract";
 
@@ -6,12 +6,14 @@ export const BACKHAUL_APPEARANCE: Record<BackhaulMedium, { icon: IconSvgElement;
   fiber: { icon: CableIcon, iconClassName: "text-sky-600 dark:text-sky-400" },
   microwave: { icon: Satellite01Icon, iconClassName: "text-amber-600 dark:text-amber-400" },
   satellite: { icon: Satellite02Icon, iconClassName: "text-violet-600 dark:text-violet-400" },
+  xdsl: { icon: Router01Icon, iconClassName: "text-emerald-600 dark:text-emerald-400" },
 };
 
 const BACKHAUL_MEDIUM_LABEL_KEYS = {
   fiber: "backhaulFiber",
   microwave: "backhaulMicrowave",
   satellite: "backhaulSatellite",
+  xdsl: "backhaulXdsl",
 } as const satisfies Record<BackhaulMedium, string>;
 
 export function isBackhaulMedium(value: unknown): value is BackhaulMedium {

@@ -74,6 +74,7 @@ const BACKHAUL_CHOICES: FilterChoice[] = [
   { value: "fiber", labelKey: "common:labels.backhaulFiber" },
   { value: "microwave", labelKey: "common:labels.backhaulMicrowave" },
   { value: "satellite", labelKey: "common:labels.backhaulSatellite" },
+  { value: "xdsl", labelKey: "common:labels.backhaulXdsl", aliases: ["dsl"] },
 ];
 const DUPLEX_CHOICES: FilterChoice[] = [{ value: "FDD" }, { value: "TDD" }, { value: "null", labelKey: "common:labels.unknown", aliases: ["false"] }];
 const CELL_TYPE_CHOICES: FilterChoice[] = [

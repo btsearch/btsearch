@@ -26,7 +26,7 @@ type MediumLabelProps = {
 };
 
 const NO_MEDIUM = "none";
-const MEDIUMS: readonly BackhaulMedium[] = ["fiber", "microwave", "satellite"];
+const MEDIUMS: readonly BackhaulMedium[] = ["fiber", "microwave", "satellite", "xdsl"];
 const FIBER_SPEED_SUGGESTIONS = [1250, 2500, 10_000];
 const MOST_SPEED_DIGITS = 10;
 
