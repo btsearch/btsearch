@@ -217,15 +217,15 @@ services:
       retries: 3
       start_period: 10s
     deploy:
-      replicas: 2
+      replicas: 1
       update_config:
         parallelism: 1
-        order: start-first
+        order: stop-first
         failure_action: rollback
         monitor: 20s
       rollback_config:
         parallelism: 1
-        order: start-first
+        order: stop-first
         failure_action: pause
       restart_policy:
         condition: on-failure
