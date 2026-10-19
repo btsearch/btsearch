@@ -87,20 +87,17 @@ export const SI2PEMReportSchema = z.object({
 
 export type SI2PEMReport = z.infer<typeof SI2PEMReportSchema>;
 
-export type TerrainPathSample = {
+export type ElevationSample = {
   distanceM: number;
   latitude: number;
   longitude: number;
-  terrainElevationM: number | null;
-  surfaceElevationM: number | null;
+  elevationM: number | null;
 };
 
-export type TerrainSampleResult = {
-  sampledAt: string;
+export type ElevationModelResult = {
   fromCache: boolean;
   stale: boolean;
   effectiveResolutionM: number;
-  terrainStatus: "available" | "partial" | "unavailable";
-  surfaceStatus: "available" | "partial" | "unavailable";
-  samples: TerrainPathSample[];
+  status: "available" | "partial" | "unavailable";
+  samples: ElevationSample[];
 };

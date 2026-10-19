@@ -1,8 +1,8 @@
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import { TerrainProfileCancelledError, type TerrainRequestFailure, classifyTerrainRequestError, fetchSettledTerrainProfile } from "../api";
-import type { TerrainProfileRecord, TerrainProfileRequest } from "../types";
+import { type TerrainProfileRecord, type TerrainProfileRequest, hasPendingSurface } from "../types";
 
 export type TerrainProfileAnalysis = {
   profile: TerrainProfileRecord | null;
@@ -20,9 +20,13 @@ export function getTerrainProfileQueryKey({ station, receiver, antennaKey }: Ter
 }
 
 export function useTerrainProfileAnalysis(request: TerrainProfileRequest | null): TerrainProfileAnalysis {
+  const queryClient = useQueryClient();
   const { data, error, isFetching, isPending, refetch } = useQuery({
     queryKey: request === null ? IDLE_QUERY_KEY : getTerrainProfileQueryKey(request),
-    queryFn: request === null ? skipToken : ({ signal }) => fetchSettledTerrainProfile(request, signal),
+    queryFn:
+      request === null
+        ? skipToken
+        : ({ signal, queryKey }) => fetchSettledTerrainProfile(request, signal, (ground) => queryClient.setQueryData(queryKey, ground)),
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: TERRAIN_PROFILE_GC_TIME,
@@ -31,7 +35,8 @@ export function useTerrainProfileAnalysis(request: TerrainProfileRequest | null)
   });
   const retry = useCallback(() => void refetch(), [refetch]);
 
-  const isCalculating = request !== null && (isFetching || isPending);
+  const isLoadingSurface = data !== undefined && hasPendingSurface(data);
+  const isCalculating = request !== null && (isPending || (isFetching && !isLoadingSurface));
   const hasSettledError = request !== null && !isCalculating && error !== null;
   const isCancelled = hasSettledError && error instanceof TerrainProfileCancelledError;
 

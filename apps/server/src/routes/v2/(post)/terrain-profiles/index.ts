@@ -4,7 +4,12 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { assertCapabilityVisible } from "../../../../features/countries/visibility.js";
-import { TERRAIN_PROFILE_POLL_SECONDS, createTerrainProfile, toTerrainProfile } from "../../../../features/terrainProfile/profiles.js";
+import {
+  TERRAIN_PROFILE_POLL_SECONDS,
+  createTerrainProfile,
+  isTerrainProfileRunning,
+  toTerrainProfile,
+} from "../../../../features/terrainProfile/profiles.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { UNLIMITED, countAgainstLimit } from "../../../../lib/requestLimit.js";
@@ -18,7 +23,8 @@ const schemaRoute = {
   description:
     "Send either `stationId` or `officialSiteId`, not both. An `antennaKey` the station does not have is not rejected: " +
     "the profile is created and then fails with the reason `antennaNotFound`.\n\n" +
-    "While the profile is `pending`, the `Retry-After` and `X-Retry-After` headers tell you how many seconds to wait " +
+    "While the profile is `pending`, or `ready` with a `surfaceVerdict` of `pending`, the `Retry-After` and `X-Retry-After` headers " +
+    "tell you how many seconds to wait " +
     "before polling `GET /terrain-profiles/{id}`. Failed and cancelled profiles are never reused.",
   querystring: terrainProfileQuerySchema,
   body: terrainProfileCreateSchema,
@@ -46,7 +52,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   const { profile, isNew } = await createTerrainProfile(req.body, () => countAgainstLimit(req, res, NEW_PROFILE_LIMIT));
 
-  if (profile.status === "pending") {
+  if (isTerrainProfileRunning(profile)) {
     res.header("Retry-After", String(TERRAIN_PROFILE_POLL_SECONDS));
     res.header("X-Retry-After", String(TERRAIN_PROFILE_POLL_SECONDS));
   }

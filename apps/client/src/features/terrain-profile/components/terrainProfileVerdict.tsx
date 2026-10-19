@@ -6,6 +6,7 @@ import type { TerrainFormat } from "../format";
 import type { TerrainResult } from "../types";
 import type { TerrainPathVerdict } from "../verdict";
 import { getStaleTextClassName } from "./terrainProfileStyles";
+import { LoadingIcon } from "@/components/ui/loading-icon";
 import { cn } from "@/lib/utils";
 
 type TerrainVerdictIconProps = {
@@ -18,6 +19,7 @@ const VERDICT_TONE_CLASSES: Record<TerrainPathVerdict, string> = {
   clear: "text-emerald-600 dark:text-emerald-400",
   blocked: "text-destructive",
   unavailable: "text-muted-foreground",
+  pending: "text-primary",
 };
 
 function CrossCircleIcon({ className }: { className: string }) {
@@ -43,6 +45,7 @@ function CrossCircleIcon({ className }: { className: string }) {
 export function TerrainVerdictIcon({ verdict, isStale, className }: TerrainVerdictIconProps) {
   const iconClassName = cn("shrink-0", getStaleTextClassName(isStale, VERDICT_TONE_CLASSES[verdict]), className);
   if (verdict === "blocked") return <CrossCircleIcon className={iconClassName} />;
+  if (verdict === "pending") return <LoadingIcon className={iconClassName} />;
 
   return <HugeiconsIcon icon={verdict === "clear" ? CheckmarkCircle02Icon : AlertCircleIcon} className={iconClassName} aria-hidden="true" />;
 }
@@ -50,12 +53,14 @@ export function TerrainVerdictIcon({ verdict, isStale, className }: TerrainVerdi
 export function getVerdictSentence(verdict: TerrainPathVerdict, t: TFunction): string {
   if (verdict === "clear") return t("terrainProfile:verdict.clear");
   if (verdict === "blocked") return t("terrainProfile:verdict.blocked");
+  if (verdict === "pending") return t("terrainProfile:verdict.pending");
   return t("terrainProfile:verdict.unavailable");
 }
 
 export function getShortVerdict(verdict: TerrainPathVerdict, t: TFunction): string {
   if (verdict === "clear") return t("terrainProfile:verdict.short.clear");
   if (verdict === "blocked") return t("terrainProfile:verdict.short.blocked");
+  if (verdict === "pending") return t("terrainProfile:verdict.short.pending");
   return t("terrainProfile:verdict.short.unavailable");
 }
 

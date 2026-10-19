@@ -2,31 +2,39 @@ import { sql as postgres } from "@openbts/drizzle/db";
 import { createHash } from "node:crypto";
 
 import { withRedisStaleCache } from "../../lib/redisCache.js";
-import { TERRAIN_PROFILE_MAX_DISTANCE_M, TERRAIN_UPSTREAM_TIMEOUT_MS } from "./config.js";
-import type { ResolvedTerrainStation, TerrainProfileRequest, TerrainSampleResult } from "./types.js";
+import { errorMessage } from "../../utils/errorMessage.js";
+import { logger } from "../../utils/logger.js";
+import { TERRAIN_PROFILE_MAX_DISTANCE_M } from "./config.js";
+import { fillReliableElevations } from "./elevationCoverage.js";
+import type { ElevationModelResult, ResolvedTerrainStation, TerrainProfileRequest } from "./types.js";
 import { type AaiGrid, DEFAULT_WCS_FORMAT, parseAaiGrid } from "./wcs.js";
 
 const NMT_WCS_URL = process.env.GUGIK_NMT_WCS_URL ?? "https://mapy.geoportal.gov.pl/wss/service/PZGIK/NMT/GRID1/WCS/DigitalTerrainModel";
 const NMPT_WCS_URL = process.env.GUGIK_NMPT_WCS_URL ?? "https://mapy.geoportal.gov.pl/wss/service/PZGIK/NMPT/GRID1/WCS/DigitalSurfaceModel";
+const NMT_POINTS_URL = process.env.GUGIK_NMT_POINTS_URL ?? "https://services.gugik.gov.pl/nmt/";
 const NMT_COVERAGE = "DTM_PL-EVRF2007-NH";
 const NMPT_COVERAGE = "DSM_PL-EVRF2007-NH";
 const WCS_CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.TERRAIN_WCS_CONCURRENCY) || 2));
+const WCS_TIMEOUT_MS = Math.max(1_000, Number(process.env.TERRAIN_WCS_TIMEOUT_MS) || 30_000);
 const TARGET_RESOLUTION_M = Math.max(2, Math.min(50, Number(process.env.TERRAIN_PROFILE_RESOLUTION_M) || 10));
 const MAX_SAMPLES = 401;
 const MIN_SAMPLES = 5;
 const MIN_CHUNK_SPAN_M = 1_000;
-const MAX_CHUNK_SPAN_M = 4_000;
+const MAX_CHUNK_SPAN_M = 2_000;
 const MAX_COVERAGE_AREA_M2 = 2_000_000;
 const MAX_CHUNK_AREA_M2 = MAX_COVERAGE_AREA_M2 * 0.95;
 const MAX_COVERAGE_BYTES = 6 * 1024 * 1024;
+const POINT_HEIGHTS_TIMEOUT_MS = 10_000;
+const MAX_POINT_HEIGHTS_BYTES = 256 * 1024;
 const WCS_MAX_ATTEMPTS = 2;
 const MAX_EFFECTIVE_RESOLUTION_M = Math.max(TARGET_RESOLUTION_M, TERRAIN_PROFILE_MAX_DISTANCE_M / (MAX_SAMPLES - 1));
 const MIN_SAMPLES_PER_CHUNK = Math.max(2, Math.floor(MIN_CHUNK_SPAN_M / MAX_EFFECTIVE_RESOLUTION_M) + 1);
 const MAX_WCS_CHUNKS = Math.ceil((MAX_SAMPLES - 1) / (MIN_SAMPLES_PER_CHUNK - 1));
-const WCS_CACHE_LOCK_TTL_SECONDS = Math.ceil((MAX_WCS_CHUNKS * 2 * WCS_MAX_ATTEMPTS * TERRAIN_UPSTREAM_TIMEOUT_MS) / WCS_CONCURRENCY / 1_000) + 60;
+const WCS_CACHE_LOCK_TTL_SECONDS = Math.ceil((MAX_WCS_CHUNKS * 2 * WCS_MAX_ATTEMPTS * WCS_TIMEOUT_MS) / WCS_CONCURRENCY / 1_000) + 60;
 
 type ProjectedPoint = { x: number; y: number };
 type SamplePoint = ProjectedPoint & { distanceM: number; latitude: number; longitude: number; index: number };
+type SamplePath = { points: SamplePoint[]; effectiveResolutionM: number };
 
 let activeWcsRequests = 0;
 const wcsWaiters: (() => void)[] = [];
@@ -84,7 +92,7 @@ function interpolatePoints(
   end: ProjectedPoint,
   station: ResolvedTerrainStation,
   receiver: TerrainProfileRequest["receiver"],
-): { points: SamplePoint[]; effectiveResolutionM: number } {
+): SamplePath {
   const distanceM = Math.hypot(end.x - start.x, end.y - start.y);
   const sampleCount = Math.min(MAX_SAMPLES, Math.max(MIN_SAMPLES, Math.ceil(distanceM / TARGET_RESOLUTION_M) + 1));
   const effectiveResolutionM = distanceM / (sampleCount - 1);
@@ -143,7 +151,7 @@ async function fetchCoverage(url: string, coverage: string, points: SamplePoint[
 
   return withWcsSlot(async () => {
     signal?.throwIfAborted();
-    const text = await fetchText(`${url}?${params.toString()}`, MAX_COVERAGE_BYTES, { timeoutMs: TERRAIN_UPSTREAM_TIMEOUT_MS, signal });
+    const text = await fetchText(`${url}?${params.toString()}`, MAX_COVERAGE_BYTES, { timeoutMs: WCS_TIMEOUT_MS, signal });
     return parseAaiGrid(text);
   });
 }
@@ -169,6 +177,51 @@ async function fetchCoverageOrNull(
   return null;
 }
 
+async function fetchPointHeights(points: SamplePoint[], signal?: AbortSignal): Promise<number[]> {
+  const timeout = AbortSignal.timeout(POINT_HEIGHTS_TIMEOUT_MS);
+  const response = await fetch(NMT_POINTS_URL, {
+    method: "POST",
+    headers: { Accept: "text/plain,*/*", "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      request: "GetHByPointList",
+      list: points.map((point) => `${point.y.toFixed(1)} ${point.x.toFixed(1)}`).join(","),
+    }),
+    signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
+  });
+  if (!response.ok) throw new Error(`Point height request failed: ${response.status} ${response.statusText}`);
+  const text = await response.text();
+  if (text.length > MAX_POINT_HEIGHTS_BYTES) throw new Error(`Point height response exceeds ${MAX_POINT_HEIGHTS_BYTES} bytes`);
+  const heights = text.split(",").map((entry) => Number(entry.trim().split(/\s+/)[2]));
+  if (heights.length !== points.length || heights.some((height) => !Number.isFinite(height))) throw new Error("Invalid point height response");
+  if (heights.every((height) => height === 0)) throw new Error("The point height service answered with zeros only");
+  return heights;
+}
+
+async function fetchCoverageElevations(url: string, coverage: string, path: SamplePath, signal?: AbortSignal): Promise<(number | null)[]> {
+  const elevations: (number | null)[] = Array.from({ length: path.points.length }, () => null);
+  await Promise.all(
+    splitIntoChunks(path.points, path.effectiveResolutionM).map(async (chunk) => {
+      const grid = await fetchCoverageOrNull(url, coverage, chunk, path.effectiveResolutionM, signal);
+      if (grid === null) return;
+      for (const point of chunk) {
+        const value = sampleGrid(grid, point);
+        if (value !== null) elevations[point.index] = value;
+      }
+    }),
+  );
+  return elevations;
+}
+
+async function fetchGroundElevations(path: SamplePath, signal?: AbortSignal): Promise<(number | null)[]> {
+  try {
+    return await fetchPointHeights(path.points, signal);
+  } catch (error) {
+    signal?.throwIfAborted();
+    logger.warn("terrain_point_heights_failed", { error: errorMessage(error) });
+    return fetchCoverageElevations(NMT_WCS_URL, NMT_COVERAGE, path, signal);
+  }
+}
+
 function modelStatus(values: (number | null)[]): "available" | "partial" | "unavailable" {
   const available = values.filter((value) => value !== null).length;
   if (available === 0) return "unavailable";
@@ -176,68 +229,65 @@ function modelStatus(values: (number | null)[]): "available" | "partial" | "unav
   return "available";
 }
 
-async function sampleUncached(
+async function planPath(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"]): Promise<SamplePath> {
+  const [start, end] = await Promise.all([projectPoint(station.latitude, station.longitude), projectPoint(receiver.latitude, receiver.longitude)]);
+  return interpolatePoints(start, end, station, receiver);
+}
+
+async function sampleModel(
+  model: "ground" | "surface",
   station: ResolvedTerrainStation,
   receiver: TerrainProfileRequest["receiver"],
   signal?: AbortSignal,
-): Promise<TerrainSampleResult> {
-  const [start, end] = await Promise.all([projectPoint(station.latitude, station.longitude), projectPoint(receiver.latitude, receiver.longitude)]);
-  const { points, effectiveResolutionM } = interpolatePoints(start, end, station, receiver);
-  const chunks = splitIntoChunks(points, effectiveResolutionM);
-  const terrainElevations: (number | null)[] = Array.from({ length: points.length }, () => null);
-  const surfaceElevations: (number | null)[] = Array.from({ length: points.length }, () => null);
-
-  await Promise.all(
-    chunks.map(async (chunk) => {
-      const [terrainGrid, surfaceGrid] = await Promise.all([
-        fetchCoverageOrNull(NMT_WCS_URL, NMT_COVERAGE, chunk, effectiveResolutionM, signal),
-        fetchCoverageOrNull(NMPT_WCS_URL, NMPT_COVERAGE, chunk, effectiveResolutionM, signal),
-      ]);
-      for (const point of chunk) {
-        const terrainValue = terrainGrid ? sampleGrid(terrainGrid, point) : null;
-        if (terrainValue !== null) terrainElevations[point.index] = terrainValue;
-        const surfaceValue = surfaceGrid ? sampleGrid(surfaceGrid, point) : null;
-        if (surfaceValue !== null) surfaceElevations[point.index] = surfaceValue;
-      }
-    }),
+): Promise<ElevationModelResult> {
+  const fingerprint = [station.latitude, station.longitude, receiver.latitude, receiver.longitude].map((value) => value.toFixed(5)).join(":");
+  const cacheId = createHash("sha256").update(`${fingerprint}:${TARGET_RESOLUTION_M}`).digest("hex").slice(0, 32);
+  const result = await withRedisStaleCache(
+    `terrain:gugik:v4:${model}:${cacheId}`,
+    {
+      freshTtlSeconds: 86400,
+      staleTtlSeconds: 7 * 86400,
+      lockTtlSeconds: WCS_CACHE_LOCK_TTL_SECONDS,
+      lockWaitDeadlineMs: WCS_CACHE_LOCK_TTL_SECONDS * 1_000,
+      shouldCache: (value) =>
+        !signal?.aborted &&
+        fillReliableElevations(
+          value.samples.map((sample) => sample.elevationM),
+          value.effectiveResolutionM,
+        ) !== null,
+    },
+    async () => {
+      const path = await planPath(station, receiver);
+      const elevations =
+        model === "ground" ? await fetchGroundElevations(path, signal) : await fetchCoverageElevations(NMPT_WCS_URL, NMPT_COVERAGE, path, signal);
+      return {
+        fromCache: false,
+        stale: false,
+        effectiveResolutionM: path.effectiveResolutionM,
+        status: modelStatus(elevations),
+        samples: path.points.map((point) => ({
+          distanceM: point.distanceM,
+          latitude: point.latitude,
+          longitude: point.longitude,
+          elevationM: elevations[point.index] ?? null,
+        })),
+      };
+    },
   );
-
-  return {
-    sampledAt: new Date().toISOString(),
-    fromCache: false,
-    stale: false,
-    effectiveResolutionM,
-    terrainStatus: modelStatus(terrainElevations),
-    surfaceStatus: modelStatus(surfaceElevations),
-    samples: points.map((point) => ({
-      distanceM: point.distanceM,
-      latitude: point.latitude,
-      longitude: point.longitude,
-      terrainElevationM: terrainElevations[point.index] ?? null,
-      surfaceElevationM: surfaceElevations[point.index] ?? null,
-    })),
-  };
+  return { ...result.value, fromCache: result.fromCache, stale: result.stale };
 }
 
 export interface TerrainSampler {
-  samplePath(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<TerrainSampleResult>;
+  sampleGround(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<ElevationModelResult>;
+  sampleSurface(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<ElevationModelResult>;
 }
 
 export class GeoportalTerrainSampler implements TerrainSampler {
-  async samplePath(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<TerrainSampleResult> {
-    const fingerprint = [station.latitude, station.longitude, receiver.latitude, receiver.longitude].map((value) => value.toFixed(5)).join(":");
-    const cacheId = createHash("sha256").update(`${fingerprint}:${TARGET_RESOLUTION_M}`).digest("hex").slice(0, 32);
-    const result = await withRedisStaleCache(
-      `terrain:gugik:v3:${cacheId}`,
-      {
-        freshTtlSeconds: 86400,
-        staleTtlSeconds: 7 * 86400,
-        lockTtlSeconds: WCS_CACHE_LOCK_TTL_SECONDS,
-        lockWaitDeadlineMs: WCS_CACHE_LOCK_TTL_SECONDS * 1_000,
-        shouldCache: (value) => value.terrainStatus !== "unavailable" && !signal?.aborted,
-      },
-      () => sampleUncached(station, receiver, signal),
-    );
-    return { ...result.value, fromCache: result.fromCache, stale: result.stale };
+  sampleGround(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<ElevationModelResult> {
+    return sampleModel("ground", station, receiver, signal);
+  }
+
+  sampleSurface(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<ElevationModelResult> {
+    return sampleModel("surface", station, receiver, signal);
   }
 }

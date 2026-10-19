@@ -10,8 +10,9 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 const schemaRoute = {
   summary: "Cancel a terrain profile",
   description:
-    "A `pending` profile becomes `cancelled`, and you can keep reading it until it expires. " +
-    "A profile that is already ready, failed or cancelled is left as it is, and you still get 204. " +
+    "A `pending` profile, or a `ready` one whose `surfaceVerdict` is still `pending`, becomes `cancelled`, " +
+    "and you can keep reading it until it expires. " +
+    "Any other profile is left as it is, and you still get 204. " +
     "Profiles have no owner, so anyone who knows the id can cancel one.",
   params: terrainProfileParamsSchema,
   response: { 204: noContentSchema },

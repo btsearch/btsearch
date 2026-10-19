@@ -105,7 +105,9 @@ function VerdictDetail({ verdict, highlight, isStale, isCompact }: VerdictDetail
 
   if (highlight === null || (highlight.kind === "obstruction" && highlight.depthMeters === null)) {
     if (isCompact || verdict === "clear") return null;
-    const description = verdict === "blocked" ? t("verdict.description.blocked") : t("verdict.description.unavailable");
+    let description = t("verdict.description.unavailable");
+    if (verdict === "blocked") description = t("verdict.description.blocked");
+    if (verdict === "pending") description = t("verdict.description.pending");
     return <p className="mt-1.5 text-xs leading-4 text-muted-foreground">{description}</p>;
   }
 

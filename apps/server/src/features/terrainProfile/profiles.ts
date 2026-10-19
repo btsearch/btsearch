@@ -24,13 +24,18 @@ import { logger } from "../../utils/logger.js";
 import { si2pemDateToWarsawDay, toSI2PEMFileUrl } from "../pem/si2pemValues.js";
 import { resolveAntennaMainBeam } from "./antennaAlignment.js";
 import { nearestToBearing } from "./antennaSelection.js";
-import { TERRAIN_PROFILE_MAX_DISTANCE_M, TERRAIN_PROFILE_MIN_DISTANCE_M, TERRAIN_PROFILE_TIME_LIMIT_MS } from "./config.js";
+import {
+  TERRAIN_PROFILE_MAX_DISTANCE_M,
+  TERRAIN_PROFILE_MIN_DISTANCE_M,
+  TERRAIN_PROFILE_TIME_LIMIT_MS,
+  TERRAIN_SURFACE_TIME_LIMIT_MS,
+} from "./config.js";
 import { fillReliableElevations } from "./elevationCoverage.js";
 import { analyzeTerrainProfile } from "./geometry.js";
 import { lookupAntennaData, lookupSiblingAntennaData } from "./service.js";
 import { type ResolvedStationWithFallbacks, resolveTerrainStation } from "./stationResolver.js";
 import { GeoportalTerrainSampler, type TerrainSampler } from "./terrainSampler.js";
-import type { AntennaCandidate, SI2PEMReport, TerrainProfileRequest, TerrainWarningCode } from "./types.js";
+import type { AntennaCandidate, ElevationModelResult, SI2PEMReport, TerrainProfileRequest, TerrainWarningCode } from "./types.js";
 
 type ProfileRequest = { station: TerrainProfileRequest["station"]; receiver: TerrainProfile["receiver"]; antennaKey?: string };
 type AnalysisProgress = { stage: "antenna" | "elevation"; candidates: TerrainAntenna[]; report: EmfReportHead | null };
@@ -50,6 +55,17 @@ type StoredTerrainProfile = {
   propagation: TerrainPropagation | null;
 };
 type AnalysisOutcome = Pick<StoredTerrainProfile, "status" | "antenna" | "report" | "result" | "failure" | "candidates" | "propagation">;
+type AnalyzedPath = {
+  request: ProfileRequest;
+  station: ResolvedStationWithFallbacks["station"];
+  chosen: { key: string; candidate: AntennaCandidate };
+  candidates: TerrainAntenna[];
+  report: EmfReportHead | null;
+  antennaWarnings: TerrainWarning[];
+  ground: ElevationModelResult;
+  groundElevations: number[];
+};
+type GroundAnalysis = { outcome: AnalysisOutcome; path: AnalyzedPath | null };
 
 export const TERRAIN_PROFILE_POLL_SECONDS = 2;
 
@@ -110,8 +126,16 @@ async function isCancelled(id: string): Promise<boolean> {
   return (await redis.exists(cancelKey(id))) === 1;
 }
 
+function isSurfacePending(profile: StoredTerrainProfile): boolean {
+  return profile.status === "ready" && profile.result?.surfaceVerdict === "pending";
+}
+
+export function isTerrainProfileRunning(profile: StoredTerrainProfile): boolean {
+  return profile.status === "pending" || isSurfacePending(profile);
+}
+
 function isAbandoned(profile: StoredTerrainProfile): boolean {
-  return profile.status === "pending" && Date.now() - Date.parse(profile.updatedAt) > CLAIM_TTL_SECONDS * 1000;
+  return isTerrainProfileRunning(profile) && Date.now() - Date.parse(profile.updatedAt) > CLAIM_TTL_SECONDS * 1000;
 }
 
 function rounded(value: number, digits: number): number {
@@ -177,73 +201,46 @@ function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-async function analyze(
-  request: ProfileRequest,
-  resolved: ResolvedStationWithFallbacks,
-  signal: AbortSignal,
-  progress: AnalysisProgress,
-): Promise<AnalysisOutcome> {
-  const { station } = resolved;
-  let antennaData = await untilAborted(lookupAntennaData(resolved), signal);
-  if (antennaData.candidates.length === 0) {
-    const siblingData = await untilAborted(lookupSiblingAntennaData(resolved), signal);
-    if (siblingData) antennaData = siblingData;
-  }
+function toSamplerReceiver(request: ProfileRequest): TerrainProfileRequest["receiver"] {
+  return { latitude: request.receiver.latitude, longitude: request.receiver.longitude, mountedHeight: request.receiver.heightMeters };
+}
 
-  const report = toReportHead(antennaData.report);
-  const usable = antennaData.candidates.filter(isUsable).map((candidate) => ({ key: makeAntennaKey(candidate), candidate }));
-  const candidates = usable.map(({ key, candidate }) => toAntenna(key, candidate));
-  if (usable.length === 0) return failed("antennaDataUnavailable", "No usable antenna height and frequency is known for this station.", [], report);
-
-  const bearing = calculateBearing(station.latitude, station.longitude, request.receiver.latitude, request.receiver.longitude);
-  const chosen = request.antennaKey === undefined ? nearestToBearing(usable, bearing) : usable.find((entry) => entry.key === request.antennaKey);
-  if (chosen === undefined) return failed("antennaNotFound", "The station has no antenna with this key.", candidates, report);
-
-  progress.stage = "elevation";
-  progress.candidates = candidates;
-  progress.report = report;
-  signal.throwIfAborted();
-  const terrain = await sampler.samplePath(
-    station,
-    { latitude: request.receiver.latitude, longitude: request.receiver.longitude, mountedHeight: request.receiver.heightMeters },
-    signal,
-  );
-  signal.throwIfAborted();
-
-  const ground = fillReliableElevations(
-    terrain.samples.map((sample) => sample.terrainElevationM),
-    terrain.effectiveResolutionM,
-  );
-  if (ground === null) return failed("elevationDataUnavailable", "The elevation data for this path is not available.", candidates, report);
-
-  const surface = fillReliableElevations(
-    terrain.samples.map((sample) => sample.surfaceElevationM),
-    terrain.effectiveResolutionM,
-  );
+function buildOutcome(path: AnalyzedPath, surface: ElevationModelResult | "pending" | null): AnalysisOutcome {
+  const { request, station, chosen, ground, groundElevations } = path;
+  const surfaceModel = surface === "pending" ? null : surface;
+  const matchingSurface = surfaceModel?.samples.length === ground.samples.length ? surfaceModel : null;
+  const surfaceElevations =
+    matchingSurface === null
+      ? null
+      : fillReliableElevations(
+          matchingSurface.samples.map((sample) => sample.elevationM),
+          matchingSurface.effectiveResolutionM,
+        );
   const geometry = analyzeTerrainProfile({
     transmitter: { latitude: station.latitude, longitude: station.longitude, antennaHeightAglM: chosen.candidate.antenna.mountedHeight },
     receiver: { latitude: request.receiver.latitude, longitude: request.receiver.longitude, antennaHeightAglM: request.receiver.heightMeters },
     frequencyMHz: chosen.candidate.frequencyMHz,
     sectorAzimuthDegrees: chosen.candidate.antenna.azimuth,
     mainBeamElevationDegrees: resolveAntennaMainBeam(chosen.candidate).mainBeamElevationDegrees,
-    samples: terrain.samples.map((sample, index) => ({
+    samples: ground.samples.map((sample, index) => ({
       distanceM: sample.distanceM,
-      terrainElevationM: ground[index]!,
-      surfaceElevationM: (surface ?? ground)[index]!,
+      terrainElevationM: groundElevations[index]!,
+      surfaceElevationM: (surfaceElevations ?? groundElevations)[index]!,
     })),
   });
 
-  const warnings = new Set<TerrainWarning>(antennaData.warningCodes.flatMap((code) => ANTENNA_WARNINGS[code] ?? []));
-  if (terrain.stale) warnings.add("elevationDataStale");
-  if (terrain.terrainStatus === "partial") warnings.add("terrainDataIncomplete");
-  if (surface === null) warnings.add("surfaceDataUnavailable");
-  else if (terrain.surfaceStatus === "partial") warnings.add("surfaceDataIncomplete");
+  const warnings = new Set<TerrainWarning>(path.antennaWarnings);
+  if (ground.stale || surfaceModel?.stale) warnings.add("elevationDataStale");
+  if (ground.status === "partial") warnings.add("terrainDataIncomplete");
+  if (surface !== "pending" && surfaceElevations === null) warnings.add("surfaceDataUnavailable");
+  else if (surfaceModel?.status === "partial") warnings.add("surfaceDataIncomplete");
   if (geometry.azimuthDeltaDegrees !== null && geometry.azimuthDeltaDegrees > ANTENNA_AZIMUTH_TOLERANCE_DEG) warnings.add("outsideMainBeam");
 
   const { p1812 } = geometry;
   const obstacleDistanceMeters = p1812.bullingtonDistanceKm === null ? null : rounded(p1812.bullingtonDistanceKm * 1000, 2);
   let surfaceVerdict: TerrainResult["surfaceVerdict"] = "unknown";
-  if (surface !== null) surfaceVerdict = geometry.status === "clear" ? "clear" : "blocked";
+  if (surface === "pending") surfaceVerdict = "pending";
+  else if (surfaceElevations !== null) surfaceVerdict = geometry.status === "clear" ? "clear" : "blocked";
 
   const result: TerrainResult = {
     terrainVerdict: geometry.lineOfSight.terrain ? "clear" : "blocked",
@@ -257,9 +254,9 @@ async function analyze(
       elevation: roundedOrNull(geometry.verticalAlignment.verticalOffsetDegrees, 2),
     },
     obstacleDistanceMeters,
-    samples: terrain.samples.map((sample, index) => {
+    samples: ground.samples.map((sample, index) => {
       const analyzed = geometry.samples[index]!;
-      const surfaceMeters = surface === null ? sample.surfaceElevationM : analyzed.surfaceElevationM;
+      const surfaceMeters = surfaceElevations === null ? (matchingSurface?.samples[index]?.elevationM ?? null) : analyzed.surfaceElevationM;
       return {
         distanceMeters: rounded(sample.distanceM, 2),
         latitude: rounded(sample.latitude, 6),
@@ -269,7 +266,7 @@ async function analyze(
         sightLineMeters: rounded(analyzed.lineOfSightElevationM - analyzed.earthBulgeM, 2),
       };
     }),
-    elevationData: { source: "GUGiK", resolutionMeters: rounded(terrain.effectiveResolutionM, 2) },
+    elevationData: { source: "GUGiK", resolutionMeters: rounded(ground.effectiveResolutionM, 2) },
     warnings: [...warnings],
   };
   const propagation: TerrainPropagation = {
@@ -294,19 +291,72 @@ async function analyze(
   return {
     status: "ready",
     antenna: { ...toAntenna(chosen.key, chosen.candidate), isAutoSelected: request.antennaKey === undefined },
-    report,
+    report: path.report,
     result,
     failure: null,
-    candidates,
+    candidates: path.candidates,
     propagation,
   };
+}
+
+async function analyze(
+  request: ProfileRequest,
+  resolved: ResolvedStationWithFallbacks,
+  signal: AbortSignal,
+  progress: AnalysisProgress,
+): Promise<GroundAnalysis> {
+  const { station } = resolved;
+  let antennaData = await untilAborted(lookupAntennaData(resolved), signal);
+  if (antennaData.candidates.length === 0) {
+    const siblingData = await untilAborted(lookupSiblingAntennaData(resolved), signal);
+    if (siblingData) antennaData = siblingData;
+  }
+
+  const report = toReportHead(antennaData.report);
+  const usable = antennaData.candidates.filter(isUsable).map((candidate) => ({ key: makeAntennaKey(candidate), candidate }));
+  const candidates = usable.map(({ key, candidate }) => toAntenna(key, candidate));
+  if (usable.length === 0) {
+    return { outcome: failed("antennaDataUnavailable", "No usable antenna height and frequency is known for this station.", [], report), path: null };
+  }
+
+  const bearing = calculateBearing(station.latitude, station.longitude, request.receiver.latitude, request.receiver.longitude);
+  const chosen = request.antennaKey === undefined ? nearestToBearing(usable, bearing) : usable.find((entry) => entry.key === request.antennaKey);
+  if (chosen === undefined) {
+    return { outcome: failed("antennaNotFound", "The station has no antenna with this key.", candidates, report), path: null };
+  }
+
+  progress.stage = "elevation";
+  progress.candidates = candidates;
+  progress.report = report;
+  const ground = await untilAborted(sampler.sampleGround(station, toSamplerReceiver(request), signal), signal);
+  signal.throwIfAborted();
+
+  const groundElevations = fillReliableElevations(
+    ground.samples.map((sample) => sample.elevationM),
+    ground.effectiveResolutionM,
+  );
+  if (groundElevations === null) {
+    return { outcome: failed("elevationDataUnavailable", "The elevation data for this path is not available.", candidates, report), path: null };
+  }
+
+  const path: AnalyzedPath = {
+    request,
+    station,
+    chosen,
+    candidates,
+    report,
+    antennaWarnings: antennaData.warningCodes.flatMap((code) => ANTENNA_WARNINGS[code] ?? []),
+    ground,
+    groundElevations,
+  };
+  return { outcome: buildOutcome(path, "pending"), path };
 }
 
 async function runAnalysis(
   profile: StoredTerrainProfile,
   resolved: ResolvedStationWithFallbacks | undefined,
   cancel: AbortSignal,
-): Promise<AnalysisOutcome | null> {
+): Promise<GroundAnalysis | null> {
   const timeLimit = AbortSignal.timeout(TERRAIN_PROFILE_TIME_LIMIT_MS);
   const progress: AnalysisProgress = { stage: "antenna", candidates: [], report: null };
 
@@ -316,13 +366,28 @@ async function runAnalysis(
   } catch (error) {
     if (cancel.aborted) return null;
     if (timeLimit.aborted) {
-      return progress.stage === "antenna"
-        ? failed("antennaDataUnavailable", "The antenna data did not arrive in time.")
-        : failed("elevationDataUnavailable", "The elevation data did not arrive in time.", progress.candidates, progress.report);
+      const outcome =
+        progress.stage === "antenna"
+          ? failed("antennaDataUnavailable", "The antenna data did not arrive in time.")
+          : failed("elevationDataUnavailable", "The elevation data did not arrive in time.", progress.candidates, progress.report);
+      return { outcome, path: null };
     }
 
     logger.error("terrain_profile_failed", { id: profile.id, error: errorMessage(error) });
-    return failed("internalError", "The terrain profile could not be made.", progress.candidates, progress.report);
+    return { outcome: failed("internalError", "The terrain profile could not be made.", progress.candidates, progress.report), path: null };
+  }
+}
+
+async function addSurface(id: string, path: AnalyzedPath, cancel: AbortSignal): Promise<AnalysisOutcome | null> {
+  const timeLimit = AbortSignal.timeout(TERRAIN_SURFACE_TIME_LIMIT_MS);
+  const signal = AbortSignal.any([cancel, timeLimit]);
+  try {
+    const surface = await untilAborted(sampler.sampleSurface(path.station, toSamplerReceiver(path.request), signal), signal);
+    return buildOutcome(path, surface);
+  } catch (error) {
+    if (cancel.aborted) return null;
+    if (!timeLimit.aborted) logger.error("terrain_profile_surface_failed", { id, error: errorMessage(error) });
+    return buildOutcome(path, null);
   }
 }
 
@@ -349,11 +414,16 @@ async function runClaimed(id: string, resolved?: ResolvedStationWithFallbacks): 
 
   try {
     const profile = await loadProfile(id);
-    if (!profile || profile.status !== "pending") return;
+    if (!profile || !isTerrainProfileRunning(profile)) return;
 
-    const outcome = await runAnalysis(profile, resolved, cancel.signal);
+    const analysis = await runAnalysis(profile, resolved, cancel.signal);
+    if (analysis === null || cancel.signal.aborted || (await isCancelled(id))) return;
+    const groundProfile = await saveProfile({ ...profile, ...analysis.outcome });
+    if (analysis.path === null) return;
+
+    const outcome = await addSurface(id, analysis.path, cancel.signal);
     if (outcome === null || cancel.signal.aborted || (await isCancelled(id))) return;
-    await saveProfile({ ...profile, ...outcome });
+    await saveProfile({ ...groundProfile, ...outcome });
   } finally {
     clearInterval(refreshTimer);
     clearInterval(cancelTimer);
@@ -446,7 +516,7 @@ export async function getTerrainProfile(id: string): Promise<StoredTerrainProfil
 export async function cancelTerrainProfile(id: string): Promise<void> {
   const profile = await loadProfile(id);
   if (!profile) throw new ErrorResponse("NOT_FOUND");
-  if (profile.status !== "pending") return;
+  if (!isTerrainProfileRunning(profile)) return;
 
   await redis.setEx(cancelKey(id), PROFILE_TTL_SECONDS, "1");
   await saveProfile({ ...profile, status: "cancelled" });

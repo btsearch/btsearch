@@ -1,6 +1,6 @@
 import type { TerrainProfileCreate } from "@openbts/shared/contract";
 
-import type { TerrainProfileRecord, TerrainProfileRequest } from "./types";
+import { type TerrainProfileRecord, type TerrainProfileRequest, hasPendingSurface } from "./types";
 import { API_V2_BASE, ApiResponseError, BackendUnavailableError, RateLimitError, fetchJson, fetchV2Data } from "@/lib/api";
 
 const POLL_INTERVAL_MS = 2000;
@@ -9,6 +9,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 const REJECTED_RECEIVER_STATUS = 400;
 
 export type TerrainRequestFailure = "rejectedReceiver" | "rateLimited" | "sourceUnavailable" | "unknown";
+type GroundListener = (profile: TerrainProfileRecord) => void;
 
 export class TerrainProfileCancelledError extends Error {
   constructor() {
@@ -65,36 +66,54 @@ function waitForNextPoll(signal: AbortSignal): Promise<void> {
   });
 }
 
-async function pollUntilSettled(profile: TerrainProfileRecord, signal: AbortSignal): Promise<TerrainProfileRecord> {
-  if (profile.status !== "pending") return profile;
-  await waitForNextPoll(signal);
-  return pollUntilSettled(await fetchTerrainProfile(profile.id, signal), signal);
+function isRunning(profile: TerrainProfileRecord): boolean {
+  return profile.status === "pending" || hasPendingSurface(profile);
 }
 
-async function fetchUntilSettled(started: TerrainProfileRecord, signal: AbortSignal): Promise<TerrainProfileRecord> {
+async function pollWhileRunning(profile: TerrainProfileRecord, signal: AbortSignal): Promise<TerrainProfileRecord> {
+  if (!isRunning(profile)) return profile;
+  await waitForNextPoll(signal);
+  return pollWhileRunning(await fetchTerrainProfile(profile.id, signal), signal);
+}
+
+async function pollUntilSettled(profile: TerrainProfileRecord, signal: AbortSignal, onGround: GroundListener): Promise<TerrainProfileRecord> {
+  if (hasPendingSurface(profile)) {
+    onGround(profile);
+    return pollWhileRunning(profile, signal);
+  }
+  if (profile.status !== "pending") return profile;
+  await waitForNextPoll(signal);
+  return pollUntilSettled(await fetchTerrainProfile(profile.id, signal), signal, onGround);
+}
+
+async function fetchUntilSettled(started: TerrainProfileRecord, signal: AbortSignal, onGround: GroundListener): Promise<TerrainProfileRecord> {
   try {
-    return await pollUntilSettled(started, signal);
+    return await pollUntilSettled(started, signal, onGround);
   } catch (error) {
     if (signal.aborted) void cancelTerrainProfile(started.id);
     throw error;
   }
 }
 
-async function requestTerrainProfile(request: TerrainProfileRequest, signal: AbortSignal): Promise<TerrainProfileRecord> {
+async function requestTerrainProfile(request: TerrainProfileRequest, signal: AbortSignal, onGround: GroundListener): Promise<TerrainProfileRecord> {
   const started = await createTerrainProfile(request);
   if (signal.aborted) {
-    if (started.status === "pending") void cancelTerrainProfile(started.id);
+    if (isRunning(started)) void cancelTerrainProfile(started.id);
     throw signal.reason;
   }
-  return fetchUntilSettled(started, signal);
+  return fetchUntilSettled(started, signal, onGround);
 }
 
-export async function fetchSettledTerrainProfile(request: TerrainProfileRequest, signal: AbortSignal): Promise<TerrainProfileRecord> {
-  const settled = await requestTerrainProfile(request, signal);
+export async function fetchSettledTerrainProfile(
+  request: TerrainProfileRequest,
+  signal: AbortSignal,
+  onGround: GroundListener,
+): Promise<TerrainProfileRecord> {
+  const settled = await requestTerrainProfile(request, signal, onGround);
   if (settled.status !== "cancelled") return settled;
   if (signal.aborted) throw signal.reason;
 
-  const repeated = await requestTerrainProfile(request, signal);
+  const repeated = await requestTerrainProfile(request, signal, onGround);
   if (repeated.status === "cancelled") throw new TerrainProfileCancelledError();
   return repeated;
 }

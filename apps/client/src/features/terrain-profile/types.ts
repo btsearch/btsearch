@@ -41,3 +41,7 @@ export type TerrainProfileRequest = {
 export function isReadyTerrainProfile(profile: TerrainProfileRecord): profile is ReadyTerrainProfile {
   return profile.status === "ready" && profile.antenna !== null && profile.result !== null;
 }
+
+export function hasPendingSurface(profile: TerrainProfileRecord): boolean {
+  return profile.status === "ready" && profile.result?.surfaceVerdict === "pending";
+}

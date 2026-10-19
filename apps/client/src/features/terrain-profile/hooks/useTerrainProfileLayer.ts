@@ -54,7 +54,13 @@ const PRIMARY_COLOR_VARIABLE = "--primary";
 const FALLBACK_PRIMARY_COLOR = "#2563eb";
 const PATH_CASING_COLOR = "#070b0d";
 const BLOCKED_COLOR = "#dc2626";
-const VERDICT_PATH_COLORS: Record<TerrainPathVerdict, string> = { clear: "#16a34a", blocked: BLOCKED_COLOR, unavailable: "#64748b" };
+const NEUTRAL_PATH_COLOR = "#64748b";
+const VERDICT_PATH_COLORS: Record<TerrainPathVerdict, string> = {
+  clear: "#16a34a",
+  blocked: BLOCKED_COLOR,
+  unavailable: NEUTRAL_PATH_COLOR,
+  pending: NEUTRAL_PATH_COLOR,
+};
 const PICKING_CURSOR_CLASS = "cursor-crosshair!";
 const WEDGE_ARC_SEGMENT_DEGREES = 4;
 const WEDGE_PATH_SHARE = 0.25;

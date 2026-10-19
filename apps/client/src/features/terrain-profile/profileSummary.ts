@@ -88,7 +88,7 @@ export function findNearestSampleIndex(samples: readonly TerrainSample[], distan
 
 export function getProfileHighlight(result: TerrainResult, summary: ProfileSummary, verdict: TerrainPathVerdict): ProfileHighlight | null {
   const { worst } = summary;
-  if (verdict === "unavailable" || worst === null) return null;
+  if (verdict === "unavailable" || verdict === "pending" || worst === null) return null;
 
   if (verdict === "clear") {
     return { kind: "clearance", index: worst.index, distanceMeters: worst.distanceMeters, clearanceMeters: Math.max(0, worst.clearanceMeters) };

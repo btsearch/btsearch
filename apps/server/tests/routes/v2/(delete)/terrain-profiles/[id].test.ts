@@ -33,6 +33,22 @@ describe("DELETE /terrain-profiles/:id", () => {
     expect(dbMock.calls).toEqual([]);
   });
 
+  it("cancels a ready profile that is still waiting for its surface heights", async () => {
+    const previous = {
+      id,
+      status: "ready",
+      createdAt: "2026-10-06T09:00:00Z",
+      result: { surfaceVerdict: "pending" },
+      request: { station: { source: "internal", id: 1 } },
+    };
+    await redisMock.setEx(profileKey, 3600, JSON.stringify(previous));
+    const app = await createRouteHarness(route);
+
+    expect((await app.inject({ method: "DELETE", url: `/terrain-profiles/${id}` })).statusCode).toBe(204);
+    expect(await redisMock.get(`${profileKey}:cancelled`)).toBe("1");
+    expect(JSON.parse((await redisMock.get(profileKey)) ?? "null")).toMatchObject({ status: "cancelled" });
+  });
+
   it.each(["ready", "failed", "cancelled"])("leaves a %s profile unchanged", async (status) => {
     const previous = JSON.stringify({ id, status, updatedAt: "2026-10-06T09:00:00Z" });
     await redisMock.setEx(profileKey, 3600, previous);

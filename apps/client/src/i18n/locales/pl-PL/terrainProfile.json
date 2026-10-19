@@ -36,16 +36,19 @@
     "clear": "Modelowana trasa jest wolna od przeszkód",
     "blocked": "Modelowana trasa jest przesłonięta",
     "unavailable": "Ocena trasy jest niejednoznaczna",
+    "pending": "Teren nie przesłania trasy, sprawdzanie budynków i roślinności...",
     "summary": "{{distance}} km · azymut {{bearing}}°",
     "surfaceOnly": "Sam teren nie przesłania trasy. Ograniczeniem są budynki lub roślinność",
     "description": {
       "blocked": "Teren, budynki lub roślinność przesłaniają modelowaną trasę. Odbiór może być słabszy lub mniej stabilny",
-      "unavailable": "Dane o budynkach i roślinności są niepełne, dlatego nie można wiarygodnie ocenić warunków odbioru"
+      "unavailable": "Dane o budynkach i roślinności są niepełne, dlatego nie można wiarygodnie ocenić warunków odbioru",
+      "pending": "Wysokości budynków i roślinności wciąż są pobierane z GUGiK. Na długich trasach może to potrwać kilka minut"
     },
     "short": {
       "clear": "Trasa wolna od przeszkód",
       "blocked": "Trasa przesłonięta",
-      "unavailable": "Ocena niejednoznaczna"
+      "unavailable": "Ocena niejednoznaczna",
+      "pending": "Sprawdzanie budynków i roślinności"
     },
     "minimumClearance": "Najmniejszy prześwit",
     "obstructionDepth": "Przesłonięcie do"

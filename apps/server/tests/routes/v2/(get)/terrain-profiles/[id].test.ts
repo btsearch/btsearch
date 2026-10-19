@@ -40,6 +40,43 @@ describe("getTerrainProfileRoute", () => {
     else expect(response.headers).not.toHaveProperty("retry-after");
   });
 
+  it("keeps sending polling headers while a ready profile waits for its surface heights", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        id: readUserId,
+        status: "ready",
+        createdAt: "2026-10-06T10:00:00Z",
+        updatedAt: "9998-01-01T00:00:00Z",
+        expiresAt: "9998-01-01T01:00:00Z",
+        request: { station: { source: "internal", id: 1 }, receiver: { latitude: 52, longitude: 21, heightMeters: 2 } },
+        antenna: null,
+        report: null,
+        result: {
+          terrainVerdict: "clear",
+          surfaceVerdict: "pending",
+          distanceMeters: 1000,
+          bearing: 0,
+          pathLossDb: 90,
+          referenceFieldStrengthDbuvm: 60,
+          beamOffset: { azimuth: null, elevation: null },
+          obstacleDistanceMeters: null,
+          samples: [],
+          elevationData: { source: "GUGiK", resolutionMeters: 10 },
+          warnings: [],
+        },
+        failure: null,
+        candidates: [],
+        propagation: null,
+      }),
+    );
+    const app = await createRouteHarness(getTerrainProfileRoute);
+    const response = await app.inject({ url: `/terrain-profiles/${readUserId}` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({ status: "ready", result: { surfaceVerdict: "pending" } });
+    expect(response.headers).toMatchObject({ "retry-after": "2", "x-retry-after": "2" });
+  });
+
   it.each(["expired", "hidden"])("hides a %s profile", async (kind) => {
     dbMock.enqueueFor("select", "countries", kind === "hidden" ? [{ code: "PL", isVisible: false }] : []);
     const app = await createRouteHarness(getTerrainProfileRoute);

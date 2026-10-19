@@ -13,7 +13,7 @@ export type TerrainProfileInclude = (typeof TERRAIN_PROFILE_INCLUDES)[number];
 export const TERRAIN_VERDICTS = ["clear", "blocked"] as const;
 export type TerrainVerdict = (typeof TERRAIN_VERDICTS)[number];
 
-export const SURFACE_VERDICTS = ["clear", "blocked", "unknown"] as const;
+export const SURFACE_VERDICTS = ["clear", "blocked", "unknown", "pending"] as const;
 export type SurfaceVerdict = (typeof SURFACE_VERDICTS)[number];
 
 export const TERRAIN_ANTENNA_SOURCES = ["emfReport", "permit"] as const;
@@ -90,7 +90,8 @@ export const terrainResultSchema = z.object({
     .enum(SURFACE_VERDICTS)
     .describe(
       "Whether the ground with its buildings and trees blocks the line between the antennas. Also `blocked` when the receiver lies beyond " +
-        "the radio horizon, and `unknown` if the heights of buildings and trees are not available",
+        "the radio horizon, and `unknown` if the heights of buildings and trees are not available. " +
+        "`pending` while those heights are still being fetched: the rest of the result is already final, and `surfaceMeters` is `null` until then",
     ),
   distanceMeters: z.number(),
   bearing: z.number().describe("Direction from the station to the receiver, in degrees from north"),

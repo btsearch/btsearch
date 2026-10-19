@@ -36,16 +36,19 @@
     "clear": "Modeled path is unobstructed",
     "blocked": "Modeled path is obstructed",
     "unavailable": "Path assessment is inconclusive",
+    "pending": "Terrain is clear, checking buildings and vegetation...",
     "summary": "{{distance}} km · azimuth {{bearing}}°",
     "surfaceOnly": "The terrain itself is clear. Buildings or vegetation constrain the path",
     "description": {
       "blocked": "Terrain, buildings or vegetation obstruct the modeled path. Reception may be weaker or less stable",
-      "unavailable": "Building and vegetation coverage is incomplete, so reception conditions cannot be assessed reliably"
+      "unavailable": "Building and vegetation coverage is incomplete, so reception conditions cannot be assessed reliably",
+      "pending": "Building and vegetation heights are still loading from GUGiK. On long paths this can take a few minutes"
     },
     "short": {
       "clear": "Path unobstructed",
       "blocked": "Path obstructed",
-      "unavailable": "Assessment inconclusive"
+      "unavailable": "Assessment inconclusive",
+      "pending": "Checking buildings and vegetation"
     },
     "minimumClearance": "Smallest clearance",
     "obstructionDepth": "Obstructed by up to"

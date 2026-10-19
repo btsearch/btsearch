@@ -129,6 +129,7 @@ export const TAGS: readonly DocumentedTag[] = [
     description:
       "A line-of-sight check between one of a station's antennas and a point on the map, taking the terrain in between into account. " +
       "Profiles are computed in the background: create one, then poll it until it is ready. " +
+      "A ready profile can still be waiting for the heights of buildings and trees; keep polling while `surfaceVerdict` is `pending`. " +
       "The antenna data comes from SI2PEM, so this only works for stations in countries " +
       "where `capabilities.terrainProfiles` is not `null` in `GET /countries`.",
   },
