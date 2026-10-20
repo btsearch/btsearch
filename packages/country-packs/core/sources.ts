@@ -110,7 +110,11 @@ export type KmzExportContext = { db: Database | SourceTransaction; directory: st
 export type UnmatchedLteCell = { operator: OperatorRef; operatorIds: readonly number[]; enbid: number };
 export type CellMatchContext = { db: Database | SourceTransaction; cells: readonly UnmatchedLteCell[] };
 
-export type SitesDataset = DatasetReader<SiteRecord> & { layer: "sites"; syncSiteNames?: (ctx: SiteNameSyncContext) => Promise<SiteNameSyncResult> };
+export type SitesDataset = DatasetReader<SiteRecord> & {
+  layer: "sites";
+  yieldsSitePlacementTo?: readonly string[];
+  syncSiteNames?: (ctx: SiteNameSyncContext) => Promise<SiteNameSyncResult>;
+};
 export type MicrowaveLinksDataset = DatasetReader<MicrowaveLinkRecord> & { layer: "microwave_links" };
 export type DatasetDefinition = SitesDataset | MicrowaveLinksDataset;
 

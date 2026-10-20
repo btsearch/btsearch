@@ -29,6 +29,7 @@ export const uke: OfficialSourceDefinition = {
       checkEveryHours: 6,
       discover: discoverDeviceRegistry,
       parse: parseDeviceRegistry,
+      yieldsSitePlacementTo: ["permits"],
       syncSiteNames: syncStationNames,
     },
     { key: "microwave-links", layer: "microwave_links", checkEveryHours: 6, discover: discoverMicrowaveLinks, parse: parseMicrowaveLinks },

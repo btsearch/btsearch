@@ -179,7 +179,14 @@ function sourceOf(published: Published, syncSiteNames?: SitesDataset["syncSiteNa
         parse: () => recordsOf(published.permits),
         syncSiteNames,
       },
-      { key: "registry", layer: "sites", checkEveryHours: 6, discover: releaseOf("registry"), parse: () => recordsOf(published.registry) },
+      {
+        key: "registry",
+        layer: "sites",
+        checkEveryHours: 6,
+        discover: releaseOf("registry"),
+        parse: () => recordsOf(published.registry),
+        yieldsSitePlacementTo: ["permits"],
+      },
       { key: "links", layer: "microwave_links", checkEveryHours: 6, discover: releaseOf("links"), parse: () => recordsOf(published.links) },
     ],
   };
@@ -489,6 +496,41 @@ describe.skipIf(DATABASE_URL === "")(
         expect(await readChanges(tx, moved, { afterSeq: null, kinds: ["site_added", "site_moved", "permit_added"], limit: 10 })).toEqual([
           expect.objectContaining({ kind: "site_moved", officialSiteId: siteBefore?.id, fromLocationId: siteBefore?.locationId }),
         ]);
+      }));
+
+    it("keeps one site where the permits dataset puts it, and lets the registry move it once the permits dataset drops it", () =>
+      rolledBack(async (tx) => {
+        const world = await openWorld(tx);
+        const atRegistryPlace = (record: SiteRecord): SiteRecord => ({ ...record, location: { ...record.location, longitude: -31.5 } });
+        world.published.permits = [siteRecord(1)];
+        world.published.registry = [atRegistryPlace(siteRecord(1))];
+        const listedByBoth = await runImport(world, ["permits", "registry"]);
+        const sitesOfBoth = await sitesOf(world);
+
+        expect(sitesOfBoth).toEqual([{ id: expect.any(Number), siteId: "ET1", locationId: expect.any(Number) }]);
+        expect(await changesOf(world, listedByBoth)).toEqual({ "permits: site_added": 1, "permits: permit_added": 1, "registry: permit_listed": 1 });
+
+        world.published.registry = [atRegistryPlace(siteRecord(1)), siteRecord(2)];
+        const registryAgain = await runImport(world, ["registry"]);
+
+        expect(await changesOf(world, registryAgain)).toEqual({ "registry: site_added": 1, "registry: permit_added": 1 });
+        expect((await sitesOf(world)).find((site) => site.siteId === "ET1")).toEqual(sitesOfBoth[0]);
+
+        world.published.permits = [siteRecord(3)];
+        world.published.registry = [atRegistryPlace(siteRecord(1)), siteRecord(2), siteRecord(4)];
+        const droppedByPermits = await runImport(world, ["permits", "registry"]);
+        const movedSite = (await sitesOf(world)).find((site) => site.siteId === "ET1");
+
+        expect(await changesOf(world, droppedByPermits)).toEqual({
+          "permits: site_added": 1,
+          "permits: permit_added": 1,
+          "permits: permit_unlisted": 1,
+          "registry: site_added": 1,
+          "registry: permit_added": 1,
+          "registry: site_moved": 1,
+        });
+        expect(movedSite?.id).toBe(sitesOfBoth[0]?.id);
+        expect(movedSite?.locationId).not.toBe(sitesOfBoth[0]?.locationId);
       }));
 
     it("renews a microwave link whose permit number changed", () =>

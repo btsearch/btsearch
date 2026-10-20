@@ -483,8 +483,8 @@ export const officialSites = OfficialSchema.table(
     })
       .onDelete("cascade")
       .onUpdate("cascade"),
-    uniqueIndex("sites_site_operator_location_unique")
-      .on(t.station_id, t.operator_id, t.location_id)
+    uniqueIndex("sites_source_site_operator_unique")
+      .on(t.source_id, t.station_id, t.operator_id)
       .where(sql`${t.source_ref} IS NULL`),
     uniqueIndex("sites_source_source_ref_unique")
       .on(t.source_id, t.source_ref)

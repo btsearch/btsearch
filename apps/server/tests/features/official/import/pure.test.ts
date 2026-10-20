@@ -158,47 +158,38 @@ describe("a site record", () => {
 
 describe("the move of a site", () => {
   const candidate = (overrides: Partial<MoveCandidate>): MoveCandidate => ({
-    siteCode: "BT1001",
-    operatorId: 4,
+    officialSiteId: 500,
+    fromLocationId: 10,
     locationId: 20,
     firstOrdinal: 0,
     slice: "orange",
-    officialSiteId: 500,
-    fromLocationId: 10,
     ...overrides,
   });
 
-  it("happens when the source has exactly one site of that operator and code", () => {
-    expect(decideSiteMoves([candidate({})])).toEqual([
-      { officialSiteId: 500, siteCode: "BT1001", operatorId: 4, fromLocationId: 10, toLocationId: 20, slice: "orange" },
-    ]);
+  it("takes the site to the place the file names", () => {
+    expect(decideSiteMoves([candidate({})])).toEqual([{ officialSiteId: 500, fromLocationId: 10, toLocationId: 20, slice: "orange" }]);
   });
 
-  it("ends at the tuple the file names last, and is one move", () => {
+  it("ends at the place the file names last, and is one move", () => {
     const moves = decideSiteMoves([
       candidate({ locationId: 20, firstOrdinal: 3 }),
       candidate({ locationId: 30, firstOrdinal: 9, slice: "p4" }),
       candidate({ locationId: 40, firstOrdinal: 5 }),
     ]);
 
-    expect(moves).toEqual([{ officialSiteId: 500, siteCode: "BT1001", operatorId: 4, fromLocationId: 10, toLocationId: 30, slice: "p4" }]);
+    expect(moves).toEqual([{ officialSiteId: 500, fromLocationId: 10, toLocationId: 30, slice: "p4" }]);
   });
 
-  it("does not happen when the pair has several sites", () => {
-    expect(decideSiteMoves([candidate({ officialSiteId: 500 }), candidate({ officialSiteId: 501, fromLocationId: 11 })])).toEqual([]);
-  });
-
-  it("is decided per operator and site code", () => {
+  it("is decided per site", () => {
     const moves = decideSiteMoves([
       candidate({}),
-      candidate({ operatorId: 5, officialSiteId: 600, fromLocationId: 11, locationId: 21 }),
-      candidate({ siteCode: "BT1002", officialSiteId: 700 }),
-      candidate({ siteCode: "BT1002", officialSiteId: 701 }),
+      candidate({ officialSiteId: 600, fromLocationId: 11, locationId: 21 }),
+      candidate({ officialSiteId: 600, fromLocationId: 11, locationId: 22, firstOrdinal: 4 }),
     ]);
 
-    expect(moves.map((move) => [move.operatorId, move.siteCode, move.officialSiteId, move.toLocationId])).toEqual([
-      [4, "BT1001", 500, 20],
-      [5, "BT1001", 600, 21],
+    expect(moves.map((move) => [move.officialSiteId, move.toLocationId])).toEqual([
+      [500, 20],
+      [600, 22],
     ]);
   });
 });

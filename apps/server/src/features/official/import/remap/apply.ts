@@ -18,11 +18,11 @@ import type { DbTx } from "../../../../types/global.js";
 import { insertChanges } from "../changes.js";
 import { STATEMENT_BATCH_SIZE } from "../config.js";
 import type { ChangeInput, ClaimedRun, RemapRun } from "../types.js";
-import { type RemapCounts, type RemapPlan, placeOf, planRemap } from "./plan.js";
+import { type RemapCounts, type RemapPlan, planRemap } from "./plan.js";
 import { lockLicensee, readRemapInput, readRemapRun } from "./read.js";
 
 type Move = RemapPlan["moves"][number];
-type CreatedSite = { id: number; siteCode: string; locationId: number };
+type CreatedSite = { id: number; siteCode: string };
 type Repointed = { watchesRepointed: number; notificationsRepointed: number; listsRepointed: number };
 type Applied = { changes: ChangeInput[]; repointed: Repointed };
 
@@ -61,13 +61,13 @@ async function createSplitSites(
             .from(officialSites)
             .where(sql`${officialSites.id} IN ${idsIn(group.map((split) => split.fromSiteId))}`),
         )
-        .returning({ id: officialSites.id, siteCode: officialSites.station_id, locationId: officialSites.location_id })),
+        .returning({ id: officialSites.id, siteCode: officialSites.station_id })),
     );
   }
 
-  const createdIdByPlace = new Map(created.map((site) => [placeOf(site), site.id]));
+  const createdIdByCode = new Map(created.map((site) => [site.siteCode, site.id]));
   const moves = splits.flatMap((split) => {
-    const toSiteId = createdIdByPlace.get(placeOf(split));
+    const toSiteId = createdIdByCode.get(split.siteCode);
     if (toSiteId === undefined) throw new Error(`The site split off site ${split.fromSiteId} was not created`);
     return split.permitIds.map((permitId) => ({ permitId, toSiteId }));
   });

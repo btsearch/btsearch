@@ -104,8 +104,10 @@ function isNetworkRead(call: DatabaseCall): boolean {
 function tableName(table: unknown): string | undefined {
   if (typeof table !== "object" || table === null) return undefined;
   try {
+    const name = getTableName(table as Table);
+    if (typeof name !== "string") return undefined;
     const uniqueName = getTableUniqueName(table as Table);
-    return uniqueName.startsWith("official.") ? uniqueName : getTableName(table as Table);
+    return uniqueName.startsWith("official.") ? uniqueName : name;
   } catch {
     return undefined;
   }

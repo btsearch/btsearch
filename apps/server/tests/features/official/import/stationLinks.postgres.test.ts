@@ -77,11 +77,23 @@ async function placeAt({ tx, sourceId, regionId }: World, longitude: number): Pr
   return added.id;
 }
 
-async function addSite(world: World, longitude: number, permitNumbers: readonly string[], siteCode = SITE_CODE): Promise<number> {
+async function addSite(
+  world: World,
+  longitude: number,
+  permitNumbers: readonly string[],
+  siteCode = SITE_CODE,
+  sourceRef: string | null = null,
+): Promise<number> {
   const { tx, sourceId, group } = world;
   const [site] = await tx
     .insert(officialSites)
-    .values({ source_id: sourceId, station_id: siteCode, operator_id: group.operatorId, location_id: await placeAt(world, longitude) })
+    .values({
+      source_id: sourceId,
+      station_id: siteCode,
+      operator_id: group.operatorId,
+      location_id: await placeAt(world, longitude),
+      source_ref: sourceRef,
+    })
     .returning({ id: officialSites.id });
   if (!site) throw new Error("The official site was not added");
 
@@ -186,7 +198,7 @@ describe.skipIf(DATABASE_URL === "")(
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
         const moving = await addSite(world, X, ["LT/1"]);
-        await addSite(world, Z, ["LT/2"]);
+        await addSite(world, Z, ["LT/2"], SITE_CODE, "second");
         await correctEveryGroup(world);
         expect(await linkedPermitsOf(world)).toEqual([]);
         expect(await linkedPermitsOf(world, OTHER_SITE_CODE)).toEqual(["LT/9"]);
@@ -211,7 +223,7 @@ describe.skipIf(DATABASE_URL === "")(
         expect(await linkedPermitsOf(world, OTHER_SITE_CODE)).toEqual([]);
         expect(await numbersOf(world, await correctEveryGroup(world))).toEqual({ added: ["LT/9"], removed: [] });
 
-        await addSite(world, Z, ["LT/3"]);
+        await addSite(world, Z, ["LT/3"], SITE_CODE, "second");
         expect(await numbersOf(world, await correctStationLinks(tx, [world.group]))).toEqual({ added: [], removed: ["LT/1", "LT/2"] });
         expect(await linkedPermitsOf(world)).toEqual([]);
         expect(await correctEveryGroup(world)).toEqual(NONE);
@@ -222,7 +234,7 @@ describe.skipIf(DATABASE_URL === "")(
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
         await addSite(world, X, ["LT/1", "LT/2"]);
-        const second = await addSite(world, Z, ["LT/3"]);
+        const second = await addSite(world, Z, ["LT/3"], SITE_CODE, "second");
         await correctEveryGroup(world);
         expect(await linkedPermitsOf(world)).toEqual([]);
 

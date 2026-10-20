@@ -39,7 +39,7 @@ const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
 ];
 
 function site(id: number, overrides: Partial<RemapInput["sites"][number]> = {}): RemapInput["sites"][number] {
-  return { id, siteCode: "BT1001", operatorId: FROM_OPERATOR, locationId: 10, ...overrides };
+  return { id, siteCode: "BT1001", operatorId: FROM_OPERATOR, ...overrides };
 }
 
 function permit(id: number, officialSiteId: number, valuesKey = `permit ${id}`): RemapInput["permits"][number] {
@@ -130,8 +130,8 @@ function scriptReads(reads: Pick<RemapInput, "sites" | "permits" | "listings"> &
 
 function scriptThreeSites(): void {
   scriptReads({
-    sites: [site(501), site(502, { siteCode: "BT1002", locationId: 20 }), site(503, { siteCode: "BT1003", locationId: 30 })],
-    targets: [site(602, { siteCode: "BT1002", locationId: 20, operatorId: TO_OPERATOR })],
+    sites: [site(501), site(502, { siteCode: "BT1002" }), site(503, { siteCode: "BT1003" })],
+    targets: [site(602, { siteCode: "BT1002", operatorId: TO_OPERATOR })],
     permits: [permit(701, 501), permit(702, 502, "same"), permit(703, 502), permit(704, 503), permit(705, 503), permit(802, 602, "same")],
     listings: [listing(701), listing(702), listing(703), listing(704), listing(705), listing(705, OTHER_LICENSEE, 2)],
   });
@@ -181,7 +181,7 @@ describe("the plan of a remap", () => {
 
     expect(plan).toEqual(
       planWith({
-        splits: [{ fromSiteId: 501, siteCode: "BT1001", locationId: 10, permitIds: [701] }],
+        splits: [{ fromSiteId: 501, siteCode: "BT1001", permitIds: [701] }],
         touchedSiteIds: [501],
         counts: { sitesSplit: 1, permitsMoved: 1 },
       }),
@@ -277,7 +277,7 @@ describe("the plan of a remap", () => {
       listings: [listing(701), listing(702)],
     };
 
-    expect(() => planRemap(inputWith(twoSites))).toThrow("Two sites with the code BT1001 at location 10");
+    expect(() => planRemap(inputWith(twoSites))).toThrow("Two sites with the code BT1001 would move to one site");
   });
 });
 
@@ -288,7 +288,7 @@ describe("a remap run", () => {
     scriptMapping();
     scriptThreeSites();
     dbMock.enqueueFor("update", "official.sites", undefined, undefined);
-    dbMock.enqueueFor("insert", "official.sites", [{ id: 903, siteCode: "BT1003", locationId: 30 }]);
+    dbMock.enqueueFor("insert", "official.sites", [{ id: 903, siteCode: "BT1003" }]);
     dbMock.enqueueFor("execute", undefined, [], [], []);
     dbMock.enqueueFor("select", "stations_permits", [{ permitId: 702, stationId: 100 }]);
     dbMock.enqueueFor("delete", "official.permits", undefined);
@@ -433,7 +433,7 @@ describe("a remap run", () => {
     scriptMapping();
     scriptThreeSites();
     dbMock.enqueueFor("update", "official.sites", undefined, undefined);
-    dbMock.enqueueFor("insert", "official.sites", [{ id: 903, siteCode: "BT1003", locationId: 30 }]);
+    dbMock.enqueueFor("insert", "official.sites", [{ id: 903, siteCode: "BT1003" }]);
     dbMock.enqueueFor("execute", undefined, [], [], []);
     dbMock.enqueueFor("select", "stations_permits", []);
     dbMock.enqueueFor("delete", "official.permits", undefined);
