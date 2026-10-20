@@ -165,7 +165,7 @@ function NotificationFacts({ facts }: { facts: NotificationFact[] }) {
   return (
     <span className="inline-flex flex-wrap items-center text-xs text-muted-foreground">
       {facts.map((fact, index) => (
-        <span key={fact.key} className="inline-flex items-center whitespace-nowrap">
+        <span key={fact.key} className="whitespace-nowrap">
           {index > 0 ? (
             <span aria-hidden="true" className="mx-1.5">
               ·

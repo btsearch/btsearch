@@ -772,6 +772,39 @@ export const countryBands = pgTable(
   (t) => [primaryKey({ columns: [t.countryCode, t.bandId] }), index("country_bands_band_id_idx").on(t.bandId)],
 );
 
+export const spectrumHoldings = pgTable(
+  "spectrum_holdings",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    operatorId: integer("operator_id")
+      .notNull()
+      .references(() => operators.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    bandId: integer("band_id")
+      .notNull()
+      .references(() => bands.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    regionId: integer("region_id").references(() => regions.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    downlinkLowKhz: integer("dl_low_khz").notNull(),
+    downlinkHighKhz: integer("dl_high_khz").notNull(),
+    uplinkLowKhz: integer("ul_low_khz"),
+    uplinkHighKhz: integer("ul_high_khz"),
+    validFrom: date("valid_from"),
+    validTo: date("valid_to"),
+    source: varchar("source", { length: 500 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("spectrum_holdings_operator_id_idx").on(t.operatorId),
+    index("spectrum_holdings_band_id_idx").on(t.bandId),
+    index("spectrum_holdings_region_id_idx").on(t.regionId),
+    check("spectrum_holdings_downlink_order", sql`${t.downlinkLowKhz} < ${t.downlinkHighKhz}`),
+    check("spectrum_holdings_uplink_complete", sql`num_nulls(${t.uplinkLowKhz}, ${t.uplinkHighKhz}) IN (0, 2)`),
+    check("spectrum_holdings_uplink_order", sql`${t.uplinkLowKhz} < ${t.uplinkHighKhz}`),
+    check("spectrum_holdings_validity_order", sql`${t.validFrom} <= ${t.validTo}`),
+    check("spectrum_holdings_source_not_blank", sql`btrim(${t.source}) <> ''`),
+  ],
+);
+
 /**
  * Manufacturers table. For the official microwave links table
  * @example

@@ -1,47 +1,54 @@
 {
-  "description": "Przydział widma radiowego dla operatorów mobilnych w Polsce",
-  "maxBwPrefix": "maks",
-  "badges": {
-    "active": "NR aktywne",
-    "deployment": "NR przyznane",
-    "lteOnly": "Tylko LTE",
-    "gsmLte": "GSM + LTE"
+  "description": "Częstotliwości, które mają operatorzy komórkowi",
+  "country": "Kraj",
+  "searchCountry": "Szukaj kraju",
+  "noCountryMatches": "Brak pasujących krajów",
+  "loadFailed": "Nie udało się wczytać danych o widmie",
+  "sources": "Źródła:",
+  "range": "{{low}}-{{high}} MHz",
+  "width": {
+    "paired": "2x{{width}} MHz",
+    "pairedShort": "2x{{width}}",
+    "mhz": "{{width}} MHz"
   },
-  "bands": {
-    "n78": {
-      "nrNote": "NSA z LTE anchor (B3/B1)",
-      "auctionInfo": "Aukcja: październik 2023",
-      "validUntil": "Rezerwacja do: 30.11.2038"
-    },
-    "b3": {
-      "auctionInfo": "Reshuffling zakończony: 15.02.2026",
-      "validUntil": "Ważność: do 31.12.2037"
-    },
-    "b1": {
-      "nrNote": "Orange, T-Mobile, Play: aktywne NR DSS NSA",
-      "auctionInfo": "Aukcja: 2000, refarmed do LTE",
-      "validUntil": "Ważność: do 31.12.2037"
-    },
-    "n41": {
-      "nrNote": "Używane jako LTE B38 oraz NR n41 NSA",
-      "auctionInfo": "Aukcja: 2015",
-      "validUntil": "Rezerwacja do: 25.01.2031"
-    },
-    "n28": {
-      "auctionInfo": "Aukcja: marzec 2025",
-      "validUntil": "Ważność: do 31.05.2040"
-    },
-    "b20": {
-      "auctionInfo": "Aukcja: 2015 + 2025",
-      "validUntil": "Ważność: do 31.05.2040"
-    },
-    "b8": {
-      "auctionInfo": "Reshuffling zakończony: 2023",
-      "validUntil": "Ważność: do 31.12.2038"
-    },
-    "b7": {
-      "auctionInfo": "Aukcja: 2015",
-      "validUntil": "Ważność: do 31.12.2039"
-    }
+  "empty": {
+    "title": "Brak danych o widmie",
+    "description": "Nikt jeszcze nie dodał częstotliwości operatorów"
+  },
+  "summary": {
+    "title": "Zestawienie",
+    "table": "Widmo operatorów w pasmach",
+    "operator": "Operator",
+    "total": "Razem",
+    "share": "Udział",
+    "breakdown": "2x{{paired}} + {{unpaired}}",
+    "note": "Szerokości w MHz. 2x to ta sama szerokość w Downlink i Uplink",
+    "highlight": "Wyróżnij {{name}}",
+    "showAll": "Pokaż wszystkich operatorów"
+  },
+  "groups": {
+    "low": "Poniżej 1 GHz",
+    "mid": "1-3 GHz",
+    "high": "Powyżej 3 GHz"
+  },
+  "band": {
+    "title": "{{mhz}} MHz",
+    "titleWithDuplex": "{{mhz}} MHz {{duplex}}",
+    "fullyAssigned": "{{duplex}}, {{width}}, przydzielone w całości",
+    "partlyAssigned": "{{duplex}}, {{width}}, przydzielone {{assigned}}",
+    "downlink": "Downlink",
+    "uplink": "Uplink",
+    "tdd": "TDD",
+    "later": "Zaczną obowiązywać później",
+    "regional": "Zakresy regionalne"
+  },
+  "holding": {
+    "blockLabel": "{{name}}: {{width}} MHz, {{range}}",
+    "width": "Szerokość",
+    "validFrom": "Ważne od",
+    "validTo": "Ważne do",
+    "source": "Źródło",
+    "until": "do {{year}}",
+    "from": "od {{date}}"
   }
 }

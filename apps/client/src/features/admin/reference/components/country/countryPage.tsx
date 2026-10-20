@@ -21,6 +21,7 @@ import { GeneralSection } from "./generalSection";
 import { NetworksSection } from "./networksSection";
 import { PreparationCard } from "./preparationCard";
 import { RegionsSection } from "./regionsSection";
+import { SpectrumSection } from "./spectrumSection";
 import { TeamSection } from "./teamSection";
 import { ForbiddenState } from "@/components/auth/requireRole";
 import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
@@ -124,6 +125,7 @@ function CountryPageSections({ hasHistory }: { hasHistory: boolean }) {
     { id: COUNTRY_SECTION_IDS.general, title: t("reference.country.general.title") },
     { id: COUNTRY_SECTION_IDS.regions, title: t("reference.country.regions.title") },
     { id: COUNTRY_SECTION_IDS.bandPlan, title: t("reference.country.bandPlan.title") },
+    { id: COUNTRY_SECTION_IDS.spectrum, title: t("reference.country.spectrum.title") },
     { id: COUNTRY_SECTION_IDS.networks, title: t("reference.country.networks.title") },
     { id: COUNTRY_SECTION_IDS.team, title: t("reference.country.team.title") },
   ];
@@ -187,6 +189,7 @@ function CountryDetail({ code, isAccessPending, canEdit, canManageEditors }: Cou
         <GeneralSection country={country} canEdit={canEdit} />
         <RegionsSection country={country} canEdit={canEdit} />
         <BandPlanSection country={country} canEdit={canEdit} />
+        <SpectrumSection country={country} canEdit={canManageEditors} />
         <NetworksSection country={country} canEdit={canEdit} />
         <TeamSection country={country} canManageEditors={canManageEditors} canManageMaintainers={canEdit} pageOpenedAt={mountedAt} />
         {canEdit ? <ClosingSection country={country} onRemoved={leaveRemovedCountry} /> : null}

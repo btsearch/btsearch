@@ -4,6 +4,7 @@ export const COUNTRY_SECTION_IDS = {
   general: "country-general",
   regions: "country-regions",
   bandPlan: "country-band-plan",
+  spectrum: "country-spectrum",
   networks: "country-networks",
   team: "country-team",
   history: "country-history",

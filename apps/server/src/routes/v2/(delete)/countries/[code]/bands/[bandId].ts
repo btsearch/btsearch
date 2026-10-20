@@ -1,4 +1,4 @@
-import { bands, cells, countryBands, stations } from "@openbts/drizzle";
+import { bands, cells, countryBands, operators, spectrumHoldings, stations } from "@openbts/drizzle";
 import { countryBandParamsSchema, noContentSchema } from "@openbts/shared/contract";
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -38,6 +38,14 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
         .limit(1);
       if (cell) throw new ErrorResponse("CONFLICT", { message: "Cannot remove a band that cells in this country still use" });
 
+      const [holding] = await tx
+        .select({ id: spectrumHoldings.id })
+        .from(spectrumHoldings)
+        .innerJoin(operators, eq(operators.id, spectrumHoldings.operatorId))
+        .where(and(eq(spectrumHoldings.bandId, bandId), eq(operators.countryCode, code)))
+        .limit(1);
+      if (holding) throw new ErrorResponse("CONFLICT", { message: "Cannot remove a band that spectrum holdings in this country still use" });
+
       await tx.delete(countryBands).where(countryBandKey);
       await audit.log({ entity: "country_bands", op: "delete", recordId: `${code}:${bandId}`, old: existing });
     });
@@ -56,7 +64,7 @@ const deleteCountryBand: Route<ReqParams, void> = {
     permissions: ["update:countries"],
     errorReasons: {
       404: "The band is not in this country's band plan.",
-      409: "Cells in this country still use the band.",
+      409: "Cells or spectrum holdings in this country still use the band.",
     },
   },
   schema: schemaRoute,

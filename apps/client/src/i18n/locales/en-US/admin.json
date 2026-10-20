@@ -778,6 +778,7 @@
       "band": "Bands",
       "region": "Regions",
       "country": "Countries",
+      "spectrum_holding": "Spectrum holdings",
       "grant": "Editor access",
       "user": "Users",
       "list": "User lists",
@@ -852,6 +853,11 @@
         "delete": "Country deleted",
         "bands": "Country band plan"
       },
+      "spectrum_holding": {
+        "create": "Spectrum holding created",
+        "update": "Spectrum holding updated",
+        "delete": "Spectrum holding deleted"
+      },
       "grant": {
         "create": "Editor access granted",
         "update": "Editor access changed",
@@ -914,6 +920,7 @@
       "regions": "Regions",
       "countries": "Countries",
       "country_bands": "Band plan",
+      "spectrum_holdings": "Spectrum holdings",
       "role_grants": "Editor access",
       "users": "Users",
       "user_lists": "User lists",
@@ -963,6 +970,8 @@
       "countries_other": "{{count, number}} countries",
       "country_bands_one": "{{count, number}} band plan change",
       "country_bands_other": "{{count, number}} band plan changes",
+      "spectrum_holdings_one": "{{count, number}} spectrum holding",
+      "spectrum_holdings_other": "{{count, number}} spectrum holdings",
       "role_grants_one": "{{count, number}} editor access change",
       "role_grants_other": "{{count, number}} editor access changes",
       "users_one": "{{count, number}} user",
@@ -1023,7 +1032,8 @@
         "viewNorthBelowSouth": "North must be greater than south"
       },
       "bandPlan": {
-        "bandInUse": "Cells in this country still use this band"
+        "bandInUse": "Cells in this country still use this band",
+        "bandHasHoldings": "Spectrum holdings in this country still use this band"
       },
       "region": {
         "taken": "This country already has a region with this code or name",
@@ -1084,6 +1094,11 @@
         "usedInOtherCountries": "Locations in other countries still use this owner, so it can't be tied to one country",
         "hasLocations": "Locations still use this owner",
         "inPendingSubmission": "A pending submission still names this owner"
+      },
+      "spectrum": {
+        "bandNotInPlan": "The band is not in this country's band plan",
+        "overlap": "The range overlaps another holding in this country",
+        "otherCountry": "Only an administrator or a maintainer of this country can change its spectrum holdings"
       },
       "team": {
         "maintainerAdminOnly": "Only an administrator can appoint or remove a country maintainer",
@@ -1168,6 +1183,50 @@
           "title": "There are no bands yet",
           "description": "Add bands on the Bands page, then include them in this country's plan",
           "readOnlyDescription": "Bands are added by an administrator"
+        }
+      },
+      "spectrum": {
+        "title": "Spectrum holdings",
+        "description": "Frequencies each operator in this country holds. Everyone can see them on the Spectrum page",
+        "add": "Add holding",
+        "loadFailed": "Couldn't load spectrum holdings",
+        "bandPlanNote": "Only bands from this country's band plan can be picked",
+        "columns": {
+          "region": "Region"
+        },
+        "wholeCountry": "Whole country",
+        "noEndDate": "No end date",
+        "edit": "Edit {{name}}'s holding",
+        "delete": "Delete {{name}}'s holding",
+        "rowActions": "Actions: {{name}}",
+        "empty": {
+          "title": "No spectrum holdings yet",
+          "description": "Add the frequencies an operator holds",
+          "readOnlyDescription": "Holdings are added by an administrator or a maintainer of this country"
+        },
+        "dialog": {
+          "editTitle": "Edit holding",
+          "band": "Band",
+          "from": "{{label}} from (MHz)",
+          "to": "{{label}} to (MHz)",
+          "rangeInvalid": "Enter both ends in MHz",
+          "rangeOrder": "The low end must be below the high end",
+          "outsideBand": "Outside the band ({{range}})",
+          "overlaps": "Overlaps {{name}}'s range {{range}}",
+          "uplinkFromSpacing": "Worked out from the {{spacing}} MHz duplex spacing. You can change it",
+          "validityOrder": "The end date is before the start date",
+          "sourcePlaceholder": "Link to the decision, or a short note",
+          "addSuccess": "Holding added",
+          "saveSuccess": "Holding saved",
+          "saveFailed": "Couldn't save the holding"
+        },
+        "remove": {
+          "title": "Delete holding?",
+          "description": "{{name}}'s range {{range}} will disappear from the Spectrum page",
+          "confirm": "Delete holding",
+          "success": "Holding deleted",
+          "failed": "Couldn't delete the holding",
+          "refusedTitle": "The holding can't be deleted"
         }
       },
       "networks": {

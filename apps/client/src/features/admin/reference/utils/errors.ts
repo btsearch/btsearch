@@ -26,6 +26,7 @@ const COUNTRY_MESSAGES: readonly MessageKey[] = [
   ["Must be a two-letter country code in upper case", "admin:reference.errors.country.codeFormat"],
   ["Must be greater than south", "admin:reference.errors.country.viewNorthBelowSouth"],
   ["Cannot remove a band that cells in this country still use", "admin:reference.errors.bandPlan.bandInUse"],
+  ["Cannot remove a band that spectrum holdings in this country still use", "admin:reference.errors.bandPlan.bandHasHoldings"],
 ];
 
 const REGION_MESSAGES: readonly MessageKey[] = [
@@ -76,6 +77,12 @@ const OPERATOR_MESSAGES: readonly MessageKey[] = [
   ["Each link can appear once", "admin:reference.errors.link.repeated"],
 ];
 
+const SPECTRUM_MESSAGES: readonly MessageKey[] = [
+  ["The band is not in the band plan of the operator's country", "admin:reference.errors.spectrum.bandNotInPlan"],
+  ["The range overlaps another spectrum holding in this country", "admin:reference.errors.spectrum.overlap"],
+  ["Only a maintainer of this country or an administrator can change its spectrum holdings", "admin:reference.errors.spectrum.otherCountry"],
+];
+
 const STRUCTURE_OWNER_MESSAGES: readonly MessageKey[] = [
   ["The operator belongs to another country than the structure owner", "admin:reference.errors.owner.operatorOtherCountry"],
   ["This country already has a structure owner with this name", "admin:reference.errors.owner.nameTaken"],
@@ -112,6 +119,7 @@ const MESSAGE_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
   ...BRAND_MESSAGES,
   ...OPERATOR_MESSAGES,
   ...STRUCTURE_OWNER_MESSAGES,
+  ...SPECTRUM_MESSAGES,
   ...TEAM_MESSAGES,
   ...GENERAL_MESSAGES,
 ]);

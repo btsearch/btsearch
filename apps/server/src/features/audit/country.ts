@@ -112,6 +112,8 @@ function entryCountries(entry: SnapshotEntry, lookups: CountryLookups, regionIds
       return entry.stationId === null ? entrySubmissionIds(entry).map(submissionCountry) : [stationCountry(entry.stationId)];
     case "locations":
       return idsAt(entry.snapshots, "region_id").map(regionCountry);
+    case "spectrum_holdings":
+      return idsAt(entry.snapshots, "operatorId").map(operatorCountry);
     case "operators":
     case "regions":
     case "structure_owners":
@@ -170,7 +172,11 @@ async function loadCountryLookups(handle: Reader, entries: readonly SnapshotEntr
   const stationIds = unique([...entries.flatMap(entryStationIds), ...submissionRows.map((row) => row.stationId)]);
   const locationIds = idsAt(snapshots, "location_id");
   const regionIds = unique([...idsAt(snapshots, "region_id"), ...idsAt(snapshots, "proposedLocation", "region_id")]);
-  const operatorIds = unique([...idsAt(snapshots, "operator_id"), ...idsAt(snapshots, "proposedStation", "operator_id")]);
+  const operatorIds = unique([
+    ...idsAt(snapshots, "operator_id"),
+    ...idsAt(snapshots, "operatorId"),
+    ...idsAt(snapshots, "proposedStation", "operator_id"),
+  ]);
 
   const [stationCountryById, locationCountryById, regionCountryById, operatorCountryById] = await Promise.all([
     countriesById(stationIds, (ids) =>
@@ -210,6 +216,7 @@ function countrySnapshot(snapshot: SQLWrapper): SQL {
       'location_id', ${snapshot}->'location_id',
       'region_id', ${snapshot}->'region_id',
       'operator_id', ${snapshot}->'operator_id',
+      'operatorId', ${snapshot}->'operatorId',
       'countryCode', ${snapshot}->'countryCode',
       'submission_id', ${snapshot}->'submission_id',
       'proposedLocation', jsonb_build_object('region_id', ${snapshot}->'proposedLocation'->'region_id'),

@@ -19,6 +19,7 @@ describe("DELETE /countries/PL/bands/7", () => {
     dbMock.enqueueFor("select", "bands", [row]);
     dbMock.enqueueFor("select", "country_bands", [{ countryCode: "PL", bandId: 7 }]);
     dbMock.enqueueFor("select", "cells", []);
+    dbMock.enqueueFor("select", "spectrum_holdings", []);
     dbMock.enqueueFor("delete", "country_bands", []);
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(204);
@@ -42,6 +43,18 @@ describe("DELETE /countries/PL/bands/7", () => {
 
     const response = await injectMutation(route, request, options);
     expectError(response, 409, "CONFLICT");
+    expect(dbMock.calls.some((call) => call.operation === "delete" && call.table === "country_bands")).toBe(false);
+  });
+
+  it("refuses deletion while spectrum holdings in the country still use the band", async () => {
+    scriptAudit();
+    dbMock.enqueueFor("select", "bands", [row]);
+    dbMock.enqueueFor("select", "country_bands", [{ countryCode: "PL", bandId: 7 }]);
+    dbMock.enqueueFor("select", "cells", []);
+    dbMock.enqueueFor("select", "spectrum_holdings", [{ id: 5 }]);
+
+    const response = await injectMutation(route, request, options);
+    expectError(response, 409, "CONFLICT", "Cannot remove a band that spectrum holdings in this country still use");
     expect(dbMock.calls.some((call) => call.operation === "delete" && call.table === "country_bands")).toBe(false);
   });
 });

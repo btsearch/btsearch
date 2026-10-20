@@ -97,6 +97,13 @@ export const TAGS: readonly DocumentedTag[] = [
     description: "Frequency bands, grouped by technology. New bands always come from the 3GPP catalogue.",
   },
   {
+    name: "spectrum-holdings",
+    "x-displayName": "Spectrum holdings",
+    description:
+      "The frequency ranges each operator holds under its licences. " +
+      "Administrators and the maintainers of the operator's country can change them.",
+  },
+  {
     name: "structure-owners",
     "x-displayName": "Structure owners",
     description:
@@ -186,7 +193,7 @@ export const TAGS: readonly DocumentedTag[] = [
 export const TAG_GROUPS: readonly TagGroup[] = [
   { name: "Network data", tags: ["stations", "locations", "cells", "search", "photos", "statistics"] },
   { name: "Contributions", tags: ["submissions", "comments", "lists"] },
-  { name: "Reference data", tags: ["countries", "regions", "operators", "brands", "bands", "structure-owners"] },
+  { name: "Reference data", tags: ["countries", "regions", "operators", "brands", "bands", "spectrum-holdings", "structure-owners"] },
   { name: "Official sources and tools", tags: ["official", "emf", "terrain-profiles", "geocoding"] },
   { name: "Account", tags: ["me", "users", "hunters", "notifications", "push-subscriptions"] },
   { name: "Administration", tags: ["settings", "role-grants", "audit-operations"] },

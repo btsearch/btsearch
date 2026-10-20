@@ -1,47 +1,54 @@
 {
-  "description": "Radio spectrum allocation for mobile operators in Poland",
-  "maxBwPrefix": "max",
-  "badges": {
-    "active": "NR active",
-    "deployment": "NR assigned",
-    "lteOnly": "LTE only",
-    "gsmLte": "GSM + LTE"
+  "description": "Which frequencies each mobile operator holds",
+  "country": "Country",
+  "searchCountry": "Search countries",
+  "noCountryMatches": "No matching countries",
+  "loadFailed": "Couldn't load spectrum data",
+  "sources": "Sources:",
+  "range": "{{low}}-{{high}} MHz",
+  "width": {
+    "paired": "2x{{width}} MHz",
+    "pairedShort": "2x{{width}}",
+    "mhz": "{{width}} MHz"
   },
-  "bands": {
-    "n78": {
-      "nrNote": "NSA with LTE anchor (B3/B1)",
-      "auctionInfo": "Auction: October 2023",
-      "validUntil": "Valid until: 30.11.2038"
-    },
-    "b3": {
-      "auctionInfo": "Reshuffling completed: 15.02.2026",
-      "validUntil": "Valid until: 31.12.2037"
-    },
-    "b1": {
-      "nrNote": "Orange, T-Mobile, Play: active NR DSS NSA",
-      "auctionInfo": "Auction: 2000, refarmed to LTE",
-      "validUntil": "Valid until: 31.12.2037"
-    },
-    "n41": {
-      "nrNote": "Used as LTE B38 and NR n41 NSA",
-      "auctionInfo": "Auction: 2015",
-      "validUntil": "Valid until: 25.01.2031"
-    },
-    "n28": {
-      "auctionInfo": "Auction: March 2025",
-      "validUntil": "Valid until: 31.05.2040"
-    },
-    "b20": {
-      "auctionInfo": "Auction: 2015 + 2025",
-      "validUntil": "Valid until: 31.05.2040"
-    },
-    "b8": {
-      "auctionInfo": "Reshuffling completed: 2023",
-      "validUntil": "Valid until: 31.12.2038"
-    },
-    "b7": {
-      "auctionInfo": "Auction: 2015",
-      "validUntil": "Valid until: 31.12.2039"
-    }
+  "empty": {
+    "title": "No spectrum data yet",
+    "description": "No operator frequencies have been added yet"
+  },
+  "summary": {
+    "title": "Overview",
+    "table": "Spectrum by operator and band",
+    "operator": "Operator",
+    "total": "Total",
+    "share": "Share",
+    "breakdown": "2x{{paired}} + {{unpaired}}",
+    "note": "Widths in MHz. 2x means the same width for downlink and uplink",
+    "highlight": "Highlight {{name}}",
+    "showAll": "Show all operators"
+  },
+  "groups": {
+    "low": "Below 1 GHz",
+    "mid": "1-3 GHz",
+    "high": "Above 3 GHz"
+  },
+  "band": {
+    "title": "{{mhz}} MHz",
+    "titleWithDuplex": "{{mhz}} MHz {{duplex}}",
+    "fullyAssigned": "{{duplex}}, {{width}}, fully assigned",
+    "partlyAssigned": "{{duplex}}, {{width}}, {{assigned}} assigned",
+    "downlink": "Downlink",
+    "uplink": "Uplink",
+    "tdd": "TDD",
+    "later": "Starting later",
+    "regional": "Regional licences"
+  },
+  "holding": {
+    "blockLabel": "{{name}}: {{width}} MHz, {{range}}",
+    "width": "Width",
+    "validFrom": "Valid from",
+    "validTo": "Valid until",
+    "source": "Source",
+    "until": "until {{year}}",
+    "from": "from {{date}}"
   }
 }

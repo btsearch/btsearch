@@ -20,10 +20,10 @@ const EMPTY_VALUE = "-";
 const MAX_FRACTION_DIGITS = 2;
 
 const formatsByLanguage = new Map<string, AntennaFormat>();
+const frequencyFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: MAX_FRACTION_DIGITS, useGrouping: false });
 
 function createAntennaFormat(language: string): AntennaFormat {
   const decimalFormat = new Intl.NumberFormat(language, { maximumFractionDigits: MAX_FRACTION_DIGITS });
-  const ungroupedFormat = new Intl.NumberFormat(language, { maximumFractionDigits: MAX_FRACTION_DIGITS, useGrouping: false });
   const longDateFormat = new Intl.DateTimeFormat(language, { dateStyle: "long" });
   const shortDateFormat = new Intl.DateTimeFormat(language, { day: "numeric", month: "short", year: "numeric" });
   const conjunctionFormat = new Intl.ListFormat(language, { style: "long", type: "conjunction" });
@@ -45,7 +45,7 @@ function createAntennaFormat(language: string): AntennaFormat {
   }
 
   function frequency(value: number) {
-    return ungroupedFormat.format(value);
+    return frequencyFormat.format(value);
   }
 
   function longDate(day: string | null) {

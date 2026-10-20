@@ -816,6 +816,7 @@
       "band": "Pasma",
       "region": "Województwa",
       "country": "Kraje",
+      "spectrum_holding": "Widmo operatorów",
       "grant": "Uprawnienia redaktorów",
       "user": "Użytkownicy",
       "list": "Listy użytkowników",
@@ -890,6 +891,11 @@
         "delete": "Usunięcie kraju",
         "bands": "Plan pasm kraju"
       },
+      "spectrum_holding": {
+        "create": "Dodanie zakresu częstotliwości",
+        "update": "Aktualizacja zakresu częstotliwości",
+        "delete": "Usunięcie zakresu częstotliwości"
+      },
       "grant": {
         "create": "Nadanie uprawnień redaktora",
         "update": "Zmiana uprawnień redaktora",
@@ -952,6 +958,7 @@
       "regions": "Województwa",
       "countries": "Kraje",
       "country_bands": "Plan pasm",
+      "spectrum_holdings": "Zakresy częstotliwości",
       "role_grants": "Uprawnienia redaktorów",
       "users": "Użytkownicy",
       "user_lists": "Listy użytkowników",
@@ -1035,6 +1042,10 @@
       "country_bands_few": "{{count, number}} zmiany planu pasm",
       "country_bands_many": "{{count, number}} zmian planu pasm",
       "country_bands_other": "{{count, number}} zmian planu pasm",
+      "spectrum_holdings_one": "{{count, number}} zakres częstotliwości",
+      "spectrum_holdings_few": "{{count, number}} zakresy częstotliwości",
+      "spectrum_holdings_many": "{{count, number}} zakresów częstotliwości",
+      "spectrum_holdings_other": "{{count, number}} zakresu częstotliwości",
       "role_grants_one": "{{count, number}} zmiana uprawnień redaktora",
       "role_grants_few": "{{count, number}} zmiany uprawnień redaktora",
       "role_grants_many": "{{count, number}} zmian uprawnień redaktora",
@@ -1119,7 +1130,8 @@
         "viewNorthBelowSouth": "Północ musi być większa niż południe"
       },
       "bandPlan": {
-        "bandInUse": "Tego pasma używają jeszcze komórki w tym kraju"
+        "bandInUse": "Tego pasma używają jeszcze komórki w tym kraju",
+        "bandHasHoldings": "Zakresy częstotliwości w tym kraju nadal używają tego pasma"
       },
       "region": {
         "taken": "W tym kraju jest już region o tym kodzie albo tej nazwie",
@@ -1180,6 +1192,11 @@
         "usedInOtherCountries": "Tego właściciela używają lokalizacje w innych krajach, więc nie można przypisać go do jednego kraju",
         "hasLocations": "Tego właściciela używają jeszcze lokalizacje",
         "inPendingSubmission": "Tego właściciela wskazuje jeszcze oczekujące zgłoszenie"
+      },
+      "spectrum": {
+        "bandNotInPlan": "Tego pasma nie ma w planie pasm kraju",
+        "overlap": "Zakres nakłada się na inny zakres w tym kraju",
+        "otherCountry": "Zakresy tego kraju może zmieniać tylko administrator albo opiekun kraju"
       },
       "team": {
         "maintainerAdminOnly": "Opiekuna powołuje i odwołuje tylko administrator",
@@ -1270,6 +1287,50 @@
           "title": "Nie ma jeszcze żadnych pasm",
           "description": "Dodaj pasma na stronie Pasma, a potem włącz je do planu tego kraju",
           "readOnlyDescription": "Pasma dodaje administrator"
+        }
+      },
+      "spectrum": {
+        "title": "Widmo operatorów",
+        "description": "Częstotliwości operatorów w tym kraju. Każdy widzi je na stronie Pasma częstotliwości",
+        "add": "Dodaj zakres",
+        "loadFailed": "Nie udało się wczytać zakresów częstotliwości",
+        "bandPlanNote": "Do wyboru są tylko pasma z planu pasm tego kraju",
+        "columns": {
+          "region": "Region"
+        },
+        "wholeCountry": "Cały kraj",
+        "noEndDate": "Bez terminu",
+        "edit": "Edytuj zakres operatora {{name}}",
+        "delete": "Usuń zakres operatora {{name}}",
+        "rowActions": "Działania: {{name}}",
+        "empty": {
+          "title": "Brak zakresów częstotliwości",
+          "description": "Dodaj częstotliwości, które ma operator",
+          "readOnlyDescription": "Zakresy dodaje administrator albo opiekun tego kraju"
+        },
+        "dialog": {
+          "editTitle": "Edytuj zakres",
+          "band": "Pasmo",
+          "from": "{{label}} od (MHz)",
+          "to": "{{label}} do (MHz)",
+          "rangeInvalid": "Wpisz oba końce w MHz",
+          "rangeOrder": "Początek musi być niższy niż koniec",
+          "outsideBand": "Poza pasmem ({{range}})",
+          "overlaps": "Nachodzi na zakres operatora {{name}}: {{range}}",
+          "uplinkFromSpacing": "Wyliczone z odstępu dupleksowego {{spacing}} MHz. Można zmienić",
+          "validityOrder": "Data końca jest przed datą początku",
+          "sourcePlaceholder": "Link do decyzji albo krótka notatka",
+          "addSuccess": "Zakres dodany",
+          "saveSuccess": "Zakres zapisany",
+          "saveFailed": "Nie udało się zapisać zakresu"
+        },
+        "remove": {
+          "title": "Usunąć zakres?",
+          "description": "Zakres {{range}} operatora {{name}} zniknie ze strony Pasma częstotliwości",
+          "confirm": "Usuń zakres",
+          "success": "Zakres usunięty",
+          "failed": "Nie udało się usunąć zakresu",
+          "refusedTitle": "Nie można usunąć zakresu"
         }
       },
       "networks": {

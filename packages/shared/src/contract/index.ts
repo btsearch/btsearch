@@ -24,6 +24,7 @@ export * from "./regions.ts";
 export * from "./roleGrants.ts";
 export * from "./search.ts";
 export * from "./settings.ts";
+export * from "./spectrumHoldings.ts";
 export * from "./stationEdits.ts";
 export * from "./stationHistory.ts";
 export * from "./stations.ts";

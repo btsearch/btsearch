@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import type { BreakdownDimension } from "../types";
 import { userAdminKeys } from "@/features/admin/users/api/queryKeys";
+import { SPECTRUM_HOLDINGS_KEY } from "@/features/spectrum/queries";
 
 const REFERENCE_ROOT = ["admin", "reference"] as const;
 const COUNTRY_RECORDS_KEY = [...REFERENCE_ROOT, "countries"] as const;
@@ -67,6 +68,10 @@ export async function invalidateOperators(queryClient: QueryClient): Promise<voi
 
 export async function invalidateStructureOwners(queryClient: QueryClient): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: referenceKeys.structureOwners() });
+}
+
+export async function invalidateSpectrumHoldings(queryClient: QueryClient): Promise<void> {
+  await queryClient.invalidateQueries({ queryKey: SPECTRUM_HOLDINGS_KEY });
 }
 
 export async function invalidateTeam(queryClient: QueryClient): Promise<void> {

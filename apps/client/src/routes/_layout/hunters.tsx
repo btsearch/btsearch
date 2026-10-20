@@ -83,7 +83,12 @@ function HuntersFilterBar({
             {facets.map((facet) => {
               const isActive = countryCodes.includes(facet.countryCode);
               return (
-                <FacetPill key={facet.countryCode} active={isActive} onClick={() => onToggleCountry(facet.countryCode)} className="pl-1.5">
+                <FacetPill
+                  key={facet.countryCode}
+                  active={isActive}
+                  onClick={() => onToggleCountry(facet.countryCode)}
+                  className="cursor-pointer pl-1.5"
+                >
                   <CountryCodeTile code={facet.countryCode} size="xs" tone={isActive ? "inverse" : "default"} />
                   {getCountryName(facet.countryCode, i18n.language)}
                   <FacetCount count={facet.count} isActive={isActive} />

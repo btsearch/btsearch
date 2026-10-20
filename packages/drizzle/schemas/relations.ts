@@ -54,6 +54,7 @@ import {
   operators,
   plmns,
   regions,
+  spectrumHoldings,
   stationBackhauls,
   stationSectors,
   stations,
@@ -89,6 +90,7 @@ export const relations = defineRelations(
     plmns,
     structureOwners,
     regions,
+    spectrumHoldings,
     stations,
     stationSectors,
     stationBackhauls,
@@ -262,6 +264,22 @@ export const relations = defineRelations(
       }),
       locations: helpers.many.locations(),
       officialLocations: helpers.many.officialLocations(),
+    },
+    spectrumHoldings: {
+      operator: helpers.one.operators({
+        from: helpers.spectrumHoldings.operatorId,
+        to: helpers.operators.id,
+        optional: false,
+      }),
+      band: helpers.one.bands({
+        from: helpers.spectrumHoldings.bandId,
+        to: helpers.bands.id,
+        optional: false,
+      }),
+      region: helpers.one.regions({
+        from: helpers.spectrumHoldings.regionId,
+        to: helpers.regions.id,
+      }),
     },
     locations: {
       region: helpers.one.regions({

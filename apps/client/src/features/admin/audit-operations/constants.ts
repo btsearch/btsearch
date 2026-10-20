@@ -12,6 +12,7 @@ const KIND_GROUP_ORDER = [
   "band",
   "region",
   "country",
+  "spectrum_holding",
   "grant",
   "user",
   "list",
