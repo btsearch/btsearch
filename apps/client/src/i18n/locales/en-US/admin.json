@@ -1462,8 +1462,6 @@
       "list": {
         "description": "Bands that cells can use, shared by all countries",
         "searchPlaceholder": "Name or 3GPP code",
-        "shownCount_one": "{{shown, number}} of {{count, number}} band",
-        "shownCount_other": "{{shown, number}} of {{count, number}} bands",
         "detailsFailed": "Couldn't load the band plans or the cell counts",
         "noMatches": "No matching bands",
         "noBands": "There are no bands yet",
@@ -1519,10 +1517,6 @@
         "position": "Order",
         "activeStations": "Active stations"
       },
-      "count_one": "{{count, number}} operator",
-      "count_other": "{{count, number}} operators",
-      "countFiltered_one": "{{shown, number}} of {{count, number}} operator",
-      "countFiltered_other": "{{shown, number}} of {{count, number}} operators",
       "mobile": {
         "noPlmn": "No PLMN code",
         "stations_one": "station",
@@ -1772,10 +1766,6 @@
         "searchPlaceholder": "Owner name",
         "edit": "Edit: {{name}}",
         "delete": "Delete: {{name}}",
-        "count_one": "{{count, number}} owner",
-        "count_other": "{{count, number}} owners",
-        "countFiltered_one": "{{shown, number}} of {{count, number}} owner",
-        "countFiltered_other": "{{shown, number}} of {{count, number}} owners",
         "lookupsLoadFailed": "Couldn't load brands and operators",
         "noMatches": "No matching owners",
         "empty": {

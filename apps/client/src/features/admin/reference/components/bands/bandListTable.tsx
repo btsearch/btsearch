@@ -1,6 +1,6 @@
 import { useTable } from "@tanstack/react-table";
 
-import { type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
+import { type RecordListFitProps, type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
 import { BAND_LIST_COLUMNS, type BandListActions, BandListActionsContext } from "./bandListColumns";
 import { BandListMobileList } from "./bandListMobileList";
 import type { BandListRow } from "./useBandListRows";
@@ -10,22 +10,23 @@ import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
 type BandListTableProps = RecordListStateProps &
+  RecordListFitProps &
   BandListActions & {
     rows: BandListRow[];
   };
 
 const ROW_CLASS = "h-12";
-const SKELETON_ROW_COUNT = 12;
+export const BAND_LIST_ROW_HEIGHT = 48;
 const SKELETON_BAR_WIDTHS = ["w-16", "w-10", "w-24", "w-20", "w-8"];
 
 function getBandRowId(row: BandListRow): string {
   return String(row.band.id);
 }
 
-function BandListSkeletonBody() {
+function BandListSkeletonBody({ rowCount }: { rowCount: number }) {
   return (
     <tbody aria-hidden="true" className="[&_tr:last-child]:border-0">
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, rowIndex) => (
+      {Array.from({ length: rowCount }, (_, rowIndex) => (
         <tr key={rowIndex} className={cn(ROW_CLASS, "border-b")}>
           <td className="p-2 align-middle">
             <div className="flex items-center gap-2 pl-2">
@@ -48,7 +49,18 @@ function BandListSkeletonBody() {
   );
 }
 
-export function BandListTable({ rows, viewState, emptyState, isRetrying, onRetry, onEdit, onDelete }: BandListTableProps) {
+export function BandListTable({
+  rows,
+  isFilled,
+  mobileListRef,
+  skeletonRowCount,
+  viewState,
+  emptyState,
+  isRetrying,
+  onRetry,
+  onEdit,
+  onDelete,
+}: BandListTableProps) {
   const isMobile = useIsMobile();
   const table = useTable({
     features: appTableFeatures,
@@ -61,11 +73,20 @@ export function BandListTable({ rows, viewState, emptyState, isRetrying, onRetry
   return (
     <BandListActionsContext.Provider value={{ onEdit, onDelete }}>
       {isMobile ? (
-        <BandListMobileList rows={rows} viewState={viewState} emptyState={emptyState} isRetrying={isRetrying} onRetry={onRetry} />
+        <BandListMobileList
+          rows={rows}
+          listRef={mobileListRef}
+          skeletonRowCount={skeletonRowCount}
+          viewState={viewState}
+          emptyState={emptyState}
+          isRetrying={isRetrying}
+          onRetry={onRetry}
+        />
       ) : (
         <RecordListTable
           table={table}
-          skeletonBody={<BandListSkeletonBody />}
+          skeletonBody={<BandListSkeletonBody rowCount={skeletonRowCount} />}
+          isFilled={isFilled}
           rowClassName={ROW_CLASS}
           viewState={viewState}
           emptyState={emptyState}

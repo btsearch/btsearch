@@ -7,6 +7,7 @@ import {
   toOperatorListSearch,
 } from "@/features/admin/reference/components/operators/operatorListCriteria";
 import { OperatorListPage } from "@/features/admin/reference/components/operators/operatorListPage";
+import { FIRST_LIST_PAGE } from "@/features/stations/list/data/listPaging";
 
 function AdminOperatorsPage() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ function AdminOperatorsPage() {
   function changeCriteria(changes: Partial<OperatorListCriteria>) {
     void navigate({
       from: Route.fullPath,
-      search: (current) => toOperatorListSearch({ ...readOperatorListCriteria(current), ...changes }),
+      search: (current) => toOperatorListSearch({ ...readOperatorListCriteria(current), page: FIRST_LIST_PAGE, ...changes }),
       replace: true,
     });
   }

@@ -11,8 +11,7 @@ import { type FacetOptionGroup, ListFacetCombobox } from "./listFacetCombobox";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { FadeItem, Reveal, SmoothHeight } from "@/features/map/components/search-overlay/mapFilterMotion";
 import { OperatorRowsSection } from "@/features/map/components/search-overlay/mapFilterOperatorRows";
-import { type MapCountries, NO_MAP_CAPABILITIES } from "@/features/map/data/mapCountries";
-import type { MapFilters, MapFiltersChange } from "@/features/map/data/mapFilters";
+import type { MapFiltersChange } from "@/features/map/data/mapFilters";
 import { FacetDisclosurePill, FacetPill, FilterPanelSection } from "@/features/shared/filterPanel";
 import { StructureTypeIcon } from "@/features/station-details/station/components/structureTypeIcon";
 import { getStructureTypeKey } from "@/features/station-details/station/utils/structure";
@@ -64,7 +63,6 @@ type ListPanelProps = {
 };
 
 const COUNTRY_GROUP_KEY = "countries";
-const NO_COUNTRY_CODES: string[] = [];
 const PILLS_CLASS = "flex flex-wrap gap-1.5";
 const FILTER_FIELDS_OUTSIDE_PANEL: ReadonlySet<string> = new Set(["searchText", "sort", "page", "pageSize"]);
 
@@ -168,51 +166,22 @@ export function ListCountrySection({ countries, isInline = false, onPickCountrie
   );
 }
 
-function listTickedCountryCodes(panel: ListOperatorPanel): string[] {
-  const { lookups } = panel;
-  if (lookups === undefined) return NO_COUNTRY_CODES;
-
-  const tickedCountryCodes = new Set<string>();
-  for (const operatorId of panel.mapFilters.operatorIds) {
-    const countryCode = lookups.operatorsById.get(operatorId)?.operator.countryCode;
-    if (countryCode !== undefined) tickedCountryCodes.add(countryCode);
-  }
-  return panel.countries.options.filter((countryCode) => tickedCountryCodes.has(countryCode));
-}
-
 export function ListOperatorSection({ panel, onToggleOperator, onMapFiltersChange }: ListOperatorSectionProps) {
-  const { t } = useTranslation(["main", "common"]);
-  const { mapFilters, countries } = panel;
-  const hasRowPerCountry = countries.hasOperatorRows;
-  const tickedCountryCodes = hasRowPerCountry ? NO_COUNTRY_CODES : listTickedCountryCodes(panel);
-  const hasRows = hasRowPerCountry || tickedCountryCodes.length > 0;
-  const rowFilters: MapFilters = hasRowPerCountry ? mapFilters : { ...mapFilters, countryCodes: tickedCountryCodes };
-  const rowCountries: MapCountries = hasRowPerCountry
-    ? countries.mapCountries
-    : { onScreen: tickedCountryCodes, first: tickedCountryCodes.at(0) ?? null, capabilities: NO_MAP_CAPABILITIES };
-  const title = t("common:labels.operator");
-  const countryHint = <p className="text-xs leading-4 text-muted-foreground">{t("main:filters.pickCountryForOperators")}</p>;
+  const { t } = useTranslation("common");
 
   return (
-    <div className="space-y-1.5">
-      {hasRows ? (
-        <OperatorRowsSection
-          filters={rowFilters}
-          mapCountries={rowCountries}
-          lookups={panel.lookups}
-          hasLookupsError={panel.hasLookupsError}
-          isRetryingLookups={panel.isRetryingLookups}
-          onRetryLookups={panel.retryLookups}
-          onToggleOperator={onToggleOperator}
-          onFiltersChange={onMapFiltersChange}
-          title={title}
-          hasKeyHint={false}
-        />
-      ) : (
-        <FilterPanelSection title={title}>{countryHint}</FilterPanelSection>
-      )}
-      {hasRows && !hasRowPerCountry ? countryHint : null}
-    </div>
+    <OperatorRowsSection
+      filters={panel.mapFilters}
+      mapCountries={panel.countries.mapCountries}
+      lookups={panel.lookups}
+      hasLookupsError={panel.hasLookupsError}
+      isRetryingLookups={panel.isRetryingLookups}
+      onRetryLookups={panel.retryLookups}
+      onToggleOperator={onToggleOperator}
+      onFiltersChange={onMapFiltersChange}
+      title={t("labels.operator")}
+      hasKeyHint={false}
+    />
   );
 }
 

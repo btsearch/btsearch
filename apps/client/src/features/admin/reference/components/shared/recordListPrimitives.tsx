@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
+import { cn } from "@/lib/utils";
 
 export type RecordListEmptyState = {
   icon: IconSvgElement;
@@ -27,6 +28,12 @@ export type RecordListStateProps = {
   onRetry?: () => unknown;
 };
 
+export type RecordListFitProps = {
+  isFilled: boolean;
+  mobileListRef: (node: HTMLUListElement | null) => void;
+  skeletonRowCount: number;
+};
+
 type AddRecordButtonProps = {
   label: string;
   isCompactOnPhones?: boolean;
@@ -36,6 +43,7 @@ type AddRecordButtonProps = {
 type RecordListTableProps<TRow extends RowData> = RecordListStateProps & {
   table: Table<AppTableFeatures, TRow>;
   skeletonBody: ReactNode;
+  isFilled?: boolean;
   rowClassName?: string;
   getRowHref?: (row: TRow) => string;
   onRowClick?: (row: TRow) => void;
@@ -68,6 +76,7 @@ export function AddRecordButton({ label, isCompactOnPhones = false, onClick }: A
 export function RecordListTable<TRow extends RowData>({
   table,
   skeletonBody,
+  isFilled = false,
   rowClassName,
   getRowHref,
   onRowClick,
@@ -79,8 +88,8 @@ export function RecordListTable<TRow extends RowData>({
   const columnCount = table.getAllLeafColumns().length;
 
   return (
-    <DataTable.Root table={table} className={REFERENCE_LIST_TABLE_CLASS}>
-      <DataTable.Table>
+    <DataTable.Root table={table} className={cn(REFERENCE_LIST_TABLE_CLASS, isFilled && "h-full")}>
+      <DataTable.Table className={isFilled ? "h-full" : undefined}>
         <DataTable.Header />
         {viewState === "loading" ? skeletonBody : null}
         {viewState === "error" ? (
@@ -108,7 +117,7 @@ export function RecordListMobileList({
 
   if (viewState === "loading") {
     return (
-      <div className="divide-y" aria-hidden="true">
+      <div className="h-full divide-y overflow-hidden" aria-hidden="true">
         {Array.from({ length: skeletonRowCount }, (_, index) => (
           <Fragment key={index}>{skeletonRow}</Fragment>
         ))}

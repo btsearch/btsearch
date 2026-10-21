@@ -20,9 +20,10 @@ import { cn } from "@/lib/utils";
 
 type BandListMobileListProps = RecordListStateProps & {
   rows: BandListRow[];
+  listRef: (node: HTMLUListElement | null) => void;
+  skeletonRowCount: number;
 };
 
-const SKELETON_ROW_COUNT = 8;
 const MENU_BUTTON_CLASS = cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "cursor-pointer text-muted-foreground");
 
 function BandMobileRowSkeleton() {
@@ -117,11 +118,12 @@ function BandMobileRow({ row }: { row: BandListRow }) {
   );
 }
 
-export function BandListMobileList({ rows, viewState, emptyState, isRetrying, onRetry }: BandListMobileListProps) {
+export function BandListMobileList({ rows, listRef, skeletonRowCount, viewState, emptyState, isRetrying, onRetry }: BandListMobileListProps) {
   return (
     <RecordListMobileList
       skeletonRow={<BandMobileRowSkeleton />}
-      skeletonRowCount={SKELETON_ROW_COUNT}
+      skeletonRowCount={skeletonRowCount}
+      listRef={listRef}
       viewState={viewState}
       emptyState={emptyState}
       isRetrying={isRetrying}

@@ -6,12 +6,13 @@ import type { Country, StructureOwner } from "../../types";
 import type { FacetOption } from "../shared/facetToggles";
 import { AddRecordButton, type RecordListEmptyState } from "../shared/recordListPrimitives";
 import { ReferenceListPage } from "../shared/referenceListPage";
+import { useReferenceListPage } from "../shared/referenceListPaging";
 import { StructureOwnerDeleteDialog } from "./structureOwnerDeleteDialog";
 import { StructureOwnerDialog } from "./structureOwnerDialog";
 import type { StructureOwnerListCriteria } from "./structureOwnerListCriteria";
 import { type StructureOwnerListFilterProps, StructureOwnerListMobileFilters, StructureOwnerListToolbar } from "./structureOwnerListFilters";
 import { NO_COUNTRY_FACET } from "./structureOwnerListSearch";
-import { StructureOwnerListTable } from "./structureOwnerListTable";
+import { STRUCTURE_OWNER_LIST_ROW_HEIGHT, StructureOwnerListTable } from "./structureOwnerListTable";
 import { sortStructureOwnerRows, useStructureOwnerListRows } from "./useStructureOwnerListRows";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
@@ -43,6 +44,7 @@ export function StructureOwnerListPage({ criteria, onCriteriaChange }: Structure
   const rows = sortStructureOwnerRows(list.rows, criteria.sort, list.locationCounts);
   const isLoading = !list.hasOwners && !list.isError;
   const viewState = getDataTableViewState(isLoading, list.isError && !list.hasOwners, rows.length > 0);
+  const listPage = useReferenceListPage({ rows, viewState, criteria, rowHeight: STRUCTURE_OWNER_LIST_ROW_HEIGHT, onCriteriaChange });
   const hasStaleRows = list.isError && list.hasOwners;
   const isUpdating = list.isFetching && !isLoading && !list.isError;
   const activeFilterCount = Number(searchText.trim() !== "") + Number(list.countryFacets.length > 0);
@@ -102,10 +104,6 @@ export function StructureOwnerListPage({ criteria, onCriteriaChange }: Structure
           action: <AddRecordButton label={addLabel} onClick={openAddDialog} />,
         };
 
-  let footer: string | undefined;
-  if (list.hasOwners && activeFilterCount > 0) footer = t("reference.owners.list.countFiltered", { count: list.total, shown: rows.length });
-  else if (list.hasOwners) footer = t("reference.owners.list.count", { count: list.total });
-
   let notice: ReactNode = null;
   if (hasStaleRows) {
     notice = <StaleDataNotice onRetry={list.refetch} isRetrying={list.isFetching} className={STALE_NOTICE_CORNER_CLASS} />;
@@ -130,12 +128,15 @@ export function StructureOwnerListPage({ criteria, onCriteriaChange }: Structure
         action={<AddRecordButton label={addLabel} isCompactOnPhones onClick={openAddDialog} />}
         toolbar={<StructureOwnerListToolbar {...filterProps} />}
         mobileToolbar={<StructureOwnerListMobileFilters {...filterProps} />}
-        footer={footer}
+        pager={listPage.pager}
         notice={notice}
         isBusy={isLoading || list.isFetching}
       >
         <StructureOwnerListTable
-          rows={rows}
+          rows={listPage.pageRows}
+          isFilled={listPage.isFilled}
+          mobileListRef={listPage.mobileListRef}
+          skeletonRowCount={listPage.skeletonRowCount}
           locationCounts={list.locationCounts}
           viewState={viewState}
           emptyState={emptyState}

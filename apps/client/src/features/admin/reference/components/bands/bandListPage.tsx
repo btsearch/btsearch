@@ -5,11 +5,12 @@ import { useTranslation } from "react-i18next";
 import type { Band } from "../../types";
 import { AddRecordButton, type RecordListEmptyState } from "../shared/recordListPrimitives";
 import { ReferenceListPage } from "../shared/referenceListPage";
+import { useReferenceListPage } from "../shared/referenceListPaging";
 import { BandDeleteDialog } from "./bandDeleteDialog";
 import { BandDialog } from "./bandDialog";
 import type { BandListCriteria } from "./bandListCriteria";
 import { type BandListFilterProps, BandListMobileFilters, BandListToolbar } from "./bandListFilters";
-import { BandListTable } from "./bandListTable";
+import { BAND_LIST_ROW_HEIGHT, BandListTable } from "./bandListTable";
 import { useBandListRows } from "./useBandListRows";
 import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
 import { STALE_NOTICE_CORNER_CLASS, StaleDataNotice } from "@/components/ui/error-state";
@@ -22,7 +23,7 @@ type BandListPageProps = {
 };
 
 export function BandListPage({ criteria, onCriteriaChange }: BandListPageProps) {
-  const { t } = useTranslation(["admin", "nav", "common"]);
+  const { t } = useTranslation(["admin", "nav"]);
   const {
     text: searchText,
     changeText: changeSearchText,
@@ -34,10 +35,10 @@ export function BandListPage({ criteria, onCriteriaChange }: BandListPageProps) 
   const [bandToDelete, setBandToDelete] = useState<Band | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const bandCount = list.bands.length;
-  const hasBands = bandCount > 0;
+  const hasBands = list.bands.length > 0;
   const activeFilterCount = Number(searchText.trim() !== "") + Number(criteria.groups.length > 0) + Number(criteria.codePresence !== "all");
   const viewState = getDataTableViewState(list.isLoading, list.isError && !hasBands, list.rows.length > 0);
+  const listPage = useReferenceListPage({ rows: list.rows, viewState, criteria, rowHeight: BAND_LIST_ROW_HEIGHT, onCriteriaChange });
   const hasStaleRows = list.isError && hasBands;
   const isUpdating = list.isFetching && !list.isLoading && !list.isError;
 
@@ -85,10 +86,6 @@ export function BandListPage({ criteria, onCriteriaChange }: BandListPageProps) 
           description: t("admin:reference.bands.list.noBandsHint"),
         };
 
-  let footer: string | undefined;
-  if (hasBands && activeFilterCount > 0) footer = t("admin:reference.bands.list.shownCount", { count: bandCount, shown: list.rows.length });
-  else if (hasBands) footer = t("common:labels.bands", { count: bandCount });
-
   let notice: ReactNode = null;
   if (hasStaleRows) {
     notice = <StaleDataNotice onRetry={list.refetch} isRetrying={list.isFetching} className={STALE_NOTICE_CORNER_CLASS} />;
@@ -113,12 +110,15 @@ export function BandListPage({ criteria, onCriteriaChange }: BandListPageProps) 
         action={<AddRecordButton label={t("admin:reference.bands.actions.add")} isCompactOnPhones onClick={openAddDialog} />}
         toolbar={<BandListToolbar {...filterProps} />}
         mobileToolbar={<BandListMobileFilters {...filterProps} />}
-        footer={footer}
+        pager={listPage.pager}
         notice={notice}
         isBusy={list.isFetching}
       >
         <BandListTable
-          rows={list.rows}
+          rows={listPage.pageRows}
+          isFilled={listPage.isFilled}
+          mobileListRef={listPage.mobileListRef}
+          skeletonRowCount={listPage.skeletonRowCount}
           viewState={viewState}
           emptyState={emptyState}
           isRetrying={list.isFetching}

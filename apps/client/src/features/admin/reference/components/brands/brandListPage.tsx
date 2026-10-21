@@ -5,14 +5,20 @@ import { useTranslation } from "react-i18next";
 import type { Brand } from "../../types";
 import { AddRecordButton, type RecordListEmptyState } from "../shared/recordListPrimitives";
 import { ReferenceListPage } from "../shared/referenceListPage";
+import { type ReferenceListPaging, useReferenceListPage } from "../shared/referenceListPaging";
 import { BrandDeleteDialog } from "./brandDeleteDialog";
 import { BrandDialog } from "./brandDialog";
 import { BrandListTable } from "./brandListTable";
 import { useBrandListRows } from "./useBrandListRows";
-import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
+import { DATA_TABLE_ROW_HEIGHT, DataTable, getDataTableViewState } from "@/components/ui/data-table";
 import { STALE_NOTICE_CORNER_CLASS, StaleDataNotice } from "@/components/ui/error-state";
 
-export function BrandListPage() {
+type BrandListPageProps = {
+  criteria: ReferenceListPaging;
+  onCriteriaChange: (changes: Partial<ReferenceListPaging>) => void;
+};
+
+export function BrandListPage({ criteria, onCriteriaChange }: BrandListPageProps) {
   const { t } = useTranslation("admin");
   const list = useBrandListRows();
   const [editedBrand, setEditedBrand] = useState<Brand>();
@@ -22,6 +28,7 @@ export function BrandListPage() {
 
   const isLoading = !list.hasBrands && !list.isError;
   const viewState = getDataTableViewState(isLoading, list.isError && !list.hasBrands, list.rows.length > 0);
+  const listPage = useReferenceListPage({ rows: list.rows, viewState, criteria, rowHeight: DATA_TABLE_ROW_HEIGHT, onCriteriaChange });
   const hasStaleRows = list.isError && list.hasBrands;
   const isUpdating = list.isFetching && !isLoading && !list.isError;
   const deletedRow = brandToDelete === null ? undefined : list.rows.find((row) => row.brand.id === brandToDelete.id);
@@ -72,12 +79,15 @@ export function BrandListPage() {
         title={t("nav:items.brands")}
         description={t("reference.brands.description")}
         action={<AddRecordButton label={addLabel} isCompactOnPhones onClick={openAddDialog} />}
-        footer={list.hasBrands ? t("auditLogs.counts.brands", { count: list.rows.length }) : undefined}
+        pager={listPage.pager}
         notice={notice}
         isBusy={isLoading || list.isFetching}
       >
         <BrandListTable
-          rows={list.rows}
+          rows={listPage.pageRows}
+          isFilled={listPage.isFilled}
+          mobileListRef={listPage.mobileListRef}
+          skeletonRowCount={listPage.skeletonRowCount}
           viewState={viewState}
           emptyState={emptyState}
           isRetrying={list.isFetching}

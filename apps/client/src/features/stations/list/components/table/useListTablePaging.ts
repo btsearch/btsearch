@@ -22,6 +22,12 @@ export type ListTablePaging = {
   onPageSizePick: (pageSize: number) => void;
 };
 
+type ListTableFit = {
+  rowHeight: number;
+  headerHeight: number;
+  keepsFirstRowOnResize: boolean;
+};
+
 const SMALLEST_FITTED_PAGE_SIZE = 1;
 
 function listPageSizeOptions(fittedOptions: number[], pageSize: number | null): number[] {
@@ -39,19 +45,27 @@ export function useListTablePaging<Filters extends PagedFilters>(
   cardHeight: number,
 ): ListTablePaging {
   const isMobile = useIsMobile();
-  const fit = useTablePagination({
+  return useFittedListTablePaging(filters, onFiltersChange, {
     rowHeight: isMobile ? cardHeight : LIST_ROW_HEIGHT,
     headerHeight: LIST_BOX_BORDER_WIDTH + (isMobile ? LIST_SORT_BAR_HEIGHT : LIST_HEAD_HEIGHT),
-    paginationHeight: LIST_PAGER_HEIGHT,
-    minRows: SMALLEST_FITTED_PAGE_SIZE,
+    keepsFirstRowOnResize: true,
   });
+}
+
+export function useFittedListTablePaging<Filters extends PagedFilters>(
+  filters: Filters,
+  onFiltersChange: PagedFiltersChange<Filters>,
+  { rowHeight, headerHeight, keepsFirstRowOnResize }: ListTableFit,
+): ListTablePaging {
+  const isMobile = useIsMobile();
+  const fit = useTablePagination({ rowHeight, headerHeight, paginationHeight: LIST_PAGER_HEIGHT, minRows: SMALLEST_FITTED_PAGE_SIZE });
   const { autoPageSize: fittedPageSize, isPageSizeMeasured } = fit;
   const { page, pageSize: pickedPageSize } = filters;
   const pageSize = pickedPageSize ?? (isPageSizeMeasured ? fittedPageSize : null);
   const lastFittedPageSize = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!isPageSizeMeasured) return;
+    if (!isPageSizeMeasured || !keepsFirstRowOnResize) return;
 
     const previousPageSize = lastFittedPageSize.current;
     lastFittedPageSize.current = fittedPageSize;
@@ -59,7 +73,7 @@ export function useListTablePaging<Filters extends PagedFilters>(
     if (rescaleListPage(page, previousPageSize, fittedPageSize) === page) return;
 
     onFiltersChange((current) => ({ ...current, page: rescaleListPage(current.page, previousPageSize, fittedPageSize) }));
-  }, [fittedPageSize, isPageSizeMeasured, pickedPageSize, page, onFiltersChange]);
+  }, [fittedPageSize, isPageSizeMeasured, keepsFirstRowOnResize, pickedPageSize, page, onFiltersChange]);
 
   function changePage(nextPage: number) {
     onFiltersChange((current) => ({ ...current, page: nextPage }));

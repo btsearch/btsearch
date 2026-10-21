@@ -8,9 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type BrandListMobileListProps = RecordListStateProps & {
   rows: BrandListRow[];
+  listRef: (node: HTMLUListElement | null) => void;
+  skeletonRowCount: number;
 };
-
-const SKELETON_ROW_COUNT = 6;
 
 function BrandMobileRowSkeleton() {
   return (
@@ -42,11 +42,12 @@ function BrandMobileRow({ brand }: { brand: Brand }) {
   );
 }
 
-export function BrandListMobileList({ rows, viewState, emptyState, isRetrying, onRetry }: BrandListMobileListProps) {
+export function BrandListMobileList({ rows, listRef, skeletonRowCount, viewState, emptyState, isRetrying, onRetry }: BrandListMobileListProps) {
   return (
     <RecordListMobileList
       skeletonRow={<BrandMobileRowSkeleton />}
-      skeletonRowCount={SKELETON_ROW_COUNT}
+      skeletonRowCount={skeletonRowCount}
+      listRef={listRef}
       viewState={viewState}
       emptyState={emptyState}
       isRetrying={isRetrying}

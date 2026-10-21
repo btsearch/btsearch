@@ -196,7 +196,6 @@
     "addCountry": "Add a country...",
     "countriesShown_one": "{{shown, number}} of {{count, number}} country",
     "countriesShown_other": "{{shown, number}} of {{count, number}} countries",
-    "pickCountryForOperators": "Pick a country to filter by operator",
     "allRegions": "All regions",
     "noRegionsFound": "No regions found",
     "otherStructureTypes_one": "{{count, number}} other structure type",

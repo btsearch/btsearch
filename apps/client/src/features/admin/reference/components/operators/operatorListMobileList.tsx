@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils";
 
 type OperatorListMobileListProps = RecordListStateProps & {
   rows: OperatorListRow[];
+  listRef: (node: HTMLUListElement | null) => void;
+  skeletonRowCount: number;
 };
 
-const SKELETON_ROW_COUNT = 8;
 const FACT_SEPARATOR = " · ";
 const ROW_LINK_CLASS = cn(
   "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50",
@@ -76,11 +77,12 @@ function OperatorMobileRow({ row }: { row: OperatorListRow }) {
   );
 }
 
-export function OperatorListMobileList({ rows, viewState, emptyState, isRetrying, onRetry }: OperatorListMobileListProps) {
+export function OperatorListMobileList({ rows, listRef, skeletonRowCount, viewState, emptyState, isRetrying, onRetry }: OperatorListMobileListProps) {
   return (
     <RecordListMobileList
       skeletonRow={<OperatorMobileRowSkeleton />}
-      skeletonRowCount={SKELETON_ROW_COUNT}
+      skeletonRowCount={skeletonRowCount}
+      listRef={listRef}
       viewState={viewState}
       emptyState={emptyState}
       isRetrying={isRetrying}

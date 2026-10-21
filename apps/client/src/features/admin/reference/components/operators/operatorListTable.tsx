@@ -1,7 +1,6 @@
 import { useTable } from "@tanstack/react-table";
 
 import { type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
-import { REFERENCE_LIST_STATE_ROWS } from "../shared/referenceListPage";
 import { OPERATOR_LIST_COLUMNS, OPERATOR_LIST_SORTING, OperatorListSortContext } from "./operatorListColumns";
 import type { OperatorListSort } from "./operatorListCriteria";
 import type { OperatorListRow } from "./useOperatorListRows";
@@ -11,6 +10,8 @@ import { cn } from "@/lib/utils";
 
 type OperatorListTableProps = RecordListStateProps & {
   rows: OperatorListRow[];
+  isFilled: boolean;
+  skeletonRowCount: number;
   sort: OperatorListSort;
   onSortChange: (sort: OperatorListSort) => void;
   onOpenOperator: (operatorId: number) => void;
@@ -26,10 +27,10 @@ function getOperatorHref(row: OperatorListRow): string {
   return `/admin/operators/${row.operator.id}`;
 }
 
-function OperatorListSkeletonBody() {
+function OperatorListSkeletonBody({ rowCount }: { rowCount: number }) {
   return (
     <tbody aria-hidden="true" className="[&_tr:last-child]:border-0">
-      {Array.from({ length: REFERENCE_LIST_STATE_ROWS }, (_, rowIndex) => (
+      {Array.from({ length: rowCount }, (_, rowIndex) => (
         <tr key={rowIndex} className="h-16 border-b">
           <td className="p-2 align-middle">
             <div className="flex items-center gap-3 pl-2">
@@ -51,7 +52,18 @@ function OperatorListSkeletonBody() {
   );
 }
 
-export function OperatorListTable({ rows, viewState, sort, emptyState, isRetrying, onSortChange, onRetry, onOpenOperator }: OperatorListTableProps) {
+export function OperatorListTable({
+  rows,
+  isFilled,
+  skeletonRowCount,
+  viewState,
+  sort,
+  emptyState,
+  isRetrying,
+  onSortChange,
+  onRetry,
+  onOpenOperator,
+}: OperatorListTableProps) {
   const table = useTable({
     features: appTableFeatures,
     data: rows,
@@ -70,7 +82,8 @@ export function OperatorListTable({ rows, viewState, sort, emptyState, isRetryin
     <OperatorListSortContext.Provider value={{ sort, onSortChange }}>
       <RecordListTable
         table={table}
-        skeletonBody={<OperatorListSkeletonBody />}
+        skeletonBody={<OperatorListSkeletonBody rowCount={skeletonRowCount} />}
+        isFilled={isFilled}
         getRowHref={getOperatorHref}
         onRowClick={openRow}
         viewState={viewState}

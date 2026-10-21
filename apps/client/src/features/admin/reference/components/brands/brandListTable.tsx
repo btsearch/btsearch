@@ -1,6 +1,6 @@
 import { useTable } from "@tanstack/react-table";
 
-import { type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
+import { type RecordListFitProps, type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
 import { BRAND_LIST_COLUMNS, type BrandListActions, BrandListActionsContext } from "./brandListColumns";
 import { BrandListMobileList } from "./brandListMobileList";
 import type { BrandListRow } from "./useBrandListRows";
@@ -10,21 +10,21 @@ import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
 type BrandListTableProps = RecordListStateProps &
+  RecordListFitProps &
   BrandListActions & {
     rows: BrandListRow[];
   };
 
-const SKELETON_ROW_COUNT = 6;
 const SKELETON_BAR_WIDTHS = ["w-20", "w-24", "w-28", "w-32", "w-36"];
 
 function getBrandRowId(row: BrandListRow): string {
   return String(row.brand.id);
 }
 
-function BrandListSkeletonBody() {
+function BrandListSkeletonBody({ rowCount }: { rowCount: number }) {
   return (
     <tbody aria-hidden="true" className="[&_tr:last-child]:border-0">
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, rowIndex) => (
+      {Array.from({ length: rowCount }, (_, rowIndex) => (
         <tr key={rowIndex} className="h-16 border-b">
           <td className="p-2 align-middle">
             <div className="flex items-center gap-3 pl-2">
@@ -44,7 +44,18 @@ function BrandListSkeletonBody() {
   );
 }
 
-export function BrandListTable({ rows, viewState, emptyState, isRetrying, onRetry, onEdit, onDelete }: BrandListTableProps) {
+export function BrandListTable({
+  rows,
+  isFilled,
+  mobileListRef,
+  skeletonRowCount,
+  viewState,
+  emptyState,
+  isRetrying,
+  onRetry,
+  onEdit,
+  onDelete,
+}: BrandListTableProps) {
   const isMobile = useIsMobile();
   const table = useTable({
     features: appTableFeatures,
@@ -57,11 +68,20 @@ export function BrandListTable({ rows, viewState, emptyState, isRetrying, onRetr
   return (
     <BrandListActionsContext.Provider value={{ onEdit, onDelete }}>
       {isMobile ? (
-        <BrandListMobileList rows={rows} viewState={viewState} emptyState={emptyState} isRetrying={isRetrying} onRetry={onRetry} />
+        <BrandListMobileList
+          rows={rows}
+          listRef={mobileListRef}
+          skeletonRowCount={skeletonRowCount}
+          viewState={viewState}
+          emptyState={emptyState}
+          isRetrying={isRetrying}
+          onRetry={onRetry}
+        />
       ) : (
         <RecordListTable
           table={table}
-          skeletonBody={<BrandListSkeletonBody />}
+          skeletonBody={<BrandListSkeletonBody rowCount={skeletonRowCount} />}
+          isFilled={isFilled}
           viewState={viewState}
           emptyState={emptyState}
           isRetrying={isRetrying}

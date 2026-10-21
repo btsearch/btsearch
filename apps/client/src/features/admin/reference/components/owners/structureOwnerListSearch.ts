@@ -1,9 +1,10 @@
+import { type ReferenceListPagingSearch, parseReferenceListPagingSearch } from "../shared/referenceListPaging";
 import { isCountryCode } from "@/lib/apiValues";
 import { joinSearchValues, parseSearchQuery, parseSearchValues } from "@/lib/urlSearch";
 
 export type StructureOwnerListSort = "name" | "locations" | "-locations";
 
-export type StructureOwnerListSearch = {
+export type StructureOwnerListSearch = ReferenceListPagingSearch & {
   q?: string;
   countries?: string;
   sort?: Exclude<StructureOwnerListSort, "name">;
@@ -28,5 +29,6 @@ export function parseStructureOwnerListSearch(search: Record<string, unknown>): 
     q: parseSearchQuery(search.q),
     countries: joinSearchValues(listCountryFacets(search.countries)),
     sort: parseSort(search.sort),
+    ...parseReferenceListPagingSearch(search),
   };
 }

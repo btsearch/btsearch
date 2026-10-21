@@ -1,10 +1,10 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
-import { DataTable } from "@/components/ui/data-table";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { MobileFilterRailFloating, MobileFilterRailInline } from "@/features/shared/filterPanel";
+import { ListTablePager, type ListTablePagerProps } from "@/features/stations/list/components/table/listTablePager";
 import { useIsMobile } from "@/hooks/useMobile";
 import { cn } from "@/lib/utils";
 
@@ -14,8 +14,7 @@ type ReferenceListPageProps = {
   action?: ReactNode;
   toolbar?: ReactNode;
   mobileToolbar?: ReactNode;
-  footer?: ReactNode;
-  footerNote?: ReactNode;
+  pager?: ListTablePagerProps;
   notice?: ReactNode;
   isBusy?: boolean;
   children: ReactNode;
@@ -30,8 +29,7 @@ export function ReferenceListPage({
   action,
   toolbar,
   mobileToolbar,
-  footer,
-  footerNote,
+  pager,
   notice,
   isBusy = false,
   children,
@@ -39,6 +37,12 @@ export function ReferenceListPage({
   const { t } = useTranslation("common");
   const isMobile = useIsMobile();
   const navActionTarget = useNavActionTarget();
+  const scrollBoxRef = useRef<HTMLDivElement>(null);
+  const page = pager?.page;
+
+  useLayoutEffect(() => {
+    if (scrollBoxRef.current !== null) scrollBoxRef.current.scrollTop = 0;
+  }, [page]);
 
   const hasMobileToolbar = isMobile && Boolean(mobileToolbar);
   const hasFloatingMobileToolbar = hasMobileToolbar && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
@@ -61,26 +65,22 @@ export function ReferenceListPage({
       {toolbar && !hasMobileToolbar ? <div className="flex shrink-0 flex-wrap items-end gap-x-4 gap-y-2">{toolbar}</div> : null}
       {hasMobileToolbar && !hasFloatingMobileToolbar ? <MobileFilterRailInline>{mobileRail}</MobileFilterRailInline> : null}
 
-      <div className={cn("relative flex min-h-0 flex-1 flex-col", hasFloatingMobileToolbar && "max-md:mb-10")} aria-busy={isBusy}>
+      <div
+        ref={pager?.paging.containerRef}
+        className={cn("relative flex min-h-0 flex-1 flex-col", hasFloatingMobileToolbar && "max-md:mb-10")}
+        aria-busy={isBusy}
+      >
         {notice}
         <div
+          ref={scrollBoxRef}
           className={cn(
             "custom-scrollbar min-h-0 overflow-auto overscroll-contain rounded-t-lg border bg-card",
-            footer ? "border-b-0" : "rounded-b-lg",
+            pager ? "flex-1 border-b-0" : "rounded-b-lg",
           )}
         >
           {children}
         </div>
-        {footer ? (
-          <DataTable.PaginationFooter>
-            <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-2">
-              <span aria-live="polite" className="text-sm text-muted-foreground tabular-nums">
-                {footer}
-              </span>
-              {footerNote ? <span className="text-xs leading-4 text-muted-foreground max-md:hidden">{footerNote}</span> : null}
-            </div>
-          </DataTable.PaginationFooter>
-        ) : null}
+        {pager ? <ListTablePager {...pager} /> : null}
       </div>
 
       {hasFloatingMobileToolbar && navActionTarget ? (

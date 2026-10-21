@@ -7,6 +7,7 @@ import {
 } from "@/features/admin/reference/components/owners/structureOwnerListCriteria";
 import { StructureOwnerListPage } from "@/features/admin/reference/components/owners/structureOwnerListPage";
 import { parseStructureOwnerListSearch } from "@/features/admin/reference/components/owners/structureOwnerListSearch";
+import { FIRST_LIST_PAGE } from "@/features/stations/list/data/listPaging";
 
 function AdminStructureOwnersPage() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ function AdminStructureOwnersPage() {
   function changeCriteria(changes: Partial<StructureOwnerListCriteria>) {
     void navigate({
       from: Route.fullPath,
-      search: (current) => toStructureOwnerListSearch({ ...readStructureOwnerListCriteria(current), ...changes }),
+      search: (current) => toStructureOwnerListSearch({ ...readStructureOwnerListCriteria(current), page: FIRST_LIST_PAGE, ...changes }),
       replace: true,
     });
   }

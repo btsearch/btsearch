@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { type BandListCriteria, readBandListCriteria, toBandListSearch } from "@/features/admin/reference/components/bands/bandListCriteria";
 import { BandListPage } from "@/features/admin/reference/components/bands/bandListPage";
 import { parseBandListSearch } from "@/features/admin/reference/components/bands/bandListSearch";
+import { FIRST_LIST_PAGE } from "@/features/stations/list/data/listPaging";
 
 function AdminBandsPage() {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ function AdminBandsPage() {
   function changeCriteria(changes: Partial<BandListCriteria>) {
     void navigate({
       from: Route.fullPath,
-      search: (current) => toBandListSearch({ ...readBandListCriteria(current), ...changes }),
+      search: (current) => toBandListSearch({ ...readBandListCriteria(current), page: FIRST_LIST_PAGE, ...changes }),
       replace: true,
     });
   }

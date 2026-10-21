@@ -1,9 +1,10 @@
 import type { Band } from "../../types";
 import type { BandGroupKey } from "../../utils/bands";
+import { type ReferenceListPaging, readReferenceListPaging, toReferenceListPagingSearch } from "../shared/referenceListPaging";
 import { BAND_GROUP_KEYS, type BandCodePresence, type BandListSearch, listBandGroups } from "./bandListSearch";
 import { joinSearchValues } from "@/lib/urlSearch";
 
-export type BandListCriteria = {
+export type BandListCriteria = ReferenceListPaging & {
   query: string;
   groups: readonly BandGroupKey[];
   codePresence: BandCodePresence;
@@ -18,6 +19,7 @@ export function readBandListCriteria(search: BandListSearch): BandListCriteria {
     query: (search.q ?? "").slice(0, BAND_SEARCH_MAX_LENGTH),
     groups: listBandGroups(search.tech),
     codePresence: search.code ?? "all",
+    ...readReferenceListPaging(search),
   };
 }
 
@@ -26,6 +28,7 @@ export function toBandListSearch(criteria: BandListCriteria): BandListSearch {
     q: criteria.query === "" ? undefined : criteria.query,
     tech: joinSearchValues(BAND_GROUP_KEYS.filter((group) => criteria.groups.includes(group))),
     code: criteria.codePresence === "all" ? undefined : criteria.codePresence,
+    ...toReferenceListPagingSearch(criteria),
   };
 }
 

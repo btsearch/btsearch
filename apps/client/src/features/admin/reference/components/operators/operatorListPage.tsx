@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { AddRecordButton, type RecordListEmptyState } from "../shared/recordListPrimitives";
 import { ReferenceListPage } from "../shared/referenceListPage";
+import { useReferenceListPage } from "../shared/referenceListPaging";
 import { OperatorCreateDialog } from "./operatorCreateDialog";
 import type { OperatorListCriteria } from "./operatorListCriteria";
 import { type OperatorListFilterProps, OperatorListMobileToolbar, OperatorListToolbar } from "./operatorListFilters";
@@ -13,7 +14,7 @@ import { OperatorListMobileList } from "./operatorListMobileList";
 import { OperatorListTable } from "./operatorListTable";
 import { type OperatorListSecondaryFailure, useOperatorListRows } from "./useOperatorListRows";
 import { Button } from "@/components/ui/button";
-import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
+import { DATA_TABLE_ROW_HEIGHT, DataTable, getDataTableViewState } from "@/components/ui/data-table";
 import { STALE_NOTICE_CORNER_CLASS, StaleDataNotice } from "@/components/ui/error-state";
 import { useUserSearchText } from "@/features/admin/users/components/list/useUserSearchText";
 import { ClearFiltersButton } from "@/features/shared/filterPanel";
@@ -47,6 +48,7 @@ export function OperatorListPage({ criteria, onCriteriaChange }: OperatorListPag
   const activeFilterCount = Number(hasSearchText) + Number(selectedCountryCodes.length > 0);
   const onlyCountryCode = selectedCountryCodes.length === 1 ? selectedCountryCodes[0] : undefined;
   const viewState = getDataTableViewState(list.isLoading, list.hasLoadFailed, hasRows);
+  const listPage = useReferenceListPage({ rows, viewState, criteria, rowHeight: DATA_TABLE_ROW_HEIGHT, onCriteriaChange });
   const isUpdating = list.isFetching && !list.isLoading && !list.hasLoadFailed && !list.hasStaleRows;
   const addLabel = t("reference.operators.add");
 
@@ -119,14 +121,6 @@ export function OperatorListPage({ criteria, onCriteriaChange }: OperatorListPag
     notice = <DataTable.UpdatingIndicator className="z-40" />;
   }
 
-  let footer: string | undefined;
-  if (viewState === "ready" || viewState === "empty") {
-    footer =
-      activeFilterCount > 0
-        ? t("reference.operators.countFiltered", { shown: rows.length, count: list.total })
-        : t("reference.operators.count", { count: list.total });
-  }
-
   return (
     <>
       <ReferenceListPage
@@ -135,15 +129,25 @@ export function OperatorListPage({ criteria, onCriteriaChange }: OperatorListPag
         action={<AddRecordButton label={addLabel} isCompactOnPhones onClick={openCreateDialog} />}
         toolbar={<OperatorListToolbar {...filterProps} />}
         mobileToolbar={<OperatorListMobileToolbar {...filterProps} />}
-        footer={footer}
+        pager={listPage.pager}
         notice={notice}
         isBusy={list.isLoading || list.isFetching}
       >
         {isMobile ? (
-          <OperatorListMobileList rows={rows} viewState={viewState} emptyState={emptyState} isRetrying={list.isFetching} onRetry={list.refetch} />
+          <OperatorListMobileList
+            rows={listPage.pageRows}
+            listRef={listPage.mobileListRef}
+            skeletonRowCount={listPage.skeletonRowCount}
+            viewState={viewState}
+            emptyState={emptyState}
+            isRetrying={list.isFetching}
+            onRetry={list.refetch}
+          />
         ) : (
           <OperatorListTable
-            rows={rows}
+            rows={listPage.pageRows}
+            isFilled={listPage.isFilled}
+            skeletonRowCount={listPage.skeletonRowCount}
             viewState={viewState}
             sort={criteria.sort}
             emptyState={emptyState}

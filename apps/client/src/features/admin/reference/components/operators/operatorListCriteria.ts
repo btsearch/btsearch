@@ -1,15 +1,22 @@
+import {
+  type ReferenceListPaging,
+  type ReferenceListPagingSearch,
+  parseReferenceListPagingSearch,
+  readReferenceListPaging,
+  toReferenceListPagingSearch,
+} from "../shared/referenceListPaging";
 import { isCountryCode } from "@/lib/apiValues";
 import { joinSearchValues, parseSearchQuery, parseSearchValues } from "@/lib/urlSearch";
 
 export type OperatorListSort = "default" | "name" | "-stations" | "stations";
 
-type OperatorListSearch = {
+type OperatorListSearch = ReferenceListPagingSearch & {
   q?: string;
   countries?: string;
   sort?: Exclude<OperatorListSort, "default">;
 };
 
-export type OperatorListCriteria = {
+export type OperatorListCriteria = ReferenceListPaging & {
   query: string;
   countryCodes: readonly string[];
   sort: OperatorListSort;
@@ -32,6 +39,7 @@ export function parseOperatorListSearch(search: Record<string, unknown>): Operat
     q: parseSearchQuery(search.q),
     countries: joinSearchValues(listCountryCodes(search.countries)),
     sort: parseSort(search.sort),
+    ...parseReferenceListPagingSearch(search),
   };
 }
 
@@ -40,6 +48,7 @@ export function readOperatorListCriteria(search: OperatorListSearch): OperatorLi
     query: (search.q ?? "").slice(0, OPERATOR_SEARCH_MAX_LENGTH),
     countryCodes: listCountryCodes(search.countries),
     sort: search.sort ?? "default",
+    ...readReferenceListPaging(search),
   };
 }
 
@@ -48,5 +57,6 @@ export function toOperatorListSearch(criteria: OperatorListCriteria): OperatorLi
     q: criteria.query === "" ? undefined : criteria.query,
     countries: joinSearchValues([...criteria.countryCodes].sort()),
     sort: criteria.sort === "default" ? undefined : criteria.sort,
+    ...toReferenceListPagingSearch(criteria),
   };
 }

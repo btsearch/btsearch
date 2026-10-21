@@ -8,9 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type StructureOwnerListMobileListProps = RecordListStateProps & {
   rows: StructureOwnerListRow[];
+  listRef: (node: HTMLUListElement | null) => void;
+  skeletonRowCount: number;
 };
-
-const SKELETON_ROW_COUNT = 6;
 
 function OwnerMobileRowSkeleton() {
   return (
@@ -51,11 +51,20 @@ function OwnerMobileRow({ row }: { row: StructureOwnerListRow }) {
   );
 }
 
-export function StructureOwnerListMobileList({ rows, viewState, emptyState, isRetrying, onRetry }: StructureOwnerListMobileListProps) {
+export function StructureOwnerListMobileList({
+  rows,
+  listRef,
+  skeletonRowCount,
+  viewState,
+  emptyState,
+  isRetrying,
+  onRetry,
+}: StructureOwnerListMobileListProps) {
   return (
     <RecordListMobileList
       skeletonRow={<OwnerMobileRowSkeleton />}
-      skeletonRowCount={SKELETON_ROW_COUNT}
+      skeletonRowCount={skeletonRowCount}
+      listRef={listRef}
       viewState={viewState}
       emptyState={emptyState}
       isRetrying={isRetrying}

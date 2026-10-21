@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { FIRST_LIST_PAGE } from "@/features/stations/list/data/listPaging";
 import { cn } from "@/lib/utils";
 
-type ListTablePagerProps = {
+export type ListTablePagerProps = {
   paging: ListTablePaging;
   page: number;
   pageCount: number;

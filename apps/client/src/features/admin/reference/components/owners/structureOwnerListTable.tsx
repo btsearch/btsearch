@@ -1,6 +1,6 @@
 import { useTable } from "@tanstack/react-table";
 
-import { type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
+import { type RecordListFitProps, type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
 import { OwnerLocationCountsContext } from "./structureOwnerListCells";
 import {
   STRUCTURE_OWNER_LIST_COLUMNS,
@@ -16,23 +16,24 @@ import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
 type StructureOwnerListTableProps = RecordListStateProps &
+  RecordListFitProps &
   StructureOwnerListControls & {
     rows: StructureOwnerListRow[];
     locationCounts: OwnerLocationCounts;
   };
 
 const ROW_CLASS = "h-14";
-const SKELETON_ROW_COUNT = 6;
+export const STRUCTURE_OWNER_LIST_ROW_HEIGHT = 56;
 const SKELETON_BAR_WIDTHS = ["w-24", "w-20", "w-28"];
 
 function getOwnerRowId(row: StructureOwnerListRow): string {
   return String(row.owner.id);
 }
 
-function StructureOwnerListSkeletonBody() {
+function StructureOwnerListSkeletonBody({ rowCount }: { rowCount: number }) {
   return (
     <tbody aria-hidden="true" className="[&_tr:last-child]:border-0">
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, rowIndex) => (
+      {Array.from({ length: rowCount }, (_, rowIndex) => (
         <tr key={rowIndex} className={cn(ROW_CLASS, "border-b")}>
           <td className="p-2 align-middle">
             <div className="flex items-center gap-3 pl-2">
@@ -57,6 +58,9 @@ function StructureOwnerListSkeletonBody() {
 
 export function StructureOwnerListTable({
   rows,
+  isFilled,
+  mobileListRef,
+  skeletonRowCount,
   locationCounts,
   viewState,
   emptyState,
@@ -82,11 +86,20 @@ export function StructureOwnerListTable({
     <StructureOwnerListControlsContext.Provider value={{ sort, onSortChange, onEdit, onDelete }}>
       <OwnerLocationCountsContext.Provider value={locationCounts}>
         {isMobile ? (
-          <StructureOwnerListMobileList rows={rows} viewState={viewState} emptyState={emptyState} isRetrying={isRetrying} onRetry={onRetry} />
+          <StructureOwnerListMobileList
+            rows={rows}
+            listRef={mobileListRef}
+            skeletonRowCount={skeletonRowCount}
+            viewState={viewState}
+            emptyState={emptyState}
+            isRetrying={isRetrying}
+            onRetry={onRetry}
+          />
         ) : (
           <RecordListTable
             table={table}
-            skeletonBody={<StructureOwnerListSkeletonBody />}
+            skeletonBody={<StructureOwnerListSkeletonBody rowCount={skeletonRowCount} />}
+            isFilled={isFilled}
             rowClassName={ROW_CLASS}
             viewState={viewState}
             emptyState={emptyState}

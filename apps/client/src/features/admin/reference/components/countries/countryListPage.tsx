@@ -7,16 +7,22 @@ import { useTranslation } from "react-i18next";
 import { useReferenceAccess } from "../../access/useReferenceAccess";
 import { AddRecordButton } from "../shared/recordListPrimitives";
 import { ReferenceListPage } from "../shared/referenceListPage";
+import { type ReferenceListPaging, useReferenceListPage } from "../shared/referenceListPaging";
 import { CountryAddDialog } from "./countryAddDialog";
 import { CountryListTable } from "./countryListTable";
 import { type CountryListRow, useCountryListPreload, useCountryListRows } from "./useCountryListRows";
 import { ForbiddenState } from "@/components/auth/requireRole";
 import { Button } from "@/components/ui/button";
-import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
+import { DATA_TABLE_ROW_HEIGHT, DataTable, getDataTableViewState } from "@/components/ui/data-table";
 import { PageErrorState, STALE_NOTICE_CORNER_CLASS, StaleDataNotice } from "@/components/ui/error-state";
 import { useIsMobile } from "@/hooks/useMobile";
 
-type CountryListProps = {
+type CountryListPageProps = {
+  criteria: ReferenceListPaging;
+  onCriteriaChange: (changes: Partial<ReferenceListPaging>) => void;
+};
+
+type CountryListProps = CountryListPageProps & {
   isAdmin: boolean;
   canOpenCountry: (countryCode: string) => boolean;
 };
@@ -35,7 +41,7 @@ function CountryListPending() {
   );
 }
 
-function CountryList({ isAdmin, canOpenCountry }: CountryListProps) {
+function CountryList({ criteria, onCriteriaChange, isAdmin, canOpenCountry }: CountryListProps) {
   const { t } = useTranslation("admin");
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -44,8 +50,8 @@ function CountryList({ isAdmin, canOpenCountry }: CountryListProps) {
 
   const hasRows = list.rows.length > 0;
   const viewState = getDataTableViewState(list.isLoading, list.hasLoadFailed, hasRows);
+  const listPage = useReferenceListPage({ rows: list.rows, viewState, criteria, rowHeight: DATA_TABLE_ROW_HEIGHT, onCriteriaChange });
   const isUpdating = list.isFetching && !list.isLoading && !list.hasLoadFailed && !list.hasStaleRows;
-  const isCountShown = viewState === "ready" || viewState === "empty";
   const addLabel = t("reference.countries.add");
 
   function openAddDialog() {
@@ -75,12 +81,15 @@ function CountryList({ isAdmin, canOpenCountry }: CountryListProps) {
         title={t("nav:items.countries")}
         description={t("reference.countries.description")}
         action={isAdmin ? <AddRecordButton label={addLabel} isCompactOnPhones onClick={openAddDialog} /> : undefined}
-        footer={isCountShown ? t("admin:auditLogs.counts.countries", { count: list.rows.length }) : undefined}
+        pager={listPage.pager}
         notice={notice}
         isBusy={list.isLoading || list.isFetching}
       >
         <CountryListTable
-          rows={list.rows}
+          rows={listPage.pageRows}
+          isFilled={listPage.isFilled}
+          mobileListRef={listPage.mobileListRef}
+          skeletonRowCount={listPage.skeletonRowCount}
           viewState={viewState}
           isMobile={isMobile}
           isRetrying={list.isFetching}
@@ -104,12 +113,12 @@ function CountryList({ isAdmin, canOpenCountry }: CountryListProps) {
   );
 }
 
-export function CountryListPage() {
+export function CountryListPage({ criteria, onCriteriaChange }: CountryListPageProps) {
   const access = useReferenceAccess();
 
   if (access.isPending) return <CountryListPending />;
   if (access.hasLoadFailed) return <PageErrorState onRetry={access.retry} />;
   if (!access.canOpenCountries) return <ForbiddenState />;
 
-  return <CountryList isAdmin={access.isAdmin} canOpenCountry={access.canOpenCountry} />;
+  return <CountryList criteria={criteria} onCriteriaChange={onCriteriaChange} isAdmin={access.isAdmin} canOpenCountry={access.canOpenCountry} />;
 }

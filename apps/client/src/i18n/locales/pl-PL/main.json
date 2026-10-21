@@ -204,7 +204,6 @@
     "countriesShown_few": "{{shown, number}} z {{count, number}} krajów",
     "countriesShown_many": "{{shown, number}} z {{count, number}} krajów",
     "countriesShown_other": "{{shown, number}} z {{count, number}} kraju",
-    "pickCountryForOperators": "Wybierz kraj, aby filtrować po operatorze",
     "allRegions": "Wszystkie regiony",
     "noRegionsFound": "Nie znaleziono regionów",
     "otherStructureTypes_one": "{{count, number}} inny typ obiektu",

@@ -1,9 +1,10 @@
 import { BAND_GROUPS, type BandGroupKey } from "../../utils/bands";
+import { type ReferenceListPagingSearch, parseReferenceListPagingSearch } from "../shared/referenceListPaging";
 import { joinSearchValues, listSearchValues, parseSearchQuery } from "@/lib/urlSearch";
 
 export type BandCodePresence = "all" | "with" | "without";
 
-export type BandListSearch = {
+export type BandListSearch = ReferenceListPagingSearch & {
   q?: string;
   tech?: string;
   code?: Exclude<BandCodePresence, "all">;
@@ -25,5 +26,6 @@ export function parseBandListSearch(search: Record<string, unknown>): BandListSe
     q: parseSearchQuery(search.q),
     tech: joinSearchValues(listBandGroups(search.tech)),
     code: parseCodePresence(search.code),
+    ...parseReferenceListPagingSearch(search),
   };
 }

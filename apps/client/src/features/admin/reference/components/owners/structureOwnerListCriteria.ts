@@ -1,9 +1,10 @@
 import type { StructureOwner } from "../../types";
+import { type ReferenceListPaging, readReferenceListPaging, toReferenceListPagingSearch } from "../shared/referenceListPaging";
 import { NO_COUNTRY_FACET, type StructureOwnerListSearch, type StructureOwnerListSort, listCountryFacets } from "./structureOwnerListSearch";
 import { foldText } from "@/lib/foldText";
 import { joinSearchValues } from "@/lib/urlSearch";
 
-export type StructureOwnerListCriteria = {
+export type StructureOwnerListCriteria = ReferenceListPaging & {
   query: string;
   countryFacets: readonly string[];
   sort: StructureOwnerListSort;
@@ -16,6 +17,7 @@ export function readStructureOwnerListCriteria(search: StructureOwnerListSearch)
     query: (search.q ?? "").slice(0, STRUCTURE_OWNER_SEARCH_MAX_LENGTH),
     countryFacets: listCountryFacets(search.countries),
     sort: search.sort ?? "name",
+    ...readReferenceListPaging(search),
   };
 }
 
@@ -24,6 +26,7 @@ export function toStructureOwnerListSearch(criteria: StructureOwnerListCriteria)
     q: criteria.query === "" ? undefined : criteria.query,
     countries: joinSearchValues([...criteria.countryFacets].sort()),
     sort: criteria.sort === "name" ? undefined : criteria.sort,
+    ...toReferenceListPagingSearch(criteria),
   };
 }
 

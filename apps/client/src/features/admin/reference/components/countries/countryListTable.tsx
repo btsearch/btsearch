@@ -5,7 +5,13 @@ import { useTable } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { type RecordListEmptyState, RecordListMobileList, type RecordListStateProps, RecordListTable } from "../shared/recordListPrimitives";
+import {
+  type RecordListEmptyState,
+  type RecordListFitProps,
+  RecordListMobileList,
+  type RecordListStateProps,
+  RecordListTable,
+} from "../shared/recordListPrimitives";
 import { CountryIdentity, CountryListNumber, CountryPlanSize, CountryRegionCount, CountryTeamSummary } from "./countryListCells";
 import { COUNTRY_LIST_COLUMNS } from "./countryListColumns";
 import { CountryContributionsBadge, CountryVisibilityBadge } from "./countryStatusBadges";
@@ -14,20 +20,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
-type CountryListTableProps = Omit<RecordListStateProps, "emptyState"> & {
-  rows: CountryListRow[];
-  isMobile: boolean;
-  emptyDescription?: string;
-  emptyAction?: ReactNode;
-  onOpenCountry?: (countryCode: string) => void;
-};
+type CountryListTableProps = Omit<RecordListStateProps, "emptyState"> &
+  Partial<RecordListFitProps> & {
+    rows: CountryListRow[];
+    isMobile: boolean;
+    emptyDescription?: string;
+    emptyAction?: ReactNode;
+    onOpenCountry?: (countryCode: string) => void;
+  };
 
 type CountryListBodyProps = RecordListStateProps & {
   rows: CountryListRow[];
 };
 
 type CountryListDesktopTableProps = CountryListBodyProps & {
+  isFilled?: boolean;
+  skeletonRowCount: number;
   onOpenCountry?: (countryCode: string) => void;
+};
+
+type CountryListMobileListProps = CountryListBodyProps & {
+  listRef?: (node: HTMLUListElement | null) => void;
+  skeletonRowCount: number;
 };
 
 type CountryFactProps = {
@@ -51,10 +65,10 @@ function getCountryHref(row: CountryListRow): string {
   return `/admin/countries/${row.country.code}`;
 }
 
-function CountryListSkeletonBody() {
+function CountryListSkeletonBody({ rowCount }: { rowCount: number }) {
   return (
     <tbody aria-hidden="true" className="[&_tr:last-child]:border-0">
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, rowIndex) => (
+      {Array.from({ length: rowCount }, (_, rowIndex) => (
         <tr key={rowIndex} className="h-16 border-b">
           <td className="p-2 align-middle">
             <div className="flex items-center gap-3 pl-2">
@@ -74,7 +88,16 @@ function CountryListSkeletonBody() {
   );
 }
 
-function CountryListDesktopTable({ rows, viewState, emptyState, isRetrying, onRetry, onOpenCountry }: CountryListDesktopTableProps) {
+function CountryListDesktopTable({
+  rows,
+  isFilled,
+  skeletonRowCount,
+  viewState,
+  emptyState,
+  isRetrying,
+  onRetry,
+  onOpenCountry,
+}: CountryListDesktopTableProps) {
   const table = useTable({
     features: appTableFeatures,
     data: rows,
@@ -90,7 +113,8 @@ function CountryListDesktopTable({ rows, viewState, emptyState, isRetrying, onRe
   return (
     <RecordListTable
       table={table}
-      skeletonBody={<CountryListSkeletonBody />}
+      skeletonBody={<CountryListSkeletonBody rowCount={skeletonRowCount} />}
+      isFilled={isFilled}
       getRowHref={getCountryHref}
       onRowClick={openRow}
       viewState={viewState}
@@ -161,11 +185,12 @@ function CountryMobileRowSkeleton() {
   );
 }
 
-function CountryListMobileList({ rows, viewState, emptyState, isRetrying, onRetry }: CountryListBodyProps) {
+function CountryListMobileList({ rows, listRef, skeletonRowCount, viewState, emptyState, isRetrying, onRetry }: CountryListMobileListProps) {
   return (
     <RecordListMobileList
       skeletonRow={<CountryMobileRowSkeleton />}
-      skeletonRowCount={SKELETON_ROW_COUNT}
+      skeletonRowCount={skeletonRowCount}
+      listRef={listRef}
       viewState={viewState}
       emptyState={emptyState}
       isRetrying={isRetrying}
@@ -182,6 +207,9 @@ function CountryListMobileList({ rows, viewState, emptyState, isRetrying, onRetr
 
 export function CountryListTable({
   rows,
+  isFilled,
+  mobileListRef,
+  skeletonRowCount = SKELETON_ROW_COUNT,
   viewState,
   isMobile,
   isRetrying,
@@ -198,11 +226,25 @@ export function CountryListTable({
     action: emptyAction,
   };
 
-  if (isMobile) return <CountryListMobileList rows={rows} viewState={viewState} emptyState={emptyState} isRetrying={isRetrying} onRetry={onRetry} />;
+  if (isMobile) {
+    return (
+      <CountryListMobileList
+        rows={rows}
+        listRef={mobileListRef}
+        skeletonRowCount={skeletonRowCount}
+        viewState={viewState}
+        emptyState={emptyState}
+        isRetrying={isRetrying}
+        onRetry={onRetry}
+      />
+    );
+  }
 
   return (
     <CountryListDesktopTable
       rows={rows}
+      isFilled={isFilled}
+      skeletonRowCount={skeletonRowCount}
       viewState={viewState}
       emptyState={emptyState}
       isRetrying={isRetrying}
