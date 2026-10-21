@@ -172,7 +172,26 @@ server {
         return 404;
     }
 
+    location /assets/ {
+        root {{ openbts_assets_root }};
+        include /etc/nginx/mime.types;
+        types {
+            text/javascript mjs;
+        }
+        try_files $uri @client;
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
     location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
+        proxy_http_version 1.1;
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
+    location @client {
         proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $http_cf_connecting_ip;

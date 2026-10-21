@@ -85,17 +85,13 @@
           }
         }
 
-        function reload() {
-          location.reload();
-        }
-
         function activateNewestWorker(registration) {
           var worker = registration.waiting || registration.installing;
-          if (!worker) return reload();
+          if (!worker) return location.reload();
           var timeout = setTimeout(reload, workerTakeoverTimeoutMs);
           navigator.serviceWorker.addEventListener("controllerchange", function () {
             clearTimeout(timeout);
-            reload();
+            location.reload();
           });
           function skipWaiting() {
             if (worker.state === "installed") worker.postMessage({ type: "SKIP_WAITING" });
@@ -105,11 +101,11 @@
         }
 
         function reloadOnNewestBundle() {
-          if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return reload();
+          if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return location.reload();
           navigator.serviceWorker
             .getRegistration()
             .then(function (registration) {
-              if (!registration) return reload();
+              if (!registration) return location.reload();
               return registration.update().then(function () {
                 activateNewestWorker(registration);
               });
