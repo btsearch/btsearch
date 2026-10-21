@@ -59,6 +59,77 @@
       })();
     </script>
 
+    <script>
+      (function () {
+        var reloadedAtKey = "openbts:chunk-reload-at";
+        var reloadGuardMs = 60000;
+        var workerTakeoverTimeoutMs = 5000;
+        var isReloadPending = false;
+
+        function isBundleFile(element) {
+          var url = "";
+          if (element.tagName === "SCRIPT") url = element.src;
+          else if (element.tagName === "LINK") url = element.href;
+          return url.indexOf(location.origin + "/assets/") === 0 && /\.(?:js|css)(?:\?|$)/.test(url);
+        }
+
+        function claimReload() {
+          try {
+            var now = Date.now();
+            var reloadedAt = Number(sessionStorage.getItem(reloadedAtKey));
+            if (reloadedAt > 0 && Math.abs(now - reloadedAt) < reloadGuardMs) return false;
+            sessionStorage.setItem(reloadedAtKey, String(now));
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        function reload() {
+          location.reload();
+        }
+
+        function activateNewestWorker(registration) {
+          var worker = registration.waiting || registration.installing;
+          if (!worker) return reload();
+          var timeout = setTimeout(reload, workerTakeoverTimeoutMs);
+          navigator.serviceWorker.addEventListener("controllerchange", function () {
+            clearTimeout(timeout);
+            reload();
+          });
+          function skipWaiting() {
+            if (worker.state === "installed") worker.postMessage({ type: "SKIP_WAITING" });
+          }
+          worker.addEventListener("statechange", skipWaiting);
+          skipWaiting();
+        }
+
+        function reloadOnNewestBundle() {
+          if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return reload();
+          navigator.serviceWorker
+            .getRegistration()
+            .then(function (registration) {
+              if (!registration) return reload();
+              return registration.update().then(function () {
+                activateNewestWorker(registration);
+              });
+            })
+            .catch(reload);
+        }
+
+        window.addEventListener(
+          "error",
+          function (event) {
+            var target = event.target;
+            if (isReloadPending || !target || target === window || !isBundleFile(target) || !claimReload()) return;
+            isReloadPending = true;
+            reloadOnNewestBundle();
+          },
+          true,
+        );
+      })();
+    </script>
+
     <style>
       :root {
         color-scheme: light;

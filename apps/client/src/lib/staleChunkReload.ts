@@ -1,6 +1,6 @@
 const RELOADED_AT_KEY = "openbts:chunk-reload-at";
 const RELOAD_GUARD_MS = 60_000;
-const WORKER_TAKEOVER_TIMEOUT_MS = 3000;
+const WORKER_TAKEOVER_TIMEOUT_MS = 5000;
 
 let isReloadPending = false;
 
@@ -22,7 +22,7 @@ function rememberReload(now: number): boolean {
   }
 }
 
-function waitForNewController(waitingWorker: ServiceWorker): Promise<void> {
+function waitForNewController(newWorker: ServiceWorker): Promise<void> {
   return new Promise((resolve) => {
     const timeout = window.setTimeout(resolve, WORKER_TAKEOVER_TIMEOUT_MS);
     navigator.serviceWorker.addEventListener(
@@ -33,19 +33,27 @@ function waitForNewController(waitingWorker: ServiceWorker): Promise<void> {
       },
       { once: true },
     );
-    waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    const skipWaitingOnceInstalled = () => {
+      if (newWorker.state === "installed") newWorker.postMessage({ type: "SKIP_WAITING" });
+    };
+    newWorker.addEventListener("statechange", skipWaitingOnceInstalled);
+    skipWaitingOnceInstalled();
   });
 }
 
-async function activateWaitingServiceWorker(): Promise<void> {
+async function activateNewestServiceWorker(): Promise<void> {
   if (!("serviceWorker" in navigator)) return;
 
   const registration = await navigator.serviceWorker.getRegistration();
-  if (registration?.waiting) await waitForNewController(registration.waiting);
+  if (!registration) return;
+
+  await registration.update().catch(() => undefined);
+  const newWorker = registration.waiting ?? registration.installing;
+  if (newWorker) await waitForNewController(newWorker);
 }
 
 async function reloadOnNewestBundle(): Promise<void> {
-  await activateWaitingServiceWorker().catch(() => undefined);
+  await activateNewestServiceWorker().catch(() => undefined);
   window.location.reload();
 }
 

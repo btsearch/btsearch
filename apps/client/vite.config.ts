@@ -5,7 +5,7 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Plugin, defineConfig } from "vite";
+import { type Plugin, defineConfig, minifySync } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import svgr from "vite-plugin-svgr";
 
@@ -43,6 +43,25 @@ function maplibreFromDist(): Plugin {
   };
 }
 
+const INLINE_SCRIPT_PATTERN = /<script>([\s\S]*?)<\/script>/g;
+
+function minifyInlineScripts(): Plugin {
+  return {
+    name: "minify-inline-scripts",
+    apply: "build",
+    transformIndexHtml: {
+      order: "pre",
+      handler(html) {
+        return html.replace(INLINE_SCRIPT_PATTERN, (_, code: string) => {
+          const result = minifySync("inline.js", code);
+          if (result.errors.length > 0) throw new Error(`Inline script in index.html does not minify: ${result.errors[0].message}`);
+          return `<script>${result.code}</script>`;
+        });
+      },
+    },
+  };
+}
+
 function getGitCommit(): string {
   try {
     return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
@@ -69,6 +88,7 @@ export default defineConfig({
   },
   plugins: [
     maplibreFromDist(),
+    minifyInlineScripts(),
     svgr(),
     tanstackRouter({
       target: "react",
