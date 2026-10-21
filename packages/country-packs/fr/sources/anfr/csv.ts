@@ -1,15 +1,8 @@
 const QUOTE = '"';
-
-function separatorOf(headerLine: string): string {
-  const semicolons = headerLine.split(";").length;
-  const commas = headerLine.split(",").length;
-  return semicolons >= commas ? ";" : ",";
-}
+const SEPARATOR = ";";
 
 export async function* readCsvRows(chunks: AsyncIterable<Uint8Array>): AsyncGenerator<string[]> {
-  const decoder = new TextDecoder("utf-8");
-  let separator: string | null = null;
-  let beforeFirstLineEnd = "";
+  const decoder = new TextDecoder("utf-8", { fatal: true });
   let row: string[] = [];
   let field = "";
   let inQuotes = false;
@@ -30,7 +23,7 @@ export async function* readCsvRows(chunks: AsyncIterable<Uint8Array>): AsyncGene
         else field += char;
       } else if (char === QUOTE && field === "") {
         inQuotes = true;
-      } else if (char === separator) {
+      } else if (char === SEPARATOR) {
         row.push(field);
         field = "";
       } else if (char === "\n") {
@@ -44,24 +37,7 @@ export async function* readCsvRows(chunks: AsyncIterable<Uint8Array>): AsyncGene
     }
   }
 
-  for await (const chunk of chunks) {
-    const text = decoder.decode(chunk, { stream: true });
-    if (separator !== null) {
-      yield* consume(text);
-      continue;
-    }
-
-    beforeFirstLineEnd += text;
-    const lineEnd = beforeFirstLineEnd.indexOf("\n");
-    if (lineEnd < 0) continue;
-    separator = separatorOf(beforeFirstLineEnd.slice(0, lineEnd));
-    yield* consume(beforeFirstLineEnd);
-  }
-
-  if (separator === null) {
-    separator = separatorOf(beforeFirstLineEnd);
-    yield* consume(beforeFirstLineEnd);
-  }
+  for await (const chunk of chunks) yield* consume(decoder.decode(chunk, { stream: true }));
   yield* consume(decoder.decode());
   if (field !== "" || row.length > 0) {
     row.push(field);

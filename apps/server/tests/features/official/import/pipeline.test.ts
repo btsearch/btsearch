@@ -1,4 +1,4 @@
-import type { MicrowaveLinkRecord, OfficialSourceDefinition, SiteRecord, SitesDataset } from "@openbts/country-packs/sources";
+import type { MicrowaveLinkRecord, OfficialSourceDefinition, PermitKind, SiteRecord, SitesDataset } from "@openbts/country-packs/sources";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -64,6 +64,7 @@ const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
   [/^ANALYZE "pg_temp"\."official_import_staged_permits" \(location_id, official_site_id\)$/, "apply: analyze site ids"],
   [/^ANALYZE "pg_temp"\."official_import_staged_permits" \(permit_id\)$/, "apply: analyze permit ids"],
   [/^WITH listed AS/, "apply: insert listings"],
+  [/^DELETE FROM "official"\."permit_sectors"/, "apply: delete unpublished sectors"],
   [/^INSERT INTO "official"\."permit_sectors"/, "apply: insert sectors"],
   [/^DELETE FROM "official"\."permit_listings"/, "apply: unlist"],
   [/^UPDATE "official"\."microwave_links" AS link/, "apply: update links"],
@@ -80,7 +81,7 @@ type StagedRow = {
   site_name: string | null;
   site_name_ordinal: number | null;
   decision_number: string;
-  sectors: { azimuth: number | null; elevation: number | null; antenna_height: number | null; antenna_type: string | null }[];
+  sectors: { azimuth: number | null; antenna_height: number | null; antenna_type: string | null }[];
 };
 
 let archiveDirectory: string;
@@ -118,8 +119,9 @@ function siteRecord(overrides: { siteId?: string; name?: string | null; slice?: 
       number: "DZC/1",
       decisionType: "permit",
       expiresOn: "2030-01-01",
+      status: null,
     },
-    sectors: [{ azimuth: 120, elevation: null, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
+    sectors: [{ azimuth: 120, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
   };
 }
 
@@ -189,6 +191,7 @@ type Readers = {
   sites?: () => AsyncIterable<SiteRecord>;
   links?: () => AsyncIterable<MicrowaveLinkRecord>;
   sitesCover?: readonly string[];
+  sitesPermitKind?: PermitKind;
   syncSiteNames?: SitesDataset["syncSiteNames"];
 };
 
@@ -203,7 +206,7 @@ function sourceWith(readers: Readers): OfficialSourceDefinition {
       {
         key: "towers",
         layer: "sites",
-        permitKind: "permit",
+        permitKind: readers.sitesPermitKind ?? "permit",
         checkEveryHours: 6,
         discover: async () => release(readers.sitesCover ?? ["north"], "2026-10-01_north.xlsx"),
         parse: (context) => {
@@ -312,7 +315,7 @@ function scriptStagedMatches(updates = 10): void {
   dbMock.enqueueFor("update", STAGED_PERMITS, ...Array.from({ length: updates }, () => undefined));
 }
 
-function scriptAppliedSites(): void {
+function scriptAppliedSites({ replacesSectors = false }: { replacesSectors?: boolean } = {}): void {
   scriptStagedMatches();
   scriptStatements([]);
   dbMock.enqueueFor("insert", "official.locations", [{ id: 12 }], []);
@@ -321,11 +324,13 @@ function scriptAppliedSites(): void {
   scriptStatements([{ officialSiteId: 504, slice: "north" }], [], []);
   dbMock.enqueueFor("insert", "official.permits", [{ id: 701 }]);
   scriptStatements([]);
+  dbMock.enqueueFor("update", "official.permits", undefined);
   dbMock.enqueueFor("update", "official.permit_listings", undefined);
   scriptStatements([
     { permitId: 701, slice: "north", officialSiteId: 504 },
     { permitId: 650, slice: "north", officialSiteId: 501 },
   ]);
+  if (replacesSectors) scriptStatements([]);
   scriptStatements([], [{ permitId: 600, slice: "north", officialSiteId: 502, wasLastListing: true }]);
   dbMock.enqueueFor("update", "official.sites", undefined);
 }
@@ -335,6 +340,7 @@ function scriptAppliedSitesWithoutChanges(): void {
   dbMock.enqueueFor("insert", "official.locations", [], []);
   dbMock.enqueueFor("select", undefined, []);
   dbMock.enqueueFor("insert", "official.permits", []);
+  dbMock.enqueueFor("update", "official.permits", undefined);
   dbMock.enqueueFor("update", "official.permit_listings", undefined);
   scriptStatements([], [], [], [], [], [], [], []);
 }
@@ -489,6 +495,7 @@ describe("a run through the engine", () => {
       "insert official.permits",
       "update official_import_staged_permits",
       "apply: analyze permit ids",
+      "update official.permits",
       "update official.permit_listings",
       "apply: insert listings",
       "apply: insert sectors",
@@ -630,8 +637,12 @@ describe("a run through the engine", () => {
     const executed = dbMock.calls.filter((call) => call.operation === "execute");
     const texts = executed.map((call) => executedText(call));
     const stagedRows = executed.filter((call) => executedText(call).startsWith('INSERT INTO "pg_temp"')).map((call) => executedQuery(call).params[0]);
-    expect(texts.find((text) => text.startsWith("DO $create$"))).toContain("expiry_date date, sectors jsonb NOT NULL,");
-    expect(texts.find((text) => text.startsWith('INSERT INTO "pg_temp"'))).toContain("official_decision_type, expiry_date date, sectors jsonb");
+    expect(texts.find((text) => text.startsWith("DO $create$"))).toContain(
+      "expiry_date date, status official_permit_status, sectors jsonb NOT NULL,",
+    );
+    expect(texts.find((text) => text.startsWith('INSERT INTO "pg_temp"'))).toContain(
+      "official_decision_type, expiry_date date, status official_permit_status, sectors jsonb",
+    );
     expect(stagedRows.map((rows) => JSON.parse(String(rows)))).toEqual([[expect.objectContaining({ decision_type: "permit", expiry_date: null })]]);
     const permitMatches = dbMock.calls.filter(
       (call) => call.operation === "update" && call.table === STAGED_PERMITS && (call.values as Record<string, unknown>).permitId !== undefined,
@@ -642,6 +653,36 @@ describe("a run through the engine", () => {
     ]);
   });
 
+  it.each(["inventory", "registration"] as const)(
+    "drops the sectors a %s release no longer lists, and updates a changed status",
+    async (sitesPermitKind) => {
+      const record = siteRecord();
+      const source = sourceWith({ sitesPermitKind, sites: () => recordsOf([{ ...record, permit: { ...record.permit, status: "approved" } }]) });
+      dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
+      ownRun(4);
+      scriptPreparation();
+      scriptRecordedRelease(41);
+      scriptStagedSites({ live: 1 });
+      scriptAppliedSites({ replacesSectors: true });
+      scriptCheckpoint({ skips: true, changes: true, slicesApplied: true });
+      scriptChangeCheck([NORTH_APPLIED]);
+      dbMock.enqueueFor("update", "official.import_runs", undefined);
+
+      expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
+
+      const stagedRows = dbMock.calls
+        .filter((call) => call.operation === "execute" && executedText(call).startsWith('INSERT INTO "pg_temp"'))
+        .map((call) => JSON.parse(String(executedQuery(call).params[0])));
+      expect(stagedRows).toEqual([[expect.objectContaining({ status: "approved" })]]);
+      const statusUpdate = dbMock.calls.find((call) => call.operation === "update" && call.table === "official.permits");
+      expect(whereOf(statusUpdate).sql).toContain(
+        '"official"."permits"."status" IS DISTINCT FROM "pg_temp"."official_import_staged_permits"."status"',
+      );
+      const operations = trace();
+      expect(operations[operations.indexOf("apply: insert sectors") - 1]).toBe("apply: delete unpublished sectors");
+    },
+  );
+
   it("stages one row per permit with its lines' sectors in line order, and counts permits for the guard and lines for the skips", async () => {
     const line = (overrides: { siteId?: string; name?: string | null; licensee?: string; longitude?: number }, azimuth: number): SiteRecord => {
       const record = siteRecord({ siteId: overrides.siteId, name: overrides.name });
@@ -649,7 +690,7 @@ describe("a run through the engine", () => {
         ...record,
         location: { ...record.location, longitude: overrides.longitude ?? record.location.longitude },
         site: { ...record.site, licensee: overrides.licensee ?? record.site.licensee },
-        sectors: [{ azimuth, elevation: Number.NaN, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
+        sectors: [{ azimuth, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
       };
     };
     const source: OfficialSourceDefinition = {
@@ -713,7 +754,7 @@ describe("a run through the engine", () => {
         operator_id: 4,
         site_name: "WAW CENTRUM",
         site_name_ordinal: 3,
-        sectors: [10, 30, 40.5, 70, 80].map((azimuth) => ({ azimuth, elevation: null, antenna_height: 30.5, antenna_type: "outdoor" })),
+        sectors: [10, 30, 40.5, 70, 80].map((azimuth) => ({ azimuth, antenna_height: 30.5, antenna_type: "outdoor" })),
       }),
     ]);
     expect(valuesOf("insert", "official.import_run_slices")).toEqual([[expect.objectContaining({ outcome: "held", stagedCount: 1, liveCount: 10 })]]);
@@ -1064,6 +1105,7 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("insert", "official.locations", [], []);
     dbMock.enqueueFor("select", undefined, []);
     dbMock.enqueueFor("insert", "official.permits", [{ id: 701 }]);
+    dbMock.enqueueFor("update", "official.permits", undefined);
     dbMock.enqueueFor("update", "official.permit_listings", undefined);
     scriptStatements([], [], [], [], [], [{ permitId: 701, slice: "north", officialSiteId: 504 }], [], []);
     dbMock.enqueueFor("update", "official.sites", undefined);

@@ -160,8 +160,6 @@ function makeAntennaKey(candidate: AntennaCandidate): string {
 function toAntenna(key: string, candidate: AntennaCandidate): TerrainAntenna {
   const isFromReport = candidate.source === "si2pem_report";
   const technology = candidate.band?.rat.toLowerCase();
-  let tiltSource: TerrainAntenna["tiltSource"] = null;
-  if (candidate.measuredTilt !== null) tiltSource = isFromReport ? "measured" : "declared";
 
   return {
     key,
@@ -169,7 +167,7 @@ function toAntenna(key: string, candidate: AntennaCandidate): TerrainAntenna {
     heightMeters: candidate.antenna.mountedHeight,
     azimuth: candidate.antenna.azimuth,
     tilt: candidate.measuredTilt,
-    tiltSource,
+    tiltSource: candidate.measuredTilt === null ? null : "measured",
     frequencyMhz: candidate.frequencyMHz,
     technology: TERRAIN_ANTENNA_TECHNOLOGIES.find((value) => value === technology) ?? null,
     labelMhz: candidate.band?.value ?? null,

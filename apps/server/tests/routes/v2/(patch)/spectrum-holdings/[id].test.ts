@@ -8,6 +8,7 @@ const options = { session: userSession("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "
 const row = {
   id: 5,
   operatorId: 1,
+  jointOperatorId: null,
   bandId: 7,
   regionId: null,
   downlinkLowKhz: 1805000,
@@ -55,5 +56,15 @@ describe("PATCH /spectrum-holdings/5", () => {
 
     expectError(await injectMutation(route, patch({ validFrom: "2038-01-01" }), options), 400, "BAD_REQUEST", "validFrom must not be after validTo");
     expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses an operator change that makes the operator its own joint holder", async () => {
+    dbMock.query.spectrumHoldings.findFirst.mockResolvedValue({ ...row, jointOperatorId: 2 });
+    dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }], [{ countryCode: "PL" }]);
+    scriptAudit();
+    dbMock.enqueueFor("select", "bands", [{ code: "B3", planBandId: 7 }]);
+
+    expectError(await injectMutation(route, patch({ operatorId: 2 }), options), 400, "BAD_REQUEST", "The joint operator must be another operator");
+    expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "spectrum_holdings")).toBe(false);
   });
 });

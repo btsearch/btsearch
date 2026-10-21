@@ -29,6 +29,12 @@ const SHAPE_LOOKS = {
   selected: { fillOpacity: 0.62, strokeOpacity: 0 },
   dimmed: { fillOpacity: 0.12, strokeOpacity: 0.45 },
 } as const;
+const INDOOR_SHAPE_LOOKS: Record<ShapeLook, { fillOpacity: number; strokeOpacity: number }> = {
+  plain: { fillOpacity: 0.1, strokeOpacity: 1 },
+  selected: { fillOpacity: 0.3, strokeOpacity: 1 },
+  dimmed: { fillOpacity: 0.04, strokeOpacity: 0.45 },
+};
+const INDOOR_STROKE_DASHES = "3 2.5";
 
 const SHAPE_CLASS = "transition-[fill-opacity,stroke-opacity] duration-150 motion-reduce:transition-none";
 const SELECTION_OUTLINE_CLASS = "fill-none stroke-foreground transition-opacity duration-150 motion-reduce:transition-none";
@@ -61,6 +67,7 @@ type AzimuthCompassDirection = {
   azimuth: number | null;
   name: string;
   text?: string;
+  isIndoor?: boolean;
 };
 
 type AzimuthCompassProps = {
@@ -82,6 +89,7 @@ type CompassShapeProps = {
   azimuth: number | null;
   color?: string | null;
   look: ShapeLook;
+  isIndoor: boolean;
 };
 
 type CompassSelectionOutlineProps = {
@@ -213,7 +221,13 @@ export function AzimuthCompass({
           N
         </text>
         {entries.map((entry) => (
-          <CompassShape key={entry.key} azimuth={entry.direction.azimuth} color={color} look={entry.look} />
+          <CompassShape
+            key={entry.key}
+            azimuth={entry.direction.azimuth}
+            color={color}
+            look={entry.look}
+            isIndoor={entry.direction.isIndoor === true}
+          />
         ))}
         {drawsSelection
           ? entries.map((entry) => <CompassSelectionOutline key={entry.key} azimuth={entry.direction.azimuth} isShown={entry.look === "selected"} />)
@@ -236,9 +250,11 @@ export function AzimuthCompassMark({ azimuth, color }: AzimuthCompassMarkProps) 
   );
 }
 
-function CompassShape({ azimuth, color, look }: CompassShapeProps) {
+function CompassShape({ azimuth, color, look, isIndoor }: CompassShapeProps) {
   if (color === null) return null;
   const className = cn(SHAPE_CLASS, color === undefined ? "fill-primary stroke-primary" : null);
+  const style = isIndoor ? INDOOR_SHAPE_LOOKS[look] : SHAPE_LOOKS[look];
+  const strokeDasharray = isIndoor ? INDOOR_STROKE_DASHES : undefined;
 
   if (azimuth === null) {
     return (
@@ -249,13 +265,24 @@ function CompassShape({ azimuth, color, look }: CompassShapeProps) {
         fill={color}
         stroke={color}
         strokeWidth="1.5"
-        style={SHAPE_LOOKS[look]}
+        strokeDasharray={strokeDasharray}
+        style={style}
         className={className}
       />
     );
   }
 
-  return <path d={getWedgePath(azimuth)} fill={color} stroke={color} strokeLinejoin="round" style={SHAPE_LOOKS[look]} className={className} />;
+  return (
+    <path
+      d={getWedgePath(azimuth)}
+      fill={color}
+      stroke={color}
+      strokeLinejoin="round"
+      strokeDasharray={strokeDasharray}
+      style={style}
+      className={className}
+    />
+  );
 }
 
 function CompassSelectionOutline({ azimuth, isShown }: CompassSelectionOutlineProps) {

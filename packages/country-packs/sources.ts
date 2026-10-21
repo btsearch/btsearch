@@ -17,6 +17,7 @@ export type {
   OfficialSourceDefinition,
   PermitKind,
   PermitLabel,
+  PermitStatus,
   PublishedSiteName,
   ReadContext,
   Release,

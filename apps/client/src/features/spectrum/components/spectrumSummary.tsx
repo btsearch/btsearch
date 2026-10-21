@@ -97,6 +97,11 @@ export function SpectrumSummary({ spectrum, highlightedOperatorId, onHighlightCh
                     <span className="block font-mono text-[11px] leading-3.5 text-muted-foreground tabular-nums">
                       <TotalBreakdown total={total} />
                     </span>
+                    {total.jointKhz === 0 ? null : (
+                      <span className="block text-[11px] leading-3.5 text-muted-foreground tabular-nums">
+                        {t("summary.joint", { width: formatMhz(total.jointKhz) })}
+                      </span>
+                    )}
                   </td>
                   <td className={cn(BODY_CELL_CLASS, "max-sm:hidden", rowClass)}>
                     <span aria-hidden="true" className="block h-2 overflow-hidden rounded-full bg-muted">

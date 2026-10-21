@@ -1,9 +1,18 @@
-import { AlertCircleIcon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, ArrowDown01Icon, Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ImportRun, ImportRunDetail, OfficialSource } from "@openbts/shared/contract";
+import type {
+  ImportRun,
+  ImportRunCreate,
+  ImportRunDetail,
+  OfficialDataset,
+  OfficialDatasetUpdate,
+  OfficialSource,
+  OfficialSourceUpdate,
+} from "@openbts/shared/contract";
+import { LONGEST_CHECK_INTERVAL_HOURS } from "@openbts/shared/contract";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ErrorState, InlineError } from "@/components/ui/error-state";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   cancelImportRun,
   importHistoryQueryOptions,
@@ -20,7 +32,8 @@ import {
   importOverviewQueryOptions,
   importRunQueryOptions,
   startImportRun,
-  useIsSourceImporting,
+  updateOfficialDataset,
+  updateOfficialSource,
 } from "@/features/admin/official-import/api";
 import { RunResults } from "@/features/admin/official-import/RunResults";
 import {
@@ -29,6 +42,7 @@ import {
   type RunOutcome,
   type StepStatus,
   buildStartRunBody,
+  findLatestRun,
   getCachedFormatter,
   getDatasetLabel,
   getImportSchedule,
@@ -39,10 +53,12 @@ import {
   groupImportRunsByDay,
   isFailureOutcome,
   isRunLive,
+  isSourceImporting,
   listPreviousRuns,
 } from "@/features/admin/official-import/runs";
 import { StepStatusIcon } from "@/features/admin/official-import/StepStatusIcon";
-import { officialSourcesQueryOptions } from "@/features/official/queries";
+import { officialKeys, officialSourcesQueryOptions } from "@/features/official/queries";
+import { SettingsRow } from "@/features/settings/components/settingsPrimitives";
 import { showApiError } from "@/lib/api";
 import { formatDuration, formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -56,7 +72,9 @@ const OUTCOME_ICON_STATUS: Record<Exclude<RunOutcome, "completedWithErrors">, St
   cancelled: "skipped",
 };
 
-const NON_BREAKING_SPACE = "\u00A0";
+const ALL_SOURCES = "all";
+const COLLAPSIBLE_CONTENT_CLASS =
+  "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none [&[hidden]:not([hidden='until-found'])]:hidden";
 
 const freshOfficialSourcesQueryOptions = { ...officialSourcesQueryOptions(), refetchOnMount: "always" as const };
 
@@ -108,14 +126,14 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-function useRunTags(run: ImportRun): string[] {
+function useRunTags(run: ImportRun, { includesSource }: { includesSource: boolean }): string[] {
   const { t } = useTranslation("admin");
   const { data: sourceLabel = null } = useQuery({
     ...officialSourcesQueryOptions(),
     select: (sources) => getRunSourceLabel(sources, run.sourceKey),
   });
   const tags: string[] = [];
-  if (sourceLabel !== null) tags.push(sourceLabel);
+  if (includesSource && sourceLabel !== null) tags.push(sourceLabel);
   if (run.kind !== "import") tags.push(t(`officialImport.kind.${run.kind}`));
   if (run.isDryRun) tags.push(t("officialImport.dryRun.label"));
   return tags;
@@ -189,20 +207,20 @@ function RunResultsSkeleton() {
   );
 }
 
-type LatestImportProps = {
+type OverviewQueryState = {
   overview: ImportOverview | undefined;
   isError: boolean;
   isRetrying: boolean;
   onRetry: () => unknown;
 };
 
-function LatestImportBody({ overview, isError, isRetrying, onRetry }: LatestImportProps) {
+function LatestImportBody({ run, overview, isError, isRetrying, onRetry }: OverviewQueryState & { run: ImportRunDetail | null }) {
   const { t } = useTranslation("admin");
 
-  if (overview?.latest) {
+  if (run) {
     return (
-      <ImportRunDetails run={overview.latest}>
-        <RunResults run={overview.latest} />
+      <ImportRunDetails run={run}>
+        <RunResults run={run} />
       </ImportRunDetails>
     );
   }
@@ -224,11 +242,10 @@ function LatestImportBody({ overview, isError, isRetrying, onRetry }: LatestImpo
   );
 }
 
-function useScheduleDescription(): string {
+function useScheduleDescription(source: OfficialSource): string {
   const { t } = useTranslation("admin");
-  const { data: schedule } = useQuery({ ...freshOfficialSourcesQueryOptions, select: getImportSchedule });
+  const schedule = getImportSchedule(source);
 
-  if (schedule === undefined) return NON_BREAKING_SPACE;
   if (schedule === null) return t("officialImport.schedule.off");
   if (schedule.minHours === schedule.maxHours) return t("officialImport.schedule.every", { count: schedule.minHours });
   return t("officialImport.schedule.range", { min: schedule.minHours, max: schedule.maxHours });
@@ -236,7 +253,7 @@ function useScheduleDescription(): string {
 
 function LatestRunBadges({ run }: { run: ImportRunDetail }) {
   const { t } = useTranslation("admin");
-  const tags = useRunTags(run);
+  const tags = useRunTags(run, { includesSource: false });
   const outcome = getRunOutcome(run);
 
   return (
@@ -250,57 +267,276 @@ function LatestRunBadges({ run }: { run: ImportRunDetail }) {
   );
 }
 
-function LatestImportPanel({ overview, isError, isRetrying, onRetry }: LatestImportProps) {
-  const { t } = useTranslation("admin");
-  const scheduleDescription = useScheduleDescription();
+type DatasetNumberInputProps = {
+  label: string;
+  unit: string;
+  value: number | null;
+  placeholder?: string;
+  min: number;
+  max?: number;
+  isClearable?: boolean;
+  disabled: boolean;
+  onSave: (value: number | null) => void;
+};
+
+function DatasetNumberInput({ label, unit, value, placeholder, min, max, isClearable = false, disabled, onSave }: DatasetNumberInputProps) {
+  const id = useId();
+  const savedText = value === null ? "" : String(value);
+  const [text, setText] = useState(savedText);
+
+  function save(): void {
+    const next = text.trim() === "" ? null : Number(text);
+    if (next === value) return;
+
+    const isValid = next === null ? isClearable : Number.isInteger(next) && next >= min && (max === undefined || next <= max);
+    if (isValid) onSave(next);
+    else setText(savedText);
+  }
 
   return (
-    <section aria-labelledby="official-import-latest" className="min-w-0 rounded-lg border bg-card">
-      <PanelHeader id="official-import-latest" title={t("officialImport.latest.title")} description={scheduleDescription}>
-        {overview?.latest ? <LatestRunBadges run={overview.latest} /> : null}
-      </PanelHeader>
+    <label htmlFor={id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      {label}
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={text}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(event) => setText(event.target.value)}
+        onBlur={save}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") save();
+        }}
+        className="h-7 w-16 tabular-nums"
+      />
+      {unit}
+    </label>
+  );
+}
+
+type DatasetSettingsRowProps = { dataset: OfficialDataset; disabled: boolean; onChange: (changes: OfficialDatasetUpdate) => void };
+
+function DatasetSettingsRow({ dataset, disabled, onChange }: DatasetSettingsRowProps) {
+  const { t } = useTranslation("admin");
+  const titleId = useId();
+
+  return (
+    <SettingsRow title={getDatasetLabel(dataset.key, t)} titleId={titleId} wrap>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <DatasetNumberInput
+          key={`hours:${dataset.checkEveryHours}`}
+          label={t("officialImport.settings.checkEvery")}
+          unit={t("officialImport.settings.hoursUnit")}
+          value={dataset.checkEveryHours ?? null}
+          min={1}
+          max={LONGEST_CHECK_INTERVAL_HOURS}
+          disabled={disabled}
+          onSave={(checkEveryHours) => {
+            if (checkEveryHours !== null) onChange({ checkEveryHours });
+          }}
+        />
+        <DatasetNumberInput
+          key={`hold:${dataset.holdShrinkPercent}`}
+          label={t("officialImport.settings.holdShrink")}
+          unit="%"
+          value={dataset.holdShrinkPercent ?? null}
+          placeholder={dataset.defaultHoldShrinkPercent?.toString()}
+          min={0}
+          max={100}
+          isClearable
+          disabled={disabled}
+          onSave={(holdShrinkPercent) => onChange({ holdShrinkPercent })}
+        />
+        <Switch
+          checked={dataset.isEnabled === true}
+          disabled={disabled}
+          onCheckedChange={(isEnabled) => onChange({ isEnabled })}
+          aria-labelledby={titleId}
+          className="cursor-pointer"
+        />
+      </div>
+    </SettingsRow>
+  );
+}
+
+type SourceSwitchRowProps = { title: string; description: string; checked: boolean; disabled: boolean; onCheckedChange: (checked: boolean) => void };
+
+function SourceSwitchRow({ title, description, checked, disabled, onCheckedChange }: SourceSwitchRowProps) {
+  const titleId = useId();
+
+  return (
+    <SettingsRow title={title} titleId={titleId} description={description}>
+      <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} aria-labelledby={titleId} className="cursor-pointer" />
+    </SettingsRow>
+  );
+}
+
+function SourceSettings({ source }: { source: OfficialSource }) {
+  const { t } = useTranslation("admin");
+  const queryClient = useQueryClient();
+  const refreshSources = () => queryClient.invalidateQueries({ queryKey: officialKeys.sources() });
+  const sourceMutation = useMutation({
+    mutationFn: (changes: OfficialSourceUpdate) => updateOfficialSource(source.key, changes),
+    onSuccess: refreshSources,
+    onError: showApiError,
+  });
+  const datasetMutation = useMutation({
+    mutationFn: ({ id, changes }: { id: number; changes: OfficialDatasetUpdate }) => updateOfficialDataset(id, changes),
+    onSuccess: refreshSources,
+    onError: showApiError,
+  });
+  const isSaving = sourceMutation.isPending || datasetMutation.isPending;
+  const canPublish = source.isRedistributable === true;
+
+  return (
+    <div className="overflow-hidden rounded-md border">
+      <SourceSwitchRow
+        title={t("officialImport.settings.scheduled")}
+        description={t("officialImport.settings.scheduledDescription")}
+        checked={source.isEnabled === true}
+        disabled={isSaving}
+        onCheckedChange={(isEnabled) => sourceMutation.mutate({ isEnabled })}
+      />
+      <SourceSwitchRow
+        title={t("officialImport.settings.public")}
+        description={canPublish ? t("officialImport.settings.publicDescription") : t("officialImport.settings.notRedistributable")}
+        checked={source.isVisible}
+        disabled={isSaving || (!canPublish && !source.isVisible)}
+        onCheckedChange={(isVisible) => sourceMutation.mutate({ isVisible })}
+      />
+      {source.datasets.map((dataset) => (
+        <DatasetSettingsRow
+          key={dataset.id}
+          dataset={dataset}
+          disabled={isSaving}
+          onChange={(changes) => datasetMutation.mutate({ id: dataset.id, changes })}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SourcePanel({ source, showsSourceName, ...overviewQuery }: OverviewQueryState & { source: OfficialSource; showsSourceName: boolean }) {
+  const { t } = useTranslation("admin");
+  const scheduleDescription = useScheduleDescription(source);
+  const run = overviewQuery.overview ? findLatestRun(overviewQuery.overview, source.key) : null;
+  const headingId = `official-import-latest-${source.key}`;
+  const title = showsSourceName ? t("officialImport.latest.titleWithSource", { source: source.shortName }) : t("officialImport.latest.title");
+  const settingsLabel = t("officialImport.settings.title");
+
+  return (
+    <section aria-labelledby={headingId} className="min-w-0 rounded-lg border bg-card">
+      <Collapsible>
+        <PanelHeader id={headingId} title={title} description={scheduleDescription}>
+          <div className="flex min-w-0 items-center gap-1.5">
+            {run ? <LatestRunBadges run={run} /> : null}
+            <CollapsibleTrigger render={<Button variant="ghost" size="icon-sm" aria-label={settingsLabel} title={settingsLabel} />}>
+              <HugeiconsIcon icon={Settings02Icon} className="size-4" aria-hidden="true" />
+            </CollapsibleTrigger>
+          </div>
+        </PanelHeader>
+        <CollapsibleContent className={COLLAPSIBLE_CONTENT_CLASS}>
+          <div className="border-b p-4">
+            <SourceSettings source={source} />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
       <div className="p-4">
-        <LatestImportBody overview={overview} isError={isError} isRetrying={isRetrying} onRetry={onRetry} />
+        <LatestImportBody run={run} {...overviewQuery} />
       </div>
     </section>
   );
 }
 
-function SourceImportControls({ source }: { source: OfficialSource }) {
+function SourcePanels(overviewQuery: OverviewQueryState) {
+  const { data: sources, isError, isFetching, refetch } = useQuery(freshOfficialSourcesQueryOptions);
+
+  if (sources === undefined && isError) return <ErrorState onRetry={() => refetch()} isRetrying={isFetching} />;
+  if (sources === undefined) return <Skeleton className="h-48 rounded-lg" />;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      {sources.map((source) => (
+        <SourcePanel key={source.key} source={source} showsSourceName={sources.length > 1} {...overviewQuery} />
+      ))}
+    </div>
+  );
+}
+
+type SourceDatasetChoiceProps = {
+  source: OfficialSource;
+  selectedDatasetIds: readonly number[];
+  isImporting: boolean;
+  onSelect: (datasetId: number, isSelected: boolean) => void;
+};
+
+function SourceDatasetChoice({ source, selectedDatasetIds, isImporting, onSelect }: SourceDatasetChoiceProps) {
   const { t } = useTranslation("admin");
-  const queryClient = useQueryClient();
-  const [selectionOverrides, setSelectionOverrides] = useState<DatasetSelectionOverrides>({});
-  const isImporting = useIsSourceImporting(source.key);
-  const startMutation = useMutation({
-    mutationFn: startImportRun,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: importKeys.overview() }),
-  });
-  const selectedDatasetIds = getSelectedDatasetIds(source, selectionOverrides);
-  const cannotStart = isImporting || selectedDatasetIds.length === 0 || startMutation.isPending;
-  const isStartingDryRun = startMutation.isPending && startMutation.variables?.isDryRun === true;
   const labelId = `official-import-source-${source.key}`;
 
+  return (
+    <div role="group" aria-labelledby={labelId} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span id={labelId} className="text-xs font-medium text-muted-foreground">
+        {source.shortName}
+      </span>
+      {source.datasets.map((dataset) => (
+        <label key={dataset.id} htmlFor={`official-import-dataset-${dataset.id}`} className="flex cursor-pointer items-center gap-2 text-sm">
+          <Checkbox
+            id={`official-import-dataset-${dataset.id}`}
+            checked={selectedDatasetIds.includes(dataset.id)}
+            onCheckedChange={(checked) => onSelect(dataset.id, checked)}
+            disabled={isImporting}
+          />
+          {getDatasetLabel(dataset.key, t)}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function ManualImportControls() {
+  const { t } = useTranslation("admin");
+  const queryClient = useQueryClient();
+  const { data: sources, isError, isFetching, refetch } = useQuery(freshOfficialSourcesQueryOptions);
+  const { data: overview } = useQuery({ ...importOverviewQueryOptions, refetchOnMount: false });
+  const [selectionOverrides, setSelectionOverrides] = useState<DatasetSelectionOverrides>({});
+  const startMutation = useMutation({
+    mutationFn: (runs: ImportRunCreate[]) => Promise.all(runs.map(startImportRun)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: importKeys.overview() }),
+  });
+
+  if (sources === undefined && isError) return <InlineError onRetry={() => refetch()} isRetrying={isFetching} />;
+  if (sources === undefined) return <Skeleton className="h-8 w-72 max-w-full" />;
+
+  const choices = sources.map((source) => ({
+    source,
+    isImporting: isSourceImporting(overview, source.key),
+    datasetIds: getSelectedDatasetIds(source, selectionOverrides),
+  }));
+  const startableChoices = choices.filter((choice) => !choice.isImporting && choice.datasetIds.length > 0);
+  const isEverySourceImporting = choices.length > 0 && choices.every((choice) => choice.isImporting);
+  const cannotStart = startableChoices.length === 0 || startMutation.isPending;
+  const isStartingDryRun = startMutation.isPending && startMutation.variables?.at(0)?.isDryRun === true;
+
   function start(isDryRun: boolean): void {
-    startMutation.mutate(buildStartRunBody(source.key, selectedDatasetIds, isDryRun));
+    startMutation.mutate(startableChoices.map(({ source, datasetIds }) => buildStartRunBody(source.key, datasetIds, isDryRun)));
   }
 
   return (
     <div className="flex flex-col items-start gap-2 md:items-end">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-        <div role="group" aria-labelledby={labelId} className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span id={labelId} className="text-xs font-medium text-muted-foreground">
-            {source.shortName}
-          </span>
-          {source.datasets.map((dataset) => (
-            <label key={dataset.id} htmlFor={`official-import-dataset-${dataset.id}`} className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
-                id={`official-import-dataset-${dataset.id}`}
-                checked={selectedDatasetIds.includes(dataset.id)}
-                onCheckedChange={(checked) => setSelectionOverrides((current) => ({ ...current, [dataset.id]: checked }))}
-                disabled={isImporting}
-              />
-              {getDatasetLabel(dataset.key, t)}
-            </label>
+        <div className="flex flex-col items-start gap-2 md:items-end">
+          {choices.map(({ source, isImporting, datasetIds }) => (
+            <SourceDatasetChoice
+              key={source.key}
+              source={source}
+              selectedDatasetIds={datasetIds}
+              isImporting={isImporting}
+              onSelect={(datasetId, isSelected) => setSelectionOverrides((current) => ({ ...current, [datasetId]: isSelected }))}
+            />
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -310,7 +546,7 @@ function SourceImportControls({ source }: { source: OfficialSource }) {
           </Button>
           <Button onClick={() => start(false)} disabled={cannotStart}>
             {startMutation.isPending && !isStartingDryRun ? <Spinner className="size-4" /> : null}
-            {isImporting ? t("officialImport.alreadyRunning") : t("officialImport.startImport")}
+            {isEverySourceImporting ? t("officialImport.alreadyRunning") : t("officialImport.startImport")}
           </Button>
         </div>
       </div>
@@ -319,26 +555,11 @@ function SourceImportControls({ source }: { source: OfficialSource }) {
   );
 }
 
-function ManualImportControls() {
-  const { data: sources, isError, isFetching, refetch } = useQuery(freshOfficialSourcesQueryOptions);
-
-  if (sources === undefined && isError) return <InlineError onRetry={() => refetch()} isRetrying={isFetching} />;
-  if (sources === undefined) return <Skeleton className="h-8 w-72 max-w-full" />;
-
-  return (
-    <div className="flex flex-col items-start gap-3 md:items-end">
-      {sources.map((source) => (
-        <SourceImportControls key={source.key} source={source} />
-      ))}
-    </div>
-  );
-}
-
 function ImportHistoryItem({ run }: { run: ImportRun }) {
   const { t, i18n } = useTranslation("admin");
   const [isOpen, setIsOpen] = useState(false);
   const { data: detail, isError, isFetching, refetch } = useQuery({ ...importRunQueryOptions(run.id), enabled: isOpen });
-  const runTags = useRunTags(run);
+  const runTags = useRunTags(run, { includesSource: true });
   const tags = run.trigger === "manual" ? [t("officialImport.trigger.manual"), ...runTags] : runTags;
   const shownRun = isOpen && detail ? detail : run;
   const outcome = getRunOutcome(shownRun);
@@ -371,7 +592,7 @@ function ImportHistoryItem({ run }: { run: ImportRun }) {
           <HugeiconsIcon icon={ArrowDown01Icon} className="size-4 text-muted-foreground" aria-hidden="true" />
         </span>
       </CollapsibleTrigger>
-      <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none [&[hidden]:not([hidden='until-found'])]:hidden">
+      <CollapsibleContent className={COLLAPSIBLE_CONTENT_CLASS}>
         <div className="border-t bg-muted/30 px-4 py-3">
           <ImportRunDetails run={shownRun}>{results}</ImportRunDetails>
         </div>
@@ -426,8 +647,28 @@ function ImportHistoryList({ runs, hasNextPage, isLoadingMore, hasLoadMoreFailed
   );
 }
 
-function ImportHistoryPanel({ latestRunId, isOverviewPending }: { latestRunId: string | undefined; isOverviewPending: boolean }) {
+function HistorySourceFilter({ sourceKey, onSourceKeyChange }: { sourceKey: string | null; onSourceKeyChange: (sourceKey: string | null) => void }) {
   const { t } = useTranslation("admin");
+  const { data: sources = [] } = useQuery(officialSourcesQueryOptions());
+  if (sources.length < 2) return null;
+
+  return (
+    <Tabs value={sourceKey ?? ALL_SOURCES} onValueChange={(value) => onSourceKeyChange(value === ALL_SOURCES ? null : String(value))}>
+      <TabsList>
+        <TabsTrigger value={ALL_SOURCES}>{t("officialImport.history.allSources")}</TabsTrigger>
+        {sources.map((source) => (
+          <TabsTrigger key={source.key} value={source.key}>
+            {source.shortName}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
+}
+
+function ImportHistoryPanel({ latestRunIds, isOverviewPending }: { latestRunIds: readonly string[]; isOverviewPending: boolean }) {
+  const { t } = useTranslation("admin");
+  const [sourceKey, setSourceKey] = useState<string | null>(null);
   const {
     data: history,
     isPending,
@@ -438,8 +679,8 @@ function ImportHistoryPanel({ latestRunId, isOverviewPending }: { latestRunId: s
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useInfiniteQuery(importHistoryQueryOptions);
-  const previousRuns = listPreviousRuns(history?.pages, latestRunId);
+  } = useInfiniteQuery(importHistoryQueryOptions(sourceKey));
+  const previousRuns = listPreviousRuns(history?.pages, latestRunIds);
 
   let content: ReactNode;
   if (isPending || isOverviewPending) {
@@ -472,7 +713,9 @@ function ImportHistoryPanel({ latestRunId, isOverviewPending }: { latestRunId: s
 
   return (
     <section aria-labelledby="official-import-history" className="min-w-0 overflow-clip rounded-lg border bg-card">
-      <PanelHeader id="official-import-history" title={t("officialImport.history.title")} description={t("officialImport.history.description")} />
+      <PanelHeader id="official-import-history" title={t("officialImport.history.title")} description={t("officialImport.history.description")}>
+        <HistorySourceFilter sourceKey={sourceKey} onSourceKeyChange={setSourceKey} />
+      </PanelHeader>
       {content}
     </section>
   );
@@ -499,8 +742,8 @@ function OfficialImportPage() {
       </div>
       <div className="@container flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <div className="grid gap-4 pb-16 @4xl:grid-cols-2 @4xl:items-start @4xl:gap-x-6">
-          <LatestImportPanel overview={overview} isError={isOverviewError} isRetrying={isOverviewFetching} onRetry={() => refetchOverview()} />
-          <ImportHistoryPanel latestRunId={overview?.latest?.id} isOverviewPending={isOverviewPending} />
+          <SourcePanels overview={overview} isError={isOverviewError} isRetrying={isOverviewFetching} onRetry={() => refetchOverview()} />
+          <ImportHistoryPanel latestRunIds={overview?.latestRuns.map((run) => run.id) ?? []} isOverviewPending={isOverviewPending} />
         </div>
       </div>
     </div>

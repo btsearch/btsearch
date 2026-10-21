@@ -1,23 +1,21 @@
-import { ArrowDown01Icon, ArrowUpRight01Icon, DocumentCodeIcon } from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon, DocumentCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { OfficialPermit, OfficialPermitSite, OfficialSitePermit } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useMemo } from "react";
+import { Fragment, type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { DEVICE_REGISTRY_DATASET, getPermitKindLook, groupPermitsByRat, hasDeviceRegistryListing, listPermitSites } from "../officialPermits";
+import { DEVICE_REGISTRY_DATASET, compareNullsLast, getPermitKindLook, listPermitSites, sortPermitsNewestRatFirst } from "../officialPermits";
 import { stationPermitsQueryOptions } from "../queries";
+import { formatSectorAzimuth } from "../station/utils/sectors";
+import { OfficialBandLabel } from "./officialBandLabel";
 import { StationLink } from "./stationLink";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { toOfficialRatComparator } from "@/features/official/labels";
-import { officialBandLabelsQueryOptions } from "@/features/official/queries";
 import { getOfficialSiteCode } from "@/features/official/sites";
-import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import type { PhysicalStation } from "@/types/station";
@@ -37,7 +35,7 @@ type PermitSiteLinksProps = {
 };
 
 const NO_PERMITS: OfficialPermit[] = [];
-const COMPARE_RATS_BY_NAME = toOfficialRatComparator([]);
+const SKELETON_ROWS = [1, 2, 3, 4];
 const DATASET_LABEL_KEYS: ReadonlyMap<string, string> = new Map([
   ["permits", "permits.sourcePermits"],
   [DEVICE_REGISTRY_DATASET, "permits.sourceDeviceRegistry"],
@@ -51,8 +49,7 @@ export function PermitsList({
   physicalStation,
   permitHolderNote,
 }: PermitsListProps) {
-  const { t, i18n } = useTranslation(["stationDetails", "common"]);
-  const { data: compareRats = COMPARE_RATS_BY_NAME } = useQuery({ ...officialBandLabelsQueryOptions(), select: toOfficialRatComparator });
+  const { t } = useTranslation(["stationDetails", "common"]);
   const {
     data: fetchedPermits = NO_PERMITS,
     isLoading,
@@ -63,36 +60,22 @@ export function PermitsList({
   } = useQuery(stationPermitsQueryOptions(externalPermits ? undefined : stationId));
 
   const permits: readonly OfficialSitePermit[] = externalPermits ?? fetchedPermits;
-  const permitsByRat = useMemo(() => groupPermitsByRat(permits, compareRats), [permits, compareRats]);
+  const sortedPermits = useMemo(() => sortPermitsNewestRatFirst(permits), [permits]);
   const permitSites = useMemo(() => listPermitSites(fetchedPermits), [fetchedPermits]);
-  const hasDeviceRegistryData = useMemo(() => hasDeviceRegistryListing(permits), [permits]);
 
   if (isExternalLoading || (!externalPermits && isLoading)) {
     return (
-      <div className="space-y-4">
-        {[1, 2].map((i) => (
-          <div key={`skeleton-${i}`} className="rounded-xl border overflow-hidden">
-            <div className="px-4 py-2.5 bg-muted/30 border-b flex items-center gap-2">
-              <Skeleton className="size-4 rounded" />
-              <Skeleton className="h-4 w-12 rounded" />
-              <Skeleton className="h-3 w-16 rounded ml-auto" />
-            </div>
-            <div className="overflow-x-auto">
-              <div className="w-full">
-                <div className="flex border-b bg-muted/10 px-4 py-2">
-                  <Skeleton className="h-3 w-16 rounded mr-8" />
-                  <Skeleton className="h-3 w-24 rounded mr-8" />
-                  <Skeleton className="h-3 w-20 rounded" />
-                </div>
-                {[1, 2, 3].map((j) => (
-                  <div key={`skeleton-row-${j}`} className="flex px-4 py-2.5 border-b last:border-0">
-                    <Skeleton className="h-4 w-20 rounded mr-8" />
-                    <Skeleton className="h-4 w-32 rounded mr-8" />
-                    <Skeleton className="h-4 w-24 rounded" />
-                  </div>
-                ))}
-              </div>
-            </div>
+      <div className="overflow-hidden rounded-xl border">
+        <div className="flex gap-8 border-b bg-muted/30 px-4 py-2.5">
+          <Skeleton className="h-3 w-16 rounded" />
+          <Skeleton className="h-3 w-24 rounded" />
+          <Skeleton className="h-3 w-20 rounded" />
+        </div>
+        {SKELETON_ROWS.map((row) => (
+          <div key={row} className="flex gap-8 border-b px-4 py-3 last:border-0">
+            <Skeleton className="h-4 w-20 rounded" />
+            <Skeleton className="h-4 w-32 rounded" />
+            <Skeleton className="h-4 w-24 rounded" />
           </div>
         ))}
       </div>
@@ -125,9 +108,7 @@ export function PermitsList({
     <div className="space-y-4">
       {staleNotice}
       {permitSites.length > 0 ? <PermitSiteLinks sites={permitSites} sourceName={sourceName} /> : null}
-      {Array.from(permitsByRat.entries()).map(([rat, ratPermits]) => (
-        <CollapsiblePermitGroup key={rat} rat={rat} ratPermits={ratPermits} t={t} i18n={i18n} showAntennaData={hasDeviceRegistryData} />
-      ))}
+      <PermitsTable permits={sortedPermits} />
     </div>
   );
 }
@@ -173,18 +154,8 @@ function PermitHolderNote({ station }: { station: PhysicalStation }) {
   );
 }
 
-type CollapsiblePermitGroupProps = {
-  rat: string;
-  ratPermits: readonly OfficialSitePermit[];
-  t: ReturnType<typeof useTranslation<"stationDetails">>["t"];
-  i18n: ReturnType<typeof useTranslation>["i18n"];
-  showAntennaData?: boolean;
-};
-
-type SectorValueTooltipProps = {
-  label: string;
-  children: ReactNode;
-};
+const headerCellClassName = "px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider";
+const cellClassName = "px-4 py-2.5";
 
 function DatasetBadge({ dataset }: { dataset: string }) {
   const { t } = useTranslation("stationDetails");
@@ -203,164 +174,157 @@ function DatasetBadge({ dataset }: { dataset: string }) {
   );
 }
 
-function PermitBand({ permit }: { permit: OfficialSitePermit }) {
-  const { t } = useTranslation("stations");
-  const { rat, labelMhz } = permit.label;
-  if (labelMhz !== null) return <span>{labelMhz}</span>;
-  return <span>{rat === null ? "-" : t("cells.unknownBand")}</span>;
-}
+function PermitStatus({ status }: { status: OfficialSitePermit["status"] }) {
+  const { t } = useTranslation("stationDetails");
+  if (status === null) return <span className="text-[13px] text-muted-foreground">-</span>;
+  if (status === "inService") return <span className="text-[13px] text-muted-foreground">{t("permits.inService")}</span>;
 
-function SectorValueTooltip({ label, children }: SectorValueTooltipProps) {
   return (
-    <Tooltip>
-      <TooltipTrigger>{children}</TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <span className="inline-flex h-5.5 items-center rounded-md border border-dashed border-muted-foreground px-2 text-xs font-semibold whitespace-nowrap">
+      {t("permits.notInService")}
+    </span>
   );
 }
 
-function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: CollapsiblePermitGroupProps) {
+function listPermitAzimuths(permit: OfficialSitePermit): (number | null)[] {
+  const azimuths = new Set((permit.sectors ?? []).map((sector) => sector.azimuth));
+  return [...azimuths].sort(compareNullsLast);
+}
+
+function PermitsTable({ permits }: { permits: readonly OfficialSitePermit[] }) {
+  const { t, i18n } = useTranslation(["stationDetails", "common"]);
+  const showsStatus = permits.some((permit) => permit.status !== null);
+  const showsDatasets = new Set(permits.flatMap((permit) => permit.datasets)).size > 1;
+  const showsNumber = permits.some((permit) => permit.number !== null);
+  const showsExpiry = permits.some((permit) => permit.expiresOn !== null);
+  const showsAzimuths = permits.some((permit) => (permit.sectors ?? []).length > 0);
+
   return (
-    <Collapsible defaultOpen className="rounded-xl border overflow-hidden">
-      <CollapsibleTrigger className="w-full px-4 py-2.5 bg-muted/30 border-b flex items-center gap-2 cursor-pointer">
-        <RatGenerationLabel rat={rat} />
-        <span className="font-bold text-sm">{rat}</span>
-        <span className="text-xs text-muted-foreground">({t("permits.permitsCount", { count: ratPermits.length })})</span>
-        <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 ml-auto text-muted-foreground transition-transform in-data-open:rotate-180" />
-      </CollapsibleTrigger>
+    <div className="overflow-x-auto rounded-xl border">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/30">
+            <th scope="col" className={headerCellClassName}>
+              {t("common:labels.band")}
+            </th>
+            {showsStatus ? (
+              <th scope="col" className={headerCellClassName}>
+                {t("common:labels.status")}
+              </th>
+            ) : null}
+            {showsDatasets ? (
+              <th scope="col" className={cn(headerCellClassName, "max-sm:hidden")}>
+                {t("common:labels.source")}
+              </th>
+            ) : null}
+            {showsNumber ? (
+              <th scope="col" className={headerCellClassName}>
+                {t("permits.decisionNumber")}
+              </th>
+            ) : null}
+            {showsExpiry ? (
+              <th scope="col" className={headerCellClassName}>
+                {t("permits.expiryDate")}
+              </th>
+            ) : null}
+            {showsAzimuths ? (
+              <th scope="col" className={cn(headerCellClassName, "max-sm:hidden")}>
+                {t("common:labels.azimuths")}
+              </th>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/50">
+          {permits.map((permit) => {
+            const isExpired = permit.expiresOn !== null && isPermitExpired(permit.expiresOn);
+            const isNew = isRecent(permit.createdAt);
+            const kind = getPermitKindLook(permit.kind);
+            const azimuths = listPermitAzimuths(permit);
 
-      <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/10">
-                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("common:labels.band")}</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {t("permits.decisionNumber")}
-                </th>
-                {showAntennaData && (
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t("common:labels.azimuths")}
-                  </th>
-                )}
-                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("permits.expiryDate")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {ratPermits.map((permit) => {
-                const expiryText =
-                  permit.expiresOn === null ? t("permits.neverExpires") : new Date(permit.expiresOn).toLocaleDateString(i18n.language);
-                const isExpired = permit.expiresOn !== null && isPermitExpired(permit.expiresOn);
-                const isNew = isRecent(permit.createdAt);
-                const kind = getPermitKindLook(permit.kind);
-
-                return (
-                  <tr key={permit.id} className={cn("hover:bg-muted/20 transition-colors")}>
-                    <td className={cn("px-4 py-2.5 font-mono font-medium", isNew && "border-l-2 border-l-green-500")}>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <PermitBand permit={permit} />
-                        {permit.label.variant === "railway" && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="inline-flex items-center justify-center size-5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 cursor-help text-xs font-bold">
-                                R
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              <p>GSM-R</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {permit.datasets.map((dataset) => (
-                          <DatasetBadge key={dataset} dataset={dataset} />
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs">{permit.number ?? "-"}</span>
-                        {kind === undefined ? null : (
-                          <Tooltip>
-                            <TooltipTrigger className="font-mono text-[10px] text-muted-foreground cursor-help">[{kind.code}]</TooltipTrigger>
-                            <TooltipContent>{t(kind.labelKey)}</TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </td>
-                    {showAntennaData && (
-                      <td className="px-4 py-2.5">
-                        {permit.sectors && permit.sectors.length > 0 ? (
-                          <Collapsible>
-                            <CollapsibleTrigger className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex">
-                              {t("permits.sectorsCount", { count: permit.sectors.length })}{" "}
-                              <HugeiconsIcon
-                                icon={ArrowDown01Icon}
-                                className="size-3.5 ml-1 text-muted-foreground transition-transform in-data-panel-open:rotate-180"
-                              />
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                              <div className="flex flex-col gap-1 mt-1">
-                                {permit.sectors.map((sector) => (
-                                  <div key={sector.id} className="flex items-center gap-2 font-mono text-xs">
-                                    <SectorValueTooltip label={t("common:labels.azimuth")}>
-                                      <span>{sector.azimuth !== null ? `${sector.azimuth}°` : "-"}</span>
-                                    </SectorValueTooltip>
-                                    <span className="text-muted-foreground">/</span>
-                                    <SectorValueTooltip label={t("common:labels.antennaHeight")}>
-                                      <span>{sector.antennaHeightMeters !== null ? `${sector.antennaHeightMeters} m` : "-"}</span>
-                                    </SectorValueTooltip>
-                                    {sector.antennaType && (
-                                      <Tooltip>
-                                        <TooltipTrigger className="px-1 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-bold uppercase cursor-help">
-                                          {t(`permits.antennaType.${sector.antennaType}Short`)}
-                                        </TooltipTrigger>
-                                        <TooltipContent>{t(`permits.antennaType.${sector.antennaType}`)}</TooltipContent>
-                                      </Tooltip>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                    )}
-                    <td className="px-4 py-2.5">
+            return (
+              <tr key={permit.id} className="transition-colors hover:bg-muted/20">
+                <td className={cn(cellClassName, isNew && "border-l-2 border-l-green-500")}>
+                  <div className="flex items-center gap-2 font-semibold whitespace-nowrap">
+                    <OfficialBandLabel label={permit.label} />
+                    {isNew ? (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Badge
+                            variant="secondary"
+                            className="bg-green-500/10 text-green-800 dark:text-green-400 text-[11px] px-1.5 py-0 cursor-help"
+                          >
+                            {t("common:labels.new")}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("permits.newPermitTooltip")}</TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                  </div>
+                </td>
+                {showsStatus ? (
+                  <td className={cellClassName}>
+                    <PermitStatus status={permit.status} />
+                  </td>
+                ) : null}
+                {showsDatasets ? (
+                  <td className={cn(cellClassName, "max-sm:hidden")}>
+                    <div className="flex flex-wrap gap-1">
+                      {permit.datasets.map((dataset) => (
+                        <DatasetBadge key={dataset} dataset={dataset} />
+                      ))}
+                    </div>
+                  </td>
+                ) : null}
+                {showsNumber ? (
+                  <td className={cellClassName}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-xs">{permit.number ?? "-"}</span>
+                      {kind === undefined ? null : (
+                        <Tooltip>
+                          <TooltipTrigger className="font-mono text-[10px] text-muted-foreground cursor-help">[{kind.code}]</TooltipTrigger>
+                          <TooltipContent>{t(kind.labelKey)}</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </td>
+                ) : null}
+                {showsExpiry ? (
+                  <td className={cn(cellClassName, "text-[13px] whitespace-nowrap")}>
+                    {permit.expiresOn === null ? (
+                      <span className="text-muted-foreground">-</span>
+                    ) : (
                       <div className="flex items-center gap-2">
+                        <span className={cn(isExpired && "text-destructive font-medium")}>
+                          {new Date(permit.expiresOn).toLocaleDateString(i18n.language)}
+                        </span>
                         {isExpired ? (
-                          <>
-                            <span className="text-destructive font-medium">{expiryText}</span>
-                            <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[11px] font-bold uppercase">
-                              {t("common:status.expired")}
-                            </span>
-                          </>
-                        ) : (
-                          <span>{expiryText}</span>
-                        )}
-                        {isNew && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge
-                                variant="secondary"
-                                className="bg-green-500/10 text-green-800 dark:text-green-400 text-[11px] px-1.5 py-0 ml-auto cursor-help"
-                              >
-                                {t("common:labels.new")}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>{t("permits.newPermitTooltip")}</TooltipContent>
-                          </Tooltip>
-                        )}
+                          <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[11px] font-bold uppercase">
+                            {t("common:status.expired")}
+                          </span>
+                        ) : null}
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+                    )}
+                  </td>
+                ) : null}
+                {showsAzimuths ? (
+                  <td className={cn(cellClassName, "max-sm:hidden font-mono text-[13px]")}>
+                    {azimuths.length === 0 ? (
+                      <span className="text-muted-foreground">-</span>
+                    ) : (
+                      azimuths.map((azimuth, index) => (
+                        <Fragment key={azimuth ?? "omnidirectional"}>
+                          {index > 0 ? <span className="text-muted-foreground/50">{" / "}</span> : null}
+                          {formatSectorAzimuth(azimuth, t)}
+                        </Fragment>
+                      ))
+                    )}
+                  </td>
+                ) : null}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

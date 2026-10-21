@@ -633,7 +633,7 @@
     }
   },
   "officialImport": {
-    "subtitle": "Pozwolenia i radiolinie z oficjalnych rejestrów",
+    "subtitle": "Dane z oficjalnych rejestrów",
     "schedule": {
       "every_one": "Automatyczny import co godzinę sprawdza, czy są nowe dane",
       "every_few": "Automatyczny import co {{count}} godziny sprawdza, czy są nowe dane",
@@ -703,6 +703,7 @@
       "cli": "Wiersz poleceń"
     },
     "slices": "Części",
+    "otherSlice": "pozostałe",
     "sliceOutcome": {
       "applied": "Zastosowane",
       "unchanged": "Bez zmian",
@@ -740,7 +741,7 @@
       "sourceRefTooLong": "Za długie ID z rejestru",
       "badPrecision": "Nieprawidłowa dokładność położenia",
       "territoryNotImported": "Terytorium nie jest importowane",
-      "unknownSystem": "Nierozpoznany system",
+      "unknownSystem": "System nie jest importowany",
       "missingIdentity": "Brak operatora lub ID"
     },
     "held": {
@@ -757,14 +758,27 @@
       "stationNamesSkipped": "Pominięte nazwy stacji",
       "licenseeNamesCorrected": "Poprawione nazwy posiadaczy pozwoleń"
     },
+    "settings": {
+      "title": "Ustawienia",
+      "scheduled": "Automatyczny import",
+      "scheduledDescription": "Sprawdza nowe dane według harmonogramu. Import można też zawsze uruchomić ręcznie",
+      "public": "Publiczne",
+      "publicDescription": "Dane tego źródła widzą wszyscy",
+      "notRedistributable": "Warunki źródła nie pozwalają publikować jego danych",
+      "checkEvery": "Sprawdzaj co",
+      "hoursUnit": "h",
+      "holdShrink": "Wstrzymaj, gdy część zmaleje o"
+    },
     "latest": {
       "title": "Ostatni import",
+      "titleWithSource": "Ostatni import - {{source}}",
       "loading": "Ładowanie ostatniego importu...",
       "empty": "Nie uruchomiono jeszcze żadnego importu",
       "loadError": "Nie udało się wczytać stanu importu"
     },
     "history": {
       "title": "Poprzednie importy",
+      "allSources": "Wszystkie",
       "description": "Wcześniejsze importy, od najnowszych",
       "empty": "Brak wcześniejszych importów",
       "loading": "Ładowanie poprzednich importów...",
@@ -1316,6 +1330,8 @@
         },
         "dialog": {
           "editTitle": "Edytuj zakres",
+          "jointOperator": "Licencja wspólna z",
+          "jointOperatorHint": "Tylko gdy dwóch operatorów ma licencję wspólnie",
           "band": "Pasmo",
           "from": "{{label}} od (MHz)",
           "to": "{{label}} do (MHz)",

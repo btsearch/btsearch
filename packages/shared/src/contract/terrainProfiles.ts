@@ -22,7 +22,7 @@ export type TerrainAntennaSource = (typeof TERRAIN_ANTENNA_SOURCES)[number];
 
 export const TERRAIN_ANTENNA_TECHNOLOGIES = ["gsm", "cdma", "umts", "lte", "nr", "iot"] as const;
 
-export const TERRAIN_TILT_SOURCES = ["measured", "declared"] as const;
+export const TERRAIN_TILT_SOURCES = ["measured"] as const;
 export type TerrainTiltSource = (typeof TERRAIN_TILT_SOURCES)[number];
 
 export const TERRAIN_FAILURE_REASONS = ["antennaDataUnavailable", "antennaNotFound", "elevationDataUnavailable", "internalError"] as const;
@@ -56,7 +56,7 @@ const terrainAntennaShape = {
   heightMeters: z.number().describe("Height above the ground"),
   azimuth: z.number().nullable().describe("In degrees from north. `360` means an omnidirectional antenna"),
   tilt: z.number().nullable().describe("In degrees"),
-  tiltSource: z.enum(TERRAIN_TILT_SOURCES).nullable().describe("`measured` for the report, `declared` for the permit"),
+  tiltSource: z.enum(TERRAIN_TILT_SOURCES).nullable().describe("`measured` when the tilt comes from the EMF report"),
   frequencyMhz: z.number(),
   technology: z.enum(TERRAIN_ANTENNA_TECHNOLOGIES).nullable(),
   labelMhz: z.number().int().nullable().describe("The nominal frequency of the band"),

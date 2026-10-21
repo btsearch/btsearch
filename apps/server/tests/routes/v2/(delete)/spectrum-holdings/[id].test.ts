@@ -11,6 +11,7 @@ const editorOptions = { session: userSession("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb
 const row = {
   id: 5,
   operatorId: 1,
+  jointOperatorId: null,
   bandId: 7,
   regionId: null,
   downlinkLowKhz: 3400000,

@@ -51,6 +51,7 @@ void test("permits: a row is one site record without sectors", async () => {
         number: "BT/1/2025",
         decisionType: "permit",
         expiresOn: "2025-12-31",
+        status: null,
       },
       sectors: [],
     },

@@ -35,4 +35,4 @@ async function perform(context: AfterStepContext): Promise<void> {
   }
 }
 
-export const kmz: AfterStep = { name: "kmz", runsInDryRun: false, perform };
+export const kmz: AfterStep = { name: "kmz", runsInDryRun: false, appliesTo: (source) => source.exportKmz !== undefined, perform };

@@ -1,7 +1,7 @@
 import { operators, spectrumHoldings } from "@openbts/drizzle";
 import { spectrumHoldingListQuerySchema, spectrumHoldingSchema } from "@openbts/shared/contract";
 import type { SpectrumHolding, SpectrumHoldingListQuery } from "@openbts/shared/contract";
-import { and, inArray } from "drizzle-orm";
+import { and, inArray, or } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -34,7 +34,9 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     .where(
       and(
         inArray(spectrumHoldings.operatorId, db.select({ id: operators.id }).from(operators).where(inArray(operators.countryCode, countryCodes))),
-        operatorIds === undefined ? undefined : inArray(spectrumHoldings.operatorId, operatorIds),
+        operatorIds === undefined
+          ? undefined
+          : or(inArray(spectrumHoldings.operatorId, operatorIds), inArray(spectrumHoldings.jointOperatorId, operatorIds)),
         bandIds === undefined ? undefined : inArray(spectrumHoldings.bandId, bandIds),
         activeOn === undefined ? undefined : isActiveOn(activeOn),
       ),

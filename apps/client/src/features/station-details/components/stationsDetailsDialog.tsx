@@ -9,7 +9,8 @@ import { useTranslation } from "react-i18next";
 import { stationPermitsQueryOptions } from "../queries";
 import { stationRecordQueryOptions } from "../station/api";
 import { StationPanel } from "../station/components/stationPanel";
-import { OfficialSourceCredit } from "./officialSourceCredit";
+import { OfficialSourceLine } from "./officialSourceCredit";
+import { PermitDirections } from "./permitDirections";
 import { PermitsList } from "./permitsList";
 import { ShareButton } from "./shareButton";
 import { StationDetailsError } from "./stationDetailsError";
@@ -30,7 +31,7 @@ import { getOfficialSiteMapHash } from "@/features/map/mapLinks";
 import { officialSiteQueryOptions, useOfficialSource } from "@/features/official/queries";
 import { getOfficialSiteCode } from "@/features/official/sites";
 import { brandsQueryOptions, countriesQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
-import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useSettings } from "@/hooks/useSettings";
@@ -106,6 +107,10 @@ function OfficialSiteDialogPanel({
   const sharePlace = location ? [location.city || t("common:labels.unknownLocation"), location.address].filter(Boolean).join(" ") : "";
   const internalStationId = data?.stationIds.at(0);
   const registerSiteId = data !== undefined && internalStationId === undefined ? data.siteId : null;
+  const permits = site?.permits;
+  const hasPermits = permits !== undefined && permits.length > 0;
+  const isNotInService = hasPermits && permits.every((permit) => permit.status === "approved");
+  const listsBandsOnly = hasPermits && permits.every((permit) => permit.kind === "inventory");
   const internalTarget: StationDialogTarget | undefined =
     internalStationId === undefined ? switchedFrom : { source: "internal", id: internalStationId };
   const sourceSwitch =
@@ -134,6 +139,13 @@ function OfficialSiteDialogPanel({
             operatorName={operatorName}
             operatorBrand={operatorBrand}
             stationCode={siteId}
+            badges={
+              isNotInService ? (
+                <span className="inline-flex h-5 items-center rounded-md border border-dashed border-muted-foreground px-1.5 text-[11px] font-semibold">
+                  {t("permits.stationNotInService")}
+                </span>
+              ) : null
+            }
             location={location}
             createdAt={site.createdAt}
             updatedAt={site.updatedAt}
@@ -214,21 +226,26 @@ function OfficialSiteDialogPanel({
             stationCode={siteId}
             operator={{ name: operatorName, mnc: toV1OperatorMnc(operator) }}
             location={location}
+            registerObjectId={location?.sourceRef}
             emfSite={location && hasCountryCapability(countries, location.countryCode, "emf") ? { officialSiteId: site.id } : undefined}
             onClose={onClose}
           />
-          <section>
-            <div className="mb-3 flex items-center justify-between gap-3">
+          {permits === undefined ? null : <PermitDirections permits={permits} color={getBrandColor(operatorBrand)} />}
+          <section className="space-y-3">
+            <div className="flex items-center gap-3">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                {officialSource ? t("tabs.permits", { source: officialSource.shortName }) : t("tabs.registerPermits")}
+                {officialSource === null
+                  ? t("tabs.registerPermits")
+                  : t(listsBandsOnly ? "tabs.bands" : "tabs.permits", { source: officialSource.shortName })}
               </h3>
-              {officialSource ? <OfficialSourceCredit sourceKey={officialSource.key} source={officialSource} /> : null}
+              {hasPermits ? (
+                <span className="text-xs text-muted-foreground">
+                  {t(listsBandsOnly ? "permits.bandsCount" : "permits.permitsCount", { count: permits.length })}
+                </span>
+              ) : null}
             </div>
-            <PermitsList
-              permits={site.permits ?? NO_PERMITS}
-              sourceName={officialSource?.shortName ?? null}
-              isExternalLoading={site.permits === undefined}
-            />
+            <PermitsList permits={permits ?? NO_PERMITS} sourceName={officialSource?.shortName ?? null} isExternalLoading={permits === undefined} />
+            {officialSource === null ? null : <OfficialSourceLine source={officialSource} />}
           </section>
         </div>
       ) : isLoading ? (

@@ -41,6 +41,9 @@ export const OFFICIAL_PERMIT_KINDS = [
 ] as const;
 export type OfficialPermitKind = (typeof OFFICIAL_PERMIT_KINDS)[number];
 
+export const OFFICIAL_PERMIT_STATUSES = ["approved", "inService"] as const;
+export type OfficialPermitStatus = (typeof OFFICIAL_PERMIT_STATUSES)[number];
+
 export const OFFICIAL_ANTENNA_TYPES = ["indoor", "outdoor"] as const;
 
 export const OFFICIAL_LOCATION_INCLUDES = ["region", "sites", "sites.permits", "sites.permits.sectors"] as const;
@@ -130,7 +133,6 @@ export type OfficialBandLabel = z.infer<typeof officialBandLabelSchema>;
 export const officialPermitSectorSchema = z.object({
   id: z.number().int(),
   azimuth: z.number().int().nullable().describe(AZIMUTH_NOTE),
-  elevation: z.number().int().nullable().describe("The antenna tilt in degrees, as the register publishes it"),
   antennaHeightMeters: z.number().nullable(),
   antennaType: z.enum(OFFICIAL_ANTENNA_TYPES).nullable(),
 });
@@ -143,6 +145,10 @@ const officialPermitShape = {
   number: z.string().nullable().describe("The permit's number, as the register writes it"),
   kind: officialPermitKindSchema.nullable(),
   expiresOn: daySchema.nullable().describe("The last day the permit is valid. `null` if it does not expire, or if the register does not say"),
+  status: z
+    .enum(OFFICIAL_PERMIT_STATUSES)
+    .nullable()
+    .describe("`approved` while the antennas are not yet in service, `inService` once they are. `null` if the register does not say"),
   label: officialPermitLabelSchema.describe("The band the permit is for, as the register names it"),
   datasets: z.array(z.string()).describe("The keys of the source's datasets that list the permit"),
   createdAt: z.iso.datetime().describe("When the permit was first imported"),

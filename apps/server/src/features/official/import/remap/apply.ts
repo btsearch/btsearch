@@ -107,15 +107,15 @@ async function mergePermits(tx: DbTx, merges: RemapPlan["merges"]): Promise<Chan
       )
     `);
     await tx.execute(sql`
-      INSERT INTO ${officialPermitSectors} (permit_id, azimuth, elevation, antenna_height, antenna_type)
-      SELECT DISTINCT merged.into_permit_id, sector.azimuth, sector.elevation, sector.antenna_height, sector.antenna_type
+      INSERT INTO ${officialPermitSectors} (permit_id, azimuth, antenna_height, antenna_type)
+      SELECT DISTINCT merged.into_permit_id, sector.azimuth, sector.antenna_height, sector.antenna_type
       FROM jsonb_to_recordset(${merged}::jsonb) AS merged (permit_id integer, into_permit_id integer)
       JOIN ${officialPermitSectors} AS sector ON sector.permit_id = merged.permit_id
       WHERE NOT EXISTS (
         SELECT 1 FROM ${officialPermitSectors} AS stored
         WHERE stored.permit_id = merged.into_permit_id
-          AND stored.azimuth IS NOT DISTINCT FROM sector.azimuth AND stored.elevation IS NOT DISTINCT FROM sector.elevation
-          AND stored.antenna_height IS NOT DISTINCT FROM sector.antenna_height AND stored.antenna_type IS NOT DISTINCT FROM sector.antenna_type
+          AND stored.azimuth IS NOT DISTINCT FROM sector.azimuth AND stored.antenna_height IS NOT DISTINCT FROM sector.antenna_height
+          AND stored.antenna_type IS NOT DISTINCT FROM sector.antenna_type
       )
     `);
 

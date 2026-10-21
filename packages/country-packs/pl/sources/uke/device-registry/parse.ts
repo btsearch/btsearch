@@ -72,11 +72,11 @@ function readRegistryLine(ctx: ReadContext, operatorKey: string, columns: Regist
       number: (cells[columns.alternativeNumber] ?? "").trim(),
       decisionType: applicationType === "M" ? "permit_change" : "permit",
       expiresOn: null,
+      status: null,
     },
     sectors: [
       {
         azimuth: parseNumber(optionalCell(cells, columns.azimuth), { whenEmpty: null }),
-        elevation: parseNumber(optionalCell(cells, columns.elevation), { whenEmpty: null }),
         antennaHeight: parseNumber(optionalCell(cells, columns.antennaHeight), { whenEmpty: 0 }),
         antennaPlacement: parseAntennaPlacement(optionalCell(cells, columns.cellType)),
       },

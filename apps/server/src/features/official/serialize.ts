@@ -14,6 +14,7 @@ import type {
   OfficialPermitKind,
   OfficialPermitLabel,
   OfficialPermitSector,
+  OfficialPermitStatus,
   OfficialRat,
   OfficialSite,
   OfficialSiteLocation,
@@ -64,6 +65,10 @@ const PERMIT_KINDS = { permit: "permit", permit_change: "permitChange" } as cons
   NonNullable<OfficialPermitRow["decision_type"]>,
   OfficialPermitKind
 >;
+const PERMIT_STATUSES = { approved: "approved", in_service: "inService" } as const satisfies Record<
+  NonNullable<OfficialPermitRow["status"]>,
+  OfficialPermitStatus
+>;
 export const DATASET_PERMIT_KINDS = {
   permit: "permit",
   registration: "registration",
@@ -112,7 +117,7 @@ export function toOfficialPermitLabel(
 }
 
 function toOfficialPermitSector(row: OfficialPermitSectorRow): OfficialPermitSector {
-  return { id: row.id, azimuth: row.azimuth, elevation: row.elevation, antennaHeightMeters: row.antenna_height, antennaType: row.antenna_type };
+  return { id: row.id, azimuth: row.azimuth, antennaHeightMeters: row.antenna_height, antennaType: row.antenna_type };
 }
 
 function toOfficialSitePermit({ permit, sourceKey }: SitePermitRows, listings: readonly PermitListingRow[]): OfficialSitePermit {
@@ -123,6 +128,7 @@ function toOfficialSitePermit({ permit, sourceKey }: SitePermitRows, listings: r
     number: permit.decision_number,
     kind: decisionOrDatasetKind(permit.decision_type, listings),
     expiresOn: permit.expiry_date,
+    status: permit.status === null ? null : PERMIT_STATUSES[permit.status],
     label: toOfficialPermitLabel(permit.rat, permit.label_mhz, permit.label_variant),
     datasets: listings.map((listing) => listing.key),
     createdAt: permit.createdAt.toISOString(),

@@ -11,7 +11,7 @@ describe("the guard of a slice", () => {
     { stagedCount: 79, liveCount: 100, outcome: "held" },
     { stagedCount: 150, liveCount: 100, outcome: "applied" },
     { stagedCount: 1, liveCount: 0, outcome: "applied" },
-    { stagedCount: 0, liveCount: 0, outcome: "held" },
+    { stagedCount: 0, liveCount: 0, outcome: "applied" },
     { stagedCount: 0, liveCount: 5, outcome: "held" },
     { stagedCount: 4, liveCount: 5, outcome: "applied" },
     { stagedCount: 3, liveCount: 5, outcome: "held" },

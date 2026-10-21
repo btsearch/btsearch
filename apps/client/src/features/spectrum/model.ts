@@ -9,11 +9,12 @@ export type BandDuplex = NonNullable<Band["duplex"]>;
 
 export type SpectrumOperator = Pick<Operator, "id" | "name" | "sortPriority"> & { brand: Brand | null; color: string };
 
-export type SpectrumHoldingWithOperator = SpectrumHolding & { operator: Operator };
+export type SpectrumHoldingWithOperator = SpectrumHolding & { operator: Operator; jointOperator: Operator | null };
 
 export type PlacedHolding = {
   holding: SpectrumHolding;
   operator: SpectrumOperator;
+  jointOperator: SpectrumOperator | null;
   isUpcoming: boolean;
 };
 
@@ -42,6 +43,7 @@ export type OperatorTotal = {
   operator: SpectrumOperator;
   pairedKhz: number;
   unpairedKhz: number;
+  jointKhz: number;
   khzBySection: ReadonlyMap<string, number>;
 };
 
@@ -90,6 +92,24 @@ function compareSpectrumOperators(left: SpectrumOperator, right: SpectrumOperato
 export function toSpectrumOperator(operator: Operator, brands: readonly Brand[]): SpectrumOperator {
   const brand = getOperatorBrand(operator, brands);
   return { id: operator.id, name: operator.name, sortPriority: operator.sortPriority, brand, color: getBrandColor(brand) };
+}
+
+export function holdingOperators(
+  holding: Pick<SpectrumHolding, "operatorId" | "jointOperatorId">,
+  operatorById: ReadonlyMap<number, SpectrumOperator>,
+): SpectrumOperator[] {
+  return [holding.operatorId, holding.jointOperatorId].flatMap((id) => {
+    const operator = id === null ? undefined : operatorById.get(id);
+    return operator === undefined ? [] : [operator];
+  });
+}
+
+export function holdersOf(placed: PlacedHolding): SpectrumOperator[] {
+  return placed.jointOperator === null ? [placed.operator] : [placed.operator, placed.jointOperator];
+}
+
+export function isHeldBy(placed: PlacedHolding, operatorId: number): boolean {
+  return placed.operator.id === operatorId || placed.jointOperator?.id === operatorId;
 }
 
 function hasEnded(holding: SpectrumHolding, today: string): boolean {
@@ -165,7 +185,8 @@ function buildSection(band: BandHoldings, operatorById: ReadonlyMap<number, Spec
   const placed = band.holdings.flatMap((holding): PlacedHolding[] => {
     const operator = operatorById.get(holding.operatorId);
     if (operator === undefined || hasEnded(holding, today)) return [];
-    return [{ holding, operator, isUpcoming: hasNotStarted(holding, today) }];
+    const jointOperator = holding.jointOperatorId === null ? null : (operatorById.get(holding.jointOperatorId) ?? null);
+    return [{ holding, operator, jointOperator, isUpcoming: hasNotStarted(holding, today) }];
   });
   const national = placed.filter((entry) => entry.holding.regionId === null);
   const current = national.filter((entry) => !entry.isUpcoming);
@@ -184,18 +205,22 @@ function buildSection(band: BandHoldings, operatorById: ReadonlyMap<number, Spec
 }
 
 function buildTotals(sections: readonly SpectrumSection[]): OperatorTotal[] {
-  const totals = new Map<number, { operator: SpectrumOperator; pairedKhz: number; unpairedKhz: number; khzBySection: Map<string, number> }>();
+  const totals = new Map<number, OperatorTotal & { khzBySection: Map<string, number> }>();
 
   for (const section of sections) {
-    for (const { holding, operator, isUpcoming } of section.barHoldings) {
-      if (isUpcoming) continue;
+    for (const placed of section.barHoldings) {
+      if (placed.isUpcoming) continue;
 
-      const total = totals.get(operator.id) ?? { operator, pairedKhz: 0, unpairedKhz: 0, khzBySection: new Map<string, number>() };
-      totals.set(operator.id, total);
+      const { holding } = placed;
       const width = widthKhz(holding.downlinkKhz);
-      if (holding.uplinkKhz === null) total.unpairedKhz += width;
-      else total.pairedKhz += width;
-      total.khzBySection.set(section.key, (total.khzBySection.get(section.key) ?? 0) + width);
+      for (const operator of holdersOf(placed)) {
+        const total = totals.get(operator.id) ?? { operator, pairedKhz: 0, unpairedKhz: 0, jointKhz: 0, khzBySection: new Map<string, number>() };
+        totals.set(operator.id, total);
+        if (holding.uplinkKhz === null) total.unpairedKhz += width;
+        else total.pairedKhz += width;
+        if (placed.jointOperator !== null) total.jointKhz += holding.uplinkKhz === null ? width : width * 2;
+        total.khzBySection.set(section.key, (total.khzBySection.get(section.key) ?? 0) + width);
+      }
     }
   }
 
@@ -203,7 +228,8 @@ function buildTotals(sections: readonly SpectrumSection[]): OperatorTotal[] {
 }
 
 export function buildCountrySpectrum({ holdings, brands, planBands, today }: CountrySpectrumInput): CountrySpectrum {
-  const operatorById = new Map(holdings.map(({ operator }) => [operator.id, toSpectrumOperator(operator, brands)]));
+  const operators = holdings.flatMap(({ operator, jointOperator }) => (jointOperator === null ? [operator] : [operator, jointOperator]));
+  const operatorById = new Map(operators.map((operator) => [operator.id, toSpectrumOperator(operator, brands)]));
   const sections = groupHoldingsByBand(holdings, planBands)
     .map((group) => buildSection(group, operatorById, today))
     .filter((section) => section.barHoldings.length + section.laterHoldings.length + section.regionalHoldings.length > 0);

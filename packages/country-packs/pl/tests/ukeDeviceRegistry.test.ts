@@ -44,7 +44,6 @@ const HEADER_ALIASES: [headerCells: string[], columns: Record<string, number>][]
       systemType: 9,
       cellType: 10,
       azimuth: 11,
-      elevation: 12,
       locationDescription: 13,
       antennaHeight: 14,
     },
@@ -87,8 +86,8 @@ void test("device registry: a line is one site record with one sector", async ()
       slice: "orange",
       location: { longitude: 21.012222, latitude: 52.229722, city: "Warszawa", address: "Prosta 1 dach", regionIsoCode: null },
       site: { siteId: "123", licensee: "orange", name: "WAW_CENTRUM" },
-      permit: { label: { rat: "LTE", mhz: 800, variant: "commercial" }, number: "ALT/1/2025", decisionType: "permit", expiresOn: null },
-      sectors: [{ azimuth: 120, elevation: -2, antennaHeight: 32.5, antennaPlacement: "outdoor" }],
+      permit: { label: { rat: "LTE", mhz: 800, variant: "commercial" }, number: "ALT/1/2025", decisionType: "permit", expiresOn: null, status: null },
+      sectors: [{ azimuth: 120, antennaHeight: 32.5, antennaPlacement: "outdoor" }],
     },
   ]);
   assert.deepEqual(skips, []);
@@ -142,7 +141,7 @@ void test("device registry: a cell is read as its formatted text", async () => {
 
   assert.equal(record?.site.siteId, "45");
   assert.deepEqual(record?.location, { longitude: 21.012222, latitude: 52.229722, city: "Warszawa", address: "Prosta 1 dach", regionIsoCode: null });
-  assert.deepEqual(record?.sectors, [{ azimuth: 12.5, elevation: -2, antennaHeight: 30, antennaPlacement: "outdoor" }]);
+  assert.deepEqual(record?.sectors, [{ azimuth: 12.5, antennaHeight: 30, antennaPlacement: "outdoor" }]);
 });
 
 void test("device registry: the decision type is a permit change for the application type M and a permit otherwise", async () => {
@@ -154,18 +153,18 @@ void test("device registry: the decision type is a permit change for the applica
 
 void test("device registry: a sector keeps the importer's numbers", async () => {
   const { records } = await readRegistry([
-    lineWith({ Azymut: 12.5, Elewacja: "-2.5", "H anteny": "30.25", "Typ komórki": " W " }),
-    lineWith({ Azymut: 0, Elewacja: null, "H anteny": null, "Typ komórki": "Z" }),
-    lineWith({ Azymut: "abc", Elewacja: " ", "H anteny": "12,5", "Typ komórki": "x" }),
-    lineWith({ Azymut: null, Elewacja: "1e2", "H anteny": " ", "Typ komórki": null }),
+    lineWith({ Azymut: 12.5, "H anteny": "30.25", "Typ komórki": " W " }),
+    lineWith({ Azymut: 0, "H anteny": null, "Typ komórki": "Z" }),
+    lineWith({ Azymut: "abc", "H anteny": "12,5", "Typ komórki": "x" }),
+    lineWith({ Azymut: null, "H anteny": " ", "Typ komórki": null }),
   ]);
   const sectors = records.flatMap((record) => record.sectors);
 
   assert.deepEqual(sectors, [
-    { azimuth: 12.5, elevation: -2.5, antennaHeight: 30.25, antennaPlacement: "indoor" },
-    { azimuth: 0, elevation: null, antennaHeight: 0, antennaPlacement: "outdoor" },
-    { azimuth: null, elevation: 0, antennaHeight: null, antennaPlacement: null },
-    { azimuth: null, elevation: 100, antennaHeight: 0, antennaPlacement: null },
+    { azimuth: 12.5, antennaHeight: 30.25, antennaPlacement: "indoor" },
+    { azimuth: 0, antennaHeight: 0, antennaPlacement: "outdoor" },
+    { azimuth: null, antennaHeight: null, antennaPlacement: null },
+    { azimuth: null, antennaHeight: 0, antennaPlacement: null },
   ]);
 });
 
@@ -178,8 +177,8 @@ void test("device registry: optional columns may be absent", async () => {
       slice: "orange",
       location: { longitude: 21.012222, latitude: 52.229722, city: null, address: null, regionIsoCode: null },
       site: { siteId: "BT12345", licensee: "orange", name: null },
-      permit: { label: { rat: "UMTS", mhz: 2100, variant: "commercial" }, number: "ALT/9", decisionType: "permit", expiresOn: null },
-      sectors: [{ azimuth: null, elevation: null, antennaHeight: null, antennaPlacement: null }],
+      permit: { label: { rat: "UMTS", mhz: 2100, variant: "commercial" }, number: "ALT/9", decisionType: "permit", expiresOn: null, status: null },
+      sectors: [{ azimuth: null, antennaHeight: null, antennaPlacement: null }],
     },
   ]);
   assert.deepEqual(skips, []);

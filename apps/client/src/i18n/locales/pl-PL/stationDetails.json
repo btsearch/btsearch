@@ -5,7 +5,8 @@
     "permits": "Pozwolenia {{source}}",
     "registerPermits": "Pozwolenia z rejestru",
     "comments": "Komentarze",
-    "photos": "Zdjęcia"
+    "photos": "Zdjęcia",
+    "bands": "Pasma {{source}}"
   },
   "watchStation": "Obserwuj stację",
   "watchingStation": "Obserwujesz",
@@ -23,7 +24,8 @@
     "pemReportsEmpty": "Brak raportów PEM w SI2PEM",
     "pemReportsError": "Nie udało się wczytać raportów PEM",
     "region": "Region",
-    "positionPrecision": "Położenie z dokładnością do około {{meters, number}} m"
+    "positionPrecision": "Położenie z dokładnością do około {{meters, number}} m",
+    "objectId": "ID obiektu"
   },
   "sectors": {
     "suggestedCount": "Sugerowana liczba azymutów:",
@@ -125,10 +127,6 @@
     "permitsCount_few": "{{count, number}} pozwolenia",
     "permitsCount_many": "{{count, number}} pozwoleń",
     "permitsCount_other": "{{count, number}} pozwoleń",
-    "sectorsCount_one": "{{count, number}} azymut",
-    "sectorsCount_few": "{{count, number}} azymuty",
-    "sectorsCount_many": "{{count, number}} azymutów",
-    "sectorsCount_other": "{{count, number}} azymutów",
     "permit": "pozwolenie",
     "neverExpires": "Bezterminowe",
     "decisionNumber": "Numer decyzji",
@@ -144,12 +142,27 @@
     "decisionTypeP": "Pozwolenie",
     "decisionTypeZmP": "Zmiana Pozwolenia",
     "newPermitTooltip": "To pozwolenie zostało dodane w ciągu ostatnich 30 dni",
-    "antennaType": {
-      "indoor": "Wewnętrzna",
-      "indoorShort": "W",
-      "outdoor": "Zewnętrzna",
-      "outdoorShort": "Z"
-    }
+    "notInService": "Jeszcze nieuruchomione",
+    "bandsCount_one": "{{count, number}} pasmo",
+    "bandsCount_few": "{{count, number}} pasma",
+    "bandsCount_many": "{{count, number}} pasm",
+    "bandsCount_other": "{{count, number}} pasm",
+    "directionsCount_one": "{{count, number}} kierunek",
+    "directionsCount_few": "{{count, number}} kierunki",
+    "directionsCount_many": "{{count, number}} kierunków",
+    "directionsCount_other": "{{count, number}} kierunków",
+    "antennasCount_one": "{{count, number}} antena",
+    "antennasCount_few": "{{count, number}} anteny",
+    "antennasCount_many": "{{count, number}} anten",
+    "antennasCount_other": "{{count, number}} anten",
+    "allDirections": "Wszystkie kierunki",
+    "antennaHeight": "{{meters, number}} m",
+    "underground": "Pod ziemią",
+    "indoor": "Wewnątrz",
+    "inService": "Uruchomione",
+    "stationNotInService": "Jeszcze nieuruchomiona",
+    "dashedMeansNotInService": "Przerywana ramka: pasmo jeszcze nieuruchomione",
+    "bandsWithoutAzimuth": "Pasma bez podanych azymutów są tylko w tabeli niżej"
   },
   "page": {
     "info": "Informacje",

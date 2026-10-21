@@ -1,11 +1,19 @@
-import type { ImportRun, ImportRunCreate, ImportRunDetail, ImportRunList } from "@openbts/shared/contract";
+import type {
+  ImportRun,
+  ImportRunCreate,
+  ImportRunDetail,
+  ImportRunList,
+  ImportRunStatus,
+  OfficialDatasetUpdate,
+  OfficialSourceUpdate,
+} from "@openbts/shared/contract";
 import { infiniteQueryOptions, queryOptions, useQuery } from "@tanstack/react-query";
 
 import { type ImportOverview, hasAppliedRunEnded, hasRunListChanged, isImportInProgress, isRunLive, isSourceImporting } from "./runs";
 import { referenceKeys } from "@/features/admin/reference/api/queryKeys";
-import { postData } from "@/features/admin/reference/api/request";
+import { patchData, postData } from "@/features/admin/reference/api/request";
 import { countryStatisticsQueryOptions } from "@/features/map/statsApi";
-import { officialKeys } from "@/features/official/queries";
+import { officialKeys, officialSourcesQueryOptions } from "@/features/official/queries";
 import { API_V2_BASE, fetchJson, fetchV2Data, isConflict } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 
@@ -15,17 +23,23 @@ const RUNS_PATH = "official/import-runs";
 const HISTORY_PAGE_SIZE = 24;
 const ACTIVE_POLL_MS = 5000;
 const IDLE_POLL_MS = 60_000;
-const OVERVIEW_RUN_COUNT = 20;
+const LIVE_RUN_LIMIT = 20;
+const LIVE_STATUSES: readonly ImportRunStatus[] = ["queued", "running"];
+const HISTORY_KEY = [...IMPORT_ROOT, "history"] as const;
+
+type RunPageQuery = { limit: number; cursor?: string | null; sourceKey?: string | null; statuses?: readonly ImportRunStatus[] };
 
 export const importKeys = {
   overview: () => [...IMPORT_ROOT, "overview"] as const,
-  history: () => [...IMPORT_ROOT, "history"] as const,
+  history: (sourceKey: string | null) => [...HISTORY_KEY, sourceKey] as const,
   run: (id: string) => [...RUN_DETAILS_KEY, id] as const,
 };
 
-function fetchImportRunPage(limit: number, cursor: string | null, signal?: AbortSignal): Promise<ImportRunList> {
+function fetchImportRunPage({ limit, cursor, sourceKey, statuses }: RunPageQuery, signal?: AbortSignal): Promise<ImportRunList> {
   const query = new URLSearchParams({ limit: String(limit) });
-  if (cursor !== null) query.set("cursor", cursor);
+  if (cursor) query.set("cursor", cursor);
+  if (sourceKey) query.set("sourceKeys", sourceKey);
+  if (statuses) query.set("statuses", statuses.join(","));
   return fetchJson<ImportRunList>(`${API_V2_BASE}/${RUNS_PATH}?${query.toString()}`, { signal });
 }
 
@@ -33,15 +47,25 @@ function fetchImportRun(id: string, signal?: AbortSignal): Promise<ImportRunDeta
   return fetchV2Data<ImportRunDetail>(`${RUNS_PATH}/${id}`, { signal });
 }
 
-async function fetchImportOverview(previous: ImportOverview | undefined, signal?: AbortSignal): Promise<ImportOverview> {
-  const { data: runs } = await fetchImportRunPage(OVERVIEW_RUN_COUNT, null, signal);
-  const liveRuns = runs.filter(isRunLive);
-  const newestRun = runs.at(0);
-  if (newestRun === undefined) return { latest: null, liveRuns };
+async function fetchNewestRun(sourceKey: string, signal?: AbortSignal): Promise<ImportRun | null> {
+  const { data } = await fetchImportRunPage({ limit: 1, sourceKey }, signal);
+  return data.at(0) ?? null;
+}
 
-  const known = previous?.latest ?? null;
-  if (known !== null && known.id === newestRun.id && known.status === newestRun.status && !isRunLive(newestRun)) return { latest: known, liveRuns };
-  return { latest: await fetchImportRun(newestRun.id, signal), liveRuns };
+function fetchRunDetailUnlessKnown(run: ImportRun, previous: ImportOverview | undefined, signal?: AbortSignal): Promise<ImportRunDetail> {
+  const known = previous?.latestRuns.find((candidate) => candidate.id === run.id);
+  const isUnchanged = known !== undefined && known.status === run.status && !isRunLive(run);
+  return isUnchanged ? Promise.resolve(known) : fetchImportRun(run.id, signal);
+}
+
+async function fetchImportOverview(previous: ImportOverview | undefined, signal?: AbortSignal): Promise<ImportOverview> {
+  const sources = await queryClient.ensureQueryData(officialSourcesQueryOptions());
+  const [newestRuns, { data: liveRuns }] = await Promise.all([
+    Promise.all(sources.map((source) => fetchNewestRun(source.key, signal))),
+    fetchImportRunPage({ limit: LIVE_RUN_LIMIT, statuses: LIVE_STATUSES }, signal),
+  ]);
+  const latestRuns = await Promise.all(newestRuns.flatMap((run) => (run === null ? [] : [fetchRunDetailUnlessKnown(run, previous, signal)])));
+  return { latestRuns, liveRuns };
 }
 
 function invalidateImportedData(): void {
@@ -54,7 +78,7 @@ async function fetchImportOverviewAndRefreshDerivedQueries(signal?: AbortSignal)
   const previous = queryClient.getQueryData<ImportOverview>(importKeys.overview());
   const overview = await fetchImportOverview(previous, signal);
   if (hasRunListChanged(previous, overview)) {
-    void queryClient.invalidateQueries({ queryKey: importKeys.history() });
+    void queryClient.invalidateQueries({ queryKey: HISTORY_KEY });
     void queryClient.invalidateQueries({ queryKey: RUN_DETAILS_KEY });
   }
   if (hasAppliedRunEnded(previous, overview)) invalidateImportedData();
@@ -67,12 +91,14 @@ export const importOverviewQueryOptions = queryOptions({
   refetchInterval: (query) => (isImportInProgress(query.state.data) ? ACTIVE_POLL_MS : IDLE_POLL_MS),
 });
 
-export const importHistoryQueryOptions = infiniteQueryOptions({
-  queryKey: importKeys.history(),
-  queryFn: ({ pageParam, signal }) => fetchImportRunPage(HISTORY_PAGE_SIZE, pageParam, signal),
-  initialPageParam: null as string | null,
-  getNextPageParam: (lastPage) => lastPage.paging.nextCursor,
-});
+export function importHistoryQueryOptions(sourceKey: string | null) {
+  return infiniteQueryOptions({
+    queryKey: importKeys.history(sourceKey),
+    queryFn: ({ pageParam, signal }) => fetchImportRunPage({ limit: HISTORY_PAGE_SIZE, cursor: pageParam, sourceKey }, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.paging.nextCursor,
+  });
+}
 
 export function useIsSourceImporting(sourceKey: string): boolean {
   const { data = false } = useQuery({
@@ -102,6 +128,14 @@ async function nullOnConflict(request: Promise<ImportRun>): Promise<ImportRun | 
 
 export function startImportRun(body: ImportRunCreate): Promise<ImportRun | null> {
   return nullOnConflict(postData<ImportRun>(RUNS_PATH, body));
+}
+
+export function updateOfficialSource(key: string, changes: OfficialSourceUpdate): Promise<unknown> {
+  return patchData(`official/sources/${key}`, changes);
+}
+
+export function updateOfficialDataset(id: number, changes: OfficialDatasetUpdate): Promise<unknown> {
+  return patchData(`official/datasets/${id}`, changes);
 }
 
 export function cancelImportRun(id: string): Promise<ImportRun | null> {

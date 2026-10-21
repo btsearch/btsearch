@@ -38,6 +38,15 @@ function storedSite(overrides: Partial<StoredSite> = {}): StoredSite {
   return { id: 501, siteCode: "BT1001", latitude: 52.2297, longitude: 21.0123, hasPermits: true, ...overrides };
 }
 
+function scriptWatchedSites(siteIds: readonly number[]): void {
+  dbMock.enqueueFor(
+    "select",
+    "official.site_watches",
+    siteIds.map((id) => ({ id })),
+  );
+  dbMock.enqueueFor("select", "user_lists", []);
+}
+
 function scriptRecipients(sites: readonly { siteId: number; watchers?: readonly string[]; listOwners?: readonly string[] }[]): void {
   dbMock.enqueueFor(
     "select",
@@ -159,6 +168,7 @@ describe("the site notifications step", () => {
   it("notifies the watchers and list owners of each changed site, and saves its progress with the rows it wrote", async () => {
     scriptStepStart();
     ownRun(2);
+    scriptWatchedSites([501, 502, 503]);
     dbMock.enqueueFor("select", "official.import_changes", [
       change(11, "permit_added", { officialSiteId: 501, permitId: 701 }),
       change(12, "permit_added", { officialSiteId: 501, permitId: 702 }),
@@ -190,7 +200,13 @@ describe("the site notifications step", () => {
     expect(dbMock.pendingResults()).toBe(0);
     const [start, read, write, finish] = transactionsOf(trace());
     expect(start).toEqual(["select official.import_runs", "select official.import_run_steps", "insert official.import_run_steps", "commit"]);
-    expect(read).toEqual(["select official.import_runs", "select official.import_changes", "commit"]);
+    expect(read).toEqual([
+      "select official.import_runs",
+      "select official.site_watches",
+      "select user_lists",
+      "select official.import_changes",
+      "commit",
+    ]);
     expect(write?.slice(0, 2)).toEqual(["select official.import_runs", "select official.sites"]);
     expect(write?.slice(-2)).toEqual(["update official.import_run_steps", "commit"]);
     expect(write?.filter((operation) => /^select official\.site(_watche)?s$/.test(operation))).toEqual([
@@ -209,7 +225,9 @@ describe("the site notifications step", () => {
     expect(finish).toEqual(["select official.import_runs", "update official.import_run_steps", "commit"]);
 
     const sitesRead = dbMock.calls.find((call) => call.operation === "select" && call.table === "official.sites");
+    const changesRead = dbMock.calls.find((call) => call.table === "official.import_changes");
     const [listsRead] = dbMock.calls.filter((call) => call.operation === "execute").map(statementOf);
+    expect(whereOf(changesRead).params.at(-1)).toBe("[501,502,503]");
     expect(whereOf(sitesRead).params).toEqual(["[501,503,502]"]);
     expect(listsRead?.params).toEqual(["[501,503,502]"]);
     const inserted = valuesOf("insert", "notifications") as Record<string, unknown>[];
@@ -267,6 +285,7 @@ describe("the site notifications step", () => {
   it("fails, and saves no progress, when a notification cannot be written", async () => {
     scriptStepStart();
     ownRun(3);
+    scriptWatchedSites([501]);
     dbMock.enqueueFor("select", "official.import_changes", [change(11, "permit_added", { officialSiteId: 501, permitId: 701 })]);
     dbMock.enqueueFor("select", "official.sites", [storedSite()]);
     scriptRecipients([{ siteId: 501, watchers: [WATCHER] }]);
@@ -283,6 +302,7 @@ describe("the site notifications step", () => {
   it("repeats a page that lost a deadlock, and keeps its rows and its progress once", async () => {
     scriptStepStart();
     ownRun(3);
+    scriptWatchedSites([501]);
     dbMock.enqueueFor("select", "official.import_changes", [change(11, "permit_added", { officialSiteId: 501, permitId: 701 })]);
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       dbMock.enqueueFor("select", "official.sites", [storedSite()]);
@@ -313,6 +333,7 @@ describe("the site notifications step", () => {
 
     scriptStepStart();
     ownRun(2);
+    scriptWatchedSites(sites.map((site) => site.id));
     dbMock.enqueueFor("select", "official.import_changes", changes);
     scriptSites(sites.slice(0, 200));
     dbMock.enqueueFor("insert", "notifications", [{ id: "n-1" }]);
@@ -328,6 +349,7 @@ describe("the site notifications step", () => {
 
     scriptStepStart({ lastSeq: 200 });
     ownRun(2);
+    scriptWatchedSites(sites.map((site) => site.id));
     dbMock.enqueueFor("select", "official.import_changes", changes);
     scriptSites(sites.slice(200));
     dbMock.enqueueFor("insert", "notifications", [{ id: "n-2" }]);
@@ -352,6 +374,7 @@ describe("the site notifications step", () => {
   it("tells of a remap run's archived permits as of an import's, and of nothing for a site that was only remapped", async () => {
     scriptStepStart();
     ownRun(2);
+    scriptWatchedSites([502, 509]);
     dbMock.enqueueFor("select", "official.import_changes", [
       change(8, "permit_archived", { officialSiteId: 502, permitId: 650 }),
       change(9, "permit_archived", { officialSiteId: 509, permitId: 651 }),
@@ -370,6 +393,7 @@ describe("the site notifications step", () => {
       "site_added",
       "permit_added",
       "permit_archived",
+      "[502,509]",
     ]);
     expect(valuesOf("insert", "notifications")).toEqual([
       expect.objectContaining({
@@ -380,17 +404,28 @@ describe("the site notifications step", () => {
     expect(valuesOf("update", "official.import_run_steps")[0]).toEqual({ lastSeq: 9 });
   });
 
-  it("writes nothing when the run changed no site", async () => {
+  it("writes nothing when the run changed no watched site", async () => {
     scriptStepStart();
     ownRun(1);
+    scriptWatchedSites([501]);
     dbMock.enqueueFor("select", "official.import_changes", []);
     scriptStepFinish();
 
     await runStep(siteNotifications);
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(dbMock.calls.some((call) => call.operation === "execute" || call.table === "official.sites" || call.table === "notifications")).toBe(
-      false,
-    );
+    expect(dbMock.calls.some((call) => call.table === "official.sites" || call.table === "notifications")).toBe(false);
+  });
+
+  it("reads no change at all when nobody watches an official site", async () => {
+    scriptStepStart();
+    ownRun(1);
+    scriptWatchedSites([]);
+    scriptStepFinish();
+
+    await runStep(siteNotifications);
+
+    expect(dbMock.pendingResults()).toBe(0);
+    expect(dbMock.calls.some((call) => call.table === "official.import_changes")).toBe(false);
   });
 });

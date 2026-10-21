@@ -64,7 +64,7 @@ describe("GET /official/permits/:id", () => {
     expect(renderedWhere("official.permits")).toEqual({ sql: '"official"."permits"."id" = $1', params: [41] });
   });
 
-  it("takes the kind of a permit without a decision from its dataset", async () => {
+  it("takes the kind of a permit without a decision from its dataset, and passes on its status", async () => {
     const inventoryRows = {
       ...officialPermitRows,
       location: { ...officialPermitRows.location, precision_meters: 31, source_ref: "23444" },
@@ -77,6 +77,7 @@ describe("GET /official/permits/:id", () => {
         rat: null,
         label_mhz: null,
         label_variant: null,
+        status: "in_service",
       },
     };
     scriptGuestVisibility([1]);
@@ -92,6 +93,7 @@ describe("GET /official/permits/:id", () => {
       number: null,
       kind: "inventory",
       expiresOn: null,
+      status: "inService",
       label: { rat: null, labelMhz: null, variant: null, name: null },
       datasets: ["mobile-networks"],
       officialSite: {

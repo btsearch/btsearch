@@ -148,7 +148,7 @@ async function openWorld(tx: DbTx): Promise<World> {
   return world;
 }
 
-async function linkedPermitsOf({ tx, group }: World, siteCode = SITE_CODE): Promise<string[]> {
+async function linkedPermitsOf({ tx, group }: World, siteCode = SITE_CODE): Promise<(string | null)[]> {
   const linked = await tx
     .select({ number: officialPermits.decision_number })
     .from(stationsPermits)
@@ -168,11 +168,11 @@ async function correctEveryGroup({ tx, sourceId }: World) {
 }
 
 async function numbersOf({ tx }: World, { added, removed }: Awaited<ReturnType<typeof correctStationLinks>>) {
-  const numberOf = async ({ permitId }: { permitId: number }): Promise<string | undefined> => {
+  const numberOf = async ({ permitId }: { permitId: number }): Promise<string | null | undefined> => {
     const [permit] = await tx.select({ number: officialPermits.decision_number }).from(officialPermits).where(eq(officialPermits.id, permitId));
     return permit?.number;
   };
-  const byNumber = (left: string | undefined, right: string | undefined) => (left ?? "").localeCompare(right ?? "");
+  const byNumber = (left: string | null | undefined, right: string | null | undefined) => (left ?? "").localeCompare(right ?? "");
   return { added: (await Promise.all(added.map(numberOf))).sort(byNumber), removed: (await Promise.all(removed.map(numberOf))).sort(byNumber) };
 }
 

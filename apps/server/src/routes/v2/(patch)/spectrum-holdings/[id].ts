@@ -27,7 +27,8 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The new operator does not exist or is in another country, the band is not in the plan or does not contain the ranges, " +
+    "The new operator does not exist or is in another country, the joint operator is the same operator or is in another country, " +
+    "the band is not in the plan or does not contain the ranges, " +
     "the uplink does not match the band's duplex mode, the region is in another country, or `validFrom` is after `validTo`.",
   403: "You are neither an administrator nor a maintainer of the operator's country.",
   409: "The holding would overlap another one in the same country, in the same region or nationwide, on at least one day.",
@@ -42,7 +43,7 @@ function sentOrStored<T>(sent: T | undefined, stored: T): T {
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<SpectrumHolding>>) {
   const { id } = req.params;
-  const { operatorId, bandId, regionId, downlinkKhz, uplinkKhz, validFrom, validTo, source } = req.body;
+  const { operatorId, jointOperatorId, bandId, regionId, downlinkKhz, uplinkKhz, validFrom, validTo, source } = req.body;
 
   const holding = await db.query.spectrumHoldings.findFirst({ where: { id } });
   if (!holding) throw new ErrorResponse("NOT_FOUND");
@@ -56,6 +57,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   const changes = {
     operatorId,
+    jointOperatorId,
     bandId,
     regionId,
     downlinkLowKhz: downlinkKhz?.[0],
@@ -68,6 +70,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   };
   const next = {
     operatorId: sentOrStored(changes.operatorId, holding.operatorId),
+    jointOperatorId: sentOrStored(changes.jointOperatorId, holding.jointOperatorId),
     bandId: sentOrStored(changes.bandId, holding.bandId),
     regionId: sentOrStored(changes.regionId, holding.regionId),
     downlinkLowKhz: sentOrStored(changes.downlinkLowKhz, holding.downlinkLowKhz),

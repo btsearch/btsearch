@@ -50,11 +50,12 @@ export const officialPermitRow = {
   rat: "LTE",
   label_mhz: 800,
   label_variant: "commercial",
+  status: null,
   updatedAt: changedAt,
   createdAt: importedAt,
 };
 
-export const officialSectorRow = { id: 51, permit_id: 41, azimuth: 360, elevation: 4, antenna_height: 32.5, antenna_type: "outdoor" };
+export const officialSectorRow = { id: 51, permit_id: 41, azimuth: 360, antenna_height: 32.5, antenna_type: "outdoor" };
 
 export const officialLocationRows = { location: officialLocationRow, region: regionRow, sourceKey: "pl-uke" };
 export const officialSiteRows = { ...officialLocationRows, site: officialSiteRow };
@@ -94,13 +95,14 @@ export const servedPermit = {
   number: "UKE/123/2026",
   kind: "permitChange",
   expiresOn: "2030-06-30",
+  status: null,
   label: { rat: "lte", labelMhz: 800, variant: "commercial", name: "LTE 800" },
   datasets: [] as string[],
   createdAt: IMPORTED_AT,
   updatedAt: CHANGED_AT,
 };
 
-export const servedSector = { id: 51, azimuth: 360, elevation: 4, antennaHeightMeters: 32.5, antennaType: "outdoor" };
+export const servedSector = { id: 51, azimuth: 360, antennaHeightMeters: 32.5, antennaType: "outdoor" };
 
 export function cacheCountryVisibility(hiddenCountryCodes: string[] = []): void {
   cacheInRedis(COUNTRY_VISIBILITY_KEY, [{ code: "PL", isVisible: true }, ...hiddenCountryCodes.map((code) => ({ code, isVisible: false }))]);

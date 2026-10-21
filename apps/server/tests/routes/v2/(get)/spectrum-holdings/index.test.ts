@@ -10,6 +10,7 @@ import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 const pairedRow = {
   id: 5,
   operatorId: 1,
+  jointOperatorId: null,
   bandId: 7,
   regionId: null,
   downlinkLowKhz: 1805000,
@@ -39,6 +40,7 @@ describe("GET /spectrum-holdings", () => {
         {
           id: 5,
           operatorId: 1,
+          jointOperatorId: null,
           bandId: 7,
           regionId: null,
           downlinkKhz: [1805000, 1835000],
@@ -50,6 +52,7 @@ describe("GET /spectrum-holdings", () => {
         {
           id: 6,
           operatorId: 1,
+          jointOperatorId: null,
           bandId: 9,
           regionId: null,
           downlinkKhz: [3400000, 3500000],
@@ -74,6 +77,7 @@ describe("GET /spectrum-holdings", () => {
     expect(params).toEqual(expect.arrayContaining(["PL", 1, 7, "2026-10-21"]));
     expect(sql).toContain('"valid_from" is null');
     expect(sql).toContain('"valid_to" is null');
+    expect(sql).toContain('"joint_operator_id" in');
   });
 
   it("embeds the operator and the band with include", async () => {
@@ -87,7 +91,25 @@ describe("GET /spectrum-holdings", () => {
 
     const response = await app.inject({ method: "GET", url: "/spectrum-holdings?include=operator,band" });
     expect(response.statusCode).toBe(200);
-    expect(response.json().data[0]).toMatchObject({ id: 5, operator: { id: 1, name: "Plus" }, band: { id: 7, rat: "lte", number: 3 } });
+    expect(response.json().data[0]).toMatchObject({
+      id: 5,
+      operator: { id: 1, name: "Plus" },
+      jointOperator: null,
+      band: { id: 7, rat: "lte", number: 3 },
+    });
+  });
+
+  it("embeds the joint operator of a jointly held licence", async () => {
+    dbMock.enqueueFor("select", "countries", [{ code: "PL", isVisible: true }]);
+    dbMock.enqueueFor("select", "spectrum_holdings", [{ ...pairedRow, jointOperatorId: 2 }]);
+    dbMock.enqueueFor("select", "operators", [operator, { ...operator, id: 2, name: "Play", mnc: 26006 }]);
+    dbMock.enqueueFor("select", "plmns", []);
+    dbMock.enqueueFor("select", "operator_links", []);
+    const app = await createRouteHarness(getSpectrumHoldings);
+
+    const response = await app.inject({ method: "GET", url: "/spectrum-holdings?include=operator" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0]).toMatchObject({ operatorId: 1, jointOperatorId: 2, operator: { id: 1 }, jointOperator: { id: 2, name: "Play" } });
   });
 
   it("answers an empty list without reading holdings when no requested country is visible", async () => {

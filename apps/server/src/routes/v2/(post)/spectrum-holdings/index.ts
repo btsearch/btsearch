@@ -23,7 +23,8 @@ const schemaRoute = {
 };
 const errorReasons = {
   400:
-    "The operator does not exist, the band is not in the plan of the operator's country or does not contain the ranges, " +
+    "The operator does not exist, the joint operator is the same operator or is in another country, " +
+    "the band is not in the plan of the operator's country or does not contain the ranges, " +
     "the uplink does not match the band's duplex mode, or the region is in another country.",
   403: "You are neither an administrator nor a maintainer of the operator's country.",
   409: "The holding overlaps another one in the same country, in the same region or nationwide, on at least one day.",
@@ -31,12 +32,23 @@ const errorReasons = {
 type ReqBody = { Body: SpectrumHoldingCreate };
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<SpectrumHolding>>) {
-  const { operatorId, bandId, regionId = null, downlinkKhz, uplinkKhz = null, validFrom = null, validTo = null, source = null } = req.body;
+  const {
+    operatorId,
+    jointOperatorId = null,
+    bandId,
+    regionId = null,
+    downlinkKhz,
+    uplinkKhz = null,
+    validFrom = null,
+    validTo = null,
+    source = null,
+  } = req.body;
   const countryCode = await findOperatorCountry(operatorId);
   await assertManagesHoldings(req, "create", countryCode);
 
   const values = {
     operatorId,
+    jointOperatorId,
     bandId,
     regionId,
     downlinkLowKhz: downlinkKhz[0],

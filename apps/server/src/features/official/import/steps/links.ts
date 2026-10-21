@@ -1,5 +1,5 @@
 import { officialRemapRuns, officialSites } from "@openbts/drizzle";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, isNotNull } from "drizzle-orm";
 
 import { unique } from "../../../../lib/collections.js";
 import type { DbTx } from "../../../../types/global.js";
@@ -44,7 +44,13 @@ async function relinkGroups(tx: DbTx, { run }: AfterStepContext, groups: readonl
 
 async function relinkGroupsChangedAfter(tx: DbTx, context: AfterStepContext, afterSeq: number | null): Promise<number | null> {
   const { run } = context;
-  const changes = await readChanges(tx, run.id, { afterSeq, kinds: GROUP_CHANGING_KINDS, limit: STATEMENT_BATCH_SIZE });
+  const sitesWithCode = tx.select({ id: officialSites.id }).from(officialSites).where(isNotNull(officialSites.station_id));
+  const changes = await readChanges(tx, run.id, {
+    afterSeq,
+    kinds: GROUP_CHANGING_KINDS,
+    limit: STATEMENT_BATCH_SIZE,
+    officialSiteIds: sitesWithCode,
+  });
   const lastChange = changes.at(-1);
   if (!lastChange) return null;
 

@@ -19,8 +19,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { bandsQueryOptions, brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
-import { formatRange, sourceLink } from "@/features/spectrum/format";
-import { type BandHoldings, groupHoldingsByBand, toSpectrumOperator, widthKhz } from "@/features/spectrum/model";
+import { formatRange, holderBackground, sourceLink } from "@/features/spectrum/format";
+import { type BandHoldings, groupHoldingsByBand, holdingOperators, toSpectrumOperator, widthKhz } from "@/features/spectrum/model";
 import { countrySpectrumHoldingsQueryOptions } from "@/features/spectrum/queries";
 import { useIsMobile } from "@/hooks/useMobile";
 import { formatShortUtcDate } from "@/lib/format";
@@ -31,7 +31,7 @@ type SpectrumSectionProps = { country: Country; canEdit: boolean };
 type HoldingRowView = {
   holding: SpectrumHolding;
   name: string;
-  brand: BrandLook | null;
+  brands: (BrandLook | null)[];
   downlink: string;
   uplink: string | null;
   region: string | null;
@@ -45,12 +45,12 @@ type HoldingListProps = {
   canEdit: boolean;
   onEdit: (holding: SpectrumHolding) => void;
   onDelete: (holding: SpectrumHolding) => void;
-  colorOf: (holding: SpectrumHolding) => string;
+  colorsOf: (holding: SpectrumHolding) => string[];
 };
 
 const SKELETON_ROW_COUNT = 4;
 
-function BandGroupTitle({ group, colorOf }: { group: BandHoldings; colorOf: (holding: SpectrumHolding) => string }) {
+function BandGroupTitle({ group, colorsOf }: { group: BandHoldings; colorsOf: (holding: SpectrumHolding) => string[] }) {
   const { t } = useTranslation("spectrum");
   const span = widthKhz(group.downlinkKhz);
 
@@ -72,7 +72,7 @@ function BandGroupTitle({ group, colorOf }: { group: BandHoldings; colorOf: (hol
               style={{
                 left: `${((holding.downlinkKhz[0] - group.downlinkKhz[0]) / span) * 100}%`,
                 width: `${(widthKhz(holding.downlinkKhz) / span) * 100}%`,
-                backgroundColor: colorOf(holding),
+                background: holderBackground(colorsOf(holding)),
               }}
             />
           ))}
@@ -97,7 +97,7 @@ function HoldingTableHead({ canEdit }: { canEdit: boolean }) {
   );
 }
 
-function HoldingTable({ groups, rowsOf, canEdit, onEdit, onDelete, colorOf }: HoldingListProps) {
+function HoldingTable({ groups, rowsOf, canEdit, onEdit, onDelete, colorsOf }: HoldingListProps) {
   const { t } = useTranslation("admin");
   const columnCount = canEdit ? 7 : 6;
 
@@ -112,34 +112,36 @@ function HoldingTable({ groups, rowsOf, canEdit, onEdit, onDelete, colorOf }: Ho
           canEdit={canEdit}
           onEdit={onEdit}
           onDelete={onDelete}
-          colorOf={colorOf}
+          colorsOf={colorsOf}
         />
       ))}
     </CardTable>
   );
 }
 
-type HoldingTableGroupProps = Pick<HoldingListProps, "canEdit" | "onEdit" | "onDelete" | "colorOf"> & {
+type HoldingTableGroupProps = Pick<HoldingListProps, "canEdit" | "onEdit" | "onDelete" | "colorsOf"> & {
   group: BandHoldings;
   rows: HoldingRowView[];
   columnCount: number;
 };
 
-function HoldingTableGroup({ group, rows, columnCount, canEdit, onEdit, onDelete, colorOf }: HoldingTableGroupProps) {
+function HoldingTableGroup({ group, rows, columnCount, canEdit, onEdit, onDelete, colorsOf }: HoldingTableGroupProps) {
   const { t } = useTranslation("admin");
 
   return (
     <>
       <CardTableRow className="bg-muted/30 hover:bg-muted/30">
         <CardTableCell colSpan={columnCount}>
-          <BandGroupTitle group={group} colorOf={colorOf} />
+          <BandGroupTitle group={group} colorsOf={colorsOf} />
         </CardTableCell>
       </CardTableRow>
       {rows.map((row) => (
         <CardTableRow key={row.holding.id}>
           <CardTableCell>
             <span className="flex min-w-0 items-center gap-2 font-medium">
-              <BrandMark brand={row.brand} />
+              {row.brands.map((brand, index) => (
+                <BrandMark key={index} brand={brand} />
+              ))}
               <span className="truncate">{row.name}</span>
             </span>
           </CardTableCell>
@@ -207,20 +209,22 @@ function HoldingRowMenu({ name, onEdit, onDelete }: { name: string; onEdit: () =
   );
 }
 
-function HoldingMobileList({ groups, rowsOf, canEdit, onEdit, onDelete, colorOf }: HoldingListProps) {
+function HoldingMobileList({ groups, rowsOf, canEdit, onEdit, onDelete, colorsOf }: HoldingListProps) {
   const { t } = useTranslation("admin");
 
   return (
     <div>
       {groups.map((group) => (
         <section key={group.key} className="border-t px-4 pt-3">
-          <BandGroupTitle group={group} colorOf={colorOf} />
+          <BandGroupTitle group={group} colorsOf={colorsOf} />
           <ul className="mt-1">
             {rowsOf(group).map((row) => (
               <li key={row.holding.id} className={cn("flex items-center gap-3 border-t py-2.5 first:border-t-0", canEdit ? "pr-0" : "pr-2")}>
                 <div className="min-w-0 flex-1">
                   <p className="flex min-w-0 items-center gap-1.5 text-sm leading-5 font-medium">
-                    <BrandMark brand={row.brand} />
+                    {row.brands.map((brand, index) => (
+                      <BrandMark key={index} brand={brand} />
+                    ))}
                     <span className="truncate">{row.name}</span>
                   </p>
                   <p className="font-mono text-xs leading-4 text-muted-foreground tabular-nums">
@@ -291,14 +295,20 @@ export function SpectrumSection({ country, canEdit }: SpectrumSectionProps) {
   const operatorById = new Map(countryOperators.map((operator) => [operator.id, toSpectrumOperator(operator, brands ?? [])]));
   const regionNameById = new Map((regions ?? []).map((region) => [region.id, region.name]));
 
+  function nameOf(holding: SpectrumHolding): string {
+    const [operator, jointOperator] = holdingOperators(holding, operatorById);
+    if (operator === undefined) return String(holding.operatorId);
+    return jointOperator === undefined ? operator.name : t("spectrum:holding.jointNames", { first: operator.name, second: jointOperator.name });
+  }
+
   function rowsOf(group: BandHoldings): HoldingRowView[] {
     return group.holdings.map((holding) => {
-      const operator = operatorById.get(holding.operatorId);
+      const holders = holdingOperators(holding, operatorById);
       const source = holding.source === null ? null : (sourceLink(holding.source)?.label ?? holding.source);
       return {
         holding,
-        name: operator?.name ?? String(holding.operatorId),
-        brand: operator?.brand ?? null,
+        name: nameOf(holding),
+        brands: holders.length === 0 ? [null] : holders.map((operator) => operator.brand),
         downlink: formatRange(t, holding.downlinkKhz),
         uplink: holding.uplinkKhz === null ? null : formatRange(t, holding.uplinkKhz),
         region: holding.regionId === null ? null : (regionNameById.get(holding.regionId) ?? null),
@@ -308,8 +318,8 @@ export function SpectrumSection({ country, canEdit }: SpectrumSectionProps) {
     });
   }
 
-  function colorOf(holding: SpectrumHolding): string {
-    return operatorById.get(holding.operatorId)?.color ?? "transparent";
+  function colorsOf(holding: SpectrumHolding): string[] {
+    return holdingOperators(holding, operatorById).map((operator) => operator.color);
   }
 
   function openAddDialog() {
@@ -353,7 +363,7 @@ export function SpectrumSection({ country, canEdit }: SpectrumSectionProps) {
       );
     }
 
-    const listProps = { groups, rowsOf, canEdit, onEdit: openEditDialog, onDelete: openDeleteDialog, colorOf };
+    const listProps = { groups, rowsOf, canEdit, onEdit: openEditDialog, onDelete: openDeleteDialog, colorsOf };
     return isMobile ? <HoldingMobileList {...listProps} /> : <HoldingTable {...listProps} />;
   }
 
@@ -385,7 +395,7 @@ export function SpectrumSection({ country, canEdit }: SpectrumSectionProps) {
           {holdingToDelete === null ? null : (
             <SpectrumHoldingDeleteDialog
               holding={holdingToDelete}
-              operatorName={operatorById.get(holdingToDelete.operatorId)?.name ?? ""}
+              operatorName={nameOf(holdingToDelete)}
               open={isDeleteOpen}
               onOpenChange={setIsDeleteOpen}
             />

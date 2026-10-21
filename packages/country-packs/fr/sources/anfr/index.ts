@@ -1,7 +1,7 @@
 import type { OfficialSourceDefinition } from "../../../core/sources.ts";
-import { discoverMobileNetworks } from "./discover.ts";
+import { discoverRadioInstallations } from "./discover.ts";
 import { operatorNameOfLicensee, shortLicenseeName } from "./licensees.ts";
-import { parseMobileNetworks } from "./parse.ts";
+import { parseRadioInstallations } from "./parse.ts";
 
 export const anfr: OfficialSourceDefinition = {
   key: "fr-anfr",
@@ -20,8 +20,8 @@ export const anfr: OfficialSourceDefinition = {
       layer: "sites",
       permitKind: "inventory",
       checkEveryHours: 24,
-      discover: discoverMobileNetworks,
-      parse: parseMobileNetworks,
+      discover: discoverRadioInstallations,
+      parse: parseRadioInstallations,
     },
   ],
 };

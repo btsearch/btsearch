@@ -45,6 +45,7 @@ export const OfficialPermitKind = pgEnum("official_permit_kind", [
   "assessment",
   "licence",
 ]);
+export const OfficialPermitStatus = pgEnum("official_permit_status", ["approved", "in_service"]);
 export const StructureType = pgEnum("structure_type", [
   "lattice_tower",
   "tubular_tower",
@@ -527,6 +528,7 @@ export const officialPermits = OfficialSchema.table(
     rat: ratEnum("rat"),
     label_mhz: integer("label_mhz"),
     label_variant: BandVariant("label_variant"),
+    status: OfficialPermitStatus("status"),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -557,12 +559,11 @@ export const officialPermitSectors = OfficialSchema.table(
       .references(() => officialPermits.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
     azimuth: integer("azimuth"),
-    elevation: integer("elevation"),
     antenna_height: doublePrecision("antenna_height"),
     antenna_type: AntennaType("antenna_type"),
   },
   (t) => [
-    unique("permit_sectors_unique").on(t.permit_id, t.azimuth, t.elevation, t.antenna_height, t.antenna_type),
+    unique("permit_sectors_unique").on(t.permit_id, t.azimuth, t.antenna_height, t.antenna_type),
     index("permit_sectors_permit_id_idx").on(t.permit_id),
   ],
 );
@@ -792,6 +793,7 @@ export const spectrumHoldings = pgTable(
     operatorId: integer("operator_id")
       .notNull()
       .references(() => operators.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    jointOperatorId: integer("joint_operator_id").references(() => operators.id, { onDelete: "restrict", onUpdate: "cascade" }),
     bandId: integer("band_id")
       .notNull()
       .references(() => bands.id, { onDelete: "restrict", onUpdate: "cascade" }),
@@ -808,8 +810,10 @@ export const spectrumHoldings = pgTable(
   },
   (t) => [
     index("spectrum_holdings_operator_id_idx").on(t.operatorId),
+    index("spectrum_holdings_joint_operator_id_idx").on(t.jointOperatorId),
     index("spectrum_holdings_band_id_idx").on(t.bandId),
     index("spectrum_holdings_region_id_idx").on(t.regionId),
+    check("spectrum_holdings_joint_operator_distinct", sql`${t.jointOperatorId} <> ${t.operatorId}`),
     check("spectrum_holdings_downlink_order", sql`${t.downlinkLowKhz} < ${t.downlinkHighKhz}`),
     check("spectrum_holdings_uplink_complete", sql`num_nulls(${t.uplinkLowKhz}, ${t.uplinkHighKhz}) IN (0, 2)`),
     check("spectrum_holdings_uplink_order", sql`${t.uplinkLowKhz} < ${t.uplinkHighKhz}`),

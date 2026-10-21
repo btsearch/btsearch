@@ -14,7 +14,6 @@ type RegistryColumn =
   | "latitude"
   | "systemType"
   | "azimuth"
-  | "elevation"
   | "antennaHeight"
   | "cellType";
 
@@ -53,7 +52,6 @@ const COLUMN_BY_HEADER = new Map<string, RegistryColumn>([
   ["rodzaj systemu komórki", "systemType"],
   ["rodzaj systemu komorki", "systemType"],
   ["azymut", "azimuth"],
-  ["elewacja", "elevation"],
   ["h anteny", "antennaHeight"],
   ["typ komórki", "cellType"],
   ["typ komorki", "cellType"],

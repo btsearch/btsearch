@@ -5,6 +5,7 @@ import { idsIn } from "../../../../lib/conditions.js";
 import type { DbTx } from "../../../../types/global.js";
 import { buildMapLocationActionUrl, buildOfficialSiteActionUrl } from "../../../notifications/actionUrls.js";
 import { notifyOfficialSitesWatchers } from "../../../notifications/service.js";
+import { getWatchedOfficialSiteIds } from "../../../notifications/watchers.js";
 import { readEveryChange } from "../changes.js";
 import type { AfterStep, AfterStepContext, ChangeKind, ChangeRow } from "../types.js";
 import { notifyInPages } from "./notificationPages.js";
@@ -98,7 +99,10 @@ async function notifySites(tx: DbTx, summaries: readonly SiteChangeSummary[]): P
 }
 
 async function perform(context: AfterStepContext): Promise<void> {
-  const changes = await context.transaction((tx) => readEveryChange(tx, context.run.id, SITE_CHANGE_KINDS));
+  const changes = await context.transaction(async (tx) => {
+    const watchedSiteIds = await getWatchedOfficialSiteIds(tx);
+    return watchedSiteIds.length === 0 ? [] : readEveryChange(tx, context.run.id, SITE_CHANGE_KINDS, idsIn(watchedSiteIds));
+  });
   await notifyInPages(context, summarizeSiteChanges(changes), notifySites);
 }
 

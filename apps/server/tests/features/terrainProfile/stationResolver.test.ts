@@ -30,7 +30,7 @@ const labelledPermit = {
   rat: "LTE",
   label_mhz: 800,
   label_variant: "commercial",
-  sectors: [{ id: 51, azimuth: 120, elevation: 4, antenna_height: 32.5 }],
+  sectors: [{ id: 51, azimuth: 120, antenna_height: 32.5 }],
 };
 
 const labelledCandidate = {
@@ -38,7 +38,7 @@ const labelledCandidate = {
   source: "permit_fallback",
   antenna: { mountedHeight: 32.5, azimuth: 120 },
   frequencyMHz: 800,
-  measuredTilt: 4,
+  measuredTilt: null,
   band: { value: 800, rat: "LTE", variant: "commercial" },
   provenance: { report_url: null, report_date: null, permit_id: 41, decision_number: "UKE/123/2026" },
 };

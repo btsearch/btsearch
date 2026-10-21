@@ -22,6 +22,11 @@ export function formatShortWidth(t: TFunction, khz: number, isPaired: boolean): 
   return isPaired ? t("spectrum:width.pairedShort", { width }) : width;
 }
 
+export function holderBackground(colors: readonly string[]): string {
+  const [first = "transparent", second] = colors;
+  return second === undefined ? first : `linear-gradient(${first} 50%, ${second} 50%)`;
+}
+
 export function readableTextColor(background: string): string {
   const channels = [1, 3, 5].map((start) => Number.parseInt(background.slice(start, start + 2), 16) / 255);
   const linear = channels.map((value) => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));

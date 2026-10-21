@@ -35,7 +35,7 @@ export type ImportRunStatus = (typeof IMPORT_RUN_STATUSES)[number];
 const SOURCE_KEY_MAX_LENGTH = 64;
 const MAX_LICENSEE_LIST_LIMIT = 1000;
 const SLICE_KEY_MAX_LENGTH = 64;
-const LONGEST_CHECK_INTERVAL_HOURS = 32_767;
+export const LONGEST_CHECK_INTERVAL_HOURS = 32_767;
 const RUN_DATASET_LIMIT = 100;
 const RUN_APPROVAL_LIMIT = 500;
 
@@ -59,7 +59,7 @@ const DATASET_ENABLED_NOTE =
 const CHECK_EVERY_HOURS_NOTE = "How often, in hours, a scheduled import checks the dataset for a new release";
 const HOLD_SHRINK_PERCENT_NOTE =
   "A slice is held instead of applied when a release has more than this percentage fewer records for it than are stored. " +
-  "A release without any record for a slice is always held";
+  "A release without any record for a slice is held too, unless nothing is stored for it either";
 const DRY_RUN_NOTE = "A dry run works out what the run would change and then undoes it, so nothing is changed and no notifications are sent";
 const RUN_KIND_NOTE =
   "`import` reads what the source has published and applies what is new. " +
@@ -311,6 +311,9 @@ export const importRunDetailSchema = importRunSchema.extend({
   steps: z
     .array(importRunStepSchema)
     .describe("The steps the run takes after its slices, in order. A step that has not started yet is not listed, and a dry run lists none"),
+  plannedSteps: z
+    .array(z.enum(IMPORT_RUN_STEPS))
+    .describe("Every step the run takes after its slices, in order, including those that have not started yet. Empty for a dry run"),
   approvals: z.array(importRunApprovalSchema).describe("The held slices the run was told to apply"),
   dryRunReport: dryRunReportSchema
     .nullable()

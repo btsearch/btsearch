@@ -15,6 +15,7 @@ export function toSpectrumHolding(row: SpectrumHoldingRow): SpectrumHolding {
   return {
     id: row.id,
     operatorId: row.operatorId,
+    jointOperatorId: row.jointOperatorId,
     bandId: row.bandId,
     regionId: row.regionId,
     downlinkKhz: [row.downlinkLowKhz, row.downlinkHighKhz],

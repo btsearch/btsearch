@@ -1,4 +1,4 @@
-import type { MicrowaveLinkRecord, OfficialSourceDefinition, SiteRecord, SiteSector, SitesDataset } from "@openbts/country-packs/sources";
+import type { MicrowaveLinkRecord, OfficialSourceDefinition, PermitKind, SiteRecord, SiteSector, SitesDataset } from "@openbts/country-packs/sources";
 import {
   countries,
   licensees,
@@ -110,8 +110,9 @@ function siteRecord(number: number, published: { licensee?: string; permitNumber
       number: published.permitNumber ?? `ET/${number}`,
       decisionType: "permit",
       expiresOn: "2030-01-01",
+      status: null,
     },
-    sectors: [{ azimuth: 120, elevation: null, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
+    sectors: [{ azimuth: 120, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
   };
 }
 
@@ -150,7 +151,7 @@ async function* recordsOf<PublishedRecord>(records: readonly PublishedRecord[]):
   yield* records;
 }
 
-function sourceOf(published: Published, syncSiteNames?: SitesDataset["syncSiteNames"]): OfficialSourceDefinition {
+function sourceOf(published: Published, syncSiteNames: SitesDataset["syncSiteNames"] | undefined, permitsKind: PermitKind): OfficialSourceDefinition {
   const releaseOf = (dataset: DatasetKey) => async () => [
     {
       coveredSlices: [dataset === "links" ? "" : "north"],
@@ -174,7 +175,7 @@ function sourceOf(published: Published, syncSiteNames?: SitesDataset["syncSiteNa
       {
         key: "permits",
         layer: "sites",
-        permitKind: "permit",
+        permitKind: permitsKind,
         checkEveryHours: 6,
         discover: releaseOf("permits"),
         parse: () => recordsOf(published.permits),
@@ -213,9 +214,9 @@ function serve(published: Published): void {
   );
 }
 
-async function openWorld(tx: DbTx, syncSiteNames?: SitesDataset["syncSiteNames"]): Promise<World> {
+async function openWorld(tx: DbTx, syncSiteNames?: SitesDataset["syncSiteNames"], permitsKind: PermitKind = "permit"): Promise<World> {
   const published: Published = { permits: [], registry: [], links: [] };
-  const source = sourceOf(published, syncSiteNames);
+  const source = sourceOf(published, syncSiteNames, permitsKind);
   serve(published);
 
   await tx.insert(countries).values({ code: COUNTRY_CODE });
@@ -576,10 +577,10 @@ describe.skipIf(DATABASE_URL === "")(
         ]);
       }));
 
-    it("rounds a decimal azimuth and elevation instead of failing the release", () =>
+    it("rounds a decimal azimuth instead of failing the release", () =>
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
-        const sector: SiteSector = { azimuth: 120.5, elevation: -2.5, antennaHeight: 30.5, antennaPlacement: "outdoor" };
+        const sector: SiteSector = { azimuth: 120.5, antennaHeight: 30.5, antennaPlacement: "outdoor" };
         world.published.permits = [{ ...siteRecord(1), sectors: [sector, { ...sector, azimuth: 121.4 }] }];
 
         const run = await runImport(world, ["permits"]);
@@ -587,18 +588,53 @@ describe.skipIf(DATABASE_URL === "")(
         expect(await slicesOf(world, run)).toEqual([{ dataset: "permits", slice: "north", outcome: "applied", stagedCount: 1, liveCount: 0 }]);
         expect(
           await tx
-            .select({ azimuth: officialPermitSectors.azimuth, elevation: officialPermitSectors.elevation })
+            .select({ azimuth: officialPermitSectors.azimuth })
             .from(officialPermitSectors)
             .innerJoin(officialPermits, eq(officialPermits.id, officialPermitSectors.permit_id))
             .innerJoin(officialSites, eq(officialSites.id, officialPermits.official_site_id))
             .where(eq(officialSites.source_id, world.sourceId)),
-        ).toEqual([{ azimuth: 121, elevation: -3 }]);
+        ).toEqual([{ azimuth: 121 }]);
+      }));
+
+    it("keeps an inventory permit whose status changed, and keeps only the sectors the latest release publishes", () =>
+      rolledBack(async (tx) => {
+        const world = await openWorld(tx, undefined, "inventory");
+        const record = siteRecord(1);
+        const sector = (azimuth: number, antennaHeight: number): SiteSector => ({ azimuth, antennaHeight, antennaPlacement: null });
+        const storedPermit = () =>
+          tx
+            .select({ id: officialPermits.id, status: officialPermits.status })
+            .from(officialPermits)
+            .innerJoin(officialSites, eq(officialSites.id, officialPermits.official_site_id))
+            .where(eq(officialSites.source_id, world.sourceId));
+        const storedSectors = () =>
+          tx
+            .select({ azimuth: officialPermitSectors.azimuth, antennaHeight: officialPermitSectors.antenna_height })
+            .from(officialPermitSectors)
+            .innerJoin(officialPermits, eq(officialPermits.id, officialPermitSectors.permit_id))
+            .innerJoin(officialSites, eq(officialSites.id, officialPermits.official_site_id))
+            .where(eq(officialSites.source_id, world.sourceId))
+            .orderBy(asc(officialPermitSectors.azimuth));
+
+        world.published.permits = [{ ...record, permit: { ...record.permit, status: "approved" }, sectors: [sector(120, 30.5), sector(240, 30.5)] }];
+        await runImport(world, ["permits"]);
+        const [approved] = await storedPermit();
+
+        world.published.permits = [{ ...record, permit: { ...record.permit, status: "in_service" }, sectors: [sector(120, 30.5), sector(240, 32)] }];
+        await runImport(world, ["permits"]);
+
+        expect(approved?.status).toBe("approved");
+        expect(await storedPermit()).toEqual([{ id: approved?.id, status: "in_service" }]);
+        expect(await storedSectors()).toEqual([
+          { azimuth: 120, antennaHeight: 30.5 },
+          { azimuth: 240, antennaHeight: 32 },
+        ]);
       }));
 
     it("stores a permit published on several lines once, with every line's sectors, and counts permits for the guard and lines for the skips", () =>
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
-        const sector = (azimuth: number): SiteSector => ({ azimuth, elevation: null, antennaHeight: 30.5, antennaPlacement: "outdoor" });
+        const sector = (azimuth: number): SiteSector => ({ azimuth, antennaHeight: 30.5, antennaPlacement: "outdoor" });
         const withSectors = (record: SiteRecord, ...azimuths: number[]): SiteRecord => ({ ...record, sectors: azimuths.map(sector) });
         const withoutRegion = (record: SiteRecord): SiteRecord => ({ ...record, location: { ...record.location, regionIsoCode: "ZZ-XX" } });
         world.published.registry = [

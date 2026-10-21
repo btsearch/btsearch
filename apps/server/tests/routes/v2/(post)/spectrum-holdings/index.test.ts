@@ -12,6 +12,7 @@ const editorOptions = { session: userSession("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb
 const row = {
   id: 5,
   operatorId: 1,
+  jointOperatorId: null,
   bandId: 7,
   regionId: null,
   downlinkLowKhz: 1805000,
@@ -91,6 +92,31 @@ describe("POST /spectrum-holdings", () => {
       "BAD_REQUEST",
       "Only a holding in an FDD band can have an uplink range",
     );
+  });
+
+  it("creates a jointly held holding when the joint operator is in the same country", async () => {
+    dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }], [{ countryCode: "PL" }]);
+    scriptAudit();
+    scriptValidBand();
+    dbMock.enqueueFor("select", "spectrum_holdings", []);
+    dbMock.enqueueFor("insert", "spectrum_holdings", [{ ...row, jointOperatorId: 2 }]);
+
+    const response = await injectMutation(route, { ...request, payload: { ...payload, jointOperatorId: 2 } }, adminOptions);
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ data: { operatorId: 1, jointOperatorId: 2 } });
+  });
+
+  it.each([
+    { jointOperatorId: 1, jointCountry: [], message: "The joint operator must be another operator" },
+    { jointOperatorId: 2, jointCountry: [{ countryCode: "DE" }], message: "The joint operator is not in the operator's country" },
+    { jointOperatorId: 3, jointCountry: [], message: "The joint operator is not in the operator's country" },
+  ])("refuses joint operator $jointOperatorId: $message", async ({ jointOperatorId, jointCountry, message }) => {
+    dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }], jointCountry);
+    scriptAudit();
+    scriptValidBand();
+
+    expectError(await injectMutation(route, { ...request, payload: { ...payload, jointOperatorId } }, adminOptions), 400, "BAD_REQUEST", message);
+    expect(wasInserted()).toBe(false);
   });
 
   it("refuses a range that overlaps another holding in the country", async () => {

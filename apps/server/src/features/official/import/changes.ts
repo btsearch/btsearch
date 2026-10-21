@@ -1,5 +1,5 @@
 import { officialImportChanges } from "@openbts/drizzle";
-import { and, asc, count, eq, gt, inArray } from "drizzle-orm";
+import { type SQLWrapper, and, asc, count, eq, gt, inArray } from "drizzle-orm";
 
 import { chunks } from "../../../lib/collections.js";
 import type { DbTx } from "../../../types/global.js";
@@ -20,7 +20,7 @@ export async function insertChanges(tx: DbTx, runId: string, changes: readonly C
 export async function readChanges(
   tx: Pick<DbTx, "select">,
   runId: string,
-  page: { afterSeq: number | null; kinds: readonly ChangeKind[]; limit: number },
+  page: { afterSeq: number | null; kinds: readonly ChangeKind[]; limit: number; officialSiteIds?: SQLWrapper },
 ): Promise<ChangeRow[]> {
   return tx
     .select()
@@ -30,17 +30,23 @@ export async function readChanges(
         eq(officialImportChanges.runId, runId),
         inArray(officialImportChanges.kind, [...page.kinds]),
         page.afterSeq === null ? undefined : gt(officialImportChanges.seq, page.afterSeq),
+        page.officialSiteIds === undefined ? undefined : inArray(officialImportChanges.officialSiteId, page.officialSiteIds),
       ),
     )
     .orderBy(asc(officialImportChanges.seq))
     .limit(page.limit);
 }
 
-export async function readEveryChange(tx: Pick<DbTx, "select">, runId: string, kinds: readonly ChangeKind[]): Promise<ChangeRow[]> {
+export async function readEveryChange(
+  tx: Pick<DbTx, "select">,
+  runId: string,
+  kinds: readonly ChangeKind[],
+  officialSiteIds?: SQLWrapper,
+): Promise<ChangeRow[]> {
   const changes: ChangeRow[] = [];
   for (;;) {
     // eslint-disable-next-line no-await-in-loop
-    const page = await readChanges(tx, runId, { afterSeq: changes.at(-1)?.seq ?? null, kinds, limit: CHANGES_PER_READ });
+    const page = await readChanges(tx, runId, { afterSeq: changes.at(-1)?.seq ?? null, kinds, limit: CHANGES_PER_READ, officialSiteIds });
     for (const change of page) changes.push(change);
     if (page.length < CHANGES_PER_READ) return changes;
   }

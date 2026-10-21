@@ -7,7 +7,7 @@ import path from "node:path";
 import db from "../../../database/psql.js";
 import { errorMessage } from "../../../utils/errorMessage.js";
 import { logger } from "../../../utils/logger.js";
-import { hasStartedAfterSteps, runAfterSteps } from "./afterSteps.js";
+import { hasStartedAfterSteps, plannedAfterSteps, runAfterSteps } from "./afterSteps.js";
 import { saveDatasetError } from "./checkpoints.js";
 import { type RunDatasets, prepareReleases, readRunDatasets } from "./datasets.js";
 import { correctLicenseeNames } from "./licensees.js";
@@ -134,7 +134,7 @@ export async function processRun(run: ClaimedRun, environment: ImportEnvironment
       await importDatasets(scope, await readRunDatasets(db, run.id, scope.source), (dataset) => prepareReleases(db, workspace, dataset));
       if (run.kind === "import" && (await forgetUnchangedImport(scope))) return "unchanged";
     }
-    await runAfterSteps(scope, environment.steps, environment.archive);
+    await runAfterSteps(scope, plannedAfterSteps(environment.steps, scope.source, false), environment.archive);
     await inRunTransaction(scope, (tx) => finishRun(tx, run.id));
     return "done";
   } catch (error) {
@@ -165,11 +165,7 @@ async function rehearse(scope: RunScope, environment: ImportEnvironment, directo
     const licenseeNamesCorrected = await correctLicenseeNames(tx, run.sourceId, source.shortLicenseeName);
     const remap = run.kind === "remap" ? await applyRemap(transactionScope) : null;
     await importDatasets(transactionScope, datasets, (dataset) => preparedBeforeTransaction.get(dataset.id) ?? Promise.resolve([]));
-    await runAfterSteps(
-      transactionScope,
-      environment.steps.filter((step) => step.runsInDryRun),
-      environment.archive,
-    );
+    await runAfterSteps(transactionScope, plannedAfterSteps(environment.steps, source, true), environment.archive);
 
     throw new DryRunRollback(await readReport(tx, run.id, { siteNames: scope.siteNames, licenseeNamesCorrected, remap }));
   }).catch(reportOfRollback);

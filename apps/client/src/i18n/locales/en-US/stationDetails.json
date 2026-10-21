@@ -5,7 +5,8 @@
     "permits": "{{source}} permits",
     "registerPermits": "Permits from the register",
     "comments": "Comments",
-    "photos": "Photos"
+    "photos": "Photos",
+    "bands": "{{source}} bands"
   },
   "watchStation": "Watch station",
   "watchingStation": "Watching",
@@ -23,7 +24,8 @@
     "pemReportsEmpty": "No EMF reports in SI2PEM",
     "pemReportsError": "Couldn't load the EMF reports",
     "region": "Region",
-    "positionPrecision": "Position accurate to about {{meters, number}} m"
+    "positionPrecision": "Position accurate to about {{meters, number}} m",
+    "objectId": "Object ID"
   },
   "sectors": {
     "suggestedCount": "Suggested azimuth count:",
@@ -111,10 +113,6 @@
     "permitsCount_few": "{{count, number}} permits",
     "permitsCount_many": "{{count, number}} permits",
     "permitsCount_other": "{{count, number}} permits",
-    "sectorsCount_one": "{{count, number}} azimuth",
-    "sectorsCount_few": "{{count, number}} azimuths",
-    "sectorsCount_many": "{{count, number}} azimuths",
-    "sectorsCount_other": "{{count, number}} azimuths",
     "permit": "permit",
     "neverExpires": "Indefinite",
     "decisionNumber": "Decision number",
@@ -130,12 +128,21 @@
     "decisionTypeP": "Permit",
     "decisionTypeZmP": "Permit change",
     "newPermitTooltip": "This permit was added in the last 30 days",
-    "antennaType": {
-      "indoor": "Indoor",
-      "indoorShort": "IN",
-      "outdoor": "Outdoor",
-      "outdoorShort": "OUT"
-    }
+    "notInService": "Not in service yet",
+    "bandsCount_one": "{{count, number}} band",
+    "bandsCount_other": "{{count, number}} bands",
+    "directionsCount_one": "{{count, number}} direction",
+    "directionsCount_other": "{{count, number}} directions",
+    "antennasCount_one": "{{count, number}} antenna",
+    "antennasCount_other": "{{count, number}} antennas",
+    "allDirections": "All directions",
+    "antennaHeight": "{{meters, number}} m",
+    "underground": "Underground",
+    "indoor": "Indoor",
+    "inService": "In service",
+    "stationNotInService": "Not in service yet",
+    "dashedMeansNotInService": "Dashed outline: band not in service yet",
+    "bandsWithoutAzimuth": "Bands without published azimuths are only in the table below"
   },
   "page": {
     "info": "Information",

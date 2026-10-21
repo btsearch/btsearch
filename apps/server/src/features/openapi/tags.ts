@@ -101,6 +101,7 @@ export const TAGS: readonly DocumentedTag[] = [
     "x-displayName": "Spectrum holdings",
     description:
       "The frequency ranges each operator holds under its licences. " +
+      "A licence two operators hold jointly is one holding, with the second operator in `jointOperatorId`. " +
       "Administrators and the maintainers of the operator's country can change them.",
   },
   {

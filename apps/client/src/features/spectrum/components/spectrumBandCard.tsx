@@ -1,10 +1,12 @@
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SpectrumHolding } from "@openbts/shared/contract";
+import type { TFunction } from "i18next";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatMhz, formatRange, formatWidth, readableTextColor, sourceLink } from "../format";
-import { type KhzRange, type PlacedHolding, type SpectrumSection, widthKhz } from "../model";
+import { type KhzRange, type PlacedHolding, type SpectrumOperator, type SpectrumSection, holdersOf, isHeldBy, widthKhz } from "../model";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatShortUtcDate } from "@/lib/format";
@@ -48,17 +50,25 @@ function buildSegments(row: BarRow, holdings: readonly PlacedHolding[]): Segment
   return segments;
 }
 
+function holderNames(t: TFunction, placed: PlacedHolding): string {
+  const { operator, jointOperator } = placed;
+  return jointOperator === null ? operator.name : t("spectrum:holding.jointNames", { first: operator.name, second: jointOperator.name });
+}
+
 function HoldingDetails({ placed, section }: { placed: PlacedHolding; section: SpectrumSection }) {
   const { t, i18n } = useTranslation("spectrum");
-  const { holding, operator } = placed;
+  const { holding } = placed;
   const source = holding.source === null ? null : (sourceLink(holding.source) ?? holding.source);
 
   return (
     <>
       <div className="flex min-w-0 items-center gap-2">
-        <BrandMark brand={operator.brand} />
-        <span className="truncate font-semibold">{operator.name}</span>
+        {holdersOf(placed).map((operator) => (
+          <BrandMark key={operator.id} brand={operator.brand} />
+        ))}
+        <span className="truncate font-semibold">{holderNames(t, placed)}</span>
       </div>
+      {placed.jointOperator === null ? null : <p className="text-xs text-muted-foreground">{t("holding.joint")}</p>}
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-xs">
         <dt className="text-muted-foreground">{section.duplex === "tdd" ? t("band.tdd") : t("band.downlink")}</dt>
         <dd className="font-mono tabular-nums">{formatRange(t, holding.downlinkKhz)}</dd>
@@ -107,33 +117,47 @@ function HoldingDetails({ placed, section }: { placed: PlacedHolding; section: S
   );
 }
 
+function HolderFill({ operator, isUpcoming, children }: { operator: SpectrumOperator; isUpcoming: boolean; children: ReactNode }) {
+  return (
+    <span
+      style={{
+        backgroundColor: operator.color,
+        backgroundImage: isUpcoming ? UPCOMING_HATCH : undefined,
+        color: readableTextColor(operator.color),
+      }}
+      className="flex min-h-0 flex-1 items-center justify-center"
+    >
+      {children}
+    </span>
+  );
+}
+
 type HoldingBlockProps = { placed: PlacedHolding; range: KhzRange; percent: number; section: SpectrumSection; isDimmed: boolean };
 
 function HoldingBlock({ placed, range, percent, section, isDimmed }: HoldingBlockProps) {
   const { t } = useTranslation("spectrum");
   const showsWidth = percent > LABEL_MIN_PERCENT && !isDimmed && !placed.isUpcoming;
   const width = formatMhz(widthKhz(range));
-  const title = t("holding.blockLabel", { name: placed.operator.name, width, range: formatRange(t, range) });
+  const title = t("holding.blockLabel", { name: holderNames(t, placed), width, range: formatRange(t, range) });
 
   return (
     <Popover>
       <PopoverTrigger
         aria-label={title}
         title={title}
-        style={{
-          width: `${percent}%`,
-          backgroundColor: placed.operator.color,
-          backgroundImage: placed.isUpcoming ? UPCOMING_HATCH : undefined,
-          color: readableTextColor(placed.operator.color),
-        }}
+        style={{ width: `${percent}%` }}
         className={cn(
-          "flex h-full shrink-0 cursor-pointer items-center justify-center overflow-hidden text-[10px] font-semibold leading-none outline-none",
+          "flex h-full shrink-0 cursor-pointer flex-col overflow-hidden text-[10px] font-semibold leading-none outline-none",
           "transition-opacity focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground",
           "data-popup-open:ring-2 data-popup-open:ring-inset data-popup-open:ring-foreground",
           isDimmed && "opacity-25",
         )}
       >
-        {showsWidth ? width : null}
+        {holdersOf(placed).map((operator, index) => (
+          <HolderFill key={operator.id} operator={operator} isUpcoming={placed.isUpcoming}>
+            {showsWidth && index === 0 ? width : null}
+          </HolderFill>
+        ))}
       </PopoverTrigger>
       <PopoverContent align="start">
         <HoldingDetails placed={placed} section={section} />
@@ -167,7 +191,7 @@ function SpectrumBar({ row, section, highlightedOperatorId }: { row: BarRow; sec
                 range={segment.range}
                 percent={segment.percent}
                 section={section}
-                isDimmed={highlightedOperatorId !== null && highlightedOperatorId !== segment.placed.operator.id}
+                isDimmed={highlightedOperatorId !== null && !isHeldBy(segment.placed, highlightedOperatorId)}
               />
             ),
           )}
@@ -191,24 +215,26 @@ function SpectrumBar({ row, section, highlightedOperatorId }: { row: BarRow; sec
 function OperatorChips({ section }: { section: SpectrumSection }) {
   const { t } = useTranslation("spectrum");
   const isPaired = section.uplinkKhz !== null;
-  const chips = new Map<number, { placed: PlacedHolding; khz: number; validTo: Set<string | null> }>();
+  const chips = new Map<number, { operator: SpectrumOperator; khz: number; validTo: Set<string | null> }>();
 
   for (const placed of section.barHoldings) {
     if (placed.isUpcoming) continue;
-    const chip = chips.get(placed.operator.id) ?? { placed, khz: 0, validTo: new Set<string | null>() };
-    chip.khz += widthKhz(placed.holding.downlinkKhz);
-    chip.validTo.add(placed.holding.validTo);
-    chips.set(placed.operator.id, chip);
+    for (const operator of holdersOf(placed)) {
+      const chip = chips.get(operator.id) ?? { operator, khz: 0, validTo: new Set<string | null>() };
+      chip.khz += widthKhz(placed.holding.downlinkKhz);
+      chip.validTo.add(placed.holding.validTo);
+      chips.set(operator.id, chip);
+    }
   }
 
   return (
     <div className="mt-auto flex flex-wrap gap-1.5 border-t border-border pt-3">
-      {[...chips.values()].map(({ placed, khz, validTo }) => {
+      {[...chips.values()].map(({ operator, khz, validTo }) => {
         const sharedValidTo = validTo.size === 1 ? ([...validTo][0] ?? null) : null;
         return (
-          <span key={placed.operator.id} className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-[11px] font-medium">
-            <BrandMark brand={placed.operator.brand} size={14} />
-            {placed.operator.name}
+          <span key={operator.id} className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-[11px] font-medium">
+            <BrandMark brand={operator.brand} size={14} />
+            {operator.name}
             <span className="text-muted-foreground tabular-nums">{formatWidth(t, khz, isPaired)}</span>
             {sharedValidTo === null ? null : (
               <span className="text-muted-foreground tabular-nums">{t("holding.until", { year: sharedValidTo.slice(0, 4) })}</span>
@@ -229,14 +255,16 @@ function HoldingList({ title, holdings, noteOf }: HoldingListProps) {
     <div className="space-y-1.5">
       <h4 className="text-xs font-medium">{title}</h4>
       <ul className="divide-y rounded-md text-xs ring-1 ring-border">
-        {holdings.map(({ holding, operator }) => (
-          <li key={holding.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2">
+        {holdings.map((placed) => (
+          <li key={placed.holding.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2">
             <span className="inline-flex min-w-0 items-center gap-1.5 font-medium">
-              <BrandMark brand={operator.brand} size={14} />
-              {operator.name}
+              {holdersOf(placed).map((operator) => (
+                <BrandMark key={operator.id} brand={operator.brand} size={14} />
+              ))}
+              {holderNames(t, placed)}
             </span>
-            <span className="font-mono text-muted-foreground tabular-nums">{formatRange(t, holding.downlinkKhz)}</span>
-            <span className="ml-auto text-muted-foreground">{noteOf(holding)}</span>
+            <span className="font-mono text-muted-foreground tabular-nums">{formatRange(t, placed.holding.downlinkKhz)}</span>
+            <span className="ml-auto text-muted-foreground">{noteOf(placed.holding)}</span>
           </li>
         ))}
       </ul>

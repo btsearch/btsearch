@@ -9,7 +9,16 @@ import { type SpectrumHoldingRow, uplinkKhzOf } from "./serialize.js";
 
 export type SpectrumHoldingValues = Pick<
   SpectrumHoldingRow,
-  "operatorId" | "bandId" | "regionId" | "downlinkLowKhz" | "downlinkHighKhz" | "uplinkLowKhz" | "uplinkHighKhz" | "validFrom" | "validTo"
+  | "operatorId"
+  | "jointOperatorId"
+  | "bandId"
+  | "regionId"
+  | "downlinkLowKhz"
+  | "downlinkHighKhz"
+  | "uplinkLowKhz"
+  | "uplinkHighKhz"
+  | "validFrom"
+  | "validTo"
 >;
 
 export async function findOperatorCountry(operatorId: number): Promise<string> {
@@ -50,6 +59,14 @@ async function assertBandFits(tx: DbTx, countryCode: string, next: SpectrumHoldi
 async function assertRegionInCountry(tx: DbTx, countryCode: string, regionId: number): Promise<void> {
   const [region] = await tx.select({ countryCode: regions.countryCode }).from(regions).where(eq(regions.id, regionId)).limit(1);
   if (region?.countryCode !== countryCode) throw new ErrorResponse("BAD_REQUEST", { message: "The region is not in the operator's country" });
+}
+
+async function assertJointOperator(tx: DbTx, countryCode: string, operatorId: number, jointOperatorId: number): Promise<void> {
+  if (jointOperatorId === operatorId) throw new ErrorResponse("BAD_REQUEST", { message: "The joint operator must be another operator" });
+  const [operator] = await tx.select({ countryCode: operators.countryCode }).from(operators).where(eq(operators.id, jointOperatorId)).limit(1);
+  if (operator?.countryCode !== countryCode) {
+    throw new ErrorResponse("BAD_REQUEST", { message: "The joint operator is not in the operator's country" });
+  }
 }
 
 function overlaps(low: SQLWrapper, high: SQLWrapper, range: KhzRange): SQL | undefined {
@@ -96,6 +113,7 @@ async function assertNoOverlap(tx: DbTx, countryCode: string, next: SpectrumHold
 
 export async function validateSpectrumHoldingWrite(tx: DbTx, countryCode: string, next: SpectrumHoldingValues, updatedId?: number): Promise<void> {
   await assertBandFits(tx, countryCode, next);
+  if (next.jointOperatorId !== null) await assertJointOperator(tx, countryCode, next.operatorId, next.jointOperatorId);
   if (next.regionId !== null) await assertRegionInCountry(tx, countryCode, next.regionId);
   await assertNoOverlap(tx, countryCode, next, updatedId);
 }

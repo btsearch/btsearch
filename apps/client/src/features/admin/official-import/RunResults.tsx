@@ -156,7 +156,7 @@ function ApplyHeldSliceButton({ sourceKey, approval, datasetLabel, heldText }: A
 function HeldSliceLine({ sourceKey, datasetLabel, slice }: { sourceKey: string; datasetLabel: string; slice: HeldSlice }) {
   const { t } = useTranslation("admin");
   const counts = { releaseRecordCount: slice.releaseRecordCount, storedRecordCount: slice.storedRecordCount };
-  const sliceLabel = getSliceLabel(slice.sliceKey);
+  const sliceLabel = getSliceLabel(slice.sliceKey, t);
   const heldText = sliceLabel === "" ? t("officialImport.held.dataset", counts) : t("officialImport.held.slice", { ...counts, slice: sliceLabel });
 
   return (

@@ -41,7 +41,6 @@ type OfficialPermitWithSectors = {
   sectors: {
     id: number;
     azimuth: number | null;
-    elevation: number | null;
     antenna_height: number | null;
   }[];
 };
@@ -71,7 +70,7 @@ function buildPermitCandidates(permits: OfficialPermitWithSectors[]): AntennaCan
         source: "permit_fallback",
         antenna: { mountedHeight: sector.antenna_height, azimuth: sector.azimuth },
         frequencyMHz,
-        measuredTilt: sector.elevation,
+        measuredTilt: null,
         band: { value: frequencyMHz, rat, variant },
         provenance: {
           report_url: null,

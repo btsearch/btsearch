@@ -32,13 +32,16 @@ export async function serializeHoldings(
   const includesOperator = include.includes("operator");
   const includesBand = include.includes("band");
   const [operatorsById, bandsById] = await Promise.all([
-    loadOperators(db, includesOperator ? unique(rows.map((row) => row.operatorId)) : []),
+    loadOperators(db, includesOperator ? unique(rows.flatMap((row) => [row.operatorId, row.jointOperatorId])) : []),
     loadBands(includesBand ? unique(rows.map((row) => row.bandId)) : []),
   ]);
 
   return rows.map((row) => {
     const holding = toSpectrumHolding(row);
-    if (includesOperator) holding.operator = operatorsById.get(row.operatorId);
+    if (includesOperator) {
+      holding.operator = operatorsById.get(row.operatorId);
+      holding.jointOperator = row.jointOperatorId === null ? null : operatorsById.get(row.jointOperatorId);
+    }
     if (includesBand) holding.band = bandsById.get(row.bandId);
     return holding;
   });

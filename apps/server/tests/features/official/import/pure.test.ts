@@ -21,8 +21,9 @@ function siteRecord(overrides: { siteId?: string; number?: string; mhz?: number;
       number: overrides.number ?? "DZC/1",
       decisionType: "permit_change",
       expiresOn: "2030-01-01",
+      status: null,
     },
-    sectors: [{ azimuth: 120, elevation: null, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
+    sectors: [{ azimuth: 120, antennaHeight: 30.5, antennaPlacement: "outdoor" }],
   };
 }
 
@@ -161,7 +162,7 @@ describe("a site record", () => {
       ...record,
       location: { ...record.location, ref: "23444", precisionMeters: 31 },
       site: { ...record.site, siteId: null, ref: "0032750221" },
-      permit: { label: null, number: null, decisionType: null, expiresOn: null },
+      permit: { label: null, number: null, decisionType: null, expiresOn: null, status: "approved" },
     };
 
     expect(siteRecordProblem(inventory)).toBeNull();

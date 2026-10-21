@@ -1,3 +1,4 @@
+import { officialSourceByKey } from "@openbts/country-packs/sources";
 import {
   OfficialChange,
   officialDatasets,
@@ -37,10 +38,12 @@ import { createKeyset } from "../../lib/keyset.js";
 import type { DbTx } from "../../types/global.js";
 import { type AuditMetadata, recordAuditOperation, standaloneAuditContext } from "../audit/index.js";
 import { toUserRef } from "../users/userRef.js";
+import { plannedAfterSteps } from "./import/afterSteps.js";
 import { loadDryRunReport } from "./import/dryRunReports.js";
 import type { RemapReport } from "./import/remap/apply.js";
 import type { ChangeCountByKind, DryRunReport as StoredDryRunReport } from "./import/report.js";
 import { type EnqueueRunInput, enqueueRun } from "./import/runs.js";
+import { afterSteps } from "./import/steps/index.js";
 import type { ChangeKind, RunStepName } from "./import/types.js";
 
 const runSelectSchema = createSelectSchema(officialImportRuns);
@@ -257,6 +260,14 @@ export async function fetchImportRun(id: string): Promise<ImportRun | null> {
   return stored ? toImportRun(stored, await loadRunParts([stored.run])) : null;
 }
 
+function plannedStepsOf(sourceKey: string, isDryRun: boolean): ImportRunDetail["plannedSteps"] {
+  if (isDryRun) return [];
+
+  const source = officialSourceByKey(sourceKey);
+  if (source === null) return [];
+  return plannedAfterSteps(afterSteps, source, false).map((step) => RUN_STEPS[step.name]);
+}
+
 export async function fetchImportRunDetail(id: string): Promise<ImportRunDetail | null> {
   const [stored] = await storedRuns().where(eq(officialImportRuns.id, id)).limit(1);
   if (!stored) return null;
@@ -310,6 +321,7 @@ export async function fetchImportRunDetail(id: string): Promise<ImportRunDetail 
       finishedAt: finishedAt?.toISOString() ?? null,
       error,
     })),
+    plannedSteps: plannedStepsOf(stored.sourceKey, stored.run.isDryRun),
     approvals,
     dryRunReport: report ? toDryRunReport(report) : null,
   };

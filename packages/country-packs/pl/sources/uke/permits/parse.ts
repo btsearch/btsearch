@@ -64,7 +64,13 @@ async function* readPermitFile(ctx: ReadContext, slice: string, label: PermitLab
         regionIsoCode: regionIsoCodeFromTeryt(row.TERYT),
       },
       site: { siteId, licensee, name: null },
-      permit: { label, number: trimmedText(row["Nr Decyzji"]), decisionType, expiresOn: parseExcelDay(row["Data ważności"], ctx.now) },
+      permit: {
+        label,
+        number: trimmedText(row["Nr Decyzji"]),
+        decisionType,
+        expiresOn: parseExcelDay(row["Data ważności"], ctx.now),
+        status: null,
+      },
       sectors: [],
     };
   }

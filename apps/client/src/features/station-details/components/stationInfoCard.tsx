@@ -1,10 +1,11 @@
-import { Globe02Icon, Location01Icon, MapsLocation01Icon, MountainIcon, Radar01Icon, Tag01Icon } from "@hugeicons/core-free-icons";
+import { Building06Icon, Location01Icon, MapsLocation01Icon, MountainIcon, Radar01Icon, Tag01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { fetchElevation } from "../api";
+import { RegionItem } from "../station/components/overview/locationItems";
 import type { EmfSite } from "../station/emf/types";
 import { CopyButton } from "./copyButton";
 import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "./extraIdentificators";
@@ -34,16 +35,18 @@ type StationInfoGridProps = {
     id: number;
     latitude: number;
     longitude: number;
+    countryCode: string;
     precisionMeters?: number | null;
     city?: string | null;
     address?: string | null;
     region?: Region | null;
   } | null;
+  registerObjectId?: string | null;
   emfSite?: EmfSite;
   extraIdentificators?: ExtraIdentificator;
 };
 
-export function StationInfoGrid({ stationCode, operator, location, emfSite, extraIdentificators }: StationInfoGridProps) {
+export function StationInfoGrid({ stationCode, operator, location, registerObjectId, emfSite, extraIdentificators }: StationInfoGridProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const { preferences } = usePreferences();
   const reportedEmfSite = !!stationCode && !!location && typeof operator.mnc === "number" ? emfSite : undefined;
@@ -73,9 +76,7 @@ export function StationInfoGrid({ stationCode, operator, location, emfSite, extr
               </span>
             ) : null}
           </StationInfoItem>
-          <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
-            <span>{location.region?.name || "-"}</span>
-          </StationInfoItem>
+          <RegionItem countryCode={location.countryCode} regionName={location.region?.name || "-"} />
           {isElevationEnabled ? (
             <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
               {isElevationPending ? <Skeleton className="h-4 w-12 rounded" /> : <span>{elevation === undefined ? "-" : `${elevation} m`}</span>}
@@ -88,6 +89,12 @@ export function StationInfoGrid({ stationCode, operator, location, emfSite, extr
           <span className="font-mono">{stationCode}</span>
           <CopyButton text={stationCode} fieldLabel={t("common:labels.stationId")} />
         </StationInfoItem>
+        {registerObjectId ? (
+          <StationInfoItem icon={<HugeiconsIcon icon={Building06Icon} className="size-4" />} label={t("specs.objectId")}>
+            <span className="font-mono">{registerObjectId}</span>
+            <CopyButton text={registerObjectId} fieldLabel={t("specs.objectId")} />
+          </StationInfoItem>
+        ) : null}
         {reportedEmfSite !== undefined ? (
           <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
             <SI2PEMReportsMenu

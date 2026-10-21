@@ -16,7 +16,7 @@ import { formatPermitLabel } from "@openbts/shared/permitLabel";
 
 export type RunOutcome = "queued" | "running" | "success" | "completedWithErrors" | "held" | "error" | "cancelled";
 export type StepStatus = "pending" | "running" | "success" | "unchanged" | "held" | "skipped" | "stopped" | "error";
-export type ImportOverview = { latest: ImportRunDetail | null; liveRuns: ImportRun[] };
+export type ImportOverview = { latestRuns: ImportRunDetail[]; liveRuns: ImportRun[] };
 export type HeldSlice = { sliceKey: string; releaseRecordCount: number; storedRecordCount: number; approval: ImportRunApproval | null };
 export type RunDatasetRow = {
   datasetKey: string;
@@ -70,6 +70,7 @@ const KNOWN_SKIP_REASONS: ReadonlySet<string> = new Set([
 ]);
 
 const BAND_SLICE_KEY = /^([^:]+):(\d+):([^:]+)$/;
+const OTHER_SLICE_KEY = "other";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const dayFormatters = new Map<string, Intl.DateTimeFormat>();
@@ -93,7 +94,9 @@ export function getSkipReasonLabel(reason: string, t: Translate): string {
   return KNOWN_SKIP_REASONS.has(reason) ? t(`officialImport.skipReasons.${reason}`) : reason;
 }
 
-export function getSliceLabel(sliceKey: string): string {
+export function getSliceLabel(sliceKey: string, t: Translate): string {
+  if (sliceKey === OTHER_SLICE_KEY) return t("officialImport.otherSlice");
+
   const band = BAND_SLICE_KEY.exec(sliceKey);
   if (!band) return sliceKey;
 
@@ -216,7 +219,7 @@ export function getRunStepRows(run: ImportRunDetail): RunStepRow[] {
   return IMPORT_RUN_STEPS.flatMap((name): RunStepRow[] => {
     const step = run.steps.find((candidate) => candidate.step === name);
     if (step) return [{ ...step, status: getStepStatus(step, run.status) }];
-    return awaitsSteps ? [{ step: name, status: "pending", startedAt: null, finishedAt: null, error: null }] : [];
+    return awaitsSteps && run.plannedSteps.includes(name) ? [{ step: name, status: "pending", startedAt: null, finishedAt: null, error: null }] : [];
   });
 }
 
@@ -227,7 +230,11 @@ export function getAttentionDatasetKeys(run: ImportRunDetail): string[] {
 }
 
 function listOverviewRuns(overview: ImportOverview): ImportRun[] {
-  return overview.latest ? [overview.latest, ...overview.liveRuns] : overview.liveRuns;
+  return [...overview.latestRuns, ...overview.liveRuns];
+}
+
+export function findLatestRun(overview: ImportOverview, sourceKey: string): ImportRunDetail | null {
+  return overview.latestRuns.find((run) => run.sourceKey === sourceKey) ?? null;
 }
 
 function listLiveRuns(overview: ImportOverview): ImportRun[] {
@@ -258,8 +265,8 @@ export function hasAppliedRunEnded(previous: ImportOverview | undefined, next: I
   const liveRunIds = new Set(listLiveRuns(next).map((run) => run.id));
   const hasLiveRunEnded = listLiveRuns(previous).some((run) => !run.isDryRun && !liveRunIds.has(run.id));
 
-  const latest = next.latest;
-  const hasNewRunEnded = latest !== null && !latest.isDryRun && !isRunLive(latest) && latest.id !== previous.latest?.id;
+  const previousLatestIds = new Set(previous.latestRuns.map((run) => run.id));
+  const hasNewRunEnded = next.latestRuns.some((run) => !run.isDryRun && !isRunLive(run) && !previousLatestIds.has(run.id));
 
   return hasLiveRunEnded || hasNewRunEnded;
 }
@@ -281,18 +288,17 @@ export function getRunSourceLabel(sources: readonly OfficialSource[], sourceKey:
   return sources.find((source) => source.key === sourceKey)?.shortName ?? sourceKey;
 }
 
-export function getImportSchedule(sources: readonly OfficialSource[]): ImportSchedule | null {
-  const intervals = sources
-    .filter((source) => source.isEnabled === true)
-    .flatMap((source) => source.datasets)
-    .flatMap((dataset) => (dataset.isEnabled === true && dataset.checkEveryHours ? [dataset.checkEveryHours] : []));
+export function getImportSchedule(source: OfficialSource): ImportSchedule | null {
+  if (source.isEnabled !== true) return null;
+
+  const intervals = source.datasets.flatMap((dataset) => (dataset.isEnabled === true && dataset.checkEveryHours ? [dataset.checkEveryHours] : []));
   if (intervals.length === 0) return null;
 
   return { minHours: Math.min(...intervals), maxHours: Math.max(...intervals) };
 }
 
-export function listPreviousRuns(pages: readonly Pick<ImportRunList, "data">[] | undefined, latestRunId: string | undefined): ImportRun[] {
-  return (pages ?? []).flatMap((page) => page.data).filter((run) => run.id !== latestRunId);
+export function listPreviousRuns(pages: readonly Pick<ImportRunList, "data">[] | undefined, latestRunIds: readonly string[]): ImportRun[] {
+  return (pages ?? []).flatMap((page) => page.data).filter((run) => !latestRunIds.includes(run.id));
 }
 
 function startOfLocalDay(date: Date): number {

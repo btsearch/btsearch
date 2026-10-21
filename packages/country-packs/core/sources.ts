@@ -7,6 +7,7 @@ export type LabelRat = "GSM" | "CDMA" | "UMTS" | "LTE" | "NR" | "IOT";
 export type LabelVariant = "commercial" | "railway";
 export type PermitLabel = { rat: LabelRat; mhz: number; variant: LabelVariant };
 export type DecisionType = "permit" | "permit_change";
+export type PermitStatus = "approved" | "in_service";
 export type PermitKind = "permit" | "registration" | "inventory" | "environmental_permit" | "certificate" | "assessment" | "licence";
 export type AntennaPlacement = "indoor" | "outdoor";
 
@@ -26,7 +27,6 @@ export type ReadContext = {
 
 export type SiteSector = {
   azimuth: number | null;
-  elevation: number | null;
   antennaHeight: number | null;
   antennaPlacement: AntennaPlacement | null;
 };
@@ -43,7 +43,13 @@ export type SiteRecord = {
     precisionMeters?: number;
   };
   site: { siteId: string | null; licensee: string; name: string | null; ref?: string };
-  permit: { label: PermitLabel | null; number: string | null; decisionType: DecisionType | null; expiresOn: string | null };
+  permit: {
+    label: PermitLabel | null;
+    number: string | null;
+    decisionType: DecisionType | null;
+    expiresOn: string | null;
+    status: PermitStatus | null;
+  };
   sectors: readonly SiteSector[];
 };
 

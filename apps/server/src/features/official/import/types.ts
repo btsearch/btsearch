@@ -67,7 +67,12 @@ export type AfterStepContext = {
   markFinished(tx: DbTx): Promise<void>;
   recordError(error: unknown): Promise<void>;
 };
-export type AfterStep = { name: RunStepName; runsInDryRun: boolean; perform(context: AfterStepContext): Promise<void> };
+export type AfterStep = {
+  name: RunStepName;
+  runsInDryRun: boolean;
+  appliesTo?: (source: OfficialSourceDefinition) => boolean;
+  perform(context: AfterStepContext): Promise<void>;
+};
 
 export type ImportEnvironment = {
   sources: readonly OfficialSourceDefinition[];

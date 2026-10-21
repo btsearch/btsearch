@@ -1,4 +1,5 @@
 /* eslint-disable no-await-in-loop */
+import type { OfficialSourceDefinition } from "@openbts/country-packs/sources";
 import { officialImportRunSteps } from "@openbts/drizzle";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -53,6 +54,10 @@ async function finishStep(tx: DbTx, key: StepKey): Promise<void> {
 
 async function saveStepError(tx: DbTx, key: StepKey, error: string): Promise<void> {
   await tx.update(officialImportRunSteps).set({ error }).where(stepCondition(key));
+}
+
+export function plannedAfterSteps(steps: readonly AfterStep[], source: OfficialSourceDefinition, isDryRun: boolean): AfterStep[] {
+  return steps.filter((step) => (step.runsInDryRun || !isDryRun) && (step.appliesTo?.(source) ?? true));
 }
 
 export async function runAfterSteps(scope: RunScope, steps: readonly AfterStep[], archive: DirectoryArchive): Promise<void> {

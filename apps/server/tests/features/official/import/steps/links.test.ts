@@ -91,6 +91,9 @@ describe("the links step", () => {
       "commit",
     ]);
     expect(changeReads()).toEqual([[RUN_ID, ...GROUP_CHANGING_KINDS]]);
+    expect(whereOf(dbMock.calls.find((call) => call.table === "official.import_changes")).sql).toMatch(
+      /"official_site_id" in .+"site_id" is not null/,
+    );
     expect(whereOf(dbMock.calls.find((call) => call.table === "official.sites")).params).toEqual([504, 503, 502]);
     expect(correctedGroups()).toEqual([
       [

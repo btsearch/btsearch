@@ -22,6 +22,7 @@
     "total": "Total",
     "share": "Share",
     "breakdown": "2x{{paired}} + {{unpaired}}",
+    "joint": "incl. {{width}} MHz held jointly",
     "note": "Widths in MHz. 2x means the same width for downlink and uplink",
     "highlight": "Highlight {{name}}",
     "showAll": "Show all operators"
@@ -44,6 +45,8 @@
   },
   "holding": {
     "blockLabel": "{{name}}: {{width}} MHz, {{range}}",
+    "jointNames": "{{first}} and {{second}}",
+    "joint": "Held jointly",
     "width": "Width",
     "validFrom": "Valid from",
     "validTo": "Valid until",

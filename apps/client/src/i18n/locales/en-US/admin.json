@@ -599,7 +599,7 @@
     }
   },
   "officialImport": {
-    "subtitle": "Permits and microwave links from official registers",
+    "subtitle": "Data from official registers",
     "schedule": {
       "every_one": "Automatic imports check for new releases every hour",
       "every_other": "Automatic imports check for new releases every {{count}} hours",
@@ -667,6 +667,7 @@
       "cli": "Command line"
     },
     "slices": "Slices",
+    "otherSlice": "Everything else",
     "sliceOutcome": {
       "applied": "Applied",
       "unchanged": "Unchanged",
@@ -704,7 +705,7 @@
       "sourceRefTooLong": "Register ID too long",
       "badPrecision": "Invalid position accuracy",
       "territoryNotImported": "Territory not imported",
-      "unknownSystem": "Unrecognized system",
+      "unknownSystem": "System not imported",
       "missingIdentity": "No operator or ID"
     },
     "held": {
@@ -721,14 +722,27 @@
       "stationNamesSkipped": "Station names skipped",
       "licenseeNamesCorrected": "Licensee names corrected"
     },
+    "settings": {
+      "title": "Settings",
+      "scheduled": "Automatic imports",
+      "scheduledDescription": "Checks for new releases on schedule. You can start an import yourself either way",
+      "public": "Public",
+      "publicDescription": "Everyone sees this source's data",
+      "notRedistributable": "The source's terms don't allow publishing its data",
+      "checkEvery": "Check every",
+      "hoursUnit": "h",
+      "holdShrink": "Hold if a slice shrinks by"
+    },
     "latest": {
       "title": "Latest import",
+      "titleWithSource": "Latest import - {{source}}",
       "loading": "Loading the latest import...",
       "empty": "No imports have run yet",
       "loadError": "Could not load the import status"
     },
     "history": {
       "title": "Previous imports",
+      "allSources": "All",
       "description": "Earlier runs, newest first",
       "empty": "No previous imports",
       "loading": "Loading previous imports...",
@@ -1212,6 +1226,8 @@
         },
         "dialog": {
           "editTitle": "Edit holding",
+          "jointOperator": "Held jointly with",
+          "jointOperatorHint": "Only for a licence two operators hold together",
           "band": "Band",
           "from": "{{label}} from (MHz)",
           "to": "{{label}} to (MHz)",

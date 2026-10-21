@@ -22,6 +22,7 @@
     "total": "Razem",
     "share": "Udział",
     "breakdown": "2x{{paired}} + {{unpaired}}",
+    "joint": "w tym {{width}} MHz we wspólnej licencji",
     "note": "Szerokości w MHz. 2x to ta sama szerokość w Downlink i Uplink",
     "highlight": "Wyróżnij {{name}}",
     "showAll": "Pokaż wszystkich operatorów"
@@ -44,6 +45,8 @@
   },
   "holding": {
     "blockLabel": "{{name}}: {{width}} MHz, {{range}}",
+    "jointNames": "{{first}} i {{second}}",
+    "joint": "Wspólna licencja",
     "width": "Szerokość",
     "validFrom": "Ważne od",
     "validTo": "Ważne do",

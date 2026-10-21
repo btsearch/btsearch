@@ -1,5 +1,13 @@
 import type { ReadContext, SiteRecord, SitesDataset } from "@openbts/country-packs/sources";
-import { BandVariant, OfficialDecisionType, officialLocations, officialPermitListings, ratEnum, regions } from "@openbts/drizzle";
+import {
+  BandVariant,
+  OfficialDecisionType,
+  OfficialPermitStatus,
+  officialLocations,
+  officialPermitListings,
+  ratEnum,
+  regions,
+} from "@openbts/drizzle";
 import { type SQL, and, count, eq, inArray, sql } from "drizzle-orm";
 import { date, doublePrecision, integer, jsonb, pgSchema, text, varchar } from "drizzle-orm/pg-core";
 
@@ -19,7 +27,7 @@ import { type ResolvedLicensee, resolveLicensees } from "../licensees.js";
 import { type SkipCounts, countSkip } from "../skips.js";
 import type { ReleaseInput, SliceCount } from "../types.js";
 
-type StagedSector = { azimuth: number | null; elevation: number | null; antenna_height: number | null; antenna_type: string | null };
+type StagedSector = { azimuth: number | null; antenna_height: number | null; antenna_type: string | null };
 type PublishedLine = { ordinal: number; sectors: StagedSector[] };
 type FirstSiteName = { name: string; ordinal: number };
 export type PublishedPermit = { first: SiteRecord; ordinal: number; lines: PublishedLine[]; siteName: FirstSiteName | null };
@@ -47,6 +55,7 @@ type StagedPermitRow = {
   decision_number: string | null;
   decision_type: string | null;
   expiry_date: string | null;
+  status: string | null;
   sectors: StagedSector[];
 };
 
@@ -74,6 +83,7 @@ export const stagedPermits = pgSchema("pg_temp").table("official_import_staged_p
   decisionNumber: text("decision_number"),
   decisionType: OfficialDecisionType("decision_type"),
   expiryDate: date("expiry_date", { mode: "string" }),
+  status: OfficialPermitStatus("status"),
   sectors: jsonb("sectors").$type<StagedSector[]>().notNull(),
   locationId: integer("location_id"),
   officialSiteId: integer("official_site_id"),
@@ -107,7 +117,6 @@ function finiteOrNull(value: number | null): number | null {
 function stagedSectorsOf(record: SiteRecord): StagedSector[] {
   return record.sectors.map((sector) => ({
     azimuth: finiteOrNull(sector.azimuth),
-    elevation: finiteOrNull(sector.elevation),
     antenna_height: sector.antennaHeight,
     antenna_type: sector.antennaPlacement,
   }));
@@ -298,6 +307,7 @@ function stagedRowOf({ first, ordinal, lines, siteName, regionId, licenseeId, op
     decision_number: permit.number,
     decision_type: permit.decisionType,
     expiry_date: permit.expiresOn,
+    status: permit.status,
     sectors: lines.flatMap((line) => line.sectors),
   };
 }
@@ -352,6 +362,7 @@ async function openStagingTable(tx: DbTx): Promise<void> {
           decision_number text,
           decision_type official_decision_type,
           expiry_date date,
+          status official_permit_status,
           sectors jsonb NOT NULL,
           location_id integer,
           official_site_id integer,
@@ -368,16 +379,16 @@ async function stageRows(tx: DbTx, rows: readonly StagedPermitRow[]): Promise<vo
   await tx.execute(sql`
     INSERT INTO ${stagedPermits}
       (ordinal, slice, longitude, latitude, city, address, region_id, location_ref, precision_meters, site_code, site_ref, licensee_id, operator_id,
-       site_name, site_name_ordinal, rat, label_mhz, label_variant, decision_number, decision_type, expiry_date, sectors)
+       site_name, site_name_ordinal, rat, label_mhz, label_variant, decision_number, decision_type, expiry_date, status, sectors)
     SELECT incoming.ordinal, incoming.slice, incoming.longitude, incoming.latitude, incoming.city, incoming.address, incoming.region_id,
       incoming.location_ref, incoming.precision_meters, incoming.site_code, incoming.site_ref, incoming.licensee_id, incoming.operator_id,
       incoming.site_name, incoming.site_name_ordinal, incoming.rat, incoming.label_mhz, incoming.label_variant, incoming.decision_number,
-      incoming.decision_type, incoming.expiry_date, incoming.sectors
+      incoming.decision_type, incoming.expiry_date, incoming.status, incoming.sectors
     FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS incoming (
       ordinal integer, slice varchar(64), longitude double precision, latitude double precision, city text, address text, region_id integer,
       location_ref text, precision_meters integer, site_code text, site_ref text, licensee_id integer, operator_id integer, site_name text,
       site_name_ordinal integer, rat rat, label_mhz integer, label_variant band_variant, decision_number text,
-      decision_type official_decision_type, expiry_date date, sectors jsonb
+      decision_type official_decision_type, expiry_date date, status official_permit_status, sectors jsonb
     )
   `);
 }

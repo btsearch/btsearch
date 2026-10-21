@@ -48,6 +48,17 @@ export async function getStationsWatchers(stationIds: readonly number[], reader:
   return watchersById([...directWatches, ...listWatches]);
 }
 
+export async function getWatchedOfficialSiteIds(reader: WatchReader): Promise<number[]> {
+  const [directWatches, listedSites] = await Promise.all([
+    reader.select({ id: officialSiteWatches.officialSiteId }).from(officialSiteWatches),
+    reader
+      .select({ id: sql<number>`jsonb_array_elements_text(coalesce(${userLists.stations}->'official', '[]'::jsonb))::integer` })
+      .from(userLists)
+      .where(eq(userLists.notificationsEnabled, true)),
+  ]);
+  return unique([...directWatches, ...listedSites].map((site) => site.id));
+}
+
 export async function getOfficialSitesWatchers(siteIds: readonly number[], reader: WatchReader): Promise<Map<number, string[]>> {
   const [directWatches, listWatches] = await Promise.all([
     reader

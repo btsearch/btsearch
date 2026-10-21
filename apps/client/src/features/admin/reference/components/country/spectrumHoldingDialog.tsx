@@ -20,8 +20,16 @@ import { InlineError } from "@/components/ui/error-state";
 import { Field, FieldDescription, FieldError, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatMhz, formatRange } from "@/features/spectrum/format";
-import { type BandRanges, type KhzRange, holdingsOverlap, listBandRanges, toSpectrumOperator, widthKhz } from "@/features/spectrum/model";
+import { formatMhz, formatRange, holderBackground } from "@/features/spectrum/format";
+import {
+  type BandRanges,
+  type KhzRange,
+  holdingOperators,
+  holdingsOverlap,
+  listBandRanges,
+  toSpectrumOperator,
+  widthKhz,
+} from "@/features/spectrum/model";
 import { ApiResponseError } from "@/lib/api";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { getCountryName } from "@/lib/geo/countryName";
@@ -51,14 +59,25 @@ type Validity = Pick<SpectrumHolding, "validFrom" | "validTo">;
 
 const WHOLE_COUNTRY = "_country";
 const SOURCE_MAX_LENGTH = 500;
-const HOLDING_FIELD_KEYS = ["operatorId", "bandId", "regionId", "downlinkKhz", "uplinkKhz", "validFrom", "validTo", "source"] as const;
+const HOLDING_FIELD_KEYS = [
+  "operatorId",
+  "jointOperatorId",
+  "bandId",
+  "regionId",
+  "downlinkKhz",
+  "uplinkKhz",
+  "validFrom",
+  "validTo",
+  "source",
+] as const;
 const SAVE_FAILED_KEY = "admin:reference.country.spectrum.dialog.saveFailed";
 const BAND_ID_PREFERENCE: readonly Band["rat"][] = ["lte", "nr", "umts", "gsm"];
-const REFUSAL_STATUSES: readonly number[] = new Set([400, 403, 409]);
+const REFUSAL_STATUSES: ReadonlySet<number> = new Set([400, 403, 409]);
 
 function toHoldingFields(holding: SpectrumHolding): HoldingFields {
   return {
     operatorId: holding.operatorId,
+    jointOperatorId: holding.jointOperatorId,
     bandId: holding.bandId,
     regionId: holding.regionId,
     downlinkKhz: holding.downlinkKhz,
@@ -80,7 +99,7 @@ function parseKhz(text: string): number | null {
   return Number.isFinite(mhz) && mhz > 0 ? Math.round(mhz * 1000) : null;
 }
 
-function parseRange(text: RangeText): KhzRange | null {
+function parseRange(text: RangeText): [number, number] | null {
   const low = parseKhz(text.low);
   const high = parseKhz(text.high);
   return low === null || high === null ? null : [low, high];
@@ -142,6 +161,7 @@ function SpectrumHoldingForm({
 }: SpectrumHoldingFormProps) {
   const { t, i18n } = useTranslation(["admin", "spectrum"]);
   const operatorTitleId = useId();
+  const jointOperatorTitleId = useId();
   const bandTitleId = useId();
   const regionTitleId = useId();
   const downlinkLowId = useId();
@@ -154,6 +174,7 @@ function SpectrumHoldingForm({
   const groups = listBandRanges(planBands);
   const initialGroup = holding === null ? groups[0] : groups.find((group) => group.bandIds.includes(holding.bandId));
   const [operatorId, setOperatorId] = useState<number | null>(holding?.operatorId ?? null);
+  const [jointOperatorId, setJointOperatorId] = useState<number | null>(holding?.jointOperatorId ?? null);
   const [groupKey, setGroupKey] = useState(initialGroup?.key ?? "");
   const [downlinkText, setDownlinkText] = useState(() => toRangeText(holding?.downlinkKhz ?? null));
   const [uplinkText, setUplinkText] = useState<RangeText | null>(() => (holding?.uplinkKhz ? toRangeText(holding.uplinkKhz) : null));
@@ -175,6 +196,7 @@ function SpectrumHoldingForm({
       ? null
       : {
           operatorId,
+          jointOperatorId,
           bandId,
           regionId,
           downlinkKhz: downlink,
@@ -186,7 +208,7 @@ function SpectrumHoldingForm({
 
   const others = holdings.filter((other) => other.id !== holding?.id && group?.bandIds.includes(other.bandId) === true);
   const operatorById = new Map(operators.map((operator) => [operator.id, toSpectrumOperator(operator, brands)]));
-  const draftColor = operatorId === null ? null : (operatorById.get(operatorId)?.color ?? null);
+  const draftColors = operatorId === null ? [] : colorsOf({ operatorId, jointOperatorId });
   const clash = fields === null ? undefined : holdings.find((other) => other.id !== holding?.id && clashes(fields, other));
 
   function rangeError(range: KhzRange | null, text: RangeText, bandRange: KhzRange | null): string | null {
@@ -214,8 +236,13 @@ function SpectrumHoldingForm({
   const canSubmit =
     fields !== null && downlinkError === null && uplinkError === null && hasRequiredUplink && isValidityOrdered && isChanged && !isPending;
 
-  function colorOf(other: SpectrumHolding): string {
-    return operatorById.get(other.operatorId)?.color ?? "transparent";
+  function colorsOf(holders: Pick<SpectrumHolding, "operatorId" | "jointOperatorId">): string[] {
+    return holdingOperators(holders, operatorById).map((operator) => operator.color);
+  }
+
+  function chooseOperator(id: number) {
+    setOperatorId(id);
+    if (id === jointOperatorId) setJointOperatorId(null);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -243,7 +270,7 @@ function SpectrumHoldingForm({
                 aria-pressed={isPressed}
                 disabled={isPending}
                 className={cn("cursor-pointer", isPressed && PRESSED_TOGGLE_CLASS)}
-                onClick={() => setOperatorId(operator.id)}
+                onClick={() => chooseOperator(operator.id)}
               >
                 <BrandMark brand={operatorById.get(operator.id)?.brand ?? null} />
                 {operator.name}
@@ -251,6 +278,31 @@ function SpectrumHoldingForm({
             );
           })}
         </div>
+      </Field>
+      <Field>
+        <FieldTitle id={jointOperatorTitleId}>{t("reference.country.spectrum.dialog.jointOperator")}</FieldTitle>
+        <div role="group" aria-labelledby={jointOperatorTitleId} className="flex flex-wrap gap-1.5">
+          {operators
+            .filter((operator) => operator.id !== operatorId)
+            .map((operator) => {
+              const isPressed = operator.id === jointOperatorId;
+              return (
+                <Button
+                  key={operator.id}
+                  type="button"
+                  variant={isPressed ? "ghost" : "outline"}
+                  aria-pressed={isPressed}
+                  disabled={isPending}
+                  className={cn("cursor-pointer", isPressed && PRESSED_TOGGLE_CLASS)}
+                  onClick={() => setJointOperatorId(isPressed ? null : operator.id)}
+                >
+                  <BrandMark brand={operatorById.get(operator.id)?.brand ?? null} />
+                  {operator.name}
+                </Button>
+              );
+            })}
+        </div>
+        <FieldDescription>{t("reference.country.spectrum.dialog.jointOperatorHint")}</FieldDescription>
       </Field>
       <Field>
         <FieldTitle id={bandTitleId}>{t("reference.country.spectrum.dialog.band")}</FieldTitle>
@@ -274,7 +326,7 @@ function SpectrumHoldingForm({
             ))}
           </SelectContent>
         </Select>
-        {group === undefined ? null : <BandPreview group={group} others={others} draft={downlink} draftColor={draftColor} colorOf={colorOf} />}
+        {group === undefined ? null : <BandPreview group={group} others={others} draft={downlink} draftColors={draftColors} colorsOf={colorsOf} />}
       </Field>
       <RangeFields
         label={group?.duplex === "tdd" ? t("spectrum:band.tdd") : t("spectrum:band.downlink")}
@@ -422,11 +474,11 @@ type BandPreviewProps = {
   group: BandRanges;
   others: readonly SpectrumHolding[];
   draft: KhzRange | null;
-  draftColor: string | null;
-  colorOf: (holding: SpectrumHolding) => string;
+  draftColors: readonly string[];
+  colorsOf: (holding: SpectrumHolding) => string[];
 };
 
-function BandPreview({ group, others, draft, draftColor, colorOf }: BandPreviewProps) {
+function BandPreview({ group, others, draft, draftColors, colorsOf }: BandPreviewProps) {
   const { t } = useTranslation("spectrum");
   const span = widthKhz(group.downlinkKhz);
 
@@ -442,12 +494,16 @@ function BandPreview({ group, others, draft, draftColor, colorOf }: BandPreviewP
         {others
           .filter((other) => other.regionId === null)
           .map((other) => (
-            <span key={other.id} className="absolute inset-y-0" style={{ ...position(other.downlinkKhz), backgroundColor: colorOf(other) }} />
+            <span
+              key={other.id}
+              className="absolute inset-y-0"
+              style={{ ...position(other.downlinkKhz), background: holderBackground(colorsOf(other)) }}
+            />
           ))}
         {draft === null || draft[0] >= draft[1] ? null : (
           <span
             className="absolute inset-y-0 ring-2 ring-foreground ring-inset"
-            style={{ ...position(draft), backgroundColor: draftColor ?? "transparent" }}
+            style={{ ...position(draft), background: holderBackground(draftColors) }}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import type { PublishedSiteName, SitesDataset } from "@openbts/country-packs/sources";
+import type { PermitKind, PublishedSiteName, SitesDataset } from "@openbts/country-packs/sources";
 import { officialDatasets, officialLocations, officialPermitListings, officialPermitSectors, officialPermits, officialSites } from "@openbts/drizzle";
 import { type SQL, and, eq, inArray, isNotNull, isNull, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -15,6 +15,8 @@ import { dropStagedSlices, sliceListOf, stagedPermits } from "./staging.js";
 type AddedSite = { officialSiteId: number; slice: string };
 type ListedPermit = { permitId: number; slice: string; officialSiteId: number };
 type UnlistedPermit = ListedPermit & { wasLastListing: boolean };
+
+const KINDS_LISTING_EVERY_SECTOR: ReadonlySet<PermitKind> = new Set(["inventory", "registration"]);
 
 async function matchLocations(tx: DbTx, sourceId: number): Promise<void> {
   await tx
@@ -265,6 +267,7 @@ async function insertPermits(tx: DbTx, fileDate: Date): Promise<Set<number>> {
           decision_number: stagedPermits.decisionNumber,
           decision_type: stagedPermits.decisionType,
           expiry_date: stagedPermits.expiryDate,
+          status: stagedPermits.status,
           createdAt: sql`${fileDate.toISOString()}::timestamp with time zone`.as("createdAt"),
           updatedAt: sql`${fileDate.toISOString()}::timestamp with time zone`.as("updatedAt"),
         })
@@ -273,6 +276,14 @@ async function insertPermits(tx: DbTx, fileDate: Date): Promise<Set<number>> {
     )
     .returning({ id: officialPermits.id });
   return new Set(added.map((permit) => permit.id));
+}
+
+async function updatePermitStatuses(tx: DbTx, fileDate: Date): Promise<void> {
+  await tx
+    .update(officialPermits)
+    .set({ status: stagedPermits.status, updatedAt: sql`${fileDate.toISOString()}::timestamp with time zone` })
+    .from(stagedPermits)
+    .where(and(eq(officialPermits.id, stagedPermits.permitId), sql`${officialPermits.status} IS DISTINCT FROM ${stagedPermits.status}`));
 }
 
 async function refreshListings(tx: DbTx, datasetId: number): Promise<void> {
@@ -319,23 +330,39 @@ async function insertListings(tx: DbTx, datasetId: number): Promise<ListedPermit
   return [...listed];
 }
 
+const PUBLISHED_SECTORS = sql`
+  SELECT round(published.azimuth)::integer AS azimuth, published.antenna_height, published.antenna_type
+  FROM jsonb_to_recordset(staged.sectors)
+    AS published (azimuth numeric, antenna_height double precision, antenna_type antenna_type)
+`;
+
+const SAME_SECTOR = sql`
+  stored.azimuth IS NOT DISTINCT FROM sector.azimuth AND stored.antenna_height IS NOT DISTINCT FROM sector.antenna_height
+  AND stored.antenna_type IS NOT DISTINCT FROM sector.antenna_type
+`;
+
 async function insertSectors(tx: DbTx): Promise<void> {
   await tx.execute(sql`
-    INSERT INTO ${officialPermitSectors} (permit_id, azimuth, elevation, antenna_height, antenna_type)
-    SELECT DISTINCT staged.permit_id, sector.azimuth, sector.elevation, sector.antenna_height, sector.antenna_type
+    INSERT INTO ${officialPermitSectors} (permit_id, azimuth, antenna_height, antenna_type)
+    SELECT DISTINCT staged.permit_id, sector.azimuth, sector.antenna_height, sector.antenna_type
     FROM ${stagedPermits} AS staged
-    CROSS JOIN LATERAL (
-      SELECT round(published.azimuth)::integer AS azimuth, round(published.elevation)::integer AS elevation,
-        published.antenna_height, published.antenna_type
-      FROM jsonb_to_recordset(staged.sectors)
-        AS published (azimuth numeric, elevation numeric, antenna_height double precision, antenna_type antenna_type)
-    ) AS sector
+    CROSS JOIN LATERAL (${PUBLISHED_SECTORS}) AS sector
     WHERE NOT EXISTS (
       SELECT 1 FROM ${officialPermitSectors} AS stored
-      WHERE stored.permit_id = staged.permit_id
-        AND stored.azimuth IS NOT DISTINCT FROM sector.azimuth AND stored.elevation IS NOT DISTINCT FROM sector.elevation
-        AND stored.antenna_height IS NOT DISTINCT FROM sector.antenna_height AND stored.antenna_type IS NOT DISTINCT FROM sector.antenna_type
+      WHERE stored.permit_id = staged.permit_id AND ${SAME_SECTOR}
     )
+  `);
+}
+
+async function deleteUnpublishedSectors(tx: DbTx): Promise<void> {
+  await tx.execute(sql`
+    DELETE FROM ${officialPermitSectors} AS stored
+    WHERE stored.permit_id IN (SELECT staged.permit_id FROM ${stagedPermits} AS staged)
+      AND NOT EXISTS (
+        SELECT 1 FROM ${stagedPermits} AS staged
+        CROSS JOIN LATERAL (${PUBLISHED_SECTORS}) AS sector
+        WHERE staged.permit_id = stored.permit_id AND ${SAME_SECTOR}
+      )
   `);
 }
 
@@ -423,9 +450,11 @@ export async function applySites(tx: DbTx, input: ReleaseInput, definition: Site
   const addedPermitIds = await insertPermits(tx, fileDate);
   if (addedPermitIds.size > 0) await matchPermits(tx);
   await analyzeFilledIds(tx, sql`permit_id`);
+  await updatePermitStatuses(tx, fileDate);
 
   await refreshListings(tx, datasetId);
   const listed = await insertListings(tx, datasetId);
+  if (KINDS_LISTING_EVERY_SECTOR.has(definition.permitKind)) await deleteUnpublishedSectors(tx);
   await insertSectors(tx);
   const unlisted = await unlistMissing(tx, datasetId, appliedSlices);
 
