@@ -2,9 +2,13 @@ import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 
 import { LoadingIcon } from "@/components/ui/loading-icon";
+import { preloadMaplibre } from "@/lib/maplibrePreload";
 import { buildStaticPageHead } from "@/lib/seo";
 
-const MapView = lazy(() => import("@/features/map/components/mapView"));
+const MapView = lazy(() => {
+  preloadMaplibre();
+  return import("@/features/map/components/mapView");
+});
 const OAuthConsentGate = lazy(() => import("@/components/oauth/consentGate").then((module) => ({ default: module.OAuthConsentGate })));
 
 const mapFallback = (

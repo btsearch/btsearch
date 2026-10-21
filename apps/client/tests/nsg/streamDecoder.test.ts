@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatNsgTimestamp } from "../../src/lib/nsg-parser";
 import { StreamDecoder } from "../../src/lib/nsg-parser/internal/streamDecoder";
 import type { NsgJsonObject } from "../../src/lib/nsg-parser/model";
 import { QUALCOMM_LTE_RRC_OTA_LOG_CODE, QUALCOMM_NR_RRC_OTA_LOG_CODE } from "../../src/lib/nsg-parser/qualcomm";
+import { formatNsgTimestamp } from "../../src/lib/nsg-parser/values";
 import { concatBytes as concat, bytesFromHex as fromHex, encodeVarint as varint } from "./binary";
 import {
   B97F_ONE_CELL,

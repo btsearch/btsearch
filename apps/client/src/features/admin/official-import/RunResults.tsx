@@ -1,4 +1,5 @@
-import { IMPORT_SLICE_OUTCOMES, type ImportRunApproval, type ImportRunChangeCount, type ImportRunDetail } from "@openbts/shared/contract";
+import type { ImportRunApproval, ImportRunChangeCount, ImportRunDetail } from "@openbts/shared/contract";
+import { IMPORT_SLICE_OUTCOMES } from "@openbts/shared/contract/constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";

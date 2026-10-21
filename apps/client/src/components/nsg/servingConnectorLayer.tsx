@@ -8,8 +8,8 @@ import type { ServingCellSnapshot } from "@/features/nsg-explorer/cells/servingT
 import { getReplayPosition } from "@/features/nsg-explorer/map/replayPosition";
 import { type AnalyzerResultsByKey, type MatchedStation, resolveReplayServingStation } from "@/features/nsg-explorer/stations/correlation";
 import { OperatorBrandCatalogContext } from "@/features/shared/operatorBrandCatalog";
-import { isValidLatLng } from "@/lib/nsg-parser";
 import type { NsgLocation } from "@/lib/nsg-parser/model";
+import { isValidLatLng } from "@/lib/nsg-parser/values";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 

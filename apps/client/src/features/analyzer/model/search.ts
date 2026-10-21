@@ -7,7 +7,7 @@ import {
   DEFAULT_ANALYZER_FILTERS,
   DIFFERENCE_KIND_ORDER,
   ROW_STATUSES,
-} from "./filters";
+} from "./filterValues";
 import type { DifferenceFilter } from "./types";
 import { FIRST_LIST_PAGE, LAST_LIST_PAGE, LIST_PAGE_SIZE_LIMIT, SMALLEST_LIST_PAGE_SIZE } from "@/features/stations/list/data/listPaging";
 import {

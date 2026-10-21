@@ -4,7 +4,7 @@ import {
   parseReferenceListPagingSearch,
   readReferenceListPaging,
   toReferenceListPagingSearch,
-} from "../shared/referenceListPaging";
+} from "../shared/referenceListSearch";
 import { isCountryCode } from "@/lib/apiValues";
 import { joinSearchValues, parseSearchQuery, parseSearchValues } from "@/lib/urlSearch";
 

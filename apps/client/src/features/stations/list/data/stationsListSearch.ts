@@ -1,4 +1,5 @@
-import { BACKHAUL_MEDIUMS, type Operator } from "@openbts/shared/contract";
+import type { Operator } from "@openbts/shared/contract";
+import { BACKHAUL_MEDIUMS } from "@openbts/shared/contract/constants";
 
 import { FIRST_LIST_PAGE, LAST_LIST_PAGE, LIST_PAGE_SIZE_LIMIT, SMALLEST_LIST_PAGE_SIZE } from "./listPaging";
 import { DEFAULT_LIST_STATION_STATUSES, LIST_STATION_STATUSES, isDefaultListStationStatuses } from "./listStationStatuses";

@@ -1,4 +1,5 @@
-import { OFFICIAL_SITE_INCLUDES, type OfficialSite } from "@openbts/shared/contract";
+import type { OfficialSite } from "@openbts/shared/contract";
+import { OFFICIAL_SITE_INCLUDES } from "@openbts/shared/contract/constants";
 import { type QueryClient, queryOptions, skipToken } from "@tanstack/react-query";
 
 import { auditOperationKeys } from "@/features/admin/audit-operations/queries";

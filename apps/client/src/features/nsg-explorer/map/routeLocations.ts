@@ -1,5 +1,5 @@
-import { isValidLatLng } from "@/lib/nsg-parser";
 import type { NsgLocation } from "@/lib/nsg-parser/model";
+import { isValidLatLng } from "@/lib/nsg-parser/values";
 
 const GPS_PREFERENCE_WINDOW_MS = 1000;
 const NETWORK_PREFERENCE_WINDOW_MS = 30_000;

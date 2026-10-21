@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-import { BSIC_MAX, CELL_FIELD_NOTES, CELL_RATS, CELL_TYPES, GNBID_MAX, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, NR_MODES, PSC_MAX } from "./cells.ts";
+import { BSIC_MAX, CELL_FIELD_NOTES, CELL_TYPES, GNBID_MAX, NR_MODES, PSC_MAX } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
@@ -21,9 +21,9 @@ import {
   userRefSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { BACKHAUL_MEDIUMS, CELL_RATS, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH } from "./constants.ts";
 import { photoDetailsShape, photoIdSchema, photoUploadShape, photoUrlsSchema } from "./photos.ts";
 import {
-  BACKHAUL_MEDIUMS,
   RESERVED_SITE_ID_PREFIX,
   SECTOR_AZIMUTH_NOTE,
   STATION_IDENTIFIER_KIND_NOTE,

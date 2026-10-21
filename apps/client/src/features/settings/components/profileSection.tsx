@@ -1,6 +1,7 @@
 import { ArrowUpRight01Icon, Facebook01Icon, Globe02Icon, InstagramIcon, Mail01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { HUNTER_REGIONS_MAX, type OwnProfile, type Region } from "@openbts/shared/contract";
+import type { OwnProfile, Region } from "@openbts/shared/contract";
+import { HUNTER_REGIONS_MAX } from "@openbts/shared/contract/constants";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useId, useState } from "react";

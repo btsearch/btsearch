@@ -12,7 +12,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -46,7 +46,6 @@ import {
   StatusBadge,
 } from "./settingsPrimitives";
 import { SignInMethodsCard } from "./signInMethodsCard";
-import { DisableTwoFactorDialog, EnableTwoFactorDialog, RegenerateBackupCodesDialog } from "./twoFactorDialogs";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useRelativeTime } from "@/components/ui/relative-time";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,11 +56,22 @@ import { cn } from "@/lib/utils";
 
 type TwoFactorDialog = "enable" | "disable" | "regenerate";
 
+const loadTwoFactorDialogs = () => import("./twoFactorDialogs");
+const EnableTwoFactorDialog = lazy(() => loadTwoFactorDialogs().then((module) => ({ default: module.EnableTwoFactorDialog })));
+const DisableTwoFactorDialog = lazy(() => loadTwoFactorDialogs().then((module) => ({ default: module.DisableTwoFactorDialog })));
+const RegenerateBackupCodesDialog = lazy(() => loadTwoFactorDialogs().then((module) => ({ default: module.RegenerateBackupCodesDialog })));
+
 function TwoFactorCard({ user }: { user: SettingsUser }) {
   const { t } = useTranslation("settings");
   const { data: hasPassword } = useQuery(passwordStatusQueryOptions(user.id));
   const isEnabled = user.twoFactorEnabled === true;
   const [dialog, setDialog] = useState<TwoFactorDialog | null>(user.forceTotp === true && !isEnabled ? "enable" : null);
+  const [hasOpenedDialog, setHasOpenedDialog] = useState(false);
+  if (!hasOpenedDialog && dialog !== null) setHasOpenedDialog(true);
+
+  useEffect(() => {
+    void loadTwoFactorDialogs();
+  }, []);
 
   const needsPassword = !isEnabled && hasPassword === false;
   const openChange = (target: TwoFactorDialog) => (open: boolean) => setDialog(open ? target : null);
@@ -99,9 +109,13 @@ function TwoFactorCard({ user }: { user: SettingsUser }) {
           )
         }
       />
-      <EnableTwoFactorDialog open={dialog === "enable"} onOpenChange={openChange("enable")} />
-      <DisableTwoFactorDialog open={dialog === "disable"} onOpenChange={openChange("disable")} userId={user.id} />
-      <RegenerateBackupCodesDialog open={dialog === "regenerate"} onOpenChange={openChange("regenerate")} />
+      {hasOpenedDialog ? (
+        <Suspense fallback={null}>
+          <EnableTwoFactorDialog open={dialog === "enable"} onOpenChange={openChange("enable")} />
+          <DisableTwoFactorDialog open={dialog === "disable"} onOpenChange={openChange("disable")} userId={user.id} />
+          <RegenerateBackupCodesDialog open={dialog === "regenerate"} onOpenChange={openChange("regenerate")} />
+        </Suspense>
+      ) : null}
     </SettingsCard>
   );
 }

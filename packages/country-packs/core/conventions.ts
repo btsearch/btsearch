@@ -1,4 +1,5 @@
-import { DEFAULT_GNBID_LENGTH, type StationIdentifierKind } from "@openbts/shared/contract";
+import type { StationIdentifierKind } from "@openbts/shared/contract";
+import { DEFAULT_GNBID_LENGTH } from "@openbts/shared/contract/constants";
 
 export type OperatorRef = {
   id: number;

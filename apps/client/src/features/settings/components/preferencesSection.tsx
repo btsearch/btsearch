@@ -16,7 +16,8 @@ import {
   WazeIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { MAX_LOCATION_LIST_LIMIT, type PushTopics } from "@openbts/shared/contract";
+import type { PushTopics } from "@openbts/shared/contract";
+import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract/constants";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId } from "react";
 import { Trans, useTranslation } from "react-i18next";

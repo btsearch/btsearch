@@ -1,6 +1,7 @@
 import { Cancel01Icon, Location01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { HUNTER_REGIONS_MAX, type Region } from "@openbts/shared/contract";
+import type { Region } from "@openbts/shared/contract";
+import { HUNTER_REGIONS_MAX } from "@openbts/shared/contract/constants";
 import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 

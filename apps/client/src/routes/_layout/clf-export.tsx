@@ -13,15 +13,8 @@ import {
   normalizeCLFDescriptionTemplates,
   renderClfTemplatePreview,
 } from "@openbts/shared/clfExportTemplates";
-import {
-  type Band,
-  CELL_EXPORT_TEMPLATE_PARAMS,
-  CELL_RATS,
-  type CellExportQuery,
-  type Operator,
-  type Region,
-  UNKNOWN_BAND,
-} from "@openbts/shared/contract";
+import type { Band, CellExportQuery, Operator, Region } from "@openbts/shared/contract";
+import { CELL_EXPORT_TEMPLATE_PARAMS, CELL_RATS, UNKNOWN_BAND } from "@openbts/shared/contract/constants";
 import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";

@@ -1,4 +1,4 @@
-import type { AnalyzerFilters } from "./filters";
+import type { AnalyzerFilters } from "./filterValues";
 import type { MatchTables, RowFacts, RowStatus } from "./types";
 import { getStationNumber } from "@/features/station-details/station/utils/stations";
 import { FIRST_LIST_PAGE, getListPageCount } from "@/features/stations/list/data/listPaging";

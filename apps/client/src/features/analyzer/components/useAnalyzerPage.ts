@@ -9,8 +9,6 @@ import { listSessionCountryCodes, useAnalyzerLookups } from "../data/lookups";
 import { type AnalyzerSession, analyzerSession, useAnalyzerSession } from "../data/session";
 import { buildAnalyzerDraft } from "../model/draft";
 import {
-  ANY_DIFFERENCE,
-  type AnalyzerFilters,
   clearAnalyzerFilters,
   countActiveAnalyzerFilters,
   countFacets,
@@ -20,6 +18,7 @@ import {
   listFilteredIndexes,
   moveAnalyzerToFirstPage,
 } from "../model/filters";
+import { ANY_DIFFERENCE, type AnalyzerFilters } from "../model/filterValues";
 import { buildRowFacts } from "../model/rows";
 import { type AnalyzerSearch, readAnalyzerFilters, toAnalyzerSearch } from "../model/search";
 import {

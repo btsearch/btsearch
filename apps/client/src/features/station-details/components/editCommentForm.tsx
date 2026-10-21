@@ -1,4 +1,4 @@
-import { COMMENT_MAX_LENGTH } from "@openbts/shared/contract";
+import { COMMENT_MAX_LENGTH } from "@openbts/shared/contract/constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type SubmitEvent, useState } from "react";
 import { useTranslation } from "react-i18next";

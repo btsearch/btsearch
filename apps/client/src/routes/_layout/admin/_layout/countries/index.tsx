@@ -6,7 +6,7 @@ import {
   parseReferenceListPagingSearch,
   readReferenceListPaging,
   toReferenceListPagingSearch,
-} from "@/features/admin/reference/components/shared/referenceListPaging";
+} from "@/features/admin/reference/components/shared/referenceListSearch";
 
 function AdminCountriesPage() {
   const navigate = useNavigate();

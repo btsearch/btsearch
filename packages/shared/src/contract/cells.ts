@@ -3,9 +3,6 @@ import { z } from "zod/v4";
 import { bandSchema } from "./bands.ts";
 import { INCLUDE_NOTE } from "./common.ts";
 
-export const CELL_RATS = ["gsm", "umts", "lte", "nr"] as const;
-export type CellRat = (typeof CELL_RATS)[number];
-
 export const CELL_TYPES = ["macro", "micro", "pico", "femto"] as const;
 export type CellType = (typeof CELL_TYPES)[number];
 
@@ -15,9 +12,6 @@ export type NrMode = (typeof NR_MODES)[number];
 export const BSIC_MAX = 63;
 export const PSC_MAX = 511;
 export const GNBID_MAX = 4_294_967_295;
-export const GNBID_MIN_LENGTH = 22;
-export const GNBID_MAX_LENGTH = 32;
-export const DEFAULT_GNBID_LENGTH = 24;
 
 export const CELL_FIELD_NOTES = {
   lac: "Location area code",

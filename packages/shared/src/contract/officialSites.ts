@@ -21,15 +21,13 @@ import {
   searchTextSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { MAX_LOCATION_LIST_LIMIT, OFFICIAL_RAT_FILTERS, OFFICIAL_SITE_INCLUDES } from "./constants.ts";
 import { csvSourceKeysSchema } from "./officialSources.ts";
 import { regionSchema } from "./regions.ts";
-import { KEEP_OTHER_COUNTRIES_LEAD, LOCATION_SORTS, MAX_LOCATION_LIST_LIMIT, areaFilterShape } from "./stations.ts";
+import { KEEP_OTHER_COUNTRIES_LEAD, LOCATION_SORTS, areaFilterShape } from "./stations.ts";
 
 export const OFFICIAL_RATS = ["gsm", "umts", "lte", "nr", "cdma", "iot"] as const;
 export type OfficialRat = (typeof OFFICIAL_RATS)[number];
-
-export const OFFICIAL_RAT_FILTERS = ["gsm", "gsmR", "umts", "lte", "nr", "cdma", "iot"] as const;
-export type OfficialRatFilter = (typeof OFFICIAL_RAT_FILTERS)[number];
 
 export const OFFICIAL_PERMIT_KINDS = [
   "permit",
@@ -47,9 +45,6 @@ export const OFFICIAL_ANTENNA_TYPES = ["indoor", "outdoor"] as const;
 
 export const OFFICIAL_LOCATION_INCLUDES = ["region", "sites", "sites.permits", "sites.permits.sectors"] as const;
 export type OfficialLocationInclude = (typeof OFFICIAL_LOCATION_INCLUDES)[number];
-
-export const OFFICIAL_SITE_INCLUDES = ["location", "location.region", "permits", "permits.sectors"] as const;
-export type OfficialSiteInclude = (typeof OFFICIAL_SITE_INCLUDES)[number];
 
 export const OFFICIAL_PERMIT_INCLUDES = ["sectors", "stations", "officialSite", "officialSite.location"] as const;
 export type OfficialPermitInclude = (typeof OFFICIAL_PERMIT_INCLUDES)[number];

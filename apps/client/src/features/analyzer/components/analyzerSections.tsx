@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { UNKNOWN_BAND_KEY } from "../model/bands";
-import { ANALYZER_RATS, ANALYZER_SORTS, type AnalyzerFilters, type BandFacet, ROW_STATUSES, listKindPills } from "../model/filters";
+import { type BandFacet, listKindPills } from "../model/filters";
+import { ANALYZER_RATS, ANALYZER_SORTS, type AnalyzerFilters, ROW_STATUSES } from "../model/filterValues";
 import type { DifferenceFilter } from "../model/types";
 import { ANALYZER_SECOND_LINE_CLASS } from "./analyzerLayout";
 import { useAnalyzerTexts } from "./analyzerTexts";

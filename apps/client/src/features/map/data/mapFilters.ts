@@ -1,11 +1,5 @@
-import {
-  type BackhaulMedium,
-  type Country,
-  OFFICIAL_RAT_FILTERS,
-  type OfficialLayer,
-  type OfficialRatFilter,
-  type Operator,
-} from "@openbts/shared/contract";
+import type { Country, OfficialLayer, Operator } from "@openbts/shared/contract";
+import { type BackhaulMedium, OFFICIAL_RAT_FILTERS, type OfficialRatFilter } from "@openbts/shared/contract/constants";
 
 import { RAT_OPTIONS } from "../constants";
 import { type OfficialLabelParts, listOfficialRatOptions, toOfficialRatOption } from "@/features/official/labels";

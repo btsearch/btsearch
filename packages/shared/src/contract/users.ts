@@ -14,6 +14,7 @@ import {
   userRefSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { HUNTER_REGIONS_MAX } from "./constants.ts";
 import { USER_ROLES } from "./me.ts";
 
 export const PROFILE_VISIBILITIES = ["public", "private"] as const;
@@ -33,8 +34,6 @@ export const userContactSchema = z.object({
   email: z.string().nullable().describe("The contact address the user chose to show, which can differ from the account's email"),
 });
 export type UserContact = z.infer<typeof userContactSchema>;
-
-export const HUNTER_REGIONS_MAX = 20;
 
 const LINK_PATTERN = /https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}/i;
 const INSTAGRAM_HANDLE_PATTERN = /^[a-zA-Z0-9._]{1,30}$/;

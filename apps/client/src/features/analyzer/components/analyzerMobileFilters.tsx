@@ -9,7 +9,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useTranslation } from "react-i18next";
 
-import { DEFAULT_ANALYZER_FILTERS, clearAnalyzerFilters, countActiveAnalyzerFilters } from "../model/filters";
+import { clearAnalyzerFilters, countActiveAnalyzerFilters } from "../model/filters";
+import { DEFAULT_ANALYZER_FILTERS } from "../model/filterValues";
 import { BandSection, ConfirmationSection, KindSection, OperatorSection, RatSection, ResultSection, SortSection } from "./analyzerSections";
 import { useAnalyzerTexts } from "./analyzerTexts";
 import type { AnalyzerPanelProps } from "./analyzerTypes";

@@ -1,4 +1,5 @@
-import { OFFICIAL_SITE_INCLUDES, type OfficialPermit } from "@openbts/shared/contract";
+import type { OfficialPermit } from "@openbts/shared/contract";
+import { OFFICIAL_SITE_INCLUDES } from "@openbts/shared/contract/constants";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 

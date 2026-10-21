@@ -1,20 +1,17 @@
-import {
-  type DryRunSlice,
-  IMPORT_CHANGE_KINDS,
-  IMPORT_RUN_STEPS,
-  type ImportChangeKind,
-  type ImportRun,
-  type ImportRunApproval,
-  type ImportRunChangeCount,
-  type ImportRunCreate,
-  type ImportRunDetail,
-  type ImportRunList,
-  type ImportRunSkipCount,
-  type ImportRunStatus,
-  type ImportRunStep,
-  type ImportSliceOutcome,
-  type OfficialSource,
+import type {
+  DryRunSlice,
+  ImportRun,
+  ImportRunApproval,
+  ImportRunChangeCount,
+  ImportRunCreate,
+  ImportRunDetail,
+  ImportRunList,
+  ImportRunSkipCount,
+  ImportRunStatus,
+  ImportRunStep,
+  OfficialSource,
 } from "@openbts/shared/contract";
+import { IMPORT_CHANGE_KINDS, IMPORT_RUN_STEPS, type ImportChangeKind, type ImportSliceOutcome } from "@openbts/shared/contract/constants";
 import { formatPermitLabel } from "@openbts/shared/permitLabel";
 
 export type RunOutcome = "queued" | "running" | "success" | "completedWithErrors" | "held" | "error" | "cancelled";

@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { csvBandIdsSchema } from "./bands.ts";
-import { CELL_RATS, stationCellSchema } from "./cells.ts";
+import { stationCellSchema } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
@@ -23,6 +23,7 @@ import {
   searchTextSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { BACKHAUL_MEDIUMS, CELL_RATS, MAX_LOCATION_LIST_LIMIT } from "./constants.ts";
 import { operatorSchema } from "./operators.ts";
 import { regionSchema } from "./regions.ts";
 import {
@@ -40,9 +41,6 @@ export const STATION_STATUSES = ["active", "awaitingCells", "inactive"] as const
 export type StationStatus = (typeof STATION_STATUSES)[number];
 
 export const DEFAULT_STATION_STATUSES: readonly StationStatus[] = ["active", "awaitingCells"];
-
-export const BACKHAUL_MEDIUMS = ["fiber", "microwave", "satellite", "xdsl"] as const;
-export type BackhaulMedium = (typeof BACKHAUL_MEDIUMS)[number];
 
 export const STATION_INCLUDES = ["operator", "location", "location.region", "cells", "cells.band", "sectors", "backhaul"] as const;
 export type StationInclude = (typeof STATION_INCLUDES)[number];
@@ -114,22 +112,6 @@ export const NODE_NAME_NOTE =
   "A name you can show in place of `siteId` while the station has no number, taken from the first of these it has: " +
   "its lowest eNB (`4G 412345`), its lowest gNB (`5G 1234567`), its lowest UMTS cell (`3G 12:34561`, RNC and cell id) " +
   "or its lowest GSM cell (`2G 1234:5678`, LAC and cell id). `null` for a station with a number, and for one with none of these";
-
-export const CID_RANGE = 65_536;
-
-export type NodeIds = { enbid: number | null; gnbid: number | null; longCid: number | null; gsmCellKey: number | null };
-
-function toCellPair(key: number): string {
-  return `${Math.floor(key / CID_RANGE)}:${key % CID_RANGE}`;
-}
-
-export function toNodeName({ enbid, gnbid, longCid, gsmCellKey }: NodeIds): string | null {
-  if (enbid !== null) return `4G ${enbid}`;
-  if (gnbid !== null) return `5G ${gnbid}`;
-  if (longCid !== null) return `3G ${toCellPair(longCid)}`;
-  if (gsmCellKey !== null) return `2G ${toCellPair(gsmCellKey)}`;
-  return null;
-}
 
 const HOST_STATION_NOTE =
   "The station that hosts this one in a shared network: another member's station at the same location, " +
@@ -316,8 +298,6 @@ export const locationQuerySchema = z
   })
   .strict();
 export type LocationQuery = z.infer<typeof locationQuerySchema>;
-
-export const MAX_LOCATION_LIST_LIMIT = 1500;
 
 const INCLUDE_EMPTY_NOTE =
   "If `true`, locations without a matching station are returned too. Requires the `update:locations` permission. " +

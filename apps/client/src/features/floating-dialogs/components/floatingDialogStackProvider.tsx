@@ -1,9 +1,8 @@
 import type { OfficialSite } from "@openbts/shared/contract";
-import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from "react";
+import { type ReactNode, Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { useFloatingDialogStackState } from "../hooks/useFloatingDialogStackState";
 import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload, TerrainProfileDialogPayload } from "../types";
-import { FloatingDialogStack } from "./floatingDialogStack";
 import type { DuplexMicrowaveLink } from "@/features/map/utils";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import type { StationSource } from "@/types/station";
@@ -22,9 +21,19 @@ type FloatingDialogStackContextValue = {
 
 const FloatingDialogStackContext = createContext<FloatingDialogStackContextValue | null>(null);
 
+const loadFloatingDialogStack = () => import("./floatingDialogStack");
+const FloatingDialogStack = lazy(() => loadFloatingDialogStack().then((module) => ({ default: module.FloatingDialogStack })));
+
 export function FloatingDialogStackProvider({ children }: { children: ReactNode }) {
   const stack = useFloatingDialogStackState();
+  const [hasOpenedDialog, setHasOpenedDialog] = useState(false);
   const [terrainProfileStartHandler, setTerrainProfileStartHandlerState] = useState<((station: TerrainProfileStationTarget) => void) | null>(null);
+  if (!hasOpenedDialog && stack.dialogs.length > 0) setHasOpenedDialog(true);
+
+  useEffect(() => {
+    void loadFloatingDialogStack();
+  }, []);
+
   const setTerrainProfileStartHandler = useCallback((handler: ((station: TerrainProfileStationTarget) => void) | null) => {
     setTerrainProfileStartHandlerState(() => handler);
   }, []);
@@ -56,14 +65,18 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
   return (
     <FloatingDialogStackContext.Provider value={contextValue}>
       {children}
-      <FloatingDialogStack
-        dialogs={stack.dialogs}
-        onClose={stack.requestCloseDialog}
-        onFocus={stack.focusDialog}
-        onRectChange={stack.updateDialogRect}
-        onSwitchStation={stack.switchStationDialog}
-        onStartTerrainProfile={terrainProfileStartHandler}
-      />
+      {hasOpenedDialog ? (
+        <Suspense fallback={null}>
+          <FloatingDialogStack
+            dialogs={stack.dialogs}
+            onClose={stack.requestCloseDialog}
+            onFocus={stack.focusDialog}
+            onRectChange={stack.updateDialogRect}
+            onSwitchStation={stack.switchStationDialog}
+            onStartTerrainProfile={terrainProfileStartHandler}
+          />
+        </Suspense>
+      ) : null}
     </FloatingDialogStackContext.Provider>
   );
 }

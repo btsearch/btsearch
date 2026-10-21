@@ -5,13 +5,43 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { type Plugin, defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import svgr from "vite-plugin-svgr";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ENTRIES_AWARE_MERGE_THRESHOLD = 20_000;
+const MAPLIBRE_DIST = resolve(__dirname, "node_modules/maplibre-gl/dist");
+const MAPLIBRE_FILES = ["maplibre-gl.mjs", "maplibre-gl-shared.mjs", "maplibre-gl-worker.mjs"];
+const MAPLIBRE_VERSION = JSON.parse(readFileSync(resolve(MAPLIBRE_DIST, "../package.json"), "utf8")).version as string;
+const MAPLIBRE_FOLDER = `assets/maplibre-gl-${MAPLIBRE_VERSION}`;
+
+const INDEX_HTML_ASSET_PATTERN = /(?:src|href)="\/(assets\/[^"]+)"/g;
+const TOP_LEVEL_SCRIPT_OR_STYLE = /^assets\/[^/]+\.(?:js|css)$/;
+
+function precacheIndexHtmlAssets<Entry extends { url: string }>(entries: Entry[]): { manifest: Entry[] } {
+  const html = readFileSync(resolve(__dirname, "dist/index.html"), "utf8");
+  const loadedByIndexHtml = new Set(Array.from(html.matchAll(INDEX_HTML_ASSET_PATTERN), (match) => match[1]));
+  return { manifest: entries.filter((entry) => !TOP_LEVEL_SCRIPT_OR_STYLE.test(entry.url) || loadedByIndexHtml.has(entry.url)) };
+}
+
+function maplibreFromDist(): Plugin {
+  return {
+    name: "maplibre-from-dist",
+    apply: "build",
+    enforce: "pre",
+    resolveId(id) {
+      if (id === "maplibre-gl") return { id: `/${MAPLIBRE_FOLDER}/maplibre-gl.mjs`, external: true };
+      return null;
+    },
+    generateBundle() {
+      for (const fileName of MAPLIBRE_FILES) {
+        this.emitFile({ type: "asset", fileName: `${MAPLIBRE_FOLDER}/${fileName}`, source: readFileSync(resolve(MAPLIBRE_DIST, fileName)) });
+      }
+    },
+  };
+}
 
 function getGitCommit(): string {
   try {
@@ -35,8 +65,10 @@ export default defineConfig({
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(getAppVersion()),
     "import.meta.env.VITE_GIT_COMMIT": JSON.stringify(getGitCommit()),
+    "import.meta.env.VITE_MAPLIBRE_FOLDER": JSON.stringify(`/${MAPLIBRE_FOLDER}/`),
   },
   plugins: [
+    maplibreFromDist(),
     svgr(),
     tanstackRouter({
       target: "react",
@@ -95,14 +127,16 @@ export default defineConfig({
         },
       },
       injectManifest: {
-        globPatterns: ["index.html", "assets/index-*.{js,css}", "assets/fonts/nunito-sans-latin*.woff2", "favicon.ico", "btsearch.webp"],
+        globPatterns: ["index.html", "assets/*.{js,css}", "assets/fonts/nunito-sans-latin*.woff2", "favicon.ico", "btsearch.webp"],
         globIgnores: ["sw.js"],
+        manifestTransforms: [precacheIndexHtmlAssets],
       },
       pwaAssets: { disabled: false, config: true },
     }),
   ],
   optimizeDeps: {
-    include: ["react", "react-dom", "react-i18next", "maplibre-gl", "@hugeicons/react", "recharts"],
+    include: ["react", "react-dom", "react-i18next", "@hugeicons/react", "recharts"],
+    exclude: ["maplibre-gl"],
   },
   build: {
     rolldownOptions: {
@@ -120,11 +154,6 @@ export default defineConfig({
               name: "locale-pl",
               test: /src[\\/]i18n[\\/]locales[\\/]pl-PL/,
               priority: 35,
-            },
-            {
-              name: "maplibre",
-              test: /node_modules[\\/]maplibre-gl/,
-              priority: 30,
             },
             {
               name: "react-vendor",

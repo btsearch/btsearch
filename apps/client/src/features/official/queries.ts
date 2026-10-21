@@ -1,4 +1,5 @@
-import { OFFICIAL_SITE_INCLUDES, type OfficialSiteInclude, type OfficialSource } from "@openbts/shared/contract";
+import type { OfficialSource } from "@openbts/shared/contract";
+import { OFFICIAL_SITE_INCLUDES, type OfficialSiteInclude } from "@openbts/shared/contract/constants";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { type LicenseeListParams, fetchLicensees, fetchOfficialBandLabels, fetchOfficialSite, fetchOfficialSources } from "./api";

@@ -1,5 +1,5 @@
 import { BAND_GROUPS, type BandGroupKey } from "../../utils/bands";
-import { type ReferenceListPagingSearch, parseReferenceListPagingSearch } from "../shared/referenceListPaging";
+import { type ReferenceListPagingSearch, parseReferenceListPagingSearch } from "../shared/referenceListSearch";
 import { joinSearchValues, listSearchValues, parseSearchQuery } from "@/lib/urlSearch";
 
 export type BandCodePresence = "all" | "with" | "without";

@@ -1,6 +1,6 @@
 import { CableIcon, Router01Icon, Satellite01Icon, Satellite02Icon } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
-import { BACKHAUL_MEDIUMS, type BackhaulMedium } from "@openbts/shared/contract";
+import { BACKHAUL_MEDIUMS, type BackhaulMedium } from "@openbts/shared/contract/constants";
 
 export const BACKHAUL_APPEARANCE: Record<BackhaulMedium, { icon: IconSvgElement; iconClassName: string }> = {
   fiber: { icon: CableIcon, iconClassName: "text-sky-600 dark:text-sky-400" },

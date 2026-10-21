@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { ANY_DIFFERENCE, type AnalyzerFilters, DIFFERENCE_FIELDS } from "../model/filters";
+import { ANY_DIFFERENCE, type AnalyzerFilters, DIFFERENCE_FIELDS } from "../model/filterValues";
 import type { DifferenceField, DifferenceFilter, DifferenceKind, RowStatus, TickBlock } from "../model/types";
 import { CELL_NUMBER_LABELS } from "@/features/station-editing/model/ratFields";
 

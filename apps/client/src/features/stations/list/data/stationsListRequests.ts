@@ -1,4 +1,5 @@
-import { BACKHAUL_MEDIUMS, type Paging, type SearchMatch, type StationSort } from "@openbts/shared/contract";
+import type { Paging, SearchMatch, StationSort } from "@openbts/shared/contract";
+import { BACKHAUL_MEDIUMS } from "@openbts/shared/contract/constants";
 import { queryOptions, skipToken } from "@tanstack/react-query";
 
 import { clampListPageSize, getListOffset } from "./listPaging";

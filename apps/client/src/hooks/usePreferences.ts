@@ -4,7 +4,7 @@ import {
   type ClfExportFormat,
   normalizeCLFDescriptionTemplates,
 } from "@openbts/shared/clfExportTemplates";
-import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract";
+import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract/constants";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 

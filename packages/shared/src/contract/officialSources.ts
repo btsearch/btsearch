@@ -16,6 +16,7 @@ import {
   pagingSchema,
   userRefSchema,
 } from "./common.ts";
+import { IMPORT_CHANGE_KINDS, IMPORT_RUN_STEPS, IMPORT_SLICE_OUTCOMES } from "./constants.ts";
 
 export const OFFICIAL_LAYERS = ["sites", "microwaveLinks"] as const;
 export type OfficialLayer = (typeof OFFICIAL_LAYERS)[number];
@@ -30,39 +31,6 @@ export type ImportRunTrigger = (typeof IMPORT_RUN_TRIGGERS)[number];
 
 export const IMPORT_RUN_STATUSES = ["queued", "running", "done", "failed", "cancelled"] as const;
 export type ImportRunStatus = (typeof IMPORT_RUN_STATUSES)[number];
-
-export const IMPORT_SLICE_OUTCOMES = ["applied", "unchanged", "held"] as const;
-export type ImportSliceOutcome = (typeof IMPORT_SLICE_OUTCOMES)[number];
-
-export const IMPORT_RUN_STEPS = [
-  "unlistedPermits",
-  "siteNotifications",
-  "links",
-  "stationNotifications",
-  "orphans",
-  "statistics",
-  "push",
-  "kmz",
-  "publish",
-  "prune",
-] as const;
-export type ImportRunStepName = (typeof IMPORT_RUN_STEPS)[number];
-
-export const IMPORT_CHANGE_KINDS = [
-  "siteAdded",
-  "siteMoved",
-  "siteRemapped",
-  "permitAdded",
-  "permitListed",
-  "permitUnlisted",
-  "permitArchived",
-  "stationLinked",
-  "stationUnlinked",
-  "microwaveLinkAdded",
-  "microwaveLinkRenewed",
-  "microwaveLinkArchived",
-] as const;
-export type ImportChangeKind = (typeof IMPORT_CHANGE_KINDS)[number];
 
 const SOURCE_KEY_MAX_LENGTH = 64;
 const MAX_LICENSEE_LIST_LIMIT = 1000;

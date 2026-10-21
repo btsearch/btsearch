@@ -8,16 +8,8 @@ import {
   CLF_EXPORT_FORMATS,
 } from "../clfExportTemplates.ts";
 import { csvBandIdsSchema } from "./bands.ts";
-import { CELL_RATS } from "./cells.ts";
 import { booleanQuerySchema, csvCountryCodesSchema, csvEnumSchema, csvIdsSchema, instantSchema } from "./common.ts";
-
-export const CELL_EXPORT_TEMPLATE_PARAMS = {
-  GSM: "templateGsm",
-  UMTS: "templateUmts",
-  LTE: "templateLte",
-  NR_NSA: "templateNrNsa",
-  NR: "templateNr",
-} as const satisfies Record<CLFDescriptionTemplateRat, string>;
+import { CELL_RATS } from "./constants.ts";
 
 const templateSchema = z.string().trim().min(1).max(CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH);
 

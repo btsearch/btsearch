@@ -18,10 +18,11 @@ import {
 } from "../../src/features/nsg-explorer/stations/correlation";
 import type { AnalyzerResult, AnalyzerStation } from "../../src/lib/analyzer/api";
 import { ANALYZER_REQUEST_CHUNK_SIZE, chunkAnalyzerCells } from "../../src/lib/analyzer/chunks";
-import { parseNsgTimestampMs } from "../../src/lib/nsg-parser";
-import { isNsgFileHeader, openNsgFile } from "../../src/lib/nsg-parser/browser";
+import { openNsgFile } from "../../src/lib/nsg-parser/browser";
+import { isNsgFileHeader } from "../../src/lib/nsg-parser/fileHeader";
 import { StreamDecoder } from "../../src/lib/nsg-parser/internal/streamDecoder";
 import type { NsgCell, NsgJsonObject, NsgLocation, NsgProgress } from "../../src/lib/nsg-parser/model";
+import { parseNsgTimestampMs } from "../../src/lib/nsg-parser/values";
 import { bytesFromHex, concatBytes, encodeVarint } from "./binary";
 
 const encoder = new TextEncoder();

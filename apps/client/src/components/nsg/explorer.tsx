@@ -32,8 +32,8 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { showApiError } from "@/lib/api";
-import { parseNsgTimestampMs } from "@/lib/nsg-parser";
 import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg-parser/model";
+import { parseNsgTimestampMs } from "@/lib/nsg-parser/values";
 import { cn } from "@/lib/utils";
 
 const RouteMap = lazy(() => import("./routeMap"));

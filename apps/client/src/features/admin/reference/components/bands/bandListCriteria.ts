@@ -1,6 +1,6 @@
 import type { Band } from "../../types";
 import type { BandGroupKey } from "../../utils/bands";
-import { type ReferenceListPaging, readReferenceListPaging, toReferenceListPagingSearch } from "../shared/referenceListPaging";
+import { type ReferenceListPaging, readReferenceListPaging, toReferenceListPagingSearch } from "../shared/referenceListSearch";
 import { BAND_GROUP_KEYS, type BandCodePresence, type BandListSearch, listBandGroups } from "./bandListSearch";
 import { joinSearchValues } from "@/lib/urlSearch";
 

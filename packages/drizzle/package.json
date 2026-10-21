@@ -23,15 +23,15 @@
   },
   "dependencies": {
     "@openbts/shared": "workspace:*",
-    "dotenv": "18.0.4",
+    "dotenv": "18.0.8",
     "drizzle-orm": "1.0.0-rc.4",
-    "nanoid": "6.0.1",
+    "nanoid": "6.0.2",
     "postgres": "3.4.9",
-    "redis": "6.2.1"
+    "redis": "6.3.0"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
-    "@types/node": "26.6.3",
+    "@types/node": "26.6.5",
     "drizzle-kit": "1.0.0-rc.4"
   }
 }

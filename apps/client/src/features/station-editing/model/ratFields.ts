@@ -1,6 +1,6 @@
 import type { CellType, NrMode } from "@openbts/shared/contract";
 
-export { DEFAULT_GNBID_LENGTH, GNBID_MIN_LENGTH, GNBID_MAX_LENGTH } from "@openbts/shared/contract";
+export { DEFAULT_GNBID_LENGTH, GNBID_MIN_LENGTH, GNBID_MAX_LENGTH } from "@openbts/shared/contract/constants";
 
 import type { AreaCodeField, CellDraft, CellFlagField, CellNumberField, Rat } from "./types";
 

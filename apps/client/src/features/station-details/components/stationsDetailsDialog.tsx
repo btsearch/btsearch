@@ -1,6 +1,7 @@
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { OFFICIAL_SITE_INCLUDES, type OfficialSite, type OfficialSitePermit } from "@openbts/shared/contract";
+import type { OfficialSite, OfficialSitePermit } from "@openbts/shared/contract";
+import { OFFICIAL_SITE_INCLUDES } from "@openbts/shared/contract/constants";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";

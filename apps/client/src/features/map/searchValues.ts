@@ -1,4 +1,4 @@
-import { BAND_RATS } from "@openbts/shared/contract";
+import { BAND_RATS } from "@openbts/shared/contract/constants";
 
 import { UNKNOWN_BAND_LABEL } from "./data/mapFilters";
 import type { MapLookups } from "./data/mapLookups";

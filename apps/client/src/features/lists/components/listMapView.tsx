@@ -1,6 +1,6 @@
 import { TaskDaily01Icon, TaskRemove01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { MAX_LOCATION_LIST_LIMIT, MAX_MICROWAVE_LINK_LIST_LIMIT } from "@openbts/shared/contract";
+import { MAX_LOCATION_LIST_LIMIT, MAX_MICROWAVE_LINK_LIST_LIMIT } from "@openbts/shared/contract/constants";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LngLatBounds } from "maplibre-gl";

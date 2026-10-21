@@ -17,6 +17,7 @@ import {
   searchTextSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { MAX_MICROWAVE_LINK_LIST_LIMIT } from "./constants.ts";
 import { OFFICIAL_PERMIT_KINDS, officialPermitKindSchema } from "./officialSites.ts";
 import { csvSourceKeysSchema, licenseeSchema } from "./officialSources.ts";
 
@@ -25,8 +26,6 @@ export type MicrowaveLinkInclude = (typeof MICROWAVE_LINK_INCLUDES)[number];
 
 export const MICROWAVE_LINK_SORTS = ["-id", "id", "createdAt", "-createdAt", "updatedAt", "-updatedAt"] as const;
 export type MicrowaveLinkSort = (typeof MICROWAVE_LINK_SORTS)[number];
-
-export const MAX_MICROWAVE_LINK_LIST_LIMIT = 1000;
 
 const PERMIT_NUMBER_MAX_LENGTH = 100;
 const LIST_ID_MAX_LENGTH = 64;

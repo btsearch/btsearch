@@ -1,5 +1,5 @@
-import { formatNsgTimestamp } from "@/lib/nsg-parser";
 import type { NsgCell, NsgJsonValue, NsgLog } from "@/lib/nsg-parser/model";
+import { formatNsgTimestamp } from "@/lib/nsg-parser/values";
 
 const CELL_FIELDS = [
   "type",

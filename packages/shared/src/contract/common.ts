@@ -1,5 +1,7 @@
 import { z } from "zod/v4";
 
+import { MAX_LATITUDE, MAX_LONGITUDE } from "./constants.ts";
+
 export const countryCodeSchema = z.string().regex(/^[A-Z]{2}$/, "Must be a two-letter country code in upper case");
 
 export const pagingSchema = z.object({
@@ -53,9 +55,6 @@ export function csvEnumSchema<const T extends readonly [string, ...string[]]>(va
 }
 
 export const booleanQuerySchema = z.enum(["true", "false"]).transform((value) => value === "true");
-
-export const MAX_LATITUDE = 90;
-export const MAX_LONGITUDE = 180;
 
 const DEGREES_PATTERN = /^-?\d{1,3}(?:\.\d{1,15})?$/;
 

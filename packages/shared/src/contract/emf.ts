@@ -1,6 +1,5 @@
 import { z } from "zod/v4";
 
-import { CELL_RATS } from "./cells.ts";
 import {
   CURSOR_OR_OFFSET_ISSUE,
   MAX_ID,
@@ -14,6 +13,7 @@ import {
   pagingSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { CELL_RATS } from "./constants.ts";
 import { operatorSchema } from "./operators.ts";
 import { regionSchema } from "./regions.ts";
 import { bboxSchema } from "./stations.ts";

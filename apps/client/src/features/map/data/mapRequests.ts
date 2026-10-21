@@ -1,13 +1,5 @@
-import {
-  type Band,
-  type CellRat,
-  MAX_LOCATION_LIST_LIMIT,
-  MAX_MICROWAVE_LINK_LIST_LIMIT,
-  type MicrowaveLinkInclude,
-  type OfficialLocationInclude,
-  type Operator,
-  type StationStatus,
-} from "@openbts/shared/contract";
+import type { Band, MicrowaveLinkInclude, OfficialLocationInclude, Operator, StationStatus } from "@openbts/shared/contract";
+import { type CellRat, MAX_LOCATION_LIST_LIMIT, MAX_MICROWAVE_LINK_LIST_LIMIT } from "@openbts/shared/contract/constants";
 
 import {
   DEFAULT_MAP_FILTERS,

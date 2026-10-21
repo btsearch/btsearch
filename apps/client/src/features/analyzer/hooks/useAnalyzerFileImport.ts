@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzerParsers";
-import { isNsgFileHeader } from "@/lib/nsg-parser/browser";
+import { isNsgFileHeader } from "@/lib/nsg-parser/fileHeader";
 
 export type AnalyzerFileImportProgress = Readonly<{
   bytesRead: number;

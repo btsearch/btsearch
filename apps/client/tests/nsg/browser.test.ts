@@ -3,7 +3,8 @@ import test from "node:test";
 import { gzipSync } from "node:zlib";
 
 import { parseNsg } from "../../src/lib/nsg-parser";
-import { isNsgFileHeader, openNsgFile } from "../../src/lib/nsg-parser/browser";
+import { openNsgFile } from "../../src/lib/nsg-parser/browser";
+import { isNsgFileHeader } from "../../src/lib/nsg-parser/fileHeader";
 import { StreamDecoder } from "../../src/lib/nsg-parser/internal/streamDecoder";
 import type { NsgProgress } from "../../src/lib/nsg-parser/model";
 import { concatBytes as concat } from "./binary";

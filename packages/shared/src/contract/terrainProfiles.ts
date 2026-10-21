@@ -1,7 +1,8 @@
 import { z } from "zod/v4";
 
 import { TERRAIN_RECEIVER_HEIGHT_M } from "../terrainProfile.ts";
-import { MAX_LATITUDE, MAX_LONGITUDE, csvEnumSchema, idSchema } from "./common.ts";
+import { csvEnumSchema, idSchema } from "./common.ts";
+import { MAX_LATITUDE, MAX_LONGITUDE } from "./constants.ts";
 import { emfReportHeadSchema } from "./emf.ts";
 
 export const TERRAIN_PROFILE_STATUSES = ["pending", "ready", "failed", "cancelled"] as const;

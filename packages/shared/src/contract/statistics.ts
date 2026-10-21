@@ -1,8 +1,8 @@
 import { z } from "zod/v4";
 
 import { BAND_VARIANTS } from "./bands.ts";
-import { CELL_RATS } from "./cells.ts";
 import { countryCodeSchema, csvCountryCodesSchema, csvEnumSchema, daySchema } from "./common.ts";
+import { CELL_RATS } from "./constants.ts";
 import { OFFICIAL_RATS } from "./officialSites.ts";
 
 export const STATISTICS_DIMENSIONS = ["region", "operator", "rat", "band"] as const;

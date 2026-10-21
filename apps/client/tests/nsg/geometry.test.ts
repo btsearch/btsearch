@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ROUTE_MAX_GAP_MS, createRouteGeometry, findClosestRoutePoint } from "../../src/features/nsg-explorer/map/routeGeometry";
 import { SIGNAL_UNKNOWN_COLOR, type SignalPoint } from "../../src/features/nsg-explorer/map/signalTrail";
-import { isValidLatLng } from "../../src/lib/nsg-parser";
+import { isValidLatLng } from "../../src/lib/nsg-parser/values";
 
 function point(offsetMs: number, longitude: number, latitude: number, provider = "gps"): SignalPoint {
   return {

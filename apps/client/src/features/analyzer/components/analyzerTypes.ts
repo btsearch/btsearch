@@ -1,4 +1,5 @@
-import type { AnalyzerFilters, BandFacet, FacetCounts } from "../model/filters";
+import type { BandFacet, FacetCounts } from "../model/filters";
+import type { AnalyzerFilters } from "../model/filterValues";
 import type { MapLookups } from "@/features/map/data/mapLookups";
 
 export type AnalyzerFiltersChange = (change: (current: AnalyzerFilters) => AnalyzerFilters) => void;

@@ -30,8 +30,8 @@ import {
 } from "@/features/nsg-explorer/map/signalTrail";
 import type { AnalyzerResultsByKey, MatchedStation } from "@/features/nsg-explorer/stations/correlation";
 import { usePreferences } from "@/hooks/usePreferences";
-import { isValidLatLng } from "@/lib/nsg-parser";
 import type { NsgCell, NsgLocation } from "@/lib/nsg-parser/model";
+import { isValidLatLng } from "@/lib/nsg-parser/values";
 
 const STATION_SYMBOL_LAYER_ID = `${POINT_LAYER_ID}-symbol`;
 const STATION_LAYER_IDS = [POINT_LAYER_ID, STATION_SYMBOL_LAYER_ID] as const;

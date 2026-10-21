@@ -1,4 +1,5 @@
-import { OFFICIAL_SITE_INCLUDES, type OfficialSite, type OfficialSiteInclude } from "@openbts/shared/contract";
+import type { OfficialSite } from "@openbts/shared/contract";
+import { OFFICIAL_SITE_INCLUDES, type OfficialSiteInclude } from "@openbts/shared/contract/constants";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Map as MapLibreMap, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";

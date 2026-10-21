@@ -1,7 +1,7 @@
 import type { FeatureCollection, LineString } from "geojson";
 
 import { SIGNAL_UNKNOWN_COLOR, type SignalPoint } from "./signalTrail";
-import { isValidLatLng } from "@/lib/nsg-parser";
+import { isValidLatLng } from "@/lib/nsg-parser/values";
 
 export const ROUTE_MAX_GAP_MS = 60_000;
 export type RouteGeometry = FeatureCollection<LineString, { color: string }>;

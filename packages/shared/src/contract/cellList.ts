@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { csvBandIdsSchema } from "./bands.ts";
-import { CELL_RATS, gsmCellSchema, lteCellSchema, nrCellSchema, umtsCellSchema } from "./cells.ts";
+import { gsmCellSchema, lteCellSchema, nrCellSchema, umtsCellSchema } from "./cells.ts";
 import {
   CURSOR_OR_OFFSET_ISSUE,
   booleanQuerySchema,
@@ -14,6 +14,7 @@ import {
   pagingSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { CELL_RATS } from "./constants.ts";
 import { STATION_STATUSES, areaFilterShape, stationBaseSchema } from "./stations.ts";
 
 export const CELL_INCLUDES = ["band", "station"] as const;

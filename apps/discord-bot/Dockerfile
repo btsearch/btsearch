@@ -4,7 +4,7 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN npm install --global pnpm@12.8.1
+RUN npm install --global pnpm@12.14.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
@@ -29,7 +29,7 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN npm install --global pnpm@12.8.1
+RUN npm install --global pnpm@12.14.0
 
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/packages/typescript-configs/package.json ./packages/typescript-configs/

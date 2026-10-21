@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ANALYZER_SORTS, ANALYZER_VIEWS, type AnalyzerFilters } from "../model/filters";
+import { ANALYZER_SORTS, ANALYZER_VIEWS, type AnalyzerFilters } from "../model/filterValues";
 import { ANALYZER_COMPACT_SORT_LABEL_CLASS, ANALYZER_COMPACT_SORT_TRIGGER_CLASS } from "./analyzerLayout";
 import { useAnalyzerTexts } from "./analyzerTexts";
 import type { AnalyzerFiltersChange } from "./analyzerTypes";

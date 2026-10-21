@@ -1,5 +1,6 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { BACKHAUL_MEDIUMS, type Licensee } from "@openbts/shared/contract";
+import type { Licensee } from "@openbts/shared/contract";
+import { BACKHAUL_MEDIUMS } from "@openbts/shared/contract/constants";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import { useMemo, useRef, useState } from "react";

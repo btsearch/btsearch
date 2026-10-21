@@ -1,9 +1,8 @@
 import { AsyncGunzip } from "fflate";
 
-import { NSG_MAGIC } from "./internal/container";
+import { GZIP_MAGIC, isGzipHeader } from "./fileHeader";
 import type { NsgParseInput } from "./model";
 
-const GZIP_MAGIC = [0x1f, 0x8b] as const;
 const GZIP_INPUT_BATCH_BYTES = 256 * 1024;
 const GZIP_MAX_QUEUED_BYTES = 2 * GZIP_INPUT_BATCH_BYTES;
 const GZIP_TRAILER_BYTES = 8;
@@ -44,10 +43,6 @@ type StreamingGunzip = Readonly<{
   push: (chunk: Uint8Array, final?: boolean) => Promise<void>;
   terminate: (reason?: unknown) => void;
 }>;
-
-function hasMagic(header: Uint8Array, magic: readonly number[]): boolean {
-  return magic.every((byte, index) => header[index] === byte);
-}
 
 function createAsyncGunzip(onData: (chunk: Uint8Array) => void, onMember: (offset: number) => void): StreamingGunzip {
   let failure: unknown = null;
@@ -127,14 +122,6 @@ async function validateGzipMemberSizes(file: File, members: readonly GzipMember[
     const view = new DataView(trailer);
     if (view.getUint32(4, true) !== member.size) throw new Error("Invalid gzip member size.");
   }
-}
-
-function isGzipHeader(header: Uint8Array): boolean {
-  return hasMagic(header, GZIP_MAGIC);
-}
-
-export function isNsgFileHeader(header: Uint8Array): boolean {
-  return hasMagic(header, NSG_MAGIC) || isGzipHeader(header);
 }
 
 export async function openNsgFile(file: File): Promise<NsgParseInput> {

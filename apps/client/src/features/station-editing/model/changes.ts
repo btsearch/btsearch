@@ -1,4 +1,6 @@
-import { type BackhaulMedium, CID_RANGE, type CellType, type StationIdentifierKind, type StationStatus, toNodeName } from "@openbts/shared/contract";
+import type { CellType, StationIdentifierKind, StationStatus } from "@openbts/shared/contract";
+import type { BackhaulMedium } from "@openbts/shared/contract/constants";
+import { CID_RANGE, toNodeName } from "@openbts/shared/contract/nodeName";
 import { calculateDistance, formatDistance } from "@openbts/shared/geo";
 
 import { isSameCodes, toPlmnList } from "./networks";

@@ -10,11 +10,7 @@ import {
   hasAnyField,
   idParamSchema,
 } from "./common.ts";
-
-export const BAND_RATS = ["gsm", "umts", "lte", "nr"] as const;
-export type BandRat = (typeof BAND_RATS)[number];
-
-export const UNKNOWN_BAND = "unknown";
+import { BAND_RATS, UNKNOWN_BAND } from "./constants.ts";
 
 const bandFilterEntrySchema = z.union([z.literal(UNKNOWN_BAND), z.coerce.number<string>().int().positive().max(MAX_ID)], {
   error: `Must be a band id or the word ${UNKNOWN_BAND}`,

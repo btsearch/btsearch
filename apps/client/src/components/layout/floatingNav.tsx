@@ -14,7 +14,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, LayoutGroup, LazyMotion, m, useReducedMotion } from "motion/react";
 import { type PointerEvent, type RefObject, type TouchEvent, memo, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -52,6 +52,8 @@ import {
 } from "@/lib/navConfig";
 import { cn } from "@/lib/utils";
 
+const loadMotionFeatures = () => import("@/lib/motionFeatures").then((module) => module.default);
+
 const ACTION_TARGET_ID = "floating-nav-actions";
 const HIDDEN_STORAGE_KEY = "floating-nav-hidden";
 const FLUID_TRANSITION = { type: "spring", stiffness: 520, damping: 44, mass: 0.8 } as const;
@@ -64,6 +66,7 @@ const RAIL_VISIBLE = { filter: "blur(0px)", opacity: 1, y: 0, scale: 1, transiti
 const SUBNAV_OPEN_DELAY_MS = 120;
 const FLOATING_NAV_SWIPE_MIN_DISTANCE = 32;
 const FLOATING_NAV_SWIPE_MAX_HORIZONTAL_DRIFT = 48;
+const FLOATING_NAV_TAP_SLOP = 8;
 const FLOATING_ICON_CONTROL_CLASS =
   "inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 const FLOATING_ACCOUNT_CLUSTER_CLASS = "relative z-10 flex shrink-0 items-center gap-0.5";
@@ -178,7 +181,7 @@ const FloatingNavLink = memo(function FloatingNavLink({
   const content = (
     <>
       {active ? (
-        <motion.span
+        <m.span
           layoutId={indicatorId}
           initial={false}
           transition={transition}
@@ -195,24 +198,24 @@ const FloatingNavLink = memo(function FloatingNavLink({
 
   if (item.href) {
     return (
-      <motion.div layout transition={transition} className="shrink-0">
+      <m.div layout transition={transition} className="shrink-0">
         <Tooltip>
           <TooltipTrigger render={<a href={item.href} target="_blank" rel="noopener noreferrer" className={className} onClick={onNavigate} />}>
             {content}
           </TooltipTrigger>
           <TooltipContent>{item.title}</TooltipContent>
         </Tooltip>
-      </motion.div>
+      </m.div>
     );
   }
 
   return (
-    <motion.div layout transition={transition} className="shrink-0">
+    <m.div layout transition={transition} className="shrink-0">
       <Tooltip>
         <TooltipTrigger render={<Link to={item.url} className={className} onClick={onNavigate} />}>{content}</TooltipTrigger>
         <TooltipContent>{item.title}</TooltipContent>
       </Tooltip>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -232,7 +235,7 @@ function FloatingPageSectionRail({
   return (
     <AnimatePresence mode="popLayout">
       {sections.length > 0 ? (
-        <motion.div
+        <m.div
           key="floating-page-sections"
           layout
           initial={reduceMotion ? { opacity: 1 } : RAIL_HIDDEN}
@@ -243,7 +246,7 @@ function FloatingPageSectionRail({
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={label}
         >
-          <motion.div
+          <m.div
             layout
             transition={transition}
             className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden rounded-full"
@@ -252,7 +255,7 @@ function FloatingPageSectionRail({
               {sections.map((section) => {
                 const active = section.id === activeId;
                 return (
-                  <motion.button
+                  <m.button
                     key={section.id}
                     layout
                     type="button"
@@ -265,7 +268,7 @@ function FloatingPageSectionRail({
                     )}
                   >
                     {active ? (
-                      <motion.span
+                      <m.span
                         layoutId="floating-page-section-active"
                         initial={false}
                         transition={transition}
@@ -273,12 +276,12 @@ function FloatingPageSectionRail({
                       />
                     ) : null}
                     <span className="relative z-20 truncate">{section.title}</span>
-                  </motion.button>
+                  </m.button>
                 );
               })}
             </LayoutGroup>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );
@@ -307,7 +310,7 @@ function DesktopSubnavRail({
   return (
     <AnimatePresence mode="popLayout">
       {section && sectionKey !== null ? (
-        <motion.div
+        <m.div
           key="floating-subnav"
           layout
           layoutId={SUBNAV_SURFACE_LAYOUT_ID}
@@ -319,7 +322,7 @@ function DesktopSubnavRail({
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={section.title}
         >
-          <motion.div
+          <m.div
             key={sectionKey}
             layout
             initial={swapping && !reduceMotion ? { opacity: 0 } : false}
@@ -338,8 +341,8 @@ function DesktopSubnavRail({
                 />
               ))}
             </LayoutGroup>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );
@@ -393,7 +396,7 @@ function MobileFloatingPageSectionRail({ sections }: { sections: PageSection[] }
 
 function FloatingSubnavAnchor({ transition }: { transition: FloatingTransition }) {
   return (
-    <motion.span
+    <m.span
       aria-hidden
       layoutId={SUBNAV_SURFACE_LAYOUT_ID}
       transition={transition}
@@ -413,7 +416,7 @@ function FloatingPrimarySurface({
   transition: FloatingSurfaceTransition;
 }) {
   return (
-    <motion.span
+    <m.span
       aria-hidden
       layoutId={sharedLayout ? PRIMARY_SURFACE_LAYOUT_ID : undefined}
       transition={transition}
@@ -474,7 +477,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
 
   if (placement === "rail") {
     return (
-      <motion.div
+      <m.div
         layout
         transition={actionSlotTransition}
         style={{ transformOrigin: "bottom center" }}
@@ -485,41 +488,39 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
         role="group"
         aria-label={label}
       >
-        <motion.span
+        <m.span
           aria-hidden
           layout
           transition={actionSlotTransition}
           className="pointer-events-none absolute inset-0 z-0 rounded-full bg-background max-md:hidden"
         />
-        <motion.div
+        <m.div
           id={ACTION_TARGET_ID}
           ref={targetRef}
           layout
           transition={actionSlotTransition}
           className="scrollbar-hide relative z-10 flex max-w-[calc(100vw-1.5rem)] shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden md:rounded-full [&_button]:h-8! [&_button]:min-h-8! [&_button]:min-w-0! [&_button]:rounded-full! [&_button]:px-2! [&_button]:text-xs! [&_button]:shadow-none!"
         />
-      </motion.div>
+      </m.div>
     );
   }
 
   return (
-    <motion.div
+    <m.div
       layout
       transition={actionSlotTransition}
       className="scrollbar-hide relative z-10 flex w-fit max-w-[min(36rem,52vw)] shrink-0 items-center overflow-x-auto overflow-y-hidden"
       aria-label={label}
     >
-      {hasVisibleActions ? (
-        <motion.span aria-hidden layout transition={actionSlotTransition} className="mx-1 h-5 w-px shrink-0 bg-border/70" />
-      ) : null}
-      <motion.div
+      {hasVisibleActions ? <m.span aria-hidden layout transition={actionSlotTransition} className="mx-1 h-5 w-px shrink-0 bg-border/70" /> : null}
+      <m.div
         id={ACTION_TARGET_ID}
         ref={targetRef}
         layout
         transition={actionSlotTransition}
         className="flex w-max shrink-0 items-center gap-1 py-0.5 [&_button]:h-6! [&_button]:min-h-6! [&_button]:min-w-0! [&_button]:rounded-full! [&_button]:px-2! [&_button]:text-xs! [&_button]:shadow-none!"
       />
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -745,11 +746,11 @@ function FloatingCategoryButton({
   const showLabel = active;
 
   return (
-    <motion.div layout transition={transition} className="shrink-0">
+    <m.div layout transition={transition} className="shrink-0">
       <Tooltip>
         <TooltipTrigger
           render={
-            <motion.button
+            <m.button
               layout
               type="button"
               aria-current={active ? "page" : undefined}
@@ -769,7 +770,7 @@ function FloatingCategoryButton({
           }
         >
           {active ? (
-            <motion.span
+            <m.span
               layoutId="floating-main-active"
               initial={false}
               transition={transition}
@@ -784,7 +785,7 @@ function FloatingCategoryButton({
         </TooltipTrigger>
         <TooltipContent>{section.title}</TooltipContent>
       </Tooltip>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -898,7 +899,6 @@ export function FloatingNav() {
     if (!isMobile) return;
 
     hiddenNavSwipeStartRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handleHiddenNavPointerMove = (event: PointerEvent<HTMLElement>) => {
@@ -909,6 +909,8 @@ export function FloatingNav() {
 
     const upwardDistance = start.y - event.clientY;
     const horizontalDistance = Math.abs(event.clientX - start.x);
+    const isPastTapSlop = Math.max(Math.abs(upwardDistance), horizontalDistance) > FLOATING_NAV_TAP_SLOP;
+    if (isPastTapSlop && !event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId);
     if (upwardDistance < FLOATING_NAV_SWIPE_MIN_DISTANCE || horizontalDistance > FLOATING_NAV_SWIPE_MAX_HORIZONTAL_DRIFT) return;
 
     clearHiddenNavSwipe(event);
@@ -956,12 +958,12 @@ export function FloatingNav() {
   };
 
   return (
-    <>
+    <LazyMotion features={loadMotionFeatures}>
       <LayoutGroup id="floating-nav-shell">
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex select-none flex-col items-center px-1 md:px-2">
           <AnimatePresence initial={false} mode="popLayout">
             {hidden ? (
-              <motion.div
+              <m.div
                 key="floating-nav-hidden"
                 onPointerDown={handleHiddenNavPointerDown}
                 onPointerMove={handleHiddenNavPointerMove}
@@ -982,9 +984,9 @@ export function FloatingNav() {
                   <FloatingPrimarySurface sharedLayout={false} transition={shellTransition} className="rounded-t-xl border-b-0" />
                   <HugeiconsIcon icon={ArrowUp01Icon} className="relative z-10 size-3.5" />
                 </button>
-              </motion.div>
+              </m.div>
             ) : (
-              <motion.div
+              <m.div
                 key={`floating-nav-visible-${showCount}`}
                 initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1002,7 +1004,7 @@ export function FloatingNav() {
                   transition={transition}
                 />
                 <DesktopSubnavRail reduceMotion={reduceMotion} section={showDesktopSubnav ? displayedSubnavSection : null} transition={transition} />
-                <motion.nav
+                <m.nav
                   ref={navRef}
                   layout
                   initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.98 }}
@@ -1018,7 +1020,7 @@ export function FloatingNav() {
                   <FloatingPrimarySurface transition={transition} className="rounded-full" />
                   {displayedSection ? null : <FloatingSubnavAnchor transition={transition} />}
                   <LayoutGroup id="floating-main-nav">
-                    <motion.div
+                    <m.div
                       layout
                       transition={transition}
                       className="scrollbar-hide relative z-10 isolate flex w-max min-w-0 max-w-full items-center gap-0.5 overflow-x-auto overflow-y-hidden rounded-full md:flex-1"
@@ -1046,7 +1048,7 @@ export function FloatingNav() {
                           />
                         );
                       })}
-                    </motion.div>
+                    </m.div>
                   </LayoutGroup>
                   {!isMobile ? <FloatingActionSlot label={t("floating.actions")} placement="main" transition={transition} /> : null}
                   <div className="relative z-10 mx-0.5 h-5 w-px shrink-0 bg-border" />
@@ -1059,14 +1061,14 @@ export function FloatingNav() {
                   >
                     <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
                   </button>
-                </motion.nav>
-              </motion.div>
+                </m.nav>
+              </m.div>
             )}
           </AnimatePresence>
         </div>
       </LayoutGroup>
       <MobileNavSheet section={mobileSection} onOpenChange={(open) => !open && dispatchNav({ type: "CLOSE_MOBILE_SECTION" })} />
-    </>
+    </LazyMotion>
   );
 }
 

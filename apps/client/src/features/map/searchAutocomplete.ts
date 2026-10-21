@@ -1,4 +1,4 @@
-import { SINGLE_VALUE_SEARCH_KEYWORDS, parseSearchQuery } from "@openbts/shared/contract";
+import { SINGLE_VALUE_SEARCH_KEYWORDS, parseSearchQuery } from "@openbts/shared/contract/searchQuery";
 
 import { parseFilters } from "./filters";
 import type { FilterKeyword, ParsedFilter } from "./types";

@@ -1,8 +1,8 @@
 import { findReplayLocationIndex } from "../replay/replayClock";
 import { canConnectRoutePositions } from "./routeGeometry";
 import { getLocationTimeMs } from "./routeLocations";
-import { isValidLatLng } from "@/lib/nsg-parser";
 import type { NsgLocation } from "@/lib/nsg-parser/model";
+import { isValidLatLng } from "@/lib/nsg-parser/values";
 
 export type ReplayPosition = { longitude: number; latitude: number; location: NsgLocation };
 

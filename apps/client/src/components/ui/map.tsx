@@ -16,9 +16,7 @@ import {
   type PopupOptions,
   type ProjectionSpecification,
   type StyleSpecification,
-  setWorkerUrl,
 } from "maplibre-gl";
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url&worker";
 import {
   type ReactNode,
   createContext,
@@ -46,8 +44,6 @@ import { type GpsFormat, usePreferences } from "@/hooks/usePreferences";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
-
-setWorkerUrl(maplibreWorkerUrl);
 
 // Check document class for theme (works with next-themes, etc.)
 function getDocumentTheme(): Theme | null {

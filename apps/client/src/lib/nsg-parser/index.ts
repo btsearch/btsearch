@@ -1,9 +1,6 @@
-import { isValidLatLng } from "./internal/coordinates";
 import { StreamDecoder } from "./internal/streamDecoder";
-import { convertNsgTimestampUsToMs, formatNsgTimestamp, parseNsgTimestampMs, parseNsgTimestampUs } from "./internal/timestamp";
 import type { NsgLog, NsgParseInput, NsgParseOptions } from "./model";
 
-export { convertNsgTimestampUsToMs, formatNsgTimestamp, isValidLatLng, parseNsgTimestampMs, parseNsgTimestampUs };
 export type { NsgLog, NsgParseInput, NsgParseMode, NsgParseOptions, NsgProgress, NsgSource } from "./model";
 
 export async function parseNsg({ stream, source }: NsgParseInput, options: NsgParseOptions = {}): Promise<NsgLog> {

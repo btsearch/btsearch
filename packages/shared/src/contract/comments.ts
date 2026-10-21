@@ -15,6 +15,7 @@ import {
   userRefSchema,
   usesCursorOrOffset,
 } from "./common.ts";
+import { COMMENT_MAX_LENGTH } from "./constants.ts";
 import { stationBaseSchema, stationLocationSchema } from "./stations.ts";
 
 export const COMMENT_STATUSES = ["pending", "approved"] as const;
@@ -26,7 +27,6 @@ export type CommentInclude = (typeof COMMENT_INCLUDES)[number];
 export const COMMENT_SORTS = ["-createdAt", "createdAt"] as const;
 export type CommentSort = (typeof COMMENT_SORTS)[number];
 
-export const COMMENT_MAX_LENGTH = 1000;
 export const COMMENT_PHOTO_LIMIT = 5;
 export const COMMENT_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 

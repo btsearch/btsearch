@@ -56,6 +56,18 @@
     "./contract": {
       "types": "./src/contract/index.ts",
       "default": "./dist/src/contract/index.js"
+    },
+    "./contract/constants": {
+      "types": "./src/contract/constants.ts",
+      "default": "./dist/src/contract/constants.js"
+    },
+    "./contract/nodeName": {
+      "types": "./src/contract/nodeName.ts",
+      "default": "./dist/src/contract/nodeName.js"
+    },
+    "./contract/searchQuery": {
+      "types": "./src/contract/searchQuery.ts",
+      "default": "./dist/src/contract/searchQuery.js"
     }
   },
   "scripts": {
@@ -63,7 +75,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*"

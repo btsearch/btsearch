@@ -6,7 +6,7 @@ const workspace = fileURLToPath(new URL("../../", import.meta.url));
 export default defineConfig({
   resolve: {
     alias: [
-      { find: "@openbts/shared/contract", replacement: `${workspace}packages/shared/src/contract/index.ts` },
+      { find: /^@openbts\/shared\/contract$/, replacement: `${workspace}packages/shared/src/contract/index.ts` },
       { find: /^@openbts\/shared\/(.+)$/, replacement: `${workspace}packages/shared/src/$1.ts` },
       { find: "@openbts/country-packs/sources", replacement: `${workspace}packages/country-packs/sources.ts` },
       { find: "@openbts/country-packs", replacement: `${workspace}packages/country-packs/index.ts` },

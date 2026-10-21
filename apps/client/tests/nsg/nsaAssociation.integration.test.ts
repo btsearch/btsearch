@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { createSnapshotCollection } from "../../src/features/nsg-explorer/cells/snapshots";
 import { createCellsCsv } from "../../src/features/nsg-explorer/export/cellsCsv";
-import { formatNsgTimestamp } from "../../src/lib/nsg-parser";
 import { StreamDecoder } from "../../src/lib/nsg-parser/internal/streamDecoder";
 import { QUALCOMM_NR_CONFIGURATION_INFO_LOG_CODE, QUALCOMM_NR_SERVING_CELL_INFO_LOG_CODE } from "../../src/lib/nsg-parser/qualcomm";
+import { formatNsgTimestamp } from "../../src/lib/nsg-parser/values";
 import { concatBytes as concat } from "./binary";
 import {
   B0C2_PLUS,

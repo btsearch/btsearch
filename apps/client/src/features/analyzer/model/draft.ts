@@ -2,7 +2,7 @@ import type { Cell, CellDifference, CellMatchResult, NrIdentity, ObservedCell, S
 import { plmnCandidates } from "@openbts/shared/operatorUtils";
 
 import type { AnalyzerSession } from "../data/session";
-import { ANALYZER_RATS, DIFFERENCE_FIELDS } from "./filters";
+import { ANALYZER_RATS, DIFFERENCE_FIELDS } from "./filterValues";
 import { findNetworkDifference, findStoredCell } from "./rows";
 import { type AnalyzerSearch, parseAnalyzerSearch } from "./search";
 import type { AnalyzerLookups, LogFormat, RowFacts, TickAction } from "./types";

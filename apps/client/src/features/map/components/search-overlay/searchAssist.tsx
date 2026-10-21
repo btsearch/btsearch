@@ -1,7 +1,6 @@
 import { ArrowLeft01Icon, ArrowRight01Icon, Clock01Icon, Delete02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { enUS, pl } from "date-fns/locale";
-import type { PointerEvent, ReactNode } from "react";
+import { type PointerEvent, type ReactNode, Suspense, lazy, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { parseFilters } from "../../filters";
@@ -11,7 +10,6 @@ import type { FilterKeyword, SearchAssist } from "../../types";
 import { type AssistSearchOption, FILTER_GROUP_ORDER, getSearchOptionId } from "./searchOptions";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { CloseButton } from "@/components/ui/close-button";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { Spinner } from "@/components/ui/spinner";
@@ -43,6 +41,9 @@ type OptionRowProps = {
   onSelect: (option: AssistSearchOption) => void;
   children: ReactNode;
 };
+
+const loadSearchDatePicker = () => import("./searchDatePicker");
+const SearchDatePicker = lazy(() => loadSearchDatePicker().then((module) => ({ default: module.SearchDatePicker })));
 
 const SECTION_LABEL_CLASS = "px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground";
 const HINT_EXAMPLES: Partial<Record<FilterKeyword["valueKind"], string>> = { number: "125432, 0x1EA58", gps: "52.2297,21.0122" };
@@ -130,6 +131,10 @@ export function SearchAssistPanel({
   const rowProps = { listboxId, activeKey, onActiveKeyChange, onSelect };
   const isValuesView = assist.view === "values";
   const isMulti = isValuesView && !isSingleValueKeyword(assist.keyword);
+
+  useEffect(() => {
+    void loadSearchDatePicker();
+  }, []);
 
   function renderHome() {
     const filterOptions = options.filter((option) => option.kind === "filter");
@@ -328,15 +333,18 @@ export function SearchAssistPanel({
 
         {keyword.valueKind === "date" ? (
           <div onPointerDown={keepInputFocus}>
-            <Calendar
-              mode="single"
-              classNames={{ root: "w-full" }}
-              className="bg-transparent [&_td]:aspect-auto [&_[data-day]]:aspect-auto [&_[data-day]]:h-8"
-              locale={i18n.language === "pl-PL" ? pl : enUS}
-              onSelect={(date) => {
-                if (date) onSelect({ kind: "typed-value", key: "typed-value:calendar", value: formatSearchDate(date) });
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="flex justify-center p-6" role="status">
+                  <Spinner className="size-5 text-muted-foreground" aria-label={t("common:actions.loading")} />
+                </div>
+              }
+            >
+              <SearchDatePicker
+                language={i18n.language}
+                onPick={(date) => onSelect({ kind: "typed-value", key: "typed-value:calendar", value: formatSearchDate(date) })}
+              />
+            </Suspense>
           </div>
         ) : null}
 

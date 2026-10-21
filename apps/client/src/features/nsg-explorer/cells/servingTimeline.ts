@@ -1,5 +1,5 @@
-import { convertNsgTimestampUsToMs, parseNsgTimestampUs } from "@/lib/nsg-parser";
 import type { NsgCell } from "@/lib/nsg-parser/model";
+import { convertNsgTimestampUsToMs, parseNsgTimestampUs } from "@/lib/nsg-parser/values";
 
 export const MAX_SIGNAL_AGE_MS = 10_000;
 

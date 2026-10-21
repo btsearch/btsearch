@@ -1,5 +1,5 @@
 import type { StructureOwner } from "../../types";
-import { type ReferenceListPaging, readReferenceListPaging, toReferenceListPagingSearch } from "../shared/referenceListPaging";
+import { type ReferenceListPaging, readReferenceListPaging, toReferenceListPagingSearch } from "../shared/referenceListSearch";
 import { NO_COUNTRY_FACET, type StructureOwnerListSearch, type StructureOwnerListSort, listCountryFacets } from "./structureOwnerListSearch";
 import { foldText } from "@/lib/foldText";
 import { joinSearchValues } from "@/lib/urlSearch";
