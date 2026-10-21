@@ -174,6 +174,7 @@ function sourceOf(published: Published, syncSiteNames?: SitesDataset["syncSiteNa
       {
         key: "permits",
         layer: "sites",
+        permitKind: "permit",
         checkEveryHours: 6,
         discover: releaseOf("permits"),
         parse: () => recordsOf(published.permits),
@@ -182,12 +183,20 @@ function sourceOf(published: Published, syncSiteNames?: SitesDataset["syncSiteNa
       {
         key: "registry",
         layer: "sites",
+        permitKind: "permit",
         checkEveryHours: 6,
         discover: releaseOf("registry"),
         parse: () => recordsOf(published.registry),
         yieldsSitePlacementTo: ["permits"],
       },
-      { key: "links", layer: "microwave_links", checkEveryHours: 6, discover: releaseOf("links"), parse: () => recordsOf(published.links) },
+      {
+        key: "links",
+        layer: "microwave_links",
+        permitKind: "permit",
+        checkEveryHours: 6,
+        discover: releaseOf("links"),
+        parse: () => recordsOf(published.links),
+      },
     ],
   };
 }

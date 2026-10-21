@@ -30,7 +30,15 @@ const stationInfoLinksClassName = "flex flex-wrap items-center gap-1.5 border-t 
 type StationInfoGridProps = {
   stationCode: string;
   operator: { name: string; mnc?: number | null };
-  location?: { id: number; latitude: number; longitude: number; city?: string | null; address?: string | null; region?: Region | null } | null;
+  location?: {
+    id: number;
+    latitude: number;
+    longitude: number;
+    precisionMeters?: number | null;
+    city?: string | null;
+    address?: string | null;
+    region?: Region | null;
+  } | null;
   emfSite?: EmfSite;
   extraIdentificators?: ExtraIdentificator;
 };
@@ -59,6 +67,11 @@ export function StationInfoGrid({ stationCode, operator, location, emfSite, extr
               <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" className="flex" />
             )}
             <CopyButton text={`${location.latitude}, ${location.longitude}`} fieldLabel={t("common:labels.coordinates")} />
+            {typeof location.precisionMeters === "number" ? (
+              <span className="basis-full text-xs font-normal text-muted-foreground">
+                {t("specs.positionPrecision", { meters: location.precisionMeters })}
+              </span>
+            ) : null}
           </StationInfoItem>
           <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
             <span>{location.region?.name || "-"}</span>

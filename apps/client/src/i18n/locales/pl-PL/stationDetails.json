@@ -22,7 +22,8 @@
     "pemInstallationForm": "Formularz zgłoszenia",
     "pemReportsEmpty": "Brak raportów PEM w SI2PEM",
     "pemReportsError": "Nie udało się wczytać raportów PEM",
-    "region": "Region"
+    "region": "Region",
+    "positionPrecision": "Położenie z dokładnością do około {{meters, number}} m"
   },
   "sectors": {
     "suggestedCount": "Sugerowana liczba azymutów:",

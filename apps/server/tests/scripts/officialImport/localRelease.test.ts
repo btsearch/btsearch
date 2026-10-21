@@ -12,8 +12,8 @@ const publishedReleases: Release[] = [
 const source = {
   key: "test-source",
   datasets: [
-    { key: "towers", layer: "sites", checkEveryHours: 6, discover: async () => publishedReleases },
-    { key: "links", layer: "microwave_links", checkEveryHours: 24, discover: async () => publishedReleases },
+    { key: "towers", layer: "sites", permitKind: "permit", checkEveryHours: 6, discover: async () => publishedReleases },
+    { key: "links", layer: "microwave_links", permitKind: "permit", checkEveryHours: 24, discover: async () => publishedReleases },
   ],
 } as unknown as OfficialSourceDefinition;
 

@@ -12,6 +12,7 @@ export const IMPORTER_TEMP_BUFFERS = "256MB";
 export const STATEMENT_BATCH_SIZE = 1_000;
 export const LINK_INSERT_BATCH_SIZE = 500;
 export const SITE_CODE_MAX_LENGTH = 16;
+export const SOURCE_REF_MAX_LENGTH = 128;
 export const DECISION_NUMBER_MAX_LENGTH = 100;
 export const REPORTED_IDS_LIMIT = 100;
 export const REPORTED_NAMES_LIMIT = 100;

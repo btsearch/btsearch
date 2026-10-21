@@ -10,6 +10,7 @@ import {
   DECISION_NUMBER_MAX_LENGTH,
   REPORTED_NAMES_LIMIT,
   SITE_CODE_MAX_LENGTH,
+  SOURCE_REF_MAX_LENGTH,
   STAGING_BATCH_SIZE,
   STAGING_IO_CONCURRENCY,
   STAGING_WORK_MEM,
@@ -32,16 +33,19 @@ type StagedPermitRow = {
   city: string | null;
   address: string | null;
   region_id: number;
-  site_code: string;
+  location_ref: string | null;
+  precision_meters: number | null;
+  site_code: string | null;
+  site_ref: string | null;
   licensee_id: number;
   operator_id: number;
   site_name: string | null;
   site_name_ordinal: number | null;
-  rat: string;
-  label_mhz: number;
-  label_variant: string;
-  decision_number: string;
-  decision_type: string;
+  rat: string | null;
+  label_mhz: number | null;
+  label_variant: string | null;
+  decision_number: string | null;
+  decision_type: string | null;
   expiry_date: string | null;
   sectors: StagedSector[];
 };
@@ -56,16 +60,19 @@ export const stagedPermits = pgSchema("pg_temp").table("official_import_staged_p
   city: text("city"),
   address: text("address"),
   regionId: integer("region_id").notNull(),
-  siteCode: text("site_code").notNull(),
+  locationRef: text("location_ref"),
+  precisionMeters: integer("precision_meters"),
+  siteCode: text("site_code"),
+  siteRef: text("site_ref"),
   licenseeId: integer("licensee_id").notNull(),
   operatorId: integer("operator_id").notNull(),
   siteName: text("site_name"),
   siteNameOrdinal: integer("site_name_ordinal"),
-  rat: ratEnum("rat").notNull(),
-  labelMhz: integer("label_mhz").notNull(),
-  labelVariant: BandVariant("label_variant").notNull(),
-  decisionNumber: text("decision_number").notNull(),
-  decisionType: OfficialDecisionType("decision_type").notNull(),
+  rat: ratEnum("rat"),
+  labelMhz: integer("label_mhz"),
+  labelVariant: BandVariant("label_variant"),
+  decisionNumber: text("decision_number"),
+  decisionType: OfficialDecisionType("decision_type"),
   expiryDate: date("expiry_date", { mode: "string" }),
   sectors: jsonb("sectors").$type<StagedSector[]>().notNull(),
   locationId: integer("location_id"),
@@ -73,12 +80,24 @@ export const stagedPermits = pgSchema("pg_temp").table("official_import_staged_p
   permitId: integer("permit_id"),
 });
 
-export function siteRecordProblem(record: SiteRecord): string | null {
-  if (Array.from(record.site.siteId).length > SITE_CODE_MAX_LENGTH) return "site_id_too_long";
-  if (Array.from(record.permit.number).length > DECISION_NUMBER_MAX_LENGTH) return "decision_number_too_long";
+function isLongerThan(text: string | null | undefined, maxLength: number): boolean {
+  return text !== null && text !== undefined && Array.from(text).length > maxLength;
+}
 
-  const { rat, mhz } = record.permit.label;
-  return KNOWN_RATS.has(rat) && Number.isInteger(mhz) && mhz > 0 ? null : "bad_label";
+function isPositiveInteger(value: number): boolean {
+  return Number.isInteger(value) && value > 0;
+}
+
+export function siteRecordProblem({ location, site, permit }: SiteRecord): string | null {
+  if (site.siteId === null && site.ref === undefined) return "missing_site_id";
+  if (isLongerThan(site.siteId, SITE_CODE_MAX_LENGTH)) return "site_id_too_long";
+  if (isLongerThan(location.ref, SOURCE_REF_MAX_LENGTH) || isLongerThan(site.ref, SOURCE_REF_MAX_LENGTH)) return "source_ref_too_long";
+  if (isLongerThan(permit.number, DECISION_NUMBER_MAX_LENGTH)) return "decision_number_too_long";
+  if (location.precisionMeters !== undefined && !isPositiveInteger(location.precisionMeters)) return "bad_precision";
+  if (permit.label === null) return null;
+
+  const { rat, mhz } = permit.label;
+  return KNOWN_RATS.has(rat) && isPositiveInteger(mhz) ? null : "bad_label";
 }
 
 function finiteOrNull(value: number | null): number | null {
@@ -95,21 +114,22 @@ function stagedSectorsOf(record: SiteRecord): StagedSector[] {
 }
 
 function placeKeyOf({ location }: SiteRecord): string {
-  return JSON.stringify([location.longitude, location.latitude, location.regionIsoCode]);
+  return JSON.stringify([location.ref ?? null, location.longitude, location.latitude, location.regionIsoCode]);
 }
 
 function permitKeyPerLicenseeName({ slice, location, site, permit }: SiteRecord): string {
-  const { rat, mhz, variant } = permit.label;
   return JSON.stringify([
     slice,
+    site.ref ?? null,
     site.siteId,
     site.licensee,
+    location.ref ?? null,
     location.longitude,
     location.latitude,
     location.regionIsoCode,
-    rat,
-    mhz,
-    variant,
+    permit.label?.rat ?? null,
+    permit.label?.mhz ?? null,
+    permit.label?.variant ?? null,
     permit.number,
     permit.decisionType,
     permit.expiresOn,
@@ -117,16 +137,17 @@ function permitKeyPerLicenseeName({ slice, location, site, permit }: SiteRecord)
 }
 
 function permitKeyPerOperator({ first: { slice, location, site, permit }, operatorId }: MappedPermit): string {
-  const { rat, mhz, variant } = permit.label;
   return JSON.stringify([
     slice,
+    site.ref ?? null,
     site.siteId,
     operatorId,
+    location.ref ?? null,
     location.longitude,
     location.latitude,
-    rat,
-    mhz,
-    variant,
+    permit.label?.rat ?? null,
+    permit.label?.mhz ?? null,
+    permit.label?.variant ?? null,
     permit.number,
     permit.decisionType,
     permit.expiresOn,
@@ -173,19 +194,20 @@ export async function readPublishedPermits(
 
 async function readRegionIds(tx: DbTx, sourceId: number, permits: readonly PublishedPermit[]): Promise<Map<string, number | null>> {
   const locations = new Map(permits.map(({ first }) => [placeKeyOf(first), first.location]));
-  const places = [...locations.values()].map(({ longitude, latitude, regionIsoCode }, id) => ({
+  const places = [...locations.values()].map(({ longitude, latitude, regionIsoCode, ref }, id) => ({
     id,
     longitude,
     latitude,
     region_iso_code: regionIsoCode,
+    source_ref: ref ?? null,
   }));
   const resolved = await tx.execute<{ id: number; regionId: number | null }>(sql`
     SELECT place.id, COALESCE(known.region_id, region_at(place.longitude, place.latitude, claimed.id), claimed.id) AS "regionId"
     FROM jsonb_to_recordset(${JSON.stringify(places)}::jsonb)
-      AS place (id integer, longitude double precision, latitude double precision, region_iso_code text)
+      AS place (id integer, longitude double precision, latitude double precision, region_iso_code text, source_ref text)
     LEFT JOIN ${regions} AS claimed ON claimed.iso_code = place.region_iso_code
     LEFT JOIN ${officialLocations} AS known
-      ON known.source_id = ${sourceId}::integer AND known.source_ref IS NULL
+      ON place.source_ref IS NULL AND known.source_id = ${sourceId}::integer AND known.source_ref IS NULL
         AND known.longitude = place.longitude AND known.latitude = place.latitude
   `);
   const regionIdOfPlace = new Map(resolved.map((place) => [place.id, place.regionId]));
@@ -262,14 +284,17 @@ function stagedRowOf({ first, ordinal, lines, siteName, regionId, licenseeId, op
     city: location.city,
     address: location.address,
     region_id: regionId,
+    location_ref: location.ref ?? null,
+    precision_meters: location.precisionMeters ?? null,
     site_code: site.siteId,
+    site_ref: site.ref ?? null,
     licensee_id: licenseeId,
     operator_id: operatorId,
     site_name: siteName?.name ?? null,
     site_name_ordinal: siteName?.ordinal ?? null,
-    rat: permit.label.rat,
-    label_mhz: permit.label.mhz,
-    label_variant: permit.label.variant,
+    rat: permit.label?.rat ?? null,
+    label_mhz: permit.label?.mhz ?? null,
+    label_variant: permit.label?.variant ?? null,
     decision_number: permit.number,
     decision_type: permit.decisionType,
     expiry_date: permit.expiresOn,
@@ -313,16 +338,19 @@ async function openStagingTable(tx: DbTx): Promise<void> {
           city text,
           address text,
           region_id integer NOT NULL,
-          site_code text NOT NULL,
+          location_ref text,
+          precision_meters integer,
+          site_code text,
+          site_ref text,
           licensee_id integer NOT NULL,
           operator_id integer NOT NULL,
           site_name text,
           site_name_ordinal integer,
-          rat rat NOT NULL,
-          label_mhz integer NOT NULL,
-          label_variant band_variant NOT NULL,
-          decision_number text NOT NULL,
-          decision_type official_decision_type NOT NULL,
+          rat rat,
+          label_mhz integer,
+          label_variant band_variant,
+          decision_number text,
+          decision_type official_decision_type,
           expiry_date date,
           sectors jsonb NOT NULL,
           location_id integer,
@@ -339,15 +367,17 @@ async function openStagingTable(tx: DbTx): Promise<void> {
 async function stageRows(tx: DbTx, rows: readonly StagedPermitRow[]): Promise<void> {
   await tx.execute(sql`
     INSERT INTO ${stagedPermits}
-      (ordinal, slice, longitude, latitude, city, address, region_id, site_code, licensee_id, operator_id, site_name, site_name_ordinal,
-       rat, label_mhz, label_variant, decision_number, decision_type, expiry_date, sectors)
+      (ordinal, slice, longitude, latitude, city, address, region_id, location_ref, precision_meters, site_code, site_ref, licensee_id, operator_id,
+       site_name, site_name_ordinal, rat, label_mhz, label_variant, decision_number, decision_type, expiry_date, sectors)
     SELECT incoming.ordinal, incoming.slice, incoming.longitude, incoming.latitude, incoming.city, incoming.address, incoming.region_id,
-      incoming.site_code, incoming.licensee_id, incoming.operator_id, incoming.site_name, incoming.site_name_ordinal, incoming.rat,
-      incoming.label_mhz, incoming.label_variant, incoming.decision_number, incoming.decision_type, incoming.expiry_date, incoming.sectors
+      incoming.location_ref, incoming.precision_meters, incoming.site_code, incoming.site_ref, incoming.licensee_id, incoming.operator_id,
+      incoming.site_name, incoming.site_name_ordinal, incoming.rat, incoming.label_mhz, incoming.label_variant, incoming.decision_number,
+      incoming.decision_type, incoming.expiry_date, incoming.sectors
     FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS incoming (
       ordinal integer, slice varchar(64), longitude double precision, latitude double precision, city text, address text, region_id integer,
-      site_code text, licensee_id integer, operator_id integer, site_name text, site_name_ordinal integer, rat rat, label_mhz integer,
-      label_variant band_variant, decision_number text, decision_type official_decision_type, expiry_date date, sectors jsonb
+      location_ref text, precision_meters integer, site_code text, site_ref text, licensee_id integer, operator_id integer, site_name text,
+      site_name_ordinal integer, rat rat, label_mhz integer, label_variant band_variant, decision_number text,
+      decision_type official_decision_type, expiry_date date, sectors jsonb
     )
   `);
 }

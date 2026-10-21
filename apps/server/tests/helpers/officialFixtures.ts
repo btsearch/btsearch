@@ -40,6 +40,7 @@ export const datasetRow = {
   sourceId: 1,
   key: "permits",
   layer: "sites",
+  permitKind: "permit",
   isEnabled: true,
   checkEveryHours: 6,
   nextCheckAt: new Date("2026-10-12T12:00:00.000Z"),

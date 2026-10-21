@@ -67,7 +67,7 @@ async function officialSite(req: FastifyRequest, officialSiteId: number): Promis
     .innerJoin(operators, eq(operators.id, officialSites.operator_id))
     .where(and(eq(officialSites.id, officialSiteId), officialLocationIsPublic(officialSites.location_id, visibility)))
     .limit(1);
-  if (!row) throw new ErrorResponse("NOT_FOUND");
+  if (!row || row.siteId === null) throw new ErrorResponse("NOT_FOUND");
   await assertEmfCountry(req, row.countryCode);
 
   return toSite(row.siteId, row.latitude, row.longitude, row.mnc);

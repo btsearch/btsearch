@@ -17,6 +17,7 @@ import { useMemo } from "react";
 import type { MapLocationRecord, MapLocationsPage } from "../api";
 import { isOfficialSiteExpired } from "../utils";
 import { type MapLookups, getOperatorLook } from "./mapLookups";
+import { getOfficialSiteCode } from "@/features/official/sites";
 import type { LocationRecord } from "@/features/station-details/station/types";
 import { sortLocationStations } from "@/features/station-details/station/utils/stations";
 import type { StationSource } from "@/types/station";
@@ -171,7 +172,7 @@ function officialSiteToMapPointStation(site: OfficialLocationSite, place: Offici
   return createMapPointStation(
     {
       id: site.id,
-      siteId: site.siteId ?? "",
+      siteId: getOfficialSiteCode(site) ?? "",
       nodeName: null,
       operatorId: site.operatorId,
       azimuths: listOfficialSiteAzimuths(site),

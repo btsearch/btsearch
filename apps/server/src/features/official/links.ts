@@ -1,11 +1,11 @@
 /* eslint-disable no-await-in-loop */
 import { locations, officialLocations, officialPermits, officialSites, stations, stationsPermits } from "@openbts/drizzle";
-import { type SQL, type SQLWrapper, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 
 import { chunks } from "../../lib/collections.js";
 import type { DbTx } from "../../types/global.js";
 
-export type StationGroupKey = { operatorId: number | null; siteId: string };
+export type StationGroupKey = { operatorId: number | null; siteId: string | null };
 export type StationLink = { stationId: number; permitId: number };
 export type StationLinkChanges = { added: StationLink[]; removed: StationLink[] };
 export type LinkablePermit = {
@@ -56,7 +56,7 @@ export function decideStationLinks(permits: readonly LinkablePermit[], ourStatio
 function withOperator(groups: readonly StationGroupKey[]): LinkGroupKey[] {
   const groupsByKey = new Map<string, LinkGroupKey>();
   for (const { operatorId, siteId } of groups) {
-    if (operatorId !== null) groupsByKey.set(groupKey({ operatorId, siteId }), { operatorId, siteId });
+    if (operatorId !== null && siteId !== null) groupsByKey.set(groupKey({ operatorId, siteId }), { operatorId, siteId });
   }
   return [...groupsByKey.values()];
 }
@@ -85,7 +85,7 @@ async function readPermitsWithLinks(tx: DbTx, groups: readonly LinkGroupKey[]) {
       officialSiteId: officialSites.id,
       sourceId: officialSites.source_id,
       operatorId: officialSites.operator_id,
-      siteId: officialSites.station_id,
+      siteId: sql<string>`${officialSites.station_id}`,
       longitude: officialLocations.longitude,
       latitude: officialLocations.latitude,
       linkId: stationsPermits.id,
@@ -173,9 +173,14 @@ async function correctGroups(tx: DbTx, groups: readonly LinkGroupKey[], locksSta
 
 export async function readOfficialGroupsAfter(tx: Pick<DbTx, "selectDistinct">, last: LinkGroupKey | undefined): Promise<LinkGroupKey[]> {
   return tx
-    .selectDistinct({ siteId: officialSites.station_id, operatorId: officialSites.operator_id })
+    .selectDistinct({ siteId: sql<string>`${officialSites.station_id}`, operatorId: officialSites.operator_id })
     .from(officialSites)
-    .where(last && sql`(${officialSites.station_id}, ${officialSites.operator_id}) > (${last.siteId}::text, ${last.operatorId}::integer)`)
+    .where(
+      and(
+        isNotNull(officialSites.station_id),
+        last && sql`(${officialSites.station_id}, ${officialSites.operator_id}) > (${last.siteId}::text, ${last.operatorId}::integer)`,
+      ),
+    )
     .orderBy(asc(officialSites.station_id), asc(officialSites.operator_id))
     .limit(GROUPS_PER_STATEMENT);
 }

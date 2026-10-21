@@ -33,6 +33,7 @@ const locationSelectSchema = createSelectSchema(officialLocations);
 const siteSelectSchema = createSelectSchema(officialSites);
 const permitSelectSchema = createSelectSchema(officialPermits);
 const sectorSelectSchema = createSelectSchema(officialPermitSectors);
+const datasetSelectSchema = createSelectSchema(officialDatasets);
 
 type OfficialLocationRow = Omit<z.infer<typeof locationSelectSchema>, "point">;
 type OfficialSiteRow = z.infer<typeof siteSelectSchema>;
@@ -43,6 +44,8 @@ export type OfficialLocationRows = { location: OfficialLocationRow; region: Regi
 export type OfficialSiteRows = OfficialLocationRows & { site: OfficialSiteRow };
 export type OfficialPermitRows = OfficialSiteRows & { permit: OfficialPermitRow };
 type SitePermitRows = { permit: OfficialPermitRow; sourceKey: string };
+type PermitListingRow = { permitId: number; key: string; permitKind: DatasetPermitKind };
+export type DatasetPermitKind = z.infer<typeof datasetSelectSchema>["permitKind"];
 type SiteRelations = { stationIdsBySite: Map<number, number[]>; permitsBySite: Map<number, OfficialSitePermit[]> };
 
 export type OfficialSiteParts = {
@@ -54,13 +57,22 @@ export type OfficialSiteParts = {
 };
 
 const RATS = { GSM: "gsm", CDMA: "cdma", UMTS: "umts", LTE: "lte", NR: "nr", IOT: "iot" } as const satisfies Record<
-  OfficialPermitRow["rat"],
+  NonNullable<OfficialPermitRow["rat"]>,
   OfficialRat
 >;
 const PERMIT_KINDS = { permit: "permit", permit_change: "permitChange" } as const satisfies Record<
-  OfficialPermitRow["decision_type"],
+  NonNullable<OfficialPermitRow["decision_type"]>,
   OfficialPermitKind
 >;
+export const DATASET_PERMIT_KINDS = {
+  permit: "permit",
+  registration: "registration",
+  inventory: "inventory",
+  environmental_permit: "environmentalPermit",
+  certificate: "certificate",
+  assessment: "assessment",
+  licence: "license",
+} as const satisfies Record<DatasetPermitKind, OfficialPermitKind>;
 
 const officialLocationColumns = {
   id: officialLocations.id,
@@ -69,6 +81,7 @@ const officialLocationColumns = {
   address: officialLocations.address,
   longitude: officialLocations.longitude,
   latitude: officialLocations.latitude,
+  precision_meters: officialLocations.precision_meters,
   source_id: officialLocations.source_id,
   source_ref: officialLocations.source_ref,
   updatedAt: officialLocations.updatedAt,
@@ -78,8 +91,15 @@ const officialLocationColumns = {
 export const officialLocationRowColumns = { location: officialLocationColumns, region: regions, sourceKey: officialSources.key };
 export const officialSiteRowColumns = { ...officialLocationRowColumns, site: officialSites };
 
-export function toPermitKind(decisionType: OfficialPermitRow["decision_type"]): OfficialPermitKind {
+export function toPermitKind(decisionType: NonNullable<OfficialPermitRow["decision_type"]>): OfficialPermitKind {
   return PERMIT_KINDS[decisionType];
+}
+
+function decisionOrDatasetKind(decisionType: OfficialPermitRow["decision_type"], listings: readonly PermitListingRow[]): OfficialPermitKind | null {
+  if (decisionType !== null) return toPermitKind(decisionType);
+
+  const [listing] = listings;
+  return listing ? DATASET_PERMIT_KINDS[listing.permitKind] : null;
 }
 
 export function toOfficialPermitLabel(
@@ -87,23 +107,24 @@ export function toOfficialPermitLabel(
   labelMhz: OfficialPermitRow["label_mhz"],
   variant: OfficialPermitRow["label_variant"],
 ): OfficialPermitLabel {
-  return { rat: RATS[rat], labelMhz, variant, name: formatPermitLabel({ rat, mhz: labelMhz, variant }) };
+  const name = rat !== null && labelMhz !== null && variant !== null ? formatPermitLabel({ rat, mhz: labelMhz, variant }) : null;
+  return { rat: rat === null ? null : RATS[rat], labelMhz, variant, name };
 }
 
 function toOfficialPermitSector(row: OfficialPermitSectorRow): OfficialPermitSector {
   return { id: row.id, azimuth: row.azimuth, elevation: row.elevation, antennaHeightMeters: row.antenna_height, antennaType: row.antenna_type };
 }
 
-function toOfficialSitePermit({ permit, sourceKey }: SitePermitRows, datasets: string[]): OfficialSitePermit {
+function toOfficialSitePermit({ permit, sourceKey }: SitePermitRows, listings: readonly PermitListingRow[]): OfficialSitePermit {
   return {
     id: permit.id,
     officialSiteId: permit.official_site_id,
     sourceKey,
     number: permit.decision_number,
-    kind: toPermitKind(permit.decision_type),
+    kind: decisionOrDatasetKind(permit.decision_type, listings),
     expiresOn: permit.expiry_date,
     label: toOfficialPermitLabel(permit.rat, permit.label_mhz, permit.label_variant),
-    datasets,
+    datasets: listings.map((listing) => listing.key),
     createdAt: permit.createdAt.toISOString(),
     updatedAt: permit.updatedAt.toISOString(),
   };
@@ -119,6 +140,8 @@ export function toOfficialSiteLocation({ location, region, sourceKey }: Official
     address: location.address,
     latitude: location.latitude,
     longitude: location.longitude,
+    precisionMeters: location.precision_meters,
+    sourceRef: location.source_ref,
     createdAt: location.createdAt.toISOString(),
     updatedAt: location.updatedAt.toISOString(),
   };
@@ -159,7 +182,7 @@ export async function loadPermitStationIds(permitIds: readonly number[], hiddenC
 function loadPermitDetails(permitIds: readonly number[] | SQLWrapper, wantsSectors: boolean) {
   return Promise.all([
     db
-      .select({ permitId: officialPermitListings.permitId, key: officialDatasets.key })
+      .select({ permitId: officialPermitListings.permitId, key: officialDatasets.key, permitKind: officialDatasets.permitKind })
       .from(officialPermitListings)
       .innerJoin(officialDatasets, eq(officialDatasets.id, officialPermitListings.datasetId))
       .where(inArray(officialPermitListings.permitId, permitIds))
@@ -179,10 +202,7 @@ function toSitePermits(
   const sectorsByPermit = Map.groupBy(sectorRows, (row) => row.permit_id);
 
   return rows.map((row) => {
-    const permit = toOfficialSitePermit(
-      row,
-      (datasetsByPermit.get(row.permit.id) ?? []).map((listing) => listing.key),
-    );
+    const permit = toOfficialSitePermit(row, datasetsByPermit.get(row.permit.id) ?? []);
     if (wantsSectors) permit.sectors = (sectorsByPermit.get(row.permit.id) ?? []).map(toOfficialPermitSector);
     return permit;
   });
@@ -230,6 +250,7 @@ export function toOfficialSites(rows: readonly OfficialSiteRows[], parts: Offici
       id: row.site.id,
       sourceKey: row.sourceKey,
       siteId: row.site.station_id,
+      sourceRef: row.site.source_ref,
       operatorId: row.site.operator_id,
       locationId: row.site.location_id,
       stationIds: relations.stationIdsBySite.get(row.site.id) ?? [],

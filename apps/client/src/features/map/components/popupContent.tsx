@@ -29,6 +29,7 @@ import { CloseButton } from "@/components/ui/close-button";
 import { InlineError } from "@/components/ui/error-state";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getOfficialSiteCode } from "@/features/official/sites";
 import { RanSharingLink } from "@/features/station-details/components/sharingLinks";
 import { locationPhotoRecordsQueryOptions } from "@/features/station-details/station/api";
 import { StationStructureLine } from "@/features/station-details/station/components/panel/stationStructureLine";
@@ -273,7 +274,7 @@ function PopupRegisterStationRow({ site, lookups, showAddToList, onOpenOfficialS
       title={
         <>
           <PopupOperatorName name={operatorLook.operator?.name || t("unknownOperator")} />
-          <PopupStationId id={site.siteId ?? ""} />
+          <PopupStationId id={getOfficialSiteCode(site) ?? ""} />
           {isOfficialSiteExpired(site) ? <PopupExpiredLabel /> : null}
         </>
       }

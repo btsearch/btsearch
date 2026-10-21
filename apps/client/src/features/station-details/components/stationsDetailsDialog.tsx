@@ -28,6 +28,7 @@ import type { FloatingDialogPanelFrameProps, StationDialogTarget } from "@/featu
 import { hasCountryCapability } from "@/features/map/data/mapFilters";
 import { getOfficialSiteMapHash } from "@/features/map/mapLinks";
 import { officialSiteQueryOptions, useOfficialSource } from "@/features/official/queries";
+import { getOfficialSiteCode } from "@/features/official/sites";
 import { brandsQueryOptions, countriesQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
@@ -99,7 +100,7 @@ function OfficialSiteDialogPanel({
   const operatorName = operator?.name ?? t("main:unknownOperator");
   const isOperatorLoading = operatorId !== null && isOperatorsLoading;
   const showDetailsError = !data && (error !== null || (isFetching && errorUpdateCount > 0));
-  const siteId = site?.siteId ?? "";
+  const siteId = site ? (getOfficialSiteCode(site) ?? "") : "";
   const location = site?.location;
   const shareSourcePrefix = officialSource ? `${officialSource.shortName}: ` : "";
   const sharePlace = location ? [location.city || t("common:labels.unknownLocation"), location.address].filter(Boolean).join(" ") : "";

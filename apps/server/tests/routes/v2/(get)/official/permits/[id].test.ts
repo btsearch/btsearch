@@ -9,6 +9,7 @@ import {
   renderedWhere,
   scriptAdminVisibility,
   scriptGuestVisibility,
+  servedLocation,
   servedPermit,
   servedSite,
 } from "../../../../../helpers/officialDataFixtures.js";
@@ -61,6 +62,55 @@ describe("GET /official/permits/:id", () => {
 
     expect(response.json().data).toEqual(servedPermit);
     expect(renderedWhere("official.permits")).toEqual({ sql: '"official"."permits"."id" = $1', params: [41] });
+  });
+
+  it("takes the kind of a permit without a decision from its dataset", async () => {
+    const inventoryRows = {
+      ...officialPermitRows,
+      location: { ...officialPermitRows.location, precision_meters: 31, source_ref: "23444" },
+      site: { ...officialPermitRows.site, station_id: null, source_ref: "0032750221" },
+      permit: {
+        ...officialPermitRows.permit,
+        decision_number: null,
+        decision_type: null,
+        expiry_date: null,
+        rat: null,
+        label_mhz: null,
+        label_variant: null,
+      },
+    };
+    scriptGuestVisibility([1]);
+    dbMock.enqueueFor("select", "official.permits", [inventoryRows]);
+    dbMock.enqueueFor("select", "official.permit_listings", [{ permitId: 41, key: "mobile-networks", permitKind: "inventory" }]);
+    dbMock.enqueueFor("select", "stations_permits", []);
+
+    const response = await injectMutation(route, { ...request, url: "/official/permits/41?include=officialSite.location" });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data).toEqual({
+      ...servedPermit,
+      number: null,
+      kind: "inventory",
+      expiresOn: null,
+      label: { rat: null, labelMhz: null, variant: null, name: null },
+      datasets: ["mobile-networks"],
+      officialSite: {
+        ...servedSite,
+        siteId: null,
+        sourceRef: "0032750221",
+        location: { ...servedLocation, precisionMeters: 31, sourceRef: "23444" },
+      },
+    });
+  });
+
+  it("keeps the kind of a permit's decision over its dataset's kind", async () => {
+    scriptGuestVisibility([1]);
+    dbMock.enqueueFor("select", "official.permits", [officialPermitRows]);
+    dbMock.enqueueFor("select", "official.permit_listings", [{ permitId: 41, key: "device-registry", permitKind: "registration" }]);
+
+    const response = await injectMutation(route, request);
+
+    expect(response.json().data).toMatchObject({ kind: "permitChange", datasets: ["device-registry"] });
   });
 
   it.each(["/official/permits/0", "/official/permits/41?include=officialSite.location.region", "/official/permits/41?isLinked=false"])(

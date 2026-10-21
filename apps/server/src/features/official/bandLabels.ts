@@ -1,7 +1,7 @@
 import { officialLocations, officialPermits, officialSites, officialSources, regions } from "@openbts/drizzle";
 import { BAND_VARIANTS } from "@openbts/shared/contract";
 import type { OfficialBandLabel, OfficialBandLabelQuery } from "@openbts/shared/contract";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
@@ -10,20 +10,22 @@ import { withRedisStaleCache } from "../../lib/redisCache.js";
 import { type OfficialPermitRow, toOfficialPermitLabel } from "./serialize.js";
 import { type OfficialVisibility, loadOfficialVisibility } from "./visibility.js";
 
+type LabelRat = NonNullable<OfficialPermitRow["rat"]>;
+type LabelVariant = NonNullable<OfficialPermitRow["label_variant"]>;
 type StoredBandLabel = {
   countryCode: string;
   sourceId: number;
   sourceKey: string;
-  rat: OfficialPermitRow["rat"];
-  labelMhz: OfficialPermitRow["label_mhz"];
-  variant: OfficialPermitRow["label_variant"];
+  rat: LabelRat;
+  labelMhz: number;
+  variant: LabelVariant;
 };
 
 export const BAND_LABEL_CACHE_KEY = "official:v2:band-labels";
 const BAND_LABEL_CACHE = { freshTtlSeconds: 600, staleTtlSeconds: 86_400 };
-const NEWEST_TECHNOLOGIES_FIRST: readonly OfficialPermitRow["rat"][] = ["NR", "LTE", "UMTS", "CDMA", "GSM"];
+const NEWEST_TECHNOLOGIES_FIRST: readonly LabelRat[] = ["NR", "LTE", "UMTS", "CDMA", "GSM"];
 
-function technologyRank(rat: OfficialPermitRow["rat"]): number {
+function technologyRank(rat: LabelRat): number {
   const rank = NEWEST_TECHNOLOGIES_FIRST.indexOf(rat);
   return rank < 0 ? NEWEST_TECHNOLOGIES_FIRST.length : rank;
 }
@@ -44,15 +46,16 @@ async function loadStoredBandLabels(): Promise<StoredBandLabel[]> {
       countryCode: regions.countryCode,
       sourceId: officialSources.id,
       sourceKey: officialSources.key,
-      rat: officialPermits.rat,
-      labelMhz: officialPermits.label_mhz,
-      variant: officialPermits.label_variant,
+      rat: sql<LabelRat>`${officialPermits.rat}`,
+      labelMhz: sql<number>`${officialPermits.label_mhz}`,
+      variant: sql<LabelVariant>`${officialPermits.label_variant}`,
     })
     .from(officialPermits)
     .innerJoin(officialSites, eq(officialSites.id, officialPermits.official_site_id))
     .innerJoin(officialLocations, eq(officialLocations.id, officialSites.location_id))
     .innerJoin(regions, eq(regions.id, officialLocations.region_id))
-    .innerJoin(officialSources, eq(officialSources.id, officialLocations.source_id));
+    .innerJoin(officialSources, eq(officialSources.id, officialLocations.source_id))
+    .where(isNotNull(officialPermits.label_mhz));
   return rows.sort(compareBandLabels);
 }
 

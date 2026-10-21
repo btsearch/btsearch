@@ -13,7 +13,7 @@ type SiteTally = { lastSeq: number; wasAdded: boolean; addedPermitIds: Set<numbe
 type SiteNotification = Parameters<typeof notifyOfficialSitesWatchers>[0][number];
 
 export type SiteChangeSummary = { officialSiteId: number; lastSeq: number; wasAdded: boolean; permitsAdded: number; permitsArchived: number };
-export type StoredSite = { id: number; siteCode: string; latitude: number; longitude: number; hasPermits: boolean };
+export type StoredSite = { id: number; siteCode: string | null; latitude: number; longitude: number; hasPermits: boolean };
 
 const SITE_CHANGE_KINDS: readonly ChangeKind[] = ["site_added", "permit_added", "permit_archived"];
 

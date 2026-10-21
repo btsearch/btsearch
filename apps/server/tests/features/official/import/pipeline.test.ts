@@ -58,6 +58,7 @@ const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
   [/^TRUNCATE/, "stage: empty the table"],
   [/^INSERT INTO "pg_temp"/, "stage: records"],
   [/^ANALYZE "pg_temp"\."official_import_staged_permits"$/, "stage: analyze"],
+  [/^UPDATE "official"\."locations" AS location/, "apply: update locations named by the register"],
   [/SET location_id = moved\.to_location_id/, "apply: move sites"],
   [/^WITH added AS/, "apply: insert sites"],
   [/^ANALYZE "pg_temp"\."official_import_staged_permits" \(location_id, official_site_id\)$/, "apply: analyze site ids"],
@@ -202,6 +203,7 @@ function sourceWith(readers: Readers): OfficialSourceDefinition {
       {
         key: "towers",
         layer: "sites",
+        permitKind: "permit",
         checkEveryHours: 6,
         discover: async () => release(readers.sitesCover ?? ["north"], "2026-10-01_north.xlsx"),
         parse: (context) => {
@@ -213,6 +215,7 @@ function sourceWith(readers: Readers): OfficialSourceDefinition {
       {
         key: "links",
         layer: "microwave_links",
+        permitKind: "permit",
         checkEveryHours: 6,
         discover: async () => release([""], "2026-10-01_links.xlsx"),
         parse: () => readers.links?.() ?? (async function* empty() {})(),
@@ -305,16 +308,17 @@ function scriptStagedSites(staged: { live: number }): void {
   dbMock.enqueueFor("select", "official.import_run_approvals", []);
 }
 
-function scriptStagedMatches(updates = 6): void {
+function scriptStagedMatches(updates = 10): void {
   dbMock.enqueueFor("update", STAGED_PERMITS, ...Array.from({ length: updates }, () => undefined));
 }
 
 function scriptAppliedSites(): void {
   scriptStagedMatches();
-  dbMock.enqueueFor("insert", "official.locations", [{ id: 12 }]);
+  scriptStatements([]);
+  dbMock.enqueueFor("insert", "official.locations", [{ id: 12 }], []);
   dbMock.enqueueFor("select", undefined, [{ officialSiteId: 503, fromLocationId: 11, locationId: 12, firstOrdinal: 0, slice: "north" }]);
   scriptStatements([]);
-  scriptStatements([{ officialSiteId: 504, slice: "north" }], []);
+  scriptStatements([{ officialSiteId: 504, slice: "north" }], [], []);
   dbMock.enqueueFor("insert", "official.permits", [{ id: 701 }]);
   scriptStatements([]);
   dbMock.enqueueFor("update", "official.permit_listings", undefined);
@@ -327,12 +331,12 @@ function scriptAppliedSites(): void {
 }
 
 function scriptAppliedSitesWithoutChanges(): void {
-  scriptStagedMatches(3);
-  dbMock.enqueueFor("insert", "official.locations", []);
+  scriptStagedMatches(5);
+  dbMock.enqueueFor("insert", "official.locations", [], []);
   dbMock.enqueueFor("select", undefined, []);
   dbMock.enqueueFor("insert", "official.permits", []);
   dbMock.enqueueFor("update", "official.permit_listings", undefined);
-  scriptStatements([], [], [], [], [], []);
+  scriptStatements([], [], [], [], [], [], [], []);
 }
 
 function scriptCheckpoint(written: { skips?: boolean; changes?: boolean; slicesApplied?: boolean } = {}): void {
@@ -466,12 +470,19 @@ describe("a run through the engine", () => {
       "select official.permit_listings",
       "select official.import_run_approvals",
       "update official_import_staged_permits",
+      "update official_import_staged_permits",
+      "apply: update locations named by the register",
       "insert official.locations",
+      "insert official.locations",
+      "update official_import_staged_permits",
+      "update official_import_staged_permits",
       "update official_import_staged_permits",
       "update official_import_staged_permits",
       "select",
       "apply: move sites",
       "apply: insert sites",
+      "apply: insert sites",
+      "update official_import_staged_permits",
       "update official_import_staged_permits",
       "apply: analyze site ids",
       "update official_import_staged_permits",
@@ -686,15 +697,18 @@ describe("a run through the engine", () => {
     ).toEqual([1]);
     expect(jsonParamsOf("resolve: regions")).toEqual([
       [
-        { id: 0, longitude: 21.0123, latitude: 52.2297, region_iso_code: "PL-14" },
-        { id: 1, longitude: 99, latitude: 52.2297, region_iso_code: "PL-14" },
+        { id: 0, longitude: 21.0123, latitude: 52.2297, region_iso_code: "PL-14", source_ref: null },
+        { id: 1, longitude: 99, latitude: 52.2297, region_iso_code: "PL-14", source_ref: null },
       ],
     ]);
     expect(stagedRows()).toEqual([
       expect.objectContaining({
         ordinal: 0,
         region_id: 14,
+        location_ref: null,
+        precision_meters: null,
         site_code: "BT1001",
+        site_ref: null,
         licensee_id: 8,
         operator_id: 4,
         site_name: "WAW CENTRUM",
@@ -1046,12 +1060,12 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("update", "official.licensees", undefined);
     scriptRecordedRelease(41);
     scriptStagedSites({ live: 0 });
-    scriptStagedMatches(4);
-    dbMock.enqueueFor("insert", "official.locations", []);
+    scriptStagedMatches(6);
+    dbMock.enqueueFor("insert", "official.locations", [], []);
     dbMock.enqueueFor("select", undefined, []);
     dbMock.enqueueFor("insert", "official.permits", [{ id: 701 }]);
     dbMock.enqueueFor("update", "official.permit_listings", undefined);
-    scriptStatements([], [], [], [{ permitId: 701, slice: "north", officialSiteId: 504 }], [], []);
+    scriptStatements([], [], [], [], [], [{ permitId: 701, slice: "north", officialSiteId: 504 }], [], []);
     dbMock.enqueueFor("update", "official.sites", undefined);
     scriptCheckpoint({ skips: true, changes: true, slicesApplied: true });
     dbMock.enqueueFor("select", "official.import_run_steps", []);

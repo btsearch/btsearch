@@ -645,7 +645,8 @@
     "datasets": {
       "permits": "Pozwolenia",
       "deviceRegistry": "Rejestr urządzeń",
-      "microwaveLinks": "Radiolinie"
+      "microwaveLinks": "Radiolinie",
+      "mobileNetworks": "Sieci komórkowe"
     },
     "startImport": "Rozpocznij import",
     "startFailed": "Nie udało się uruchomić importu. Spróbuj ponownie",
@@ -735,7 +736,12 @@
       "siteIdTooLong": "Za długie ID stacji",
       "decisionNumberTooLong": "Za długi numer decyzji",
       "badLabel": "Nieprawidłowe pasmo",
-      "duplicateLink": "Zduplikowana radiolinia"
+      "duplicateLink": "Zduplikowana radiolinia",
+      "sourceRefTooLong": "Za długie ID z rejestru",
+      "badPrecision": "Nieprawidłowa dokładność położenia",
+      "territoryNotImported": "Terytorium nie jest importowane",
+      "unknownSystem": "Nierozpoznany system",
+      "missingIdentity": "Brak operatora lub ID"
     },
     "held": {
       "slice": "Wstrzymano {{slice}} - rekordów w nowej wersji: {{releaseRecordCount, number}}, w bazie: {{storedRecordCount, number}}",

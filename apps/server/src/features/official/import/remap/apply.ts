@@ -22,7 +22,7 @@ import { type RemapCounts, type RemapPlan, planRemap } from "./plan.js";
 import { lockLicensee, readRemapInput, readRemapRun } from "./read.js";
 
 type Move = RemapPlan["moves"][number];
-type CreatedSite = { id: number; siteCode: string };
+type CreatedSite = { id: number; siteCode: string | null };
 type Repointed = { watchesRepointed: number; notificationsRepointed: number; listsRepointed: number };
 type Applied = { changes: ChangeInput[]; repointed: Repointed };
 

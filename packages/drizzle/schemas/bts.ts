@@ -36,6 +36,15 @@ export const ContributionMode = pgEnum("contribution_mode", ["closed", "open"]);
 export const PlmnRole = pgEnum("plmn_role", ["primary", "secondary"]);
 export const OperatorLinkKind = pgEnum("operator_link_kind", ["jv_member"]);
 export const OfficialLayer = pgEnum("official_layer", ["sites", "microwave_links"]);
+export const OfficialPermitKind = pgEnum("official_permit_kind", [
+  "permit",
+  "registration",
+  "inventory",
+  "environmental_permit",
+  "certificate",
+  "assessment",
+  "licence",
+]);
 export const StructureType = pgEnum("structure_type", [
   "lattice_tower",
   "tubular_tower",
@@ -310,6 +319,7 @@ export const officialLocations = OfficialSchema.table(
     point: geometry("point", { type: "point", mode: "xy", srid: 4326 })
       .notNull()
       .generatedAlwaysAs((): SQL => sql`ST_SetSRID(ST_MakePoint(${officialLocations.longitude}, ${officialLocations.latitude}), 4326)`),
+    precision_meters: integer("precision_meters"),
     source_id: integer("source_id")
       .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" })
       .notNull(),
@@ -320,6 +330,7 @@ export const officialLocations = OfficialSchema.table(
   (t) => [
     check("locations_latitude_range", sql`${t.latitude} BETWEEN -90 AND 90`),
     check("locations_longitude_range", sql`${t.longitude} BETWEEN -180 AND 180`),
+    check("locations_precision_positive", sql`${t.precision_meters} > 0`),
     index("locations_region_id_idx").on(t.region_id),
     index("locations_point_gist").using("gist", t.point),
     index("locations_created_at_idx").on(t.createdAt),
@@ -463,7 +474,7 @@ export const officialSites = OfficialSchema.table(
   "sites",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    station_id: varchar("site_id", { length: 16 }).notNull(),
+    station_id: varchar("site_id", { length: 16 }),
     operator_id: integer("operator_id")
       .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
@@ -499,6 +510,7 @@ export const officialSites = OfficialSchema.table(
     index("sites_updated_at_idx").on(t.updatedAt),
     index("sites_created_at_idx").on(t.createdAt),
     check("sites_site_id_16_length", sql`${t.station_id} ~ '(^.{1,16}$)'`),
+    check("sites_site_id_or_source_ref", sql`${t.station_id} IS NOT NULL OR ${t.source_ref} IS NOT NULL`),
   ],
 );
 
@@ -509,16 +521,17 @@ export const officialPermits = OfficialSchema.table(
     official_site_id: integer("official_site_id")
       .references(() => officialSites.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    decision_number: varchar("decision_number", { length: 100 }).notNull(),
-    decision_type: OfficialDecisionType("decision_type").notNull(),
+    decision_number: varchar("decision_number", { length: 100 }),
+    decision_type: OfficialDecisionType("decision_type"),
     expiry_date: date({ mode: "string" }),
-    rat: ratEnum("rat").notNull(),
-    label_mhz: integer("label_mhz").notNull(),
-    label_variant: BandVariant("label_variant").notNull(),
+    rat: ratEnum("rat"),
+    label_mhz: integer("label_mhz"),
+    label_variant: BandVariant("label_variant"),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("permits_label_shape", sql`num_nulls(${t.label_mhz}, ${t.label_variant}) IN (0, 2) AND (${t.label_mhz} IS NULL OR ${t.rat} IS NOT NULL)`),
     unique("permits_unique_permit")
       .on(t.official_site_id, t.rat, t.label_mhz, t.label_variant, t.decision_number, t.decision_type, t.expiry_date)
       .nullsNotDistinct(),
@@ -988,6 +1001,7 @@ export const officialDatasets = OfficialSchema.table(
       .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" }),
     key: varchar("key", { length: 64 }).notNull(),
     layer: OfficialLayer("layer").notNull(),
+    permitKind: OfficialPermitKind("permit_kind").notNull(),
     isEnabled: boolean("is_enabled").notNull().default(true),
     checkEveryHours: smallint("check_every_hours").notNull(),
     nextCheckAt: timestamp("next_check_at", { withTimezone: true }),

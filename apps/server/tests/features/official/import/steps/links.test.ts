@@ -263,7 +263,7 @@ describe("the links step", () => {
     ]);
     expect(lastWork).toEqual(["select official.import_runs", "select official.sites", "commit"]);
     const pageReads = dbMock.calls.filter((call) => call.table === "official.sites" && call.clauses.limit !== undefined);
-    expect(pageReads[0]?.clauses.where).toEqual([undefined]);
+    expect(whereOf(pageReads[0]).params).toEqual([]);
     expect(pageReads.slice(1).map((call) => whereOf(call).params)).toEqual([
       ["BT0499", 4],
       ["BT0500", 5],

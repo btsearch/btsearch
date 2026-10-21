@@ -261,9 +261,9 @@ describe("every group of the official sites", () => {
 
     const [first, second] = dbMock.calls;
     expect([first?.clauses.limit, second?.clauses.limit]).toEqual([[500], [500]]);
-    expect(first?.clauses.where).toEqual([undefined]);
+    expect(whereOf(first)).toMatchObject({ sql: '("official"."sites"."site_id" is not null)', params: [] });
     expect(whereOf(second)).toMatchObject({
-      sql: '("official"."sites"."site_id", "official"."sites"."operator_id") > ($1::text, $2::integer)',
+      sql: '((("official"."sites"."site_id" is not null)) and (("official"."sites"."site_id", "official"."sites"."operator_id") > ($1::text, $2::integer)))',
       params: ["BT0499", 4],
     });
     expect(second?.clauses.orderBy?.map((order) => dialect.sqlToQuery(order as SQL).sql)).toEqual([

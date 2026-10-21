@@ -30,6 +30,7 @@ export async function takeStatsSnapshot(writer: Pick<DbTx, "select" | "insert"> 
       })
       .from(officialPermits)
       .innerJoin(officialSites, eq(officialPermits.official_site_id, officialSites.id))
+      .where(isNotNull(officialPermits.label_mhz))
       .groupBy(officialSites.operator_id, officialPermits.rat, officialPermits.label_mhz, officialPermits.label_variant),
     writer
       .select({

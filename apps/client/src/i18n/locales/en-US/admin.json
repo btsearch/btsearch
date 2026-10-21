@@ -609,7 +609,8 @@
     "datasets": {
       "permits": "Permits",
       "deviceRegistry": "Device registry",
-      "microwaveLinks": "Microwave links"
+      "microwaveLinks": "Microwave links",
+      "mobileNetworks": "Mobile networks"
     },
     "startImport": "Start import",
     "startFailed": "Could not start the import. Try again",
@@ -699,7 +700,12 @@
       "siteIdTooLong": "Station ID too long",
       "decisionNumberTooLong": "Decision number too long",
       "badLabel": "Invalid band",
-      "duplicateLink": "Duplicate microwave link"
+      "duplicateLink": "Duplicate microwave link",
+      "sourceRefTooLong": "Register ID too long",
+      "badPrecision": "Invalid position accuracy",
+      "territoryNotImported": "Territory not imported",
+      "unknownSystem": "Unrecognized system",
+      "missingIdentity": "No operator or ID"
     },
     "held": {
       "slice": "{{slice}} is held - records in the release: {{releaseRecordCount, number}}, stored: {{storedRecordCount, number}}",

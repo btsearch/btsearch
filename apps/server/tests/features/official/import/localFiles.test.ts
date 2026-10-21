@@ -29,6 +29,7 @@ function datasetWith(release: Release): RunDataset {
   const definition: SitesDataset = {
     key: "towers",
     layer: "sites",
+    permitKind: "permit",
     checkEveryHours: 6,
     discover: async () => [release],
     parse: async function* none() {},

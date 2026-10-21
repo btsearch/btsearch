@@ -32,8 +32,8 @@ const source: OfficialSourceDefinition = {
   shortLicenseeName: (publishedName) => publishedName.replace(/ S\.A\.$/, ""),
   operatorNameOfLicensee: () => null,
   datasets: [
-    { key: "towers", layer: "sites", checkEveryHours: 6, discover: async () => [], parse: async function* none() {} },
-    { key: "links", layer: "microwave_links", checkEveryHours: 24, discover: async () => [], parse: async function* none() {} },
+    { key: "towers", layer: "sites", permitKind: "permit", checkEveryHours: 6, discover: async () => [], parse: async function* none() {} },
+    { key: "links", layer: "microwave_links", permitKind: "permit", checkEveryHours: 24, discover: async () => [], parse: async function* none() {} },
   ],
 };
 
@@ -217,6 +217,7 @@ describe("the source sync", () => {
   };
 
   it("adds a new source and its datasets switched off and hidden", async () => {
+    dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     dbMock.enqueueFor("select", "official.sources", []);
     dbMock.enqueueFor("insert", "official.sources", [{ id: 1 }]);
     dbMock.enqueueFor("select", "official.datasets", []);
@@ -225,7 +226,12 @@ describe("the source sync", () => {
 
     const result = await syncSources([source]);
 
-    expect(result).toEqual({ addedSources: ["test-source"], addedDatasets: ["test-source/towers", "test-source/links"], licenseeNamesCorrected: 0 });
+    expect(result).toEqual({
+      addedSources: ["test-source"],
+      addedDatasets: ["test-source/towers", "test-source/links"],
+      licenseeNamesCorrected: 0,
+      withoutCountry: [],
+    });
     expect(valuesOf("insert", "official.sources")).toEqual([
       {
         key: "test-source",
@@ -242,22 +248,24 @@ describe("the source sync", () => {
     ]);
     expect(valuesOf("insert", "official.datasets")).toEqual([
       [
-        { sourceId: 1, key: "towers", layer: "sites", checkEveryHours: 6, isEnabled: false },
-        { sourceId: 1, key: "links", layer: "microwave_links", checkEveryHours: 24, isEnabled: false },
+        { sourceId: 1, key: "towers", layer: "sites", permitKind: "permit", checkEveryHours: 6, isEnabled: false },
+        { sourceId: 1, key: "links", layer: "microwave_links", permitKind: "permit", checkEveryHours: 24, isEnabled: false },
       ],
     ]);
   });
 
   it("writes nothing for a source that is stored as the code describes it", async () => {
+    dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     dbMock.enqueueFor("select", "official.sources", [storedSource]);
     dbMock.enqueueFor("select", "official.datasets", [{ key: "towers" }, { key: "links" }]);
     dbMock.enqueueFor("select", "official.licensees", [{ id: 8, name: "Orange Polska", legalName: "Orange Polska S.A." }]);
 
-    expect(await syncSources([source])).toEqual({ addedSources: [], addedDatasets: [], licenseeNamesCorrected: 0 });
-    expect(dbMock.calls.map((call) => call.operation)).toEqual(["select", "select", "select"]);
+    expect(await syncSources([source])).toEqual({ addedSources: [], addedDatasets: [], licenseeNamesCorrected: 0, withoutCountry: [] });
+    expect(dbMock.calls.map((call) => call.operation)).toEqual(["select", "select", "select", "select"]);
   });
 
   it("updates the descriptive fields only, adds a missing dataset and corrects licensee short names", async () => {
+    dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     dbMock.enqueueFor("select", "official.sources", [{ ...storedSource, attribution: "Old text", isEnabled: false }]);
     dbMock.enqueueFor("update", "official.sources", undefined);
     dbMock.enqueueFor("select", "official.datasets", [{ key: "towers" }, { key: "retired" }]);
@@ -270,7 +278,7 @@ describe("the source sync", () => {
 
     const result = await syncSources([source]);
 
-    expect(result).toEqual({ addedSources: [], addedDatasets: ["test-source/links"], licenseeNamesCorrected: 1 });
+    expect(result).toEqual({ addedSources: [], addedDatasets: ["test-source/links"], licenseeNamesCorrected: 1, withoutCountry: [] });
     const [described] = valuesOf("update", "official.sources") as Record<string, unknown>[];
     expect(Object.keys(described ?? {}).sort()).toEqual([
       "attribution",
@@ -283,6 +291,23 @@ describe("the source sync", () => {
       "updatedAt",
     ]);
     expect(valuesOf("update", "official.licensees")).toEqual([{ name: "SATFILM" }]);
+  });
+
+  it("leaves out a source whose country is not in the database yet, and names it", async () => {
+    dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
+    dbMock.enqueueFor("select", "official.sources", [storedSource]);
+    dbMock.enqueueFor("select", "official.datasets", [{ key: "towers" }, { key: "links" }]);
+    dbMock.enqueueFor("select", "official.licensees", []);
+
+    const result = await syncSources([source, { ...source, key: "fr-source", countryCode: "FR" }]);
+
+    expect(result).toEqual({ addedSources: [], addedDatasets: [], licenseeNamesCorrected: 0, withoutCountry: ["fr-source"] });
+    expect(dbMock.calls.map((call) => `${call.operation} ${call.table}`)).toEqual([
+      "select countries",
+      "select official.sources",
+      "select official.datasets",
+      "select official.licensees",
+    ]);
   });
 });
 

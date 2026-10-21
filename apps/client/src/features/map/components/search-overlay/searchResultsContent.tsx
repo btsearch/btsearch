@@ -27,6 +27,7 @@ import { ErrorState, InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
+import { getOfficialSiteCode } from "@/features/official/sites";
 import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { HighlightedText } from "@/features/shared/HighlightedText";
 import { type OperatorMark, StationGuestMarks, listOperatorMarks } from "@/features/shared/operatorMarks";
@@ -413,7 +414,7 @@ export function SearchResults({
                           >
                             <div className="flex min-w-0 items-center gap-2">
                               <StationResultTitle
-                                siteId={site.siteId ?? ""}
+                                siteId={getOfficialSiteCode(site) ?? ""}
                                 operatorName={getOperatorLook(lookups, site.operatorId).operator?.name}
                                 brand={getOfficialSiteBrand(site, lookups)}
                                 query={normalizedQuery}

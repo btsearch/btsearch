@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { toOfficialRatComparator } from "@/features/official/labels";
 import { officialBandLabelsQueryOptions } from "@/features/official/queries";
+import { getOfficialSiteCode } from "@/features/official/sites";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
@@ -146,7 +147,7 @@ function PermitSiteLinks({ sites, sourceName }: PermitSiteLinksProps) {
           className="group inline-flex min-w-0 cursor-pointer items-center gap-1 font-medium text-foreground focus-visible:outline-none"
         >
           <span className="truncate underline-offset-2 group-hover:underline group-focus-visible:underline">
-            {site.location ? [site.location.city, site.location.address].filter(Boolean).join(", ") : site.siteId}
+            {site.location ? [site.location.city, site.location.address].filter(Boolean).join(", ") : getOfficialSiteCode(site)}
           </span>
           <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>

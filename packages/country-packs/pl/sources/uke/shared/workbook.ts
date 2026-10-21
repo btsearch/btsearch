@@ -1,5 +1,5 @@
 import type { LocalFile } from "../../../../core/sources.ts";
-import { type ZipArchive, type ZipEntry, findZipEntry, inflateZipEntry, openZip, readZipEntry } from "./zip.ts";
+import { type ZipArchive, type ZipEntry, findZipEntry, inflateZipEntry, openZip, readZipEntry } from "../../../../core/zip.ts";
 
 type CellValue = number | string | boolean | undefined;
 export type SheetCell = { type: "n" | "s" | "b" | "e"; value: CellValue; text: string };

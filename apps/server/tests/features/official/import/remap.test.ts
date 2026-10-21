@@ -39,7 +39,7 @@ const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
 ];
 
 function site(id: number, overrides: Partial<RemapInput["sites"][number]> = {}): RemapInput["sites"][number] {
-  return { id, siteCode: "BT1001", operatorId: FROM_OPERATOR, ...overrides };
+  return { id, siteCode: "BT1001", sourceRef: null, operatorId: FROM_OPERATOR, ...overrides };
 }
 
 function permit(id: number, officialSiteId: number, valuesKey = `permit ${id}`): RemapInput["permits"][number] {
@@ -278,6 +278,38 @@ describe("the plan of a remap", () => {
     };
 
     expect(() => planRemap(inputWith(twoSites))).toThrow("Two sites with the code BT1001 would move to one site");
+  });
+
+  it("re-keys a site the register names by its own id instead of merging it into a site with the same code", () => {
+    const plan = planRemap(
+      inputWith({
+        sites: [site(501, { sourceRef: "0750000001" }), site(502, { siteCode: null, sourceRef: "0750000002" })],
+        targets: [site(601, { operatorId: TO_OPERATOR })],
+        permits: [permit(701, 501), permit(702, 502)],
+        listings: [listing(701), listing(702)],
+      }),
+    );
+
+    expect(plan).toEqual(
+      planWith({
+        rekeyedSiteIds: [501, 502],
+        remappedSiteIds: [501, 502],
+        touchedSiteIds: [501, 502],
+        counts: { sitesRekeyed: 2, permitsMoved: 2 },
+      }),
+    );
+  });
+
+  it("blocks the moving permits of a site the register names by its own id instead of splitting it", () => {
+    const plan = planRemap(
+      inputWith({
+        sites: [site(501, { sourceRef: "0750000001" })],
+        permits: [permit(701, 501), permit(702, 501)],
+        listings: [listing(701), listing(702, OTHER_LICENSEE)],
+      }),
+    );
+
+    expect(plan).toEqual(planWith({ counts: { permitsBlocked: { count: 1, ids: [701] } } }));
   });
 });
 

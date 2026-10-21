@@ -27,7 +27,8 @@ async function perform(context: AfterStepContext): Promise<void> {
 
   try {
     const day = run.startedAt.toISOString().slice(0, 10);
-    const files = await source.exportKmz({ db, directory: process.env.KMZ_OUTPUT_DIR ?? DEFAULT_KMZ_DIRECTORY, day, changedDatasets });
+    const directory = process.env.KMZ_OUTPUT_DIR ?? DEFAULT_KMZ_DIRECTORY;
+    const files = await source.exportKmz({ db, sourceId: run.sourceId, directory, day, changedDatasets });
     logger.info("official.import.kmz", { runId: run.id, day, changedDatasets, files: files.length });
   } catch (error) {
     await context.recordError(error);

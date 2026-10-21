@@ -1,14 +1,14 @@
 /* eslint-disable no-await-in-loop */
 import type { OfficialSourceDefinition } from "@openbts/country-packs/sources";
-import { officialDatasets, officialSources } from "@openbts/drizzle";
-import { eq, sql } from "drizzle-orm";
+import { countries, officialDatasets, officialSources } from "@openbts/drizzle";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import db from "../../../database/psql.js";
 import type { DbTx } from "../../../types/global.js";
 import { forgetSourceVisibility } from "../visibility.js";
 import { correctLicenseeNames } from "./licensees.js";
 
-type SourceSyncResult = { addedSources: string[]; addedDatasets: string[]; licenseeNamesCorrected: number };
+type SourceSyncResult = { addedSources: string[]; addedDatasets: string[]; licenseeNamesCorrected: number; withoutCountry: string[] };
 
 const DESCRIPTIVE_FIELDS = ["countryCode", "shortName", "authority", "homepageUrl", "licence", "attribution", "isRedistributable"] as const;
 
@@ -52,14 +52,28 @@ async function addMissingDatasets(tx: DbTx, sourceId: number, source: OfficialSo
 
   await tx
     .insert(officialDatasets)
-    .values(missing.map(({ key, layer, checkEveryHours }) => ({ sourceId, key, layer, checkEveryHours, isEnabled: false })));
+    .values(missing.map(({ key, layer, permitKind, checkEveryHours }) => ({ sourceId, key, layer, permitKind, checkEveryHours, isEnabled: false })));
   return missing.map((dataset) => `${source.key}/${dataset.key}`);
+}
+
+async function readKnownCountryCodes(tx: DbTx, sources: readonly OfficialSourceDefinition[]): Promise<Set<string>> {
+  const known = await tx
+    .select({ code: countries.code })
+    .from(countries)
+    .where(inArray(countries.code, [...new Set(sources.map((source) => source.countryCode))]));
+  return new Set(known.map((country) => country.code));
 }
 
 export async function syncSources(sources: readonly OfficialSourceDefinition[]): Promise<SourceSyncResult> {
   const synced = await db.transaction(async (tx) => {
-    const result: SourceSyncResult = { addedSources: [], addedDatasets: [], licenseeNamesCorrected: 0 };
+    const result: SourceSyncResult = { addedSources: [], addedDatasets: [], licenseeNamesCorrected: 0, withoutCountry: [] };
+    const knownCountryCodes = await readKnownCountryCodes(tx, sources);
     for (const source of sources) {
+      if (!knownCountryCodes.has(source.countryCode)) {
+        result.withoutCountry.push(source.key);
+        continue;
+      }
+
       const { id, isNew } = await syncSourceRow(tx, source);
       if (isNew) result.addedSources.push(source.key);
       result.addedDatasets.push(...(await addMissingDatasets(tx, id, source)));

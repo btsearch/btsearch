@@ -34,10 +34,10 @@ function toStationOperator(
 
 type OfficialPermitWithSectors = {
   id: number;
-  decision_number: string;
-  rat: string;
-  label_mhz: number;
-  label_variant: "commercial" | "railway";
+  decision_number: string | null;
+  rat: string | null;
+  label_mhz: number | null;
+  label_variant: "commercial" | "railway" | null;
   sectors: {
     id: number;
     azimuth: number | null;
@@ -55,8 +55,8 @@ function buildPermitCandidates(permits: OfficialPermitWithSectors[]): AntennaCan
   const candidates: AntennaCandidate[] = [];
 
   for (const permit of permits) {
-    const frequencyMHz = permit.label_mhz;
-    if (frequencyMHz <= 0) continue;
+    const { rat, label_mhz: frequencyMHz, label_variant: variant } = permit;
+    if (rat === null || frequencyMHz === null || variant === null || frequencyMHz <= 0) continue;
 
     for (const sector of permit.sectors) {
       if (sector.antenna_height === null || sector.antenna_height <= 0) continue;
@@ -72,7 +72,7 @@ function buildPermitCandidates(permits: OfficialPermitWithSectors[]): AntennaCan
         antenna: { mountedHeight: sector.antenna_height, azimuth: sector.azimuth },
         frequencyMHz,
         measuredTilt: sector.elevation,
-        band: { value: frequencyMHz, rat: permit.rat, variant: permit.label_variant },
+        band: { value: frequencyMHz, rat, variant },
         provenance: {
           report_url: null,
           report_date: null,

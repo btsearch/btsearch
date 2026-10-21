@@ -50,6 +50,7 @@ async function readSitesListedUnder(tx: DbTx, sourceId: number, licenseeId: numb
     .select({
       id: officialSites.id,
       siteCode: officialSites.station_id,
+      sourceRef: officialSites.source_ref,
       operatorId: officialSites.operator_id,
     })
     .from(officialSites)
@@ -60,7 +61,7 @@ async function readSitesListedUnder(tx: DbTx, sourceId: number, licenseeId: numb
 async function readTargets(tx: DbTx, sourceId: number, licenseeId: number, toOperatorId: number): Promise<RemapSite[]> {
   const target = alias(officialSites, "target");
   return tx
-    .selectDistinct({ id: target.id, siteCode: target.station_id, operatorId: target.operator_id })
+    .selectDistinct({ id: target.id, siteCode: target.station_id, sourceRef: target.source_ref, operatorId: target.operator_id })
     .from(target)
     .innerJoin(officialSites, eq(officialSites.station_id, target.station_id))
     .where(

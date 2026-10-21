@@ -24,7 +24,7 @@ import { ErrorResponse } from "../../errors.js";
 import { type SortColumn, type SortField, createKeyset } from "../../lib/keyset.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { operatedBy } from "../operators/sharing.js";
-import { linkedToStations, officialAreaConditions, permitKindMatches, permitLabelCondition, permitNumberMatches } from "./filters.js";
+import { decisionOrDatasetKindMatches, linkedToStations, officialAreaConditions, permitLabelCondition, permitNumberMatches } from "./filters.js";
 import { type OfficialPermitRows, loadPermitStationIds, officialSiteRowColumns, serializeSitePermits, serializeSites } from "./serialize.js";
 import { loadOfficialVisibility, officialLocationIsPublic } from "./visibility.js";
 
@@ -57,7 +57,7 @@ function permitConditions(query: OfficialPermitListQuery, hiddenCountryCodes: re
   if (query.operatorIds) conditions.push(operatedBy(officialSites.operator_id, query.operatorIds));
   if (query.isLinked !== undefined) conditions.push(query.isLinked ? exists(stationLinks) : notExists(stationLinks));
   if (labelMatch) conditions.push(labelMatch);
-  if (query.kinds) conditions.push(permitKindMatches(officialPermits.decision_type, query.kinds));
+  if (query.kinds) conditions.push(decisionOrDatasetKindMatches(query.kinds));
   if (query.datasetKeys) conditions.push(listedByDatasets(query.datasetKeys));
   if (query.q) conditions.push(permitNumberMatches(officialPermits.decision_number, query.q));
   return conditions;

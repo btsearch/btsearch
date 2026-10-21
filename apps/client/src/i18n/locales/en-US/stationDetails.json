@@ -22,7 +22,8 @@
     "pemInstallationForm": "Filing form",
     "pemReportsEmpty": "No EMF reports in SI2PEM",
     "pemReportsError": "Couldn't load the EMF reports",
-    "region": "Region"
+    "region": "Region",
+    "positionPrecision": "Position accurate to about {{meters, number}} m"
   },
   "sectors": {
     "suggestedCount": "Suggested azimuth count:",

@@ -7,6 +7,7 @@ import { PopupBrandMark } from "@/features/map/components/popupParts";
 import { getOperatorLook, useMapLookups } from "@/features/map/data/mapLookups";
 import { toOfficialLabelComparator } from "@/features/official/labels";
 import { officialBandLabelsQueryOptions } from "@/features/official/queries";
+import { getOfficialSiteCode } from "@/features/official/sites";
 import { listPermitBandTags } from "@/features/station-details/officialPermits";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,7 @@ export function RegisterStationOverlay({ location, onSitePick }: RegisterStation
                       <span className="font-medium text-xs" style={{ color }}>
                         {operator?.name || t("main:unknownOperator")}
                       </span>
-                      <span className="text-[10px] text-muted-foreground font-mono">{site.siteId}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{getOfficialSiteCode(site)}</span>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {listPermitBandTags(permits, compareLabels).map((band) => (

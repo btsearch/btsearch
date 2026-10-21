@@ -62,7 +62,7 @@ export type AntennaCandidate = z.infer<typeof AntennaCandidateSchema>;
 export const ResolvedTerrainStationSchema = z.object({
   source: z.enum(["internal", "official"]),
   id: z.number().int().positive(),
-  station_id: z.string(),
+  station_id: z.string().nullable(),
   latitude: z.number(),
   longitude: z.number(),
   operator: z

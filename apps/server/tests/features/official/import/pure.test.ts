@@ -17,7 +17,7 @@ function siteRecord(overrides: { siteId?: string; number?: string; mhz?: number;
     location: { longitude: 21.0123, latitude: 52.2297, city: "Warszawa", address: null, regionIsoCode: "PL-14" },
     site: { siteId: overrides.siteId ?? "BT1001", licensee: "Orange Polska S.A.", name: null },
     permit: {
-      label: { rat: (overrides.rat ?? "LTE") as SiteRecord["permit"]["label"]["rat"], mhz: overrides.mhz ?? 800, variant: "commercial" },
+      label: { rat: (overrides.rat ?? "LTE") as NonNullable<SiteRecord["permit"]["label"]>["rat"], mhz: overrides.mhz ?? 800, variant: "commercial" },
       number: overrides.number ?? "DZC/1",
       decisionType: "permit_change",
       expiresOn: "2030-01-01",
@@ -153,6 +153,37 @@ describe("a site record", () => {
 
   it("counts characters, not UTF-16 units, as the columns do", () => {
     expect(siteRecordProblem(siteRecord({ siteId: "𝔹".repeat(16) }))).toBeNull();
+  });
+
+  it("is staged without a site code, decision or band when the register's own ids name the site", () => {
+    const record = siteRecord();
+    const inventory: SiteRecord = {
+      ...record,
+      location: { ...record.location, ref: "23444", precisionMeters: 31 },
+      site: { ...record.site, siteId: null, ref: "0032750221" },
+      permit: { label: null, number: null, decisionType: null, expiresOn: null },
+    };
+
+    expect(siteRecordProblem(inventory)).toBeNull();
+  });
+
+  it("is skipped as missing_site_id without a site code or a site ref", () => {
+    const record = siteRecord();
+
+    expect(siteRecordProblem({ ...record, site: { ...record.site, siteId: null } })).toBe("missing_site_id");
+  });
+
+  it.each([
+    ["a location ref", (record: SiteRecord): SiteRecord => ({ ...record, location: { ...record.location, ref: "L".repeat(129) } })],
+    ["a site ref", (record: SiteRecord): SiteRecord => ({ ...record, site: { ...record.site, ref: "S".repeat(129) } })],
+  ])("is skipped as source_ref_too_long for %s over 128 characters", (_name, withRef) => {
+    expect(siteRecordProblem(withRef(siteRecord()))).toBe("source_ref_too_long");
+  });
+
+  it.each([0, -30, 30.5, Number.NaN])("is skipped as bad_precision for a precision of %s", (precisionMeters) => {
+    const record = siteRecord();
+
+    expect(siteRecordProblem({ ...record, location: { ...record.location, precisionMeters } })).toBe("bad_precision");
   });
 });
 

@@ -7,6 +7,7 @@ export type LabelRat = "GSM" | "CDMA" | "UMTS" | "LTE" | "NR" | "IOT";
 export type LabelVariant = "commercial" | "railway";
 export type PermitLabel = { rat: LabelRat; mhz: number; variant: LabelVariant };
 export type DecisionType = "permit" | "permit_change";
+export type PermitKind = "permit" | "registration" | "inventory" | "environmental_permit" | "certificate" | "assessment" | "licence";
 export type AntennaPlacement = "indoor" | "outdoor";
 
 export const WHOLE_DATASET_SLICE = "";
@@ -32,9 +33,17 @@ export type SiteSector = {
 
 export type SiteRecord = {
   slice: string;
-  location: { longitude: number; latitude: number; city: string | null; address: string | null; regionIsoCode: string | null };
-  site: { siteId: string; licensee: string; name: string | null };
-  permit: { label: PermitLabel; number: string; decisionType: DecisionType; expiresOn: string | null };
+  location: {
+    longitude: number;
+    latitude: number;
+    city: string | null;
+    address: string | null;
+    regionIsoCode: string | null;
+    ref?: string;
+    precisionMeters?: number;
+  };
+  site: { siteId: string | null; licensee: string; name: string | null; ref?: string };
+  permit: { label: PermitLabel | null; number: string | null; decisionType: DecisionType | null; expiresOn: string | null };
   sectors: readonly SiteSector[];
 };
 
@@ -85,6 +94,7 @@ export type MicrowaveLinkRecord = {
 
 type DatasetReader<PublishedRecord> = {
   key: string;
+  permitKind: PermitKind;
   checkEveryHours: number;
   discover(ctx: ReadContext): Promise<Release[]>;
   parse(ctx: ReadContext, release: Release, files: readonly LocalFile[]): AsyncIterable<PublishedRecord>;
@@ -106,7 +116,13 @@ export type SourceAudit = (
 ) => Promise<void>;
 export type SiteNameSyncContext = { tx: SourceTransaction; siteNames: readonly PublishedSiteName[]; audit: SourceAudit };
 export type SiteNameSyncResult = { skippedSiteNames: number };
-export type KmzExportContext = { db: Database | SourceTransaction; directory: string; day: string; changedDatasets: readonly string[] };
+export type KmzExportContext = {
+  db: Database | SourceTransaction;
+  sourceId: number;
+  directory: string;
+  day: string;
+  changedDatasets: readonly string[];
+};
 export type UnmatchedLteCell = { operator: OperatorRef; operatorIds: readonly number[]; enbid: number };
 export type CellMatchContext = { db: Database | SourceTransaction; cells: readonly UnmatchedLteCell[] };
 

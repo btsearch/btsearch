@@ -24,33 +24,72 @@ async function matchLocations(tx: DbTx, sourceId: number): Promise<void> {
     .where(
       and(
         isNull(stagedPermits.locationId),
+        isNull(stagedPermits.locationRef),
         eq(officialLocations.source_id, sourceId),
         isNull(officialLocations.source_ref),
         eq(officialLocations.longitude, stagedPermits.longitude),
         eq(officialLocations.latitude, stagedPermits.latitude),
       ),
     );
+  await tx
+    .update(stagedPermits)
+    .set({ locationId: officialLocations.id })
+    .from(officialLocations)
+    .where(
+      and(isNull(stagedPermits.locationId), eq(officialLocations.source_id, sourceId), eq(officialLocations.source_ref, stagedPermits.locationRef)),
+    );
 }
 
 async function insertLocations(tx: DbTx, sourceId: number): Promise<number> {
-  const added = await tx
+  const locationColumns = {
+    source_id: sql`${sourceId}::integer`.as("source_id"),
+    region_id: stagedPermits.regionId,
+    city: stagedPermits.city,
+    address: stagedPermits.address,
+    longitude: stagedPermits.longitude,
+    latitude: stagedPermits.latitude,
+    precision_meters: stagedPermits.precisionMeters,
+    source_ref: stagedPermits.locationRef,
+  };
+  const byCoordinates = await tx
     .insert(officialLocations)
     .select(
       tx
-        .selectDistinctOn([stagedPermits.longitude, stagedPermits.latitude], {
-          source_id: sql`${sourceId}::integer`.as("source_id"),
-          region_id: stagedPermits.regionId,
-          city: stagedPermits.city,
-          address: stagedPermits.address,
-          longitude: stagedPermits.longitude,
-          latitude: stagedPermits.latitude,
-        })
+        .selectDistinctOn([stagedPermits.longitude, stagedPermits.latitude], locationColumns)
         .from(stagedPermits)
-        .where(isNull(stagedPermits.locationId))
+        .where(and(isNull(stagedPermits.locationId), isNull(stagedPermits.locationRef)))
         .orderBy(stagedPermits.longitude, stagedPermits.latitude, stagedPermits.ordinal),
     )
     .returning({ id: officialLocations.id });
-  return added.length;
+  const byRef = await tx
+    .insert(officialLocations)
+    .select(
+      tx
+        .selectDistinctOn([stagedPermits.locationRef], locationColumns)
+        .from(stagedPermits)
+        .where(and(isNull(stagedPermits.locationId), isNotNull(stagedPermits.locationRef)))
+        .orderBy(stagedPermits.locationRef, stagedPermits.ordinal),
+    )
+    .returning({ id: officialLocations.id });
+  return byCoordinates.length + byRef.length;
+}
+
+async function updateLocationsMatchedByRef(tx: DbTx, fileDate: Date): Promise<void> {
+  await tx.execute(sql`
+    UPDATE ${officialLocations} AS location
+    SET longitude = published.longitude, latitude = published.latitude, city = published.city, address = published.address,
+      precision_meters = published.precision_meters, region_id = published.region_id, "updatedAt" = ${fileDate.toISOString()}::timestamp with time zone
+    FROM (
+      SELECT DISTINCT ON (staged.location_id) staged.location_id, staged.longitude, staged.latitude, staged.city, staged.address,
+        staged.precision_meters, staged.region_id
+      FROM ${stagedPermits} AS staged
+      WHERE staged.location_ref IS NOT NULL AND staged.location_id IS NOT NULL
+      ORDER BY staged.location_id, staged.ordinal
+    ) AS published
+    WHERE location.id = published.location_id
+      AND (location.longitude, location.latitude, location.city, location.address, location.precision_meters, location.region_id)
+        IS DISTINCT FROM (published.longitude, published.latitude, published.city, published.address, published.precision_meters, published.region_id)
+  `);
 }
 
 async function matchSites(tx: DbTx, sourceId: number): Promise<void> {
@@ -61,12 +100,18 @@ async function matchSites(tx: DbTx, sourceId: number): Promise<void> {
     .where(
       and(
         isNull(stagedPermits.officialSiteId),
+        isNull(stagedPermits.siteRef),
         eq(officialSites.source_id, sourceId),
         isNull(officialSites.source_ref),
         eq(officialSites.station_id, stagedPermits.siteCode),
         eq(officialSites.operator_id, stagedPermits.operatorId),
       ),
     );
+  await tx
+    .update(stagedPermits)
+    .set({ officialSiteId: officialSites.id })
+    .from(officialSites)
+    .where(and(isNull(stagedPermits.officialSiteId), eq(officialSites.source_id, sourceId), eq(officialSites.source_ref, stagedPermits.siteRef)));
 }
 
 function isNotPlacedByAnyOf(tx: DbTx, sourceId: number, datasetKeys: readonly string[]): SQL | undefined {
@@ -139,7 +184,7 @@ async function moveSites(tx: DbTx, moves: readonly SiteMove[], fileDate: Date): 
   }
 }
 
-async function insertSites(tx: DbTx, sourceId: number, fileDate: Date): Promise<AddedSite[]> {
+async function insertSitesByCode(tx: DbTx, sourceId: number, fileDate: Date): Promise<AddedSite[]> {
   const added = await tx.execute<AddedSite>(sql`
     WITH added AS (
       INSERT INTO ${officialSites} (source_id, site_id, operator_id, location_id, "createdAt", "updatedAt")
@@ -148,7 +193,7 @@ async function insertSites(tx: DbTx, sourceId: number, fileDate: Date): Promise<
       FROM (
         SELECT staged.site_code, staged.operator_id, staged.location_id, min(staged.ordinal) AS first_ordinal
         FROM ${stagedPermits} AS staged
-        WHERE staged.official_site_id IS NULL
+        WHERE staged.official_site_id IS NULL AND staged.site_ref IS NULL
         GROUP BY staged.site_code, staged.operator_id, staged.location_id
       ) AS named
       ORDER BY named.site_code, named.operator_id, named.first_ordinal DESC
@@ -156,7 +201,32 @@ async function insertSites(tx: DbTx, sourceId: number, fileDate: Date): Promise<
     )
     SELECT added.id AS "officialSiteId", min(staged.slice) AS slice
     FROM added
-    JOIN ${stagedPermits} AS staged ON staged.site_code = added.site_id AND staged.operator_id = added.operator_id
+    JOIN ${stagedPermits} AS staged
+      ON staged.site_ref IS NULL AND staged.site_code = added.site_id AND staged.operator_id = added.operator_id
+    GROUP BY added.id
+    ORDER BY added.id
+  `);
+  return [...added];
+}
+
+async function insertSitesByRef(tx: DbTx, sourceId: number, fileDate: Date): Promise<AddedSite[]> {
+  const added = await tx.execute<AddedSite>(sql`
+    WITH added AS (
+      INSERT INTO ${officialSites} (source_id, source_ref, site_id, operator_id, location_id, "createdAt", "updatedAt")
+      SELECT DISTINCT ON (named.site_ref) ${sourceId}::integer, named.site_ref, named.site_code, named.operator_id, named.location_id,
+        ${fileDate.toISOString()}::timestamp with time zone, ${fileDate.toISOString()}::timestamp with time zone
+      FROM (
+        SELECT staged.site_ref, staged.site_code, staged.operator_id, staged.location_id, min(staged.ordinal) AS first_ordinal
+        FROM ${stagedPermits} AS staged
+        WHERE staged.official_site_id IS NULL AND staged.site_ref IS NOT NULL
+        GROUP BY staged.site_ref, staged.site_code, staged.operator_id, staged.location_id
+      ) AS named
+      ORDER BY named.site_ref, named.first_ordinal DESC
+      RETURNING id, source_ref
+    )
+    SELECT added.id AS "officialSiteId", min(staged.slice) AS slice
+    FROM added
+    JOIN ${stagedPermits} AS staged ON staged.site_ref = added.source_ref
     GROUP BY added.id
     ORDER BY added.id
   `);
@@ -172,11 +242,11 @@ async function matchPermits(tx: DbTx): Promise<void> {
       and(
         isNull(stagedPermits.permitId),
         eq(officialPermits.official_site_id, stagedPermits.officialSiteId),
-        eq(officialPermits.rat, stagedPermits.rat),
-        eq(officialPermits.label_mhz, stagedPermits.labelMhz),
-        eq(officialPermits.label_variant, stagedPermits.labelVariant),
-        eq(officialPermits.decision_number, stagedPermits.decisionNumber),
-        eq(officialPermits.decision_type, stagedPermits.decisionType),
+        sql`${officialPermits.rat} IS NOT DISTINCT FROM ${stagedPermits.rat}`,
+        sql`${officialPermits.label_mhz} IS NOT DISTINCT FROM ${stagedPermits.labelMhz}`,
+        sql`${officialPermits.label_variant} IS NOT DISTINCT FROM ${stagedPermits.labelVariant}`,
+        sql`${officialPermits.decision_number} IS NOT DISTINCT FROM ${stagedPermits.decisionNumber}`,
+        sql`${officialPermits.decision_type} IS NOT DISTINCT FROM ${stagedPermits.decisionType}`,
         sql`${officialPermits.expiry_date} IS NOT DISTINCT FROM ${stagedPermits.expiryDate}`,
       ),
     );
@@ -302,11 +372,11 @@ async function readSiteNames(tx: DbTx): Promise<PublishedSiteName[]> {
   return tx
     .selectDistinctOn([stagedPermits.operatorId, stagedPermits.siteCode], {
       operatorId: stagedPermits.operatorId,
-      siteId: stagedPermits.siteCode,
+      siteId: sql<string>`${stagedPermits.siteCode}`,
       name: sql<string>`${stagedPermits.siteName}`,
     })
     .from(stagedPermits)
-    .where(ne(stagedPermits.siteName, ""))
+    .where(and(ne(stagedPermits.siteName, ""), isNotNull(stagedPermits.siteCode)))
     .orderBy(stagedPermits.operatorId, stagedPermits.siteCode, stagedPermits.siteNameOrdinal);
 }
 
@@ -317,12 +387,13 @@ async function resolveStagedSites(
 ): Promise<{ moves: SiteMove[]; added: AddedSite[] }> {
   const { sourceId } = scope.run;
   await matchLocations(tx, sourceId);
+  await updateLocationsMatchedByRef(tx, fileDate);
   if ((await insertLocations(tx, sourceId)) > 0) await matchLocations(tx, sourceId);
 
   await matchSites(tx, sourceId);
   const moves = decideSiteMoves(await readMoveCandidates(tx, sourceId, definition.yieldsSitePlacementTo ?? []));
   await moveSites(tx, moves, fileDate);
-  const added = await insertSites(tx, sourceId, fileDate);
+  const added = [...(await insertSitesByCode(tx, sourceId, fileDate)), ...(await insertSitesByRef(tx, sourceId, fileDate))];
   if (added.length > 0) await matchSites(tx, sourceId);
   await analyzeFilledIds(tx, sql`location_id, official_site_id`);
 

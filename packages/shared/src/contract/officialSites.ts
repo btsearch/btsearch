@@ -72,7 +72,9 @@ const LABEL_MHZ_NOTE = "The nominal frequency of the band in MHz, as the registe
 const VARIANT_NOTE = "`railway` for a band set aside for railways, such as GSM-R, and `commercial` for every other band";
 const LABEL_NAME_NOTE = "The label as people write it, for example `LTE 800` or `GSM-R 900`. `null` without a technology or a frequency";
 const AZIMUTH_NOTE = "The antenna direction in degrees, as the register publishes it. A value of 360 is passed on as it is";
-const SITE_ID_NOTE = "The id the operator uses for the site, as the register lists it";
+const SITE_ID_NOTE = "The id the operator uses for the site, as the register lists it, or `null` when the register has none";
+const SOURCE_REF_NOTE = "The register's own id for the record, or `null` when it has none";
+const PRECISION_NOTE = "How far the published position can be from the real one. `null` when the register does not say";
 const STATION_IDS_NOTE =
   "The stations in this database that are linked to one of the site's permits. " +
   "Inactive stations come after the others, and both groups are ordered by id";
@@ -160,6 +162,8 @@ const officialLocationShape = {
   address: z.string().nullable(),
   latitude: z.number(),
   longitude: z.number(),
+  precisionMeters: z.number().int().nullable().describe(PRECISION_NOTE),
+  sourceRef: z.string().nullable().describe(SOURCE_REF_NOTE),
   createdAt: z.iso.datetime().describe("When the location was first imported"),
   updatedAt: z.iso.datetime(),
   region: regionSchema.nullable().optional().describe(INCLUDE_NOTE),
@@ -172,6 +176,7 @@ export const officialSiteSchema = z.object({
   id: z.number().int(),
   sourceKey: z.string().describe(SOURCE_KEY_NOTE),
   siteId: z.string().nullable().describe(SITE_ID_NOTE),
+  sourceRef: z.string().nullable().describe(SOURCE_REF_NOTE),
   operatorId: z.number().int().nullable(),
   locationId: z.number().int(),
   stationIds: z.array(z.number().int()).describe(STATION_IDS_NOTE),

@@ -14,7 +14,7 @@ import {
   operators,
   regions,
 } from "@openbts/drizzle";
-import { between, eq, gt, sql } from "drizzle-orm";
+import { and, between, eq, gt, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import type { KmzExportContext } from "../../../../core/sources.ts";
@@ -22,7 +22,8 @@ import { bucketOf } from "../shared/collections.ts";
 
 type KmzDatabase = KmzExportContext["db"];
 
-export type KmzPermit = Awaited<ReturnType<typeof readPermitPage>>[number];
+type StoredPermit = Awaited<ReturnType<typeof readPermitPage>>[number];
+export type KmzPermit = ReturnType<typeof toKmzPermit>[number];
 export type KmzLink = Awaited<ReturnType<typeof readLinkPage>>[number];
 
 const PAGE_SIZE = 10_000;
@@ -52,7 +53,7 @@ async function readPages<Row extends { id: number }>(readPage: (afterId: number)
   }
 }
 
-async function readPermitPage(db: KmzDatabase, afterId: number) {
+async function readPermitPage(db: KmzDatabase, sourceId: number, afterId: number) {
   const permits = await db
     .select({
       id: officialPermits.id,
@@ -80,7 +81,7 @@ async function readPermitPage(db: KmzDatabase, afterId: number) {
     .leftJoin(brands, eq(brands.id, operators.brandId))
     .innerJoin(officialLocations, eq(officialLocations.id, officialSites.location_id))
     .innerJoin(regions, eq(regions.id, officialLocations.region_id))
-    .where(gt(officialPermits.id, afterId))
+    .where(and(eq(officialSites.source_id, sourceId), gt(officialPermits.id, afterId)))
     .orderBy(officialPermits.id)
     .limit(PAGE_SIZE);
   const firstId = permits[0]?.id;
@@ -102,15 +103,19 @@ async function readPermitPage(db: KmzDatabase, afterId: number) {
   const azimuthsByPermit = valuesByPermit(sectors);
   const datasetKeysByPermit = valuesByPermit(listings);
 
-  return permits.map(({ rat, mhz, variant, ...permit }) => ({
+  return permits.map((permit) => ({
     ...permit,
-    label: { rat, mhz, variant },
     azimuths: azimuthsByPermit.get(permit.id) ?? [],
     datasetKeys: datasetKeysByPermit.get(permit.id) ?? [],
   }));
 }
 
-async function readLinkPage(db: KmzDatabase, afterId: number) {
+function toKmzPermit({ rat, mhz, variant, siteId, decisionNumber, decisionType, ...permit }: StoredPermit) {
+  if (rat === null || mhz === null || variant === null || siteId === null || decisionNumber === null || decisionType === null) return [];
+  return [{ ...permit, siteId, decisionNumber, decisionType, label: { rat, mhz, variant } }];
+}
+
+async function readLinkPage(db: KmzDatabase, sourceId: number, afterId: number) {
   return db
     .select({
       id: microwaveLinks.id,
@@ -154,15 +159,24 @@ async function readLinkPage(db: KmzDatabase, afterId: number) {
     .leftJoin(txAntennaManufacturers, eq(txAntennaManufacturers.id, txAntennaTypes.manufacturer_id))
     .leftJoin(rxAntennaTypes, eq(rxAntennaTypes.id, microwaveLinks.rx_antenna_type_id))
     .leftJoin(rxAntennaManufacturers, eq(rxAntennaManufacturers.id, rxAntennaTypes.manufacturer_id))
-    .where(gt(microwaveLinks.id, afterId))
+    .where(
+      and(
+        inArray(
+          microwaveLinks.dataset_id,
+          db.select({ id: officialDatasets.id }).from(officialDatasets).where(eq(officialDatasets.sourceId, sourceId)),
+        ),
+        gt(microwaveLinks.id, afterId),
+      ),
+    )
     .orderBy(microwaveLinks.id)
     .limit(PAGE_SIZE);
 }
 
-export async function readPermits(db: KmzDatabase): Promise<KmzPermit[]> {
-  return readPages((afterId) => readPermitPage(db, afterId));
+export async function readPermits(db: KmzDatabase, sourceId: number): Promise<KmzPermit[]> {
+  const permits = await readPages((afterId) => readPermitPage(db, sourceId, afterId));
+  return permits.flatMap(toKmzPermit);
 }
 
-export async function readLinks(db: KmzDatabase): Promise<KmzLink[]> {
-  return readPages((afterId) => readLinkPage(db, afterId));
+export async function readLinks(db: KmzDatabase, sourceId: number): Promise<KmzLink[]> {
+  return readPages((afterId) => readLinkPage(db, sourceId, afterId));
 }

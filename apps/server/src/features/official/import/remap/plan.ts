@@ -1,7 +1,7 @@
 import { unique } from "../../../../lib/collections.js";
 import { REPORTED_IDS_LIMIT } from "../config.js";
 
-export type RemapSite = { id: number; siteCode: string; operatorId: number };
+export type RemapSite = { id: number; siteCode: string | null; sourceRef: string | null; operatorId: number };
 export type RemapPermit = { id: number; officialSiteId: number; valuesKey: string };
 export type RemapListing = { permitId: number; datasetId: number; licenseeId: number | null };
 
@@ -87,6 +87,12 @@ export function planRemap(input: RemapInput): RemapPlan {
   const targetByCode = new Map(input.targets.map((target) => [target.siteCode, target]));
   const claimedCodes = new Set<string>();
   const blockedPermitIds: number[] = [];
+  const rekey = (siteId: number, movingPermits: number) => {
+    plan.counts.permitsMoved += movingPermits;
+    plan.rekeyedSiteIds.push(siteId);
+    plan.remappedSiteIds.push(siteId);
+    plan.touchedSiteIds.push(siteId);
+  };
 
   const fateOf = (permit: RemapPermit, site: RemapSite): Fate => {
     const listings = listingsByPermit.get(permit.id) ?? [];
@@ -109,24 +115,26 @@ export function planRemap(input: RemapInput): RemapPlan {
     blockedPermitIds.push(...(fates.get("blocked") ?? []).map((permit) => permit.id));
     if (moving.length === 0) continue;
 
-    if (claimedCodes.has(site.siteCode)) {
-      throw new Error(`Two sites with the code ${site.siteCode} would move to one site: remap cannot tell them apart`);
-    }
-    claimedCodes.add(site.siteCode);
-
+    const { siteCode } = site;
     const everyPermitMoves = moving.length === permits.length;
-    const target = targetByCode.get(site.siteCode);
-    plan.counts.permitsMoved += moving.length;
-
-    if (!target && everyPermitMoves) {
-      plan.rekeyedSiteIds.push(site.id);
-      plan.remappedSiteIds.push(site.id);
-      plan.touchedSiteIds.push(site.id);
+    if (site.sourceRef !== null || siteCode === null) {
+      if (everyPermitMoves) rekey(site.id, moving.length);
+      else blockedPermitIds.push(...moving.map((permit) => permit.id));
       continue;
     }
+
+    if (claimedCodes.has(siteCode)) throw new Error(`Two sites with the code ${siteCode} would move to one site: remap cannot tell them apart`);
+    claimedCodes.add(siteCode);
+
+    const target = targetByCode.get(siteCode);
+    if (!target && everyPermitMoves) {
+      rekey(site.id, moving.length);
+      continue;
+    }
+    plan.counts.permitsMoved += moving.length;
     if (!everyPermitMoves) plan.touchedSiteIds.push(site.id);
     if (!target) {
-      plan.splits.push({ fromSiteId: site.id, siteCode: site.siteCode, permitIds: moving.map((permit) => permit.id) });
+      plan.splits.push({ fromSiteId: site.id, siteCode, permitIds: moving.map((permit) => permit.id) });
       continue;
     }
 

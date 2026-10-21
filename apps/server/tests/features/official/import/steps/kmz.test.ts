@@ -45,7 +45,13 @@ describe("the KMZ step", () => {
     await runStep(kmz, { run: claimedRun({ startedAt: new Date("2026-10-12T23:59:59.999Z") }), source: sourceOf({ exportKmz }) });
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(exportKmz).toHaveBeenCalledExactlyOnceWith({ db: dbMock, directory: "/app/kmz", day: "2026-10-12", changedDatasets: ["permits"] });
+    expect(exportKmz).toHaveBeenCalledExactlyOnceWith({
+      db: dbMock,
+      sourceId: 1,
+      directory: "/app/kmz",
+      day: "2026-10-12",
+      changedDatasets: ["permits"],
+    });
     expect(transactionsOpenAtExport).toEqual([0]);
   });
 

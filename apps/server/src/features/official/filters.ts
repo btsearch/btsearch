@@ -1,19 +1,29 @@
-import { officialLocations, officialPermits, officialSites, officialSources, regions, stations, stationsPermits } from "@openbts/drizzle";
+import {
+  officialDatasets,
+  officialLocations,
+  officialPermitListings,
+  officialPermits,
+  officialSites,
+  officialSources,
+  regions,
+  stations,
+  stationsPermits,
+} from "@openbts/drizzle";
 import type { OfficialLocationListQuery, OfficialPermitKind, OfficialRatFilter, officialSiteFilterShape } from "@openbts/shared/contract";
-import { type AnyColumn, type SQL, type SQLWrapper, and, eq, exists, gte, inArray, notInArray, or, sql } from "drizzle-orm";
+import { type AnyColumn, type SQL, type SQLWrapper, and, eq, exists, gte, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { unique } from "../../lib/collections.js";
 import { operatedBy, outsideCountriesOf } from "../operators/sharing.js";
 import { containsPattern } from "../search/text.js";
 import { bboxCondition, stationAreaConditions } from "../stations/read.js";
-import type { OfficialPermitRow } from "./serialize.js";
+import { DATASET_PERMIT_KINDS, type DatasetPermitKind, type OfficialPermitRow } from "./serialize.js";
 import { type OfficialVisibility, officialSourceIsPublic } from "./visibility.js";
 
 type SiteFilterQuery = Pick<OfficialLocationListQuery, keyof typeof officialSiteFilterShape> & { keepOtherCountries?: boolean };
 type AreaFilterQuery = Pick<OfficialLocationListQuery, "bbox" | "countryCodes" | "regionIds" | "sourceKeys">;
 type LabelFilterQuery = Pick<OfficialLocationListQuery, "rats" | "bandLabels">;
-type StoredTechnology = { rat: OfficialPermitRow["rat"]; variant?: OfficialPermitRow["label_variant"] };
+type StoredTechnology = { rat: NonNullable<OfficialPermitRow["rat"]>; variant?: NonNullable<OfficialPermitRow["label_variant"]> };
 
 const SIMILAR_PERMIT_NUMBER = 0.6;
 const TECHNOLOGIES: Record<OfficialRatFilter, StoredTechnology> = {
@@ -101,4 +111,19 @@ export function permitNumberMatches(number: AnyColumn, text: string): SQL {
 
 export function permitKindMatches(decisionType: AnyColumn, kinds: readonly OfficialPermitKind[]): SQL {
   return inArray(decisionType, unique(kinds.map((kind) => DECISION_TYPES[kind])));
+}
+
+export function decisionOrDatasetKindMatches(kinds: readonly OfficialPermitKind[]): SQL {
+  const datasetKinds = (Object.keys(DATASET_PERMIT_KINDS) as DatasetPermitKind[]).filter((datasetKind) =>
+    kinds.includes(DATASET_PERMIT_KINDS[datasetKind]),
+  );
+  const listedUnderKind = exists(
+    db
+      .select({ permitId: officialPermitListings.permitId })
+      .from(officialPermitListings)
+      .innerJoin(officialDatasets, eq(officialDatasets.id, officialPermitListings.datasetId))
+      .where(and(eq(officialPermitListings.permitId, officialPermits.id), inArray(officialDatasets.permitKind, datasetKinds))),
+  );
+  const undecidedListedUnderKind = datasetKinds.length > 0 ? and(isNull(officialPermits.decision_type), listedUnderKind) : undefined;
+  return or(permitKindMatches(officialPermits.decision_type, kinds), undecidedListedUnderKind) ?? sql`false`;
 }

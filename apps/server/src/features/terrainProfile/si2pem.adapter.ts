@@ -76,16 +76,16 @@ function stationBbox(station: ResolvedTerrainStation): [number, number, number, 
   return [station.longitude - 0.02, station.latitude - 0.02, station.longitude + 0.02, station.latitude + 0.02];
 }
 
-async function discoverLatestReport(station: ResolvedTerrainStation): Promise<SI2PEMLaboratoryReport | null> {
+async function discoverLatestReport(station: ResolvedTerrainStation, stationIdentity: string): Promise<SI2PEMLaboratoryReport | null> {
   return si2pem.getLatestLaboratoryReport({
-    stationIdentity: station.station_id,
+    stationIdentity,
     bbox: stationBbox(station),
     count: 100,
   });
 }
 
 async function loadLookup(station: ResolvedTerrainStation, fallbackCandidates: AntennaCandidate[]): Promise<SI2PEMAntennaLookup> {
-  const discoveredReport = await discoverLatestReport(station);
+  const discoveredReport = station.station_id === null ? null : await discoverLatestReport(station, station.station_id);
   if (!discoveredReport) return { report: null, candidates: [], warningCodes: ["SI2PEM_REPORT_UNAVAILABLE"] };
   const report = toReport(discoveredReport);
 

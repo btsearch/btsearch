@@ -16,6 +16,7 @@ import { groupBySite, siteDocuments, sitesKml } from "../sources/uke/kmz/sites.t
 import { rowsCreatedOnNewestDay } from "../sources/uke/shared/dates.ts";
 
 const DAY = "2026-10-12";
+const SOURCE_ID = 7;
 
 const PERMIT: KmzPermit = {
   id: 1,
@@ -110,16 +111,20 @@ function hop(direction: "there" | "back", freq: number, polarization: string | n
   return { ...(direction === "there" ? LINK : LINK_BACK), freq, polarization };
 }
 
-function databaseHolding(table: string, ids: readonly number[]): { db: KmzExportContext["db"]; reads: { clause: string; params: unknown[] }[] } {
+function databaseHolding(
+  table: string,
+  ids: readonly number[],
+  fill: unknown = null,
+): { db: KmzExportContext["db"]; reads: { clause: string; params: unknown[] }[] } {
   const reads: { clause: string; params: unknown[] }[] = [];
   const db = drizzle(async (query: string, params: unknown[]) => {
     if (!query.includes(`from "official"."${table}"`)) return { rows: [] };
     reads.push({ clause: query.slice(query.indexOf(" where ") + 1), params });
 
-    const [afterId, limit] = params as [number, number];
+    const [afterId, limit] = params.slice(-2) as [number, number];
     const width = query.slice(0, query.indexOf(" from ")).split(", ").length;
     const rows = ids.filter((id) => id > afterId).slice(0, limit);
-    return { rows: rows.map((id) => Array.from({ length: width }, (_, column) => (column === 0 ? id : null))) };
+    return { rows: rows.map((id) => Array.from({ length: width }, (_, column) => (column === 0 ? id : fill))) };
   });
   return { db: db as unknown as KmzExportContext["db"], reads };
 }
@@ -130,7 +135,7 @@ async function tablesReadByExport(changedDatasets: readonly string[]): Promise<s
     queries.push(query);
     return { rows: [] };
   });
-  await exportKmz({ db: db as unknown as KmzExportContext["db"], directory, day: DAY, changedDatasets });
+  await exportKmz({ db: db as unknown as KmzExportContext["db"], sourceId: SOURCE_ID, directory, day: DAY, changedDatasets });
   return ["permits", "microwave_links"].filter((table) => queries.some((query) => query.includes(`from "official"."${table}"`)));
 }
 
@@ -450,35 +455,36 @@ void test("a written file is a zip that holds the document as doc.kml", async ()
 
 void test("reads permits in id order, each page after the last id of the page before, until a short page", async () => {
   const ids = Array.from({ length: 20_003 }, (_, index) => 2 * index + 1);
-  const { db, reads } = databaseHolding("permits", ids);
-  const clause = 'where "official"."permits"."id" > $1 order by "official"."permits"."id" limit $2';
+  const { db, reads } = databaseHolding("permits", ids, "1");
+  const clause = 'where (("official"."sites"."source_id" = $1) and ("official"."permits"."id" > $2)) order by "official"."permits"."id" limit $3';
 
   assert.deepEqual(
-    (await readPermits(db)).map((permit) => permit.id),
+    (await readPermits(db, SOURCE_ID)).map((permit) => permit.id),
     ids,
   );
   assert.deepEqual(reads, [
-    { clause, params: [0, 10_000] },
-    { clause, params: [19_999, 10_000] },
-    { clause, params: [39_999, 10_000] },
+    { clause, params: [SOURCE_ID, 0, 10_000] },
+    { clause, params: [SOURCE_ID, 19_999, 10_000] },
+    { clause, params: [SOURCE_ID, 39_999, 10_000] },
   ]);
 });
 
 void test("reads microwave links the same way, and a full last page ends on an empty one", async () => {
   const ids = Array.from({ length: 10_000 }, (_, index) => index + 1);
   const { db, reads } = databaseHolding("microwave_links", ids);
-  const clause = 'where "official"."microwave_links"."id" > $1 order by "official"."microwave_links"."id" limit $2';
+  const clause =
+    'where (("official"."microwave_links"."dataset_id" in (select "id" from "official"."datasets" where "official"."datasets"."source_id" = $1)) and ("official"."microwave_links"."id" > $2)) order by "official"."microwave_links"."id" limit $3';
 
   assert.deepEqual(
-    (await readLinks(db)).map((link) => link.id),
+    (await readLinks(db, SOURCE_ID)).map((link) => link.id),
     ids,
   );
   assert.deepEqual(reads, [
-    { clause, params: [0, 10_000] },
-    { clause, params: [10_000, 10_000] },
+    { clause, params: [SOURCE_ID, 0, 10_000] },
+    { clause, params: [SOURCE_ID, 10_000, 10_000] },
   ]);
 
   const empty = databaseHolding("microwave_links", []);
-  assert.deepEqual(await readLinks(empty.db), []);
-  assert.deepEqual(empty.reads, [{ clause, params: [0, 10_000] }]);
+  assert.deepEqual(await readLinks(empty.db, SOURCE_ID), []);
+  assert.deepEqual(empty.reads, [{ clause, params: [SOURCE_ID, 0, 10_000] }]);
 });
