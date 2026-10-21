@@ -115,7 +115,7 @@ void test("microwave links: a row is one record with every published column", as
         street: null,
         locationDescription: "maszt",
       },
-      freqMhz: 23058,
+      freqKhz: 23_058_000,
       channelNumber: 5,
       channelWidthMhz: 28,
       polarization: "H",
@@ -169,7 +169,7 @@ void test("microwave links: an unreadable value never drops the row", async () =
     record.rx.latitude,
     record.tx.groundHeight,
     record.tx.antennaHeight,
-    record.freqMhz,
+    record.freqKhz,
     record.channelNumber,
     record.channelWidthMhz,
     record.eirpDbm,
@@ -186,11 +186,11 @@ void test("microwave links: an unreadable value never drops the row", async () =
     licensee: null,
     permitNumber: "",
     decisionType: "permit",
-    issuedOn: "2026-10-12",
-    expiresOn: "2026-10-12",
-    tx: { longitude: 0, latitude: 0, groundHeight: 0, antennaHeight: null, city: null, province: null, street: null, locationDescription: null },
-    rx: { longitude: 0, latitude: 0, groundHeight: 0, antennaHeight: null, city: null, province: null, street: null, locationDescription: null },
-    freqMhz: 0,
+    issuedOn: null,
+    expiresOn: null,
+    tx: { longitude: 0, latitude: 0, groundHeight: null, antennaHeight: null, city: null, province: null, street: null, locationDescription: null },
+    rx: { longitude: 0, latitude: 0, groundHeight: null, antennaHeight: null, city: null, province: null, street: null, locationDescription: null },
+    freqKhz: 0,
     channelNumber: null,
     channelWidthMhz: null,
     polarization: null,
@@ -211,7 +211,7 @@ void test("microwave links: an unreadable value never drops the row", async () =
     planSymbol: null,
   });
   assert.deepEqual(readings, [
-    [0, 0, 0, null, 23000, 7, null, null, "permit", null, "2025-01-01", " 155 ", null, { type: null, manufacturer: "950" }],
+    [0, 0, null, null, 23_000_000, 7, null, null, "permit", null, "2025-01-01", " 155 ", null, { type: null, manufacturer: "950" }],
     [21.012222, 52.3, 110, 32, 0, 5, 28, 48.5, "permit", "Orange Polska S.A.", "2026-10-12", "", 40.2, { type: "RTN 950", manufacturer: "Huawei" }],
   ]);
   assert.deepEqual(reading.skips, []);

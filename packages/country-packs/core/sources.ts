@@ -56,7 +56,7 @@ export type SiteRecord = {
 export type MicrowaveLinkEnd = {
   longitude: number;
   latitude: number;
-  groundHeight: number;
+  groundHeight: number | null;
   antennaHeight: number | null;
   city: string | null;
   province: string | null;
@@ -83,12 +83,12 @@ export type MicrowaveLinkRecord = {
   slice: string;
   licensee: string | null;
   permitNumber: string;
-  decisionType: DecisionType;
-  issuedOn: string;
-  expiresOn: string;
+  decisionType: DecisionType | null;
+  issuedOn: string | null;
+  expiresOn: string | null;
   tx: MicrowaveLinkEnd;
   rx: MicrowaveLinkEnd;
-  freqMhz: number;
+  freqKhz: number;
   channelNumber: number | null;
   channelWidthMhz: number | null;
   polarization: string | null;

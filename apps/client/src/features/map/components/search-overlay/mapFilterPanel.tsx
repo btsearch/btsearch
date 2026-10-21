@@ -247,7 +247,7 @@ export function FilterPanel({
     isError: hasMicrowaveLinkOperatorsError,
     isRetrying: isRetryingMicrowaveLinkOperators,
     retry: retryMicrowaveLinkOperators,
-  } = useMicrowaveLinkOperators(filters.showRadiolines);
+  } = useMicrowaveLinkOperators(filters.showRadiolines, mapCountries.onScreen, filters.radiolineOperators);
   const countryPillCodes = listCountryPillCodes(filters, mapCountries, i18n.language);
   const bandFacetCountryCodes = listBandFacetCountryCodes(filters, mapCountries, i18n.language, lookups?.countries);
 

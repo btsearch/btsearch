@@ -26,16 +26,16 @@ import { ErrorResponse } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import { type SortColumn, type SortField, createKeyset } from "../../lib/keyset.js";
 import { bboxCondition } from "../stations/read.js";
-import { permitKindMatches, permitNumberMatches } from "./filters.js";
+import { linkKindMatches, permitNumberMatches } from "./filters.js";
 import { fetchLicensees } from "./licensees.js";
 import { listMicrowaveLinkIds } from "./lists.js";
-import { toPermitKind } from "./serialize.js";
+import { DATASET_PERMIT_KINDS, type DatasetPermitKind, toPermitKind } from "./serialize.js";
 import { type OfficialVisibility, loadOfficialVisibility, officialSourceIsPublic } from "./visibility.js";
 
 const linkSelectSchema = createSelectSchema(microwaveLinks);
 
 type LinkRow = z.infer<typeof linkSelectSchema>;
-type LinkRows = { link: LinkRow; sourceKey: string };
+type LinkRows = { link: LinkRow; sourceKey: string; datasetKind: DatasetPermitKind };
 type EquipmentById = ReadonlyMap<number, MicrowaveLinkEquipment>;
 type Equipment = { antennas: EquipmentById; transmitters: EquipmentById };
 
@@ -59,7 +59,7 @@ function linkConditions(query: MicrowaveLinkListQuery, visibility: OfficialVisib
     permitNumbers ? inArray(microwaveLinks.permit_number, permitNumbers) : undefined,
     licenseeIds ? inArray(microwaveLinks.operator_id, licenseeIds) : undefined,
     sourceKeys ? inArray(officialSources.key, sourceKeys) : undefined,
-    kinds ? permitKindMatches(microwaveLinks.decision_type, kinds) : undefined,
+    kinds ? linkKindMatches(kinds) : undefined,
     createdAfter ? gte(microwaveLinks.createdAt, new Date(createdAfter)) : undefined,
     bbox ? or(bboxCondition(txPoint, bbox), bboxCondition(rxPoint, bbox)) : undefined,
     listedLinkIds ? inArray(microwaveLinks.id, [...listedLinkIds]) : undefined,
@@ -89,18 +89,18 @@ function equipmentOf(equipment: EquipmentById, id: number | null): MicrowaveLink
   return id === null ? null : (equipment.get(id) ?? null);
 }
 
-function toMicrowaveLink({ link, sourceKey }: LinkRows, { antennas, transmitters }: Equipment): MicrowaveLink {
+function toMicrowaveLink({ link, sourceKey, datasetKind }: LinkRows, { antennas, transmitters }: Equipment): MicrowaveLink {
   return {
     id: link.id,
     sourceKey,
     licenseeId: link.operator_id,
     permit: {
       number: link.permit_number,
-      kind: toPermitKind(link.decision_type),
+      kind: link.decision_type === null ? DATASET_PERMIT_KINDS[datasetKind] : toPermitKind(link.decision_type),
       issuedOn: link.issue_date,
       expiresOn: link.expiry_date,
     },
-    frequencyMhz: link.freq,
+    frequencyMhz: link.freq_khz / 1000,
     channelNumber: link.ch_num,
     channelWidthMhz: link.ch_width,
     planSymbol: link.plan_symbol,
@@ -169,7 +169,7 @@ export async function fetchMicrowaveLinkPage(req: FastifyRequest, query: Microwa
   const keyset = createKeyset(sort, microwaveLinks.id, SORT_COLUMNS, cursor);
   const [rows, totals] = await Promise.all([
     db
-      .select({ link: microwaveLinks, sourceKey: officialSources.key, key: keyset.key })
+      .select({ link: microwaveLinks, sourceKey: officialSources.key, datasetKind: officialDatasets.permitKind, key: keyset.key })
       .from(microwaveLinks)
       .innerJoin(officialDatasets, ofDataset)
       .innerJoin(officialSources, ofSource)
@@ -193,7 +193,7 @@ export async function fetchMicrowaveLinkPage(req: FastifyRequest, query: Microwa
 export async function readMicrowaveLink(req: FastifyRequest, id: number, include: readonly MicrowaveLinkInclude[]): Promise<MicrowaveLink> {
   const visibility = await loadOfficialVisibility(req);
   const [row] = await db
-    .select({ link: microwaveLinks, sourceKey: officialSources.key })
+    .select({ link: microwaveLinks, sourceKey: officialSources.key, datasetKind: officialDatasets.permitKind })
     .from(microwaveLinks)
     .innerJoin(officialDatasets, ofDataset)
     .innerJoin(officialSources, ofSource)

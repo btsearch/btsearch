@@ -136,7 +136,7 @@ async function readLinkPage(db: KmzDatabase, sourceId: number, afterId: number) 
       rxHeight: microwaveLinks.rx_height,
       rxCity: microwaveLinks.rx_city,
       rxStreet: microwaveLinks.rx_street,
-      freq: microwaveLinks.freq,
+      freqKhz: microwaveLinks.freq_khz,
       channelWidth: microwaveLinks.ch_width,
       polarization: microwaveLinks.polarization,
       modulationType: microwaveLinks.modulation_type,

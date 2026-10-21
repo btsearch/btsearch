@@ -610,7 +610,8 @@
       "permits": "Permits",
       "deviceRegistry": "Device registry",
       "microwaveLinks": "Microwave links",
-      "mobileNetworks": "Mobile networks"
+      "mobileNetworks": "Mobile networks",
+      "fixedLinks": "Fixed links"
     },
     "startImport": "Start import",
     "startFailed": "Could not start the import. Try again",
@@ -706,7 +707,8 @@
       "badPrecision": "Invalid position accuracy",
       "territoryNotImported": "Territory not imported",
       "unknownSystem": "System not imported",
-      "missingIdentity": "No operator or ID"
+      "missingIdentity": "No operator or ID",
+      "unpairedLink": "Link end without its other end"
     },
     "held": {
       "slice": "{{slice}} is held - records in the release: {{releaseRecordCount, number}}, stored: {{storedRecordCount, number}}",

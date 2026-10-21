@@ -16,7 +16,7 @@ function asGuest() {
 
 describe("GET /official/microwave-links/:id", () => {
   it("returns a link of a visible source with its licensee", async () => {
-    dbMock.enqueueFor("select", "official.microwave_links", [{ link: linkRow, sourceKey: "test-register" }]);
+    dbMock.enqueueFor("select", "official.microwave_links", [{ link: linkRow, sourceKey: "test-register", datasetKind: "permit" }]);
     scriptEquipment();
     dbMock.enqueueFor("select", "official.licensees", [{ licensee: licenseeRow, sourceKey: "test-register" }]);
     const response = await injectMutation(route, { ...request, url: `${request.url}?include=licensee` }, asGuest());

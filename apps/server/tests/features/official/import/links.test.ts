@@ -36,7 +36,7 @@ function record(overrides: Partial<MicrowaveLinkRecord> = {}): MicrowaveLinkReco
       street: null,
       locationDescription: "maszt",
     },
-    freqMhz: 23000,
+    freqKhz: 23_000_000,
     channelNumber: 5,
     channelWidthMhz: 28,
     polarization: "V",
@@ -164,8 +164,8 @@ describe("the decision over a links release", () => {
   });
 
   it("inserts a link the dataset does not have and archives one the release lacks", () => {
-    const added = values({ permitNumber: "RL/9", freqMhz: 38000 });
-    const decision = decideLinks([stored(801, values()), stored(802, values({ permitNumber: "RL/2", freqMhz: 11000 }))], [values(), added]);
+    const added = values({ permitNumber: "RL/9", freqKhz: 38_000_000 });
+    const decision = decideLinks([stored(801, values()), stored(802, values({ permitNumber: "RL/2", freqKhz: 11_000_000 }))], [values(), added]);
 
     expect(decision).toMatchObject({ inserts: [added], updates: [], renewals: [], archivedIds: [802] });
   });

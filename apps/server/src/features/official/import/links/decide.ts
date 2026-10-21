@@ -15,7 +15,7 @@ const RENEWAL_KEY_COLUMNS = [
   "tx_latitude",
   "rx_longitude",
   "rx_latitude",
-  "freq",
+  "freq_khz",
   "polarization",
   "ch_num",
 ] as const satisfies readonly (keyof LinkValues)[];

@@ -13,7 +13,7 @@ import { licenseeRow, signInAs } from "../../../../../helpers/officialFixtures.j
 const request = { method: "GET" as const, url: "/official/microwave-links" };
 
 function listed(link: typeof linkRow, key: string | null = null) {
-  return { link, sourceKey: "test-register", key };
+  return { link, sourceKey: "test-register", datasetKind: "permit", key };
 }
 
 function asGuest(publicSourceIds: number[] = [1]) {
@@ -70,16 +70,23 @@ describe("GET /official/microwave-links", () => {
     expect(sql).toContain('"official"."microwave_links"."licensee_id" in ($2, $3)');
     expect(sql).toContain('"official"."sources"."key" in ($4)');
     expect(sql).toContain('"official"."microwave_links"."decision_type" in ($5)');
-    expect(sql).toContain('"official"."microwave_links"."createdAt" >= $6');
+    expect(sql).toContain('"official"."datasets"."permit_kind" in ($6, $7)');
+    expect(sql).toContain('"official"."microwave_links"."createdAt" >= $8');
     expect(sql).toContain('ST_MakePoint("official"."microwave_links"."tx_longitude", "official"."microwave_links"."tx_latitude")');
     expect(sql).toContain('ST_MakePoint("official"."microwave_links"."rx_longitude", "official"."microwave_links"."rx_latitude")');
-    expect(params.slice(0, 5)).toEqual([1, 5, 6, "test-register", "permit"]);
+    expect(params.slice(0, 7)).toEqual([1, 5, 6, "test-register", "permit", "permit", "registration"]);
   });
 
-  it("matches no link for a kind the stored permits never have", async () => {
-    dbMock.enqueueFor("select", "official.microwave_links", []);
-    await injectMutation(route, { ...request, url: "/official/microwave-links?kinds=inventory" }, asAdministrator());
-    expect(whereQuery("official.microwave_links", "select").sql).toBe("false");
+  it("serves and finds a link without a decision type under its dataset's kind", async () => {
+    dbMock.enqueueFor("select", "official.microwave_links", [{ ...listed({ ...linkRow, decision_type: null }), datasetKind: "licence" }]);
+    scriptEquipment();
+    const response = await injectMutation(route, { ...request, url: "/official/microwave-links?kinds=license" }, asAdministrator());
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data[0].permit.kind).toBe("license");
+    expect(whereQuery("official.microwave_links", "select")).toEqual({
+      sql: '((false) or (((("official"."microwave_links"."decision_type" is null)) and ("official"."datasets"."permit_kind" in ($1)))))',
+      params: ["licence"],
+    });
   });
 
   it("pages by creation time with a cursor and counts the matches on request", async () => {

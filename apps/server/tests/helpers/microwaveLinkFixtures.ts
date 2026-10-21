@@ -19,7 +19,7 @@ export const linkRow = {
   rx_province: "mazowieckie",
   rx_street: null,
   rx_location_description: null,
-  freq: 18_000,
+  freq_khz: 18_000_000,
   ch_num: 4,
   plan_symbol: "18A",
   ch_width: 27.5,

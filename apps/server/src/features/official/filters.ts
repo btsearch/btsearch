@@ -1,4 +1,5 @@
 import {
+  microwaveLinks,
   officialDatasets,
   officialLocations,
   officialPermitListings,
@@ -109,14 +110,17 @@ export function permitNumberMatches(number: AnyColumn, text: string): SQL {
   return sql`(${number} ILIKE ${containsPattern(text)} OR (${number} % ${text} AND similarity(${number}, ${text}) > ${SIMILAR_PERMIT_NUMBER}))`;
 }
 
-export function permitKindMatches(decisionType: AnyColumn, kinds: readonly OfficialPermitKind[]): SQL {
-  return inArray(decisionType, unique(kinds.map((kind) => DECISION_TYPES[kind])));
+function permitKindMatches(decisionType: AnyColumn, kinds: readonly OfficialPermitKind[]): SQL {
+  const decisionTypes = unique(kinds.flatMap((kind) => DECISION_TYPES[kind] ?? []));
+  return decisionTypes.length === 0 ? sql`false` : inArray(decisionType, decisionTypes);
+}
+
+function datasetKindsOf(kinds: readonly OfficialPermitKind[]): DatasetPermitKind[] {
+  return (Object.keys(DATASET_PERMIT_KINDS) as DatasetPermitKind[]).filter((datasetKind) => kinds.includes(DATASET_PERMIT_KINDS[datasetKind]));
 }
 
 export function decisionOrDatasetKindMatches(kinds: readonly OfficialPermitKind[]): SQL {
-  const datasetKinds = (Object.keys(DATASET_PERMIT_KINDS) as DatasetPermitKind[]).filter((datasetKind) =>
-    kinds.includes(DATASET_PERMIT_KINDS[datasetKind]),
-  );
+  const datasetKinds = datasetKindsOf(kinds);
   const listedUnderKind = exists(
     db
       .select({ permitId: officialPermitListings.permitId })
@@ -126,4 +130,11 @@ export function decisionOrDatasetKindMatches(kinds: readonly OfficialPermitKind[
   );
   const undecidedListedUnderKind = datasetKinds.length > 0 ? and(isNull(officialPermits.decision_type), listedUnderKind) : undefined;
   return or(permitKindMatches(officialPermits.decision_type, kinds), undecidedListedUnderKind) ?? sql`false`;
+}
+
+export function linkKindMatches(kinds: readonly OfficialPermitKind[]): SQL {
+  const datasetKinds = datasetKindsOf(kinds);
+  const undecidedOfKind =
+    datasetKinds.length > 0 ? and(isNull(microwaveLinks.decision_type), inArray(officialDatasets.permitKind, datasetKinds)) : undefined;
+  return or(permitKindMatches(microwaveLinks.decision_type, kinds), undecidedOfKind) ?? sql`false`;
 }

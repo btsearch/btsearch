@@ -58,7 +58,7 @@ const LINK: KmzLink = {
   rxHeight: 120.5,
   rxCity: "Marki",
   rxStreet: null,
-  freq: 23000,
+  freqKhz: 23_000_000,
   channelWidth: 56,
   polarization: "V",
   modulationType: "128QAM",
@@ -107,8 +107,8 @@ function pathsHolding(documents: readonly KmzDocument[], text: string): string[]
   return documents.filter((document) => document.kml.includes(text)).map((document) => document.path);
 }
 
-function hop(direction: "there" | "back", freq: number, polarization: string | null): KmzLink {
-  return { ...(direction === "there" ? LINK : LINK_BACK), freq, polarization };
+function hop(direction: "there" | "back", freqKhz: number, polarization: string | null): KmzLink {
+  return { ...(direction === "there" ? LINK : LINK_BACK), freqKhz, polarization };
 }
 
 function databaseHolding(
@@ -247,19 +247,19 @@ void test("takes the rows created on the newest day, in UTC", () => {
 
 void test("groups link entries by licensee and permit number, or by the pair of ends when there is no number", () => {
   const groups = groupIntoLinks([
-    { ...LINK, freq: 1 },
-    { ...LINK_BACK, freq: 2 },
-    { ...LINK, freq: 3, licenseeName: "T-Mobile Polska" },
-    { ...LINK, freq: 4, licenseeName: null },
-    { ...LINK, freq: 5, permitNumber: "" },
-    { ...LINK_BACK, freq: 6, permitNumber: "" },
-    { ...LINK, freq: 7, permitNumber: "", licenseeName: null },
-    { ...LINK, freq: 8, permitNumber: "", rxLatitude: 52.26 },
-    { ...LINK, freq: 9, permitNumber: "RL/16/2026" },
+    { ...LINK, freqKhz: 1 },
+    { ...LINK_BACK, freqKhz: 2 },
+    { ...LINK, freqKhz: 3, licenseeName: "T-Mobile Polska" },
+    { ...LINK, freqKhz: 4, licenseeName: null },
+    { ...LINK, freqKhz: 5, permitNumber: "" },
+    { ...LINK_BACK, freqKhz: 6, permitNumber: "" },
+    { ...LINK, freqKhz: 7, permitNumber: "", licenseeName: null },
+    { ...LINK, freqKhz: 8, permitNumber: "", rxLatitude: 52.26 },
+    { ...LINK, freqKhz: 9, permitNumber: "RL/16/2026" },
   ]);
 
   assert.deepEqual(
-    groups.map((group) => [group.first.freq, group.entries.map((entry) => entry.freq)]),
+    groups.map((group) => [group.first.freqKhz, group.entries.map((entry) => entry.freqKhz)]),
     [
       [1, [1, 2]],
       [3, [3]],
@@ -290,7 +290,7 @@ void test("classifies a link by the entries of its busiest direction", () => {
   ];
 
   for (const [linkType, entries] of cases) {
-    const summary = entries.map((entry) => `${entry.txLatitude}:${entry.freq}:${entry.polarization}`).join(" ");
+    const summary = entries.map((entry) => `${entry.txLatitude}:${entry.freqKhz}:${entry.polarization}`).join(" ");
     assert.equal(classifyLinkType(entries), linkType, summary);
     assert.deepEqual(
       groupIntoLinks(entries).map((group) => group.linkType),
@@ -376,7 +376,7 @@ void test("a site without a city, an address, a brand or an azimuth still gets i
 });
 
 void test("writes one link as a line with both directions, its speed and its equipment", () => {
-  const kml = linksKml(groupIntoLinks([LINK, { ...LINK_BACK, freq: 22000, modulationType: null, eirp: null }]), "Radiolinie UKE");
+  const kml = linksKml(groupIntoLinks([LINK, { ...LINK_BACK, freqKhz: 22_000_000, modulationType: null, eirp: null }]), "Radiolinie UKE");
 
   assert.equal(
     kml,
@@ -409,8 +409,8 @@ void test("a link without a licensee is filed under Unknown in the default color
     groupIntoLinks([
       { ...LINK, permitNumber: "RL/1", licenseeName: null, color: null, transmitterType: null, txAntennaType: null },
       { ...LINK, permitNumber: "RL/2", licenseeName: "Energa-Operator", color: null, channelWidth: null, eirp: 0, bandwidth: "2x1000" },
-      { ...LINK, permitNumber: "RL/2", licenseeName: "Energa-Operator", color: null, channelWidth: null, freq: 23028, bandwidth: "1500" },
-      { ...LINK, permitNumber: "RL/3", licenseeName: "Energa Operator", color: "#123ABC", freq: 800 },
+      { ...LINK, permitNumber: "RL/2", licenseeName: "Energa-Operator", color: null, channelWidth: null, freqKhz: 23_028_000, bandwidth: "1500" },
+      { ...LINK, permitNumber: "RL/3", licenseeName: "Energa Operator", color: "#123ABC", freqKhz: 800_000 },
     ]),
     "Radiolinie UKE - nowe (2026-09-25)",
   );

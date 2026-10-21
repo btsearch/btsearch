@@ -137,7 +137,7 @@ function linkRecord(permitNumber: string): MicrowaveLinkRecord {
     expiresOn: "2030-01-01",
     tx: end(-30.01),
     rx: end(-30.02),
-    freqMhz: 23000,
+    freqKhz: 23_000_000,
     channelNumber: 5,
     channelWidthMhz: 28,
     polarization: "V",

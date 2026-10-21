@@ -80,11 +80,24 @@ function nonZeroNumberOrNull(value: SheetValue): number | null {
   return Number(String(value || "")) || null;
 }
 
-function parsePlanSymbol(value: SheetValue, freqMhz: number, channelWidthMhz: number | null): string | null | undefined {
+function isBlank(value: SheetValue): boolean {
+  return String(value ?? "").trim() === "";
+}
+
+function numberOrNull(value: SheetValue): number | null {
+  const number = Number(value);
+  return isBlank(value) || !Number.isFinite(number) ? null : number;
+}
+
+function dayOrNull(value: SheetValue, now: Date): string | null {
+  return isBlank(value) ? null : parseExcelDay(value, now);
+}
+
+function parsePlanSymbol(value: SheetValue, freqKhz: number, channelWidthMhz: number | null): string | null | undefined {
   if (typeof value === "string") return value.trim() || null;
   if (typeof value !== "number") return null;
 
-  const is23A56ExportedAsOne = value === 1 && channelWidthMhz === 56 && freqMhz >= 22_000 && freqMhz <= 23_600;
+  const is23A56ExportedAsOne = value === 1 && channelWidthMhz === 56 && freqKhz >= 22_000_000 && freqKhz <= 23_600_000;
   return is23A56ExportedAsOne ? "23A56" : undefined;
 }
 
@@ -92,7 +105,7 @@ function readEnd(row: SheetRow, end: "Tx" | "Rx"): MicrowaveLinkEnd {
   return {
     longitude: parseDmsCoordinate(row[`Dl_geo_${end}`]) ?? 0,
     latitude: parseDmsCoordinate(row[`Sz_geo_${end}`]) ?? 0,
-    groundHeight: Number(row[`H_t_${end} [m npm]`]) || 0,
+    groundHeight: numberOrNull(row[`H_t_${end} [m npm]`]),
     antennaHeight: Number(row[`H_ant_${end} [m npt]`]) || null,
     city: trimmedTextOrNull(row[`Miejscowość ${end}`]),
     province: trimmedTextOrNull(row[`Województwo ${end}`]),
@@ -134,9 +147,9 @@ function findTechnicalCoverage(ctx: ReadContext, file: LocalFile, headers: reado
 
 function readLink(row: SheetRow, technicalCoverage: TechnicalCoverage, now: Date): MicrowaveLinkRecord {
   const freqGhz = Number.parseFloat(String(row["f [GHz]"] || ""));
-  const freqMhz = Math.round((Number.isFinite(freqGhz) ? freqGhz : 0) * 1000);
+  const freqKhz = Math.round((Number.isFinite(freqGhz) ? freqGhz : 0) * 1_000_000);
   const channelWidthMhz = nonZeroNumberOrNull(row["Szer_kan [MHz]"]);
-  const planSymbol = parsePlanSymbol(row.Symbol_planu, freqMhz, channelWidthMhz);
+  const planSymbol = parsePlanSymbol(row.Symbol_planu, freqKhz, channelWidthMhz);
   const technical: Partial<MicrowaveLinkTechnicalValues> = readTechnicalValues(row);
   for (const field of technicalCoverage.omittedFields) delete technical[field];
 
@@ -145,11 +158,11 @@ function readLink(row: SheetRow, technicalCoverage: TechnicalCoverage, now: Date
     licensee: trimmedTextOrNull(row.Operator),
     permitNumber: trimmedText(row["Nr_pozw/dec"]),
     decisionType: row.Rodz_dec === "zmP" ? "permit_change" : "permit",
-    issuedOn: parseExcelDay(row.Data_wydania, now),
-    expiresOn: parseExcelDay(row["Data_ważn_pozw/dec"], now),
+    issuedOn: dayOrNull(row.Data_wydania, now),
+    expiresOn: dayOrNull(row["Data_ważn_pozw/dec"], now),
     tx: readEnd(row, "Tx"),
     rx: readEnd(row, "Rx"),
-    freqMhz,
+    freqKhz,
     channelNumber: Number(row.Nr_kan) || null,
     channelWidthMhz,
     polarization: trimmedTextOrNull(row.Polaryzacja),

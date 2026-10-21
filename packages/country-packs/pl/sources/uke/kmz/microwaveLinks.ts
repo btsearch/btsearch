@@ -53,7 +53,7 @@ export function classifyLinkType(entries: readonly KmzLink[]): LinkType {
   const busiestDirection = [...entriesByDirection.values()].reduce((busiest, direction) => (direction.length > busiest.length ? direction : busiest));
   if (busiestDirection.length === 1) return "FDD";
 
-  const frequencies = new Set(busiestDirection.map((entry) => entry.freq));
+  const frequencies = new Set(busiestDirection.map((entry) => entry.freqKhz));
   const polarizations = new Set(busiestDirection.map((entry) => entry.polarization));
   if (frequencies.size === 1 && polarizations.size > 1) return "XPIC";
   if (frequencies.size > 1 && polarizations.size === 1) return "2+0 FDD";
@@ -87,8 +87,8 @@ function equipmentLine(role: string, type: string | null, manufacturer: string |
   return [`${role}: ${escapeXml(type)}${manufacturer === null ? "" : ` (${escapeXml(manufacturer)})`}`];
 }
 
-function endLine(role: string, city: string | null, street: string | null, latitude: number, longitude: number, height: number): string {
-  return `<b>${role}:</b> ${city ?? ""} ${street ?? ""} (${latitude.toFixed(6)}, ${longitude.toFixed(6)}) H: ${height}m`;
+function endLine(role: string, city: string | null, street: string | null, latitude: number, longitude: number, height: number | null): string {
+  return `<b>${role}:</b> ${city ?? ""} ${street ?? ""} (${latitude.toFixed(6)}, ${longitude.toFixed(6)}) H: ${height === null ? "-" : `${height}m`}`;
 }
 
 function linkDescription({ first, entries, linkType }: KmzLinkGroup): string {
@@ -100,7 +100,7 @@ function linkDescription({ first, entries, linkType }: KmzLinkGroup): string {
 
   for (const entry of entries) {
     const isForward = txPosition(entry) === forwardStart;
-    const parts = [isForward ? "A→B" : "B→A", formatFrequency(entry.freq)];
+    const parts = [isForward ? "A→B" : "B→A", formatFrequency(entry.freqKhz / 1000)];
     if (entry.polarization) parts.push(entry.polarization);
     if (entry.channelWidth) parts.push(`${entry.channelWidth} MHz`);
     if (entry.modulationType) parts.push(escapeXml(entry.modulationType));
@@ -126,13 +126,13 @@ function linkDescription({ first, entries, linkType }: KmzLinkGroup): string {
 
   const lines = [
     `<b>Operator:</b> ${escapeXml(first.licenseeName ?? "Unknown")}`,
-    `<b>Permit:</b> ${escapeXml(first.permitNumber)} [${decisionCode(first.decisionType)}]`,
+    `<b>Permit:</b> ${escapeXml(first.permitNumber)}${first.decisionType === null ? "" : ` [${decisionCode(first.decisionType)}]`}`,
     `<b>Link Type:</b> ${linkType}`,
     `<b>Distance:</b> ${formatDistance(distance)}`,
   ];
   if (speedTotals.length > 0) lines.push(speedTotals.join("  "));
   lines.push(
-    `<b>Expires:</b> ${first.expiresOn}`,
+    `<b>Expires:</b> ${first.expiresOn ?? "-"}`,
     "",
     endLine("TX", first.txCity, first.txStreet, first.txLatitude, first.txLongitude, first.txHeight),
     endLine("RX", first.rxCity, first.rxStreet, first.rxLatitude, first.rxLongitude, first.rxHeight),
@@ -168,7 +168,7 @@ export function linksKml(groups: readonly KmzLinkGroup[], title: string): string
     placemarksByLicensee.set(licenseeName, placemarksByType);
     bucketOf(placemarksByType, linkType).push(
       placemark(
-        `${formatFrequency(first.freq)} [${linkType}]`,
+        `${formatFrequency(first.freqKhz / 1000)} [${linkType}]`,
         linkDescription(group),
         `<LineString><coordinates>${first.txLongitude},${first.txLatitude},0 ${first.rxLongitude},${first.rxLatitude},0</coordinates></LineString>`,
         `#${styleId}`,

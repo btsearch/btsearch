@@ -1,8 +1,9 @@
+import { readCsvRows } from "../../../core/csv.ts";
 import type { LabelRat, LocalFile, PermitLabel, ReadContext, Release, SiteRecord, SiteSector } from "../../../core/sources.ts";
 import { type ZipArchive, findZipEntry, inflateZipEntry, openZip } from "../../../core/zip.ts";
-import { readCsvRows } from "./csv.ts";
 import { DEPARTMENT_SLICES, UNKNOWN_DEPARTMENT_SLICE, departmentOf, regionIsoCodeOf } from "./departments.ts";
 
+const SEPARATOR = ";";
 const ONE_ARCSECOND_IN_METERS = 31;
 const MICRODEGREES_PER_DEGREE = 1e6;
 const RATS: Readonly<Record<string, LabelRat>> = { GSM: "GSM", UMTS: "UMTS", LTE: "LTE", "5G NR": "NR" };
@@ -110,7 +111,7 @@ async function* readTable<Column extends string>(archive: ZipArchive, table: str
 
   let positions: ReadonlyMap<string, number> | null = null;
   try {
-    for await (const cells of readCsvRows(inflateZipEntry(archive, entry))) {
+    for await (const cells of readCsvRows(inflateZipEntry(archive, entry), SEPARATOR)) {
       if (positions === null) {
         const header = new Map(cells.map((name, position) => [name.trim().toUpperCase(), position]));
         const missing = columns.filter((column) => !header.has(column));

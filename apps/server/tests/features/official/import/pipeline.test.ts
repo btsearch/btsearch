@@ -153,7 +153,7 @@ function linkRecord(overrides: Partial<MicrowaveLinkRecord> = {}): MicrowaveLink
       street: null,
       locationDescription: null,
     },
-    freqMhz: 23000,
+    freqKhz: 23_000_000,
     channelNumber: 5,
     channelWidthMhz: 28,
     polarization: "V",
@@ -405,10 +405,10 @@ afterEach(() => {
 describe("a run through the engine", () => {
   it("applies a sites release and a links release, each in one transaction, in order", async () => {
     const kept = linkRecord();
-    const gone = linkRecord({ permitNumber: "RL/gone", freqMhz: 11000 });
+    const gone = linkRecord({ permitNumber: "RL/gone", freqKhz: 11_000_000 });
     const source = sourceWith({
       sites: () => recordsOf([siteRecord(), siteRecord({ siteId: "X".repeat(17) })]),
-      links: () => recordsOf([linkRecord({ eirpDbm: 31 }), linkRecord({ permitNumber: "RL/new", freqMhz: 38000 })]),
+      links: () => recordsOf([linkRecord({ eirpDbm: 31 }), linkRecord({ permitNumber: "RL/new", freqKhz: 38_000_000 })]),
     });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET, LINKS_DATASET]);
     ownRun(10);

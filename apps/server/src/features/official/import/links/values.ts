@@ -44,7 +44,7 @@ export function toLinkValues(record: MicrowaveLinkRecord, licenseeId: number | n
     rx_province: rx.province,
     rx_street: rx.street,
     rx_location_description: rx.locationDescription,
-    freq: record.freqMhz,
+    freq_khz: record.freqKhz,
     ch_num: record.channelNumber,
     ch_width: record.channelWidthMhz,
     polarization: record.polarization,

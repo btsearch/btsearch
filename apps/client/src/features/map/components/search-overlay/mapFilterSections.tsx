@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/combobox";
 import { InlineError } from "@/components/ui/error-state";
 import { Slider } from "@/components/ui/slider";
-import { licenseesQueryOptions, officialBandLabelsQueryOptions } from "@/features/official/queries";
+import { licenseesQueryOptions, officialBandLabelsQueryOptions, officialSourcesQueryOptions } from "@/features/official/queries";
 import { FacetCountryMark, FacetPill, FilterPanelSection, KbdHint } from "@/features/shared/filterPanel";
 import type { RatOption } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
@@ -93,10 +93,19 @@ type RecentDaysFilterProps = {
   onRecentDateFieldChange: (fields: MapRecentDateField[]) => void;
 };
 
-const PRIORITY_MICROWAVE_LINK_OPERATORS = ["T-Mobile Polska", "Towerlink Poland", "P4", "ORANGE POLSKA"];
+const PRIORITY_MICROWAVE_LINK_OPERATORS = [
+  "T-Mobile Polska",
+  "Towerlink Poland",
+  "P4",
+  "ORANGE POLSKA",
+  "O2",
+  "Vodafone",
+  "MOBILE BROADBAND NETWORK",
+];
 const RECENT_DATE_FIELDS: MapRecentDateField[] = ["updatedAt", "createdAt"];
 const MICROWAVE_LINK_CHIP_MAX_LENGTH = 12;
 const NO_MICROWAVE_LINK_OPERATORS: Licensee[] = [];
+const NO_SOURCE_KEYS: string[] = [];
 
 function compareMicrowaveLinkOperators(left: Licensee, right: Licensee): number {
   const leftIndex = PRIORITY_MICROWAVE_LINK_OPERATORS.indexOf(left.name);
@@ -107,14 +116,35 @@ function compareMicrowaveLinkOperators(left: Licensee, right: Licensee): number 
   return left.name.localeCompare(right.name);
 }
 
-export function useMicrowaveLinkOperators(isLayerShown: boolean): MicrowaveLinkOperators {
+export function useMicrowaveLinkOperators(
+  isLayerShown: boolean,
+  countryCodes: readonly string[],
+  selectedIds: readonly number[],
+): MicrowaveLinkOperators {
+  const sourcesQuery = useQuery({
+    ...officialSourcesQueryOptions(),
+    select: (sources) => sources.flatMap((source) => (countryCodes.includes(source.countryCode) ? [source.key] : [])),
+    enabled: isLayerShown,
+  });
   const operatorsQuery = useQuery({ ...licenseesQueryOptions({ hasMicrowaveLinks: true }), enabled: isLayerShown });
-  const isError = hasFailedLoad(operatorsQuery);
-  const isRetrying = isError && operatorsQuery.isFetching;
+  const isError = hasFailedLoad(sourcesQuery) || hasFailedLoad(operatorsQuery);
+  const isRetrying = isError && (sourcesQuery.isFetching || operatorsQuery.isFetching);
+  const sourceKeysOnScreen = sourcesQuery.data ?? NO_SOURCE_KEYS;
   const loadedOperators = operatorsQuery.data ?? NO_MICROWAVE_LINK_OPERATORS;
-  const operators = useMemo(() => [...loadedOperators].sort(compareMicrowaveLinkOperators), [loadedOperators]);
+  const operators = useMemo(
+    () =>
+      loadedOperators
+        .filter((operator) => sourceKeysOnScreen.includes(operator.sourceKey) || selectedIds.includes(operator.id))
+        .sort(compareMicrowaveLinkOperators),
+    [loadedOperators, sourceKeysOnScreen, selectedIds],
+  );
 
-  return { operators, isError, isRetrying, retry: operatorsQuery.refetch };
+  function retry() {
+    if (hasFailedLoad(sourcesQuery)) void sourcesQuery.refetch();
+    if (hasFailedLoad(operatorsQuery)) void operatorsQuery.refetch();
+  }
+
+  return { operators, isError, isRetrying, retry };
 }
 
 export function MicrowaveLinkOperatorsSection({

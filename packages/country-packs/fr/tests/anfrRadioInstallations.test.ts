@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { readCsvRows } from "../../core/csv.ts";
 import type { LocalFile, SiteRecord } from "../../core/sources.ts";
 import { collect, startReading } from "../../pl/tests/sourceFixtures.ts";
-import { readCsvRows } from "../sources/anfr/csv.ts";
 import { DEPARTMENT_SLICES, departmentOf, regionIsoCodeOf } from "../sources/anfr/departments.ts";
 import { discoverRadioInstallations } from "../sources/anfr/discover.ts";
 import { operatorNameOfLicensee, shortLicenseeName } from "../sources/anfr/licensees.ts";
@@ -164,7 +164,7 @@ void test("reads quoted fields with separators, doubled quotes and line breaks, 
     const bytes = new TextEncoder().encode(text);
     for (let start = 0; start < bytes.length; start += size) yield bytes.subarray(start, start + size);
   }
-  const rows = await collect(readCsvRows(chunksOf('a;b;c\r\n"x;y";"say ""hi""";"two\nlines"\r\nplain;;last', 3)));
+  const rows = await collect(readCsvRows(chunksOf('a;b;c\r\n"x;y";"say ""hi""";"two\nlines"\r\nplain;;last', 3), ";"));
 
   assert.deepEqual(rows, [
     ["a", "b", "c"],

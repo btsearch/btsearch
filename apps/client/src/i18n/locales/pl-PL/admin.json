@@ -646,7 +646,8 @@
       "permits": "Pozwolenia",
       "deviceRegistry": "Rejestr urządzeń",
       "microwaveLinks": "Radiolinie",
-      "mobileNetworks": "Sieci komórkowe"
+      "mobileNetworks": "Sieci komórkowe",
+      "fixedLinks": "Łącza stałe"
     },
     "startImport": "Rozpocznij import",
     "startFailed": "Nie udało się uruchomić importu. Spróbuj ponownie",
@@ -742,7 +743,8 @@
       "badPrecision": "Nieprawidłowa dokładność położenia",
       "territoryNotImported": "Terytorium nie jest importowane",
       "unknownSystem": "System nie jest importowany",
-      "missingIdentity": "Brak operatora lub ID"
+      "missingIdentity": "Brak operatora lub ID",
+      "unpairedLink": "Koniec łącza bez drugiego końca"
     },
     "held": {
       "slice": "Wstrzymano {{slice}} - rekordów w nowej wersji: {{releaseRecordCount, number}}, w bazie: {{storedRecordCount, number}}",

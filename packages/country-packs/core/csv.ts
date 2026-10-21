@@ -1,7 +1,6 @@
 const QUOTE = '"';
-const SEPARATOR = ";";
 
-export async function* readCsvRows(chunks: AsyncIterable<Uint8Array>): AsyncGenerator<string[]> {
+export async function* readCsvRows(chunks: AsyncIterable<Uint8Array>, separator: string): AsyncGenerator<string[]> {
   const decoder = new TextDecoder("utf-8", { fatal: true });
   let row: string[] = [];
   let field = "";
@@ -23,7 +22,7 @@ export async function* readCsvRows(chunks: AsyncIterable<Uint8Array>): AsyncGene
         else field += char;
       } else if (char === QUOTE && field === "") {
         inQuotes = true;
-      } else if (char === SEPARATOR) {
+      } else if (char === separator) {
         row.push(field);
         field = "";
       } else if (char === "\n") {

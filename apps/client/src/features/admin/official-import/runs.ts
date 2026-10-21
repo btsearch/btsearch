@@ -48,6 +48,7 @@ const DATASET_LABEL_KEYS = new Map([
   ["device-registry", "officialImport.datasets.deviceRegistry"],
   ["microwave-links", "officialImport.datasets.microwaveLinks"],
   ["mobile-networks", "officialImport.datasets.mobileNetworks"],
+  ["fixed-links", "officialImport.datasets.fixedLinks"],
 ]);
 
 const KNOWN_SKIP_REASONS: ReadonlySet<string> = new Set([
@@ -67,6 +68,7 @@ const KNOWN_SKIP_REASONS: ReadonlySet<string> = new Set([
   "territoryNotImported",
   "unknownSystem",
   "missingIdentity",
+  "unpairedLink",
 ]);
 
 const BAND_SLICE_KEY = /^([^:]+):(\d+):([^:]+)$/;
