@@ -39,15 +39,11 @@ export function PermitDirections({ permits, color }: PermitDirectionsProps) {
   const selectedAzimuth = directions.some((direction) => direction.azimuth === pickedAzimuth) ? pickedAzimuth : undefined;
   const shownDirections = selectedAzimuth === undefined ? directions : directions.filter((direction) => direction.azimuth === selectedAzimuth);
   const hasBandsWithoutAzimuth = permits.some((permit) => (permit.sectors ?? []).length === 0);
-  const compassDirections = directions.map((direction) => {
-    const azimuthText = formatSectorAzimuth(direction.azimuth, t);
-    return {
-      azimuth: direction.azimuth,
-      text: azimuthText,
-      name: `${azimuthText}, ${t("permits.antennasCount", { count: direction.antennas.length })}`,
-      isIndoor: direction.isIndoor,
-    };
-  });
+  const compassDirections = directions.map((direction) => ({
+    azimuth: direction.azimuth,
+    name: formatSectorAzimuth(direction.azimuth, t),
+    isIndoor: direction.isIndoor,
+  }));
 
   return (
     <section aria-labelledby={titleId} className="@container space-y-3">
@@ -106,7 +102,6 @@ function DirectionBlock({ direction, color, isSelected, onToggle }: DirectionBlo
       >
         <AzimuthCompassMark azimuth={direction.azimuth} color={color} />
         <span className="text-sm font-bold tabular-nums">{formatSectorAzimuth(direction.azimuth, t)}</span>
-        <span className="text-xs text-muted-foreground">{t("permits.antennasCount", { count: direction.antennas.length })}</span>
         {direction.isIndoor ? (
           <span className={cn("inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold", dashedOutlineClassName)}>
             <HugeiconsIcon icon={Building06Icon} className="size-3" aria-hidden="true" />

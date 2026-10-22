@@ -133,8 +133,6 @@
     "bandsCount_other": "{{count, number}} bands",
     "directionsCount_one": "{{count, number}} direction",
     "directionsCount_other": "{{count, number}} directions",
-    "antennasCount_one": "{{count, number}} antenna",
-    "antennasCount_other": "{{count, number}} antennas",
     "allDirections": "All directions",
     "antennaHeight": "{{meters, number}} m",
     "underground": "Underground",
