@@ -6,7 +6,6 @@
     deploy_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
     openbts_domain: "example.com"
     openbts_workers: 4
-    openbts_assets_root: /var/www/openbts
     vapid_subject: "https://{{ openbts_domain }}"
     authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICRMnbImm2YfZh73UsaZx+AQI+BUwasFsC44Nne4+4Qu
@@ -422,14 +421,6 @@
         owner: www-data
         group: www-data
         mode: "0750"
-
-    - name: Create directory for client assets kept across deploys
-      file:
-        path: "{{ openbts_assets_root }}/assets"
-        state: directory
-        owner: btsearch
-        group: btsearch
-        mode: "0755"
 
     - name: Deploy and validate nginx vhost for openbts
       block:

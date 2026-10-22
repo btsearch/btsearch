@@ -88,7 +88,9 @@
         function activateNewestWorker(registration) {
           var worker = registration.waiting || registration.installing;
           if (!worker) return location.reload();
-          var timeout = setTimeout(reload, workerTakeoverTimeoutMs);
+          var timeout = setTimeout(function () {
+            location.reload();
+          }, workerTakeoverTimeoutMs);
           navigator.serviceWorker.addEventListener("controllerchange", function () {
             clearTimeout(timeout);
             location.reload();
@@ -110,7 +112,9 @@
                 activateNewestWorker(registration);
               });
             })
-            .catch(reload);
+            .catch(function () {
+              location.reload();
+            });
         }
 
         window.addEventListener(

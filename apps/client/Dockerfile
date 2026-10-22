@@ -51,5 +51,6 @@ RUN pnpm run build
 FROM nginx:alpine
 COPY --from=builder /app/apps/client/dist /usr/share/nginx/html
 COPY apps/client/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=755 apps/client/docker/keep-assets.sh /docker-entrypoint.d/40-keep-assets.sh
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

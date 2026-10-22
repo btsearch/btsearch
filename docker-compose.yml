@@ -24,6 +24,8 @@ services:
         - COMMIT_SHA=${COMMIT_SHA}
     ports:
       - "127.0.0.1:3000:80"
+    volumes:
+      - client-assets-volume:/var/lib/btsearch
     depends_on:
       - server
     restart: unless-stopped
@@ -172,6 +174,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  client-assets-volume:
   disposable-email-blocklist-volume:
   official-archive-volume:
   postgres-volume:

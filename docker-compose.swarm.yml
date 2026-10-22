@@ -208,6 +208,8 @@ services:
       - target: 80
         published: 3001
         mode: ingress
+    volumes:
+      - client-assets-volume:/var/lib/btsearch
     networks:
       - internal
     healthcheck:
@@ -229,6 +231,9 @@ services:
         failure_action: pause
       restart_policy:
         condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
 
   postgres:
     image: postgis/postgis:18-3.6@sha256:60f6ad1d21ea86a67d47780b9a0d1e1d200500f62b19293fa834d0dea80b8677
@@ -307,6 +312,7 @@ networks:
     attachable: true
 
 volumes:
+  client-assets-volume:
   disposable-email-blocklist-volume:
     external: true
     name: btsearch_disposable-email-blocklist-volume
