@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { defaultConventions } from "../../core/conventions.ts";
-import { capabilitiesFor, conventionsFor, countryCodesWith } from "../../core/registry.ts";
+import { capabilitiesFor, conventionsFor, countryCodesWith, knownGnbidLength } from "../../core/registry.ts";
 import { pl } from "../index.ts";
-import { TMOBILE, WITHOUT_PLMN } from "./operators.ts";
+import { PLAY, TMOBILE, WITHOUT_PLMN } from "./operators.ts";
 
 const HOOKS = [
   "identifierKinds",
@@ -14,16 +14,15 @@ const HOOKS = [
   "equivalentEnbids",
   "sharedSite",
   "lteSectorRule",
+  "gnbidLength",
   "hoistedTac",
   "normalizeGeocodedPlace",
 ] as const;
-const DEFAULT_HOOKS = ["gnbidLength"] as const;
 
 void test("gives Poland its own hook for every convention it changes", () => {
   const conventions = conventionsFor("PL");
 
-  assert.deepEqual(Object.keys(defaultConventions).sort(), [...HOOKS, ...DEFAULT_HOOKS].sort());
-  for (const hook of DEFAULT_HOOKS) assert.equal(conventions[hook], defaultConventions[hook], hook);
+  assert.deepEqual(Object.keys(defaultConventions).sort(), [...HOOKS].sort());
   for (const hook of HOOKS) {
     assert.equal(conventions[hook], pl.conventions[hook], hook);
     assert.notEqual(conventions[hook], defaultConventions[hook], hook);
@@ -36,6 +35,8 @@ void test("gives Poland its own hook for every convention it changes", () => {
   assert.deepEqual(conventions.sharedSite.copies, ["backhaul", "sectors", "photos"]);
   assert.equal(conventions.lteSectorRule(TMOBILE)?.clidStep, 1);
   assert.equal(conventions.gnbidLength(TMOBILE), 24);
+  assert.equal(conventions.gnbidLength(PLAY), 28);
+  assert.equal(conventions.gnbidLength(WITHOUT_PLMN), 24);
   assert.equal(conventions.hoistedTac, true);
   assert.deepEqual(conventions.normalizeGeocodedPlace({ region: "województwo łódzkie", municipality: "gmina Zgierz" }), {
     region: "Łódzkie",
@@ -74,7 +75,16 @@ void test("gives the defaults to a country without a pack and to no country", ()
   }
 });
 
-const TERRAIN_PROFILES = { receiverBounds: { south: 48.8, north: 55.2, west: 13.8, east: 24.5 } };
+void test("knows a gNB ID length by PLMN only where it differs from the default", () => {
+  assert.equal(knownGnbidLength("260", "06"), 28);
+  assert.equal(knownGnbidLength("260", "6"), 28);
+  assert.equal(knownGnbidLength("260", "02"), null);
+  assert.equal(knownGnbidLength("234", "15"), 22);
+  assert.equal(knownGnbidLength("235", "02"), 22);
+  assert.equal(knownGnbidLength("262", "01"), null);
+});
+
+const TERRAIN_PROFILES ={ receiverBounds: { south: 48.8, north: 55.2, west: 13.8, east: 24.5 } };
 
 void test("takes the official layers from the sources and lets KMZ follow the official sites", () => {
   assert.deepEqual(capabilitiesFor("PL", { official: true, microwaveLinks: true }), {

@@ -35,7 +35,7 @@ export type CountryConventions = {
   equivalentEnbids: (operator: OperatorRef, enbid: number) => number[];
   sharedSite: { copies: readonly SharedSitePart[] };
   lteSectorRule: (operator: OperatorRef) => LteSectorRule | null;
-  gnbidLength: (operator: OperatorRef) => number;
+  gnbidLength: (operator: Pick<OperatorRef, "primaryPlmn">) => number;
   hoistedTac: boolean;
   normalizeGeocodedPlace: (place: GeocodedPlaceNames) => GeocodedPlaceNames;
 };
@@ -52,3 +52,7 @@ export const defaultConventions: CountryConventions = {
   hoistedTac: false,
   normalizeGeocodedPlace: (place) => place,
 };
+
+export function gnbidLengthByPlmn(lengths: Partial<Record<string, number>>): CountryConventions["gnbidLength"] {
+  return ({ primaryPlmn }) => (primaryPlmn === null ? undefined : lengths[primaryPlmn]) ?? DEFAULT_GNBID_LENGTH;
+}

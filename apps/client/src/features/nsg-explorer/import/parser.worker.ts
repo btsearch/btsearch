@@ -1,3 +1,5 @@
+import { knownGnbidLength } from "@openbts/country-packs";
+
 import type { NsgWorkerRequest, NsgWorkerResponse } from "./protocol";
 import { parseNsg } from "@/lib/nsg-parser";
 import { openNsgFile } from "@/lib/nsg-parser/browser";
@@ -15,7 +17,7 @@ scope.addEventListener("message", async (event: MessageEvent<NsgWorkerRequest>) 
     const { stream, source } = await openNsgFile(file);
     const log = await parseNsg(
       { stream, source },
-      { allowIncompleteFinalRecord: true, onProgress: (progress) => send({ type: "progress", progress }) },
+      { allowIncompleteFinalRecord: true, gnbidLength: knownGnbidLength, onProgress: (progress) => send({ type: "progress", progress }) },
     );
     send({ type: "complete", log });
   } catch (error) {
