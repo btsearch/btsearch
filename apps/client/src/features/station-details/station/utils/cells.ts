@@ -130,8 +130,12 @@ export function getColumnKey(column: CellColumn): string {
   return column.kind === "identifier" ? column.field : column.kind;
 }
 
+function isNsaCell(cell: StationCell): boolean {
+  return cell.rat === "nr" && cell.mode !== "sa";
+}
+
 function getModeSortValue(cell: StationCell): number {
-  return cell.rat === "nr" && cell.mode !== "sa" ? 1 : 0;
+  return isNsaCell(cell) ? 1 : 0;
 }
 
 function getStandaloneIdentity(cell: NrCell): number {
@@ -166,8 +170,9 @@ function findSharedValue(cells: readonly StationCell[], field: CellIdentifierFie
 }
 
 function listSharedValues(rat: RatType, cells: readonly StationCell[]): SharedCellValue[] {
+  const identifiedCells = cells.filter((cell) => !isNsaCell(cell));
   return TABLE_LAYOUTS[rat].hoistable.flatMap((field) => {
-    const value = findSharedValue(cells, field);
+    const value = findSharedValue(identifiedCells, field);
     return value === null ? [] : [{ field, label: IDENTIFIER_LABELS[field], value }];
   });
 }

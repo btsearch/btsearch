@@ -284,6 +284,9 @@
   [data-slot="chart"] .recharts-surface *:focus-visible {
     outline: none !important;
   }
+  input[aria-hidden="true"][style*="position: fixed"] {
+    position: absolute !important;
+  }
   html,
   body {
     @apply h-full overflow-hidden;

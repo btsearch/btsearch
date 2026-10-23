@@ -172,13 +172,12 @@ export function StationDialogHeading({
             <TooltipContent>{formatFullDate(createdAt, i18n.language)}</TooltipContent>
           </Tooltip>
           <span className="hidden text-[11px] leading-4 text-muted-foreground/40 sm:inline">·</span>
-          <time
-            dateTime={updatedAt}
-            title={formatFullDate(updatedAt, i18n.language)}
-            className="whitespace-nowrap text-[11px] leading-4 text-muted-foreground/80"
-          >
-            {tCommon("labels.updated")}: <RelativeTime date={updatedAt} />
-          </time>
+          <Tooltip>
+            <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] leading-4 text-muted-foreground/80">
+              {tCommon("labels.updated")}: <RelativeTime date={updatedAt} />
+            </TooltipTrigger>
+            <TooltipContent>{formatFullDate(updatedAt, i18n.language)}</TooltipContent>
+          </Tooltip>
         </div>
       ) : null}
     </div>
