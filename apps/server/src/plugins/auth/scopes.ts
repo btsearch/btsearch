@@ -74,6 +74,8 @@ export const OAUTH_STAFF_SCOPES = [
   "search:user",
 ] as const satisfies readonly RoutePermission[];
 
+export const APP_ONLY_SCOPES = ["upload:observations"] as const satisfies readonly RoutePermission[];
+
 export const OAUTH_USER_SCOPES = [...OIDC_SCOPES, ...OAUTH_READ_SCOPES, ...OAUTH_WRITE_SCOPES];
 export const OAUTH_SCOPES = [...OAUTH_USER_SCOPES, ...OAUTH_STAFF_SCOPES];
 

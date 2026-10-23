@@ -12,6 +12,8 @@ import { syncGrantsWithRole } from "../../features/access/roleGrants.js";
 import { type AuditContext, type AuditEntryInput, runAuditedOperation, systemAuditContext } from "../../features/audit/index.js";
 import { generateFingerprintFromWebRequest } from "../../utils/fingerprint.js";
 import { logger } from "../../utils/logger.js";
+import { isAppOnlyScope, isCollectorClient } from "./appClient.js";
+import { APP_ONLY_SCOPES } from "./scopes.js";
 
 type HookCtx = GenericEndpointContext;
 type UserSnapshot = {
@@ -57,6 +59,7 @@ const REMOVAL_METADATA = { self: { self: true }, impersonator: { impersonated: t
 const DEFAULT_ROLE = "user";
 const CANONICAL_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_IP_LENGTH = 60;
+const APP_ONLY_SCOPE_DESCRIPTION = `${APP_ONLY_SCOPES.join(", ")} is reserved for the BTSearch app`;
 
 const pendingUserAudits = new WeakMap<object, PendingUserAudit>();
 const pendingBanLifts = new WeakSet<object>();
@@ -238,9 +241,21 @@ async function handleOAuthClientWrite(ctx: HookCtx) {
 async function handleOAuthAuthorize(ctx: HookCtx) {
   const { authorizeSettings } = ctx as HookCtx & { authorizeSettings?: { isAuthorize?: boolean } | null };
   const isAppRequest = !authorizeSettings || authorizeSettings.isAuthorize === true;
-  const request = (ctx.method === "POST" && isAppRequest ? ctx.body : ctx.query) as { scope?: unknown } | undefined;
-  const hasScope = typeof request?.scope === "string" && request.scope.trim() !== "";
-  if (!hasScope) throw new APIError("BAD_REQUEST", { error: "invalid_scope", error_description: "scope is required" });
+  const request = (ctx.method === "POST" && isAppRequest ? ctx.body : ctx.query) as { scope?: unknown; client_id?: unknown } | undefined;
+  const scope = typeof request?.scope === "string" ? request.scope.trim() : "";
+  if (scope === "") throw new APIError("BAD_REQUEST", { error: "invalid_scope", error_description: "scope is required" });
+
+  const isCollector = typeof request?.client_id === "string" && isCollectorClient(request.client_id);
+  if (!isCollector && scope.split(" ").some(isAppOnlyScope)) {
+    throw new APIError("BAD_REQUEST", { error: "invalid_scope", error_description: APP_ONLY_SCOPE_DESCRIPTION });
+  }
+}
+
+async function handleOAuthConsentUpdate(ctx: HookCtx) {
+  const scopes = (ctx.body as { update?: { scopes?: unknown } } | undefined)?.update?.scopes;
+  if (Array.isArray(scopes) && scopes.some((scope) => typeof scope === "string" && isAppOnlyScope(scope))) {
+    throw new APIError("BAD_REQUEST", { error: "invalid_request", error_description: APP_ONLY_SCOPE_DESCRIPTION });
+  }
 }
 
 function hookAuditContext(ctx: HookCtx, actorId: string | null, isAnonymous = false): AuditContext {
@@ -440,6 +455,7 @@ const beforeHandlers: { path: string; handler: (ctx: HookCtx) => Promise<unknown
   { path: "/oauth2/create-client", handler: handleOAuthClientWrite },
   { path: "/oauth2/update-client", handler: handleOAuthClientWrite },
   { path: "/oauth2/authorize", handler: handleOAuthAuthorize },
+  { path: "/oauth2/update-consent", handler: handleOAuthConsentUpdate },
   ...Object.keys(AUDITED_FIELDS_BY_PATH).map((path) => ({ path, handler: rememberTargetUser })),
   { path: SET_PASSWORD_PATH, handler: rememberTargetUser },
   { path: REMOVE_USER_PATH, handler: rememberTargetUser },

@@ -177,6 +177,10 @@
       "lists": {
         "description": "Creating and sharing station lists"
       },
+      "measurementUploads": {
+        "title": "Measurement uploads",
+        "description": "The BTSearch app can register phones and upload radio and GPS readings. Measurements can also be turned off for each country"
+      },
       "comments": {
         "description": "Reading and writing comments",
         "note": "Moderating and deleting comments works even while comments are disabled"
@@ -810,6 +814,7 @@
       "official_dataset": "Register datasets",
       "licensee": "Licensees",
       "analyzer": "Analyzer",
+      "observations": "Measurements",
       "system": "System",
       "revert": "Reverts",
       "structure_owner": "Structure owners"
@@ -843,6 +848,12 @@
       },
       "analyzer": {
         "apply": "Analyzer applied"
+      },
+      "observations": {
+        "device_revoke": "Device revoked",
+        "device_restore": "Device restored",
+        "upload_download": "Upload downloaded",
+        "upload_exclude": "Upload excluded"
       },
       "comment": {
         "create": "Comment created",
@@ -950,6 +961,8 @@
       "official_sources": "Register sources",
       "official_datasets": "Register datasets",
       "licensees": "Licensees",
+      "device_revocations": "Device revocations",
+      "uploads": "Measurement uploads",
       "structure_owners": "Structure owners"
     },
     "ops": {
@@ -1004,6 +1017,10 @@
       "settings_other": "{{count, number}} settings",
       "official_sources_one": "{{count, number}} register source",
       "official_sources_other": "{{count, number}} register sources",
+      "device_revocations_one": "{{count, number}} device revocation",
+      "device_revocations_other": "{{count, number}} device revocations",
+      "uploads_one": "{{count, number}} measurement upload",
+      "uploads_other": "{{count, number}} measurement uploads",
       "official_datasets_one": "{{count, number}} register dataset",
       "official_datasets_other": "{{count, number}} register datasets",
       "licensees_one": "{{count, number}} licensee",
@@ -1363,6 +1380,21 @@
           "note": "Each setting is independent and saved right away. Disabling PSC or BSIC hides existing values without deleting them",
           "savedToast": "Country data settings saved",
           "saveFailed": "Couldn't save the country's data settings"
+        },
+        "tools": {
+          "title": "Tools",
+          "description": "What the website and the BTSearch app offer in this country",
+          "analyzer": {
+            "title": "Analyzer",
+            "description": "Cells from files are compared with the database. While off, the analyzer neither checks nor changes anything in this country"
+          },
+          "measurements": {
+            "title": "Measurements",
+            "description": "The BTSearch app records radio and GPS readings. While off, it records nothing in this country and readings taken there are dropped"
+          },
+          "note": "Changes are saved right away. Measurements also need measurement uploads turned on in the system settings",
+          "savedToast": "Country tools saved",
+          "saveFailed": "Couldn't save the country's tools"
         },
         "availability": {
           "title": "Availability",

@@ -1,0 +1,34 @@
+{
+  "formatVersion": 1,
+  "uploadId": "01a12096-8da0-71a2-9b2e-5f6a7b8c9d10",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12087-e7a0-7aaa-8bbb-ccccdddd0001",
+      "mode": "passive"
+    }
+  ],
+  "sims": [],
+  "readers": [
+    {
+      "name": "btsearch",
+      "version": "0.4.0",
+      "source": "api"
+    }
+  ],
+  "cells": [],
+  "fixes": [],
+  "snapshots": []
+}

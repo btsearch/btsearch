@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { showSettingsError } from "../authErrors";
 import { useCopyText } from "../copyText";
-import { type ApiKeyInfo, type UsageWindow, apiKeysQueryOptions, isPublishableKey } from "../queries";
+import { type ApiKeyInfo, apiKeysQueryOptions, isPublishableKey } from "../queries";
 import { ConfirmDialog } from "./confirmDialog";
 import {
   SETTINGS_DESCRIPTION_CLASS,
@@ -18,6 +18,7 @@ import {
   SettingsRowError,
   SettingsRowSkeleton,
   StatusBadge,
+  UsageMeter,
 } from "./settingsPrimitives";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -51,25 +52,6 @@ function isExpiryOption(value: unknown): value is ExpiryOption {
 function formatCount(value: number): string {
   if (value >= 1000) return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`;
   return value.toString();
-}
-
-function UsageMeter({ label, usage }: { label: string; usage: UsageWindow }) {
-  const { t } = useTranslation("settings");
-  const percent = usage.max !== null && usage.max > 0 ? Math.min((usage.used / usage.max) * 100, 100) : 0;
-
-  return (
-    <div className="min-w-0 flex-1">
-      <div className="flex items-baseline justify-between gap-2 text-xs leading-4 text-muted-foreground">
-        <span className="truncate">{label}</span>
-        <span className="shrink-0 text-foreground tabular-nums">
-          {usage.max === null ? t("apiKeys.usage.unlimited") : `${formatCount(usage.used)} / ${formatCount(usage.max)}`}
-        </span>
-      </div>
-      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full", percent > 60 ? "bg-destructive" : "bg-muted-foreground/40")} style={{ width: `${percent}%` }} />
-      </div>
-    </div>
-  );
 }
 
 function KeyCreatedDialog({ apiKey, onClose }: { apiKey: string; onClose: () => void }) {
@@ -231,8 +213,8 @@ function ApiKeyRow({ apiKey, formatDate, onRevoke }: { apiKey: ApiKeyInfo; forma
         </p>
       </div>
       <div className="flex w-full min-w-0 gap-4 sm:w-80">
-        <UsageMeter label={t("apiKeys.usage.perMinute")} usage={apiKey.rateLimit} />
-        {publishable ? null : <UsageMeter label={t("apiKeys.usage.weekly")} usage={apiKey.quota} />}
+        <UsageMeter label={t("apiKeys.usage.perMinute")} usage={apiKey.rateLimit} format={formatCount} />
+        {publishable ? null : <UsageMeter label={t("apiKeys.usage.weekly")} usage={apiKey.quota} format={formatCount} />}
       </div>
       <Button
         type="button"

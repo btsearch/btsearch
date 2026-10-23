@@ -8,6 +8,10 @@
     "readAccess": "Read access",
     "writeAccess": "Act on your behalf",
     "offlineAccess": "Keeps access until you revoke it",
+    "measurements": {
+      "collected": "While recording, the app collects cell network readings and GPS positions, along with the phone model and app version. It never collects your phone number, IMEI or IMSI",
+      "license": "Measurements are published as open data under the ODbL. You can withdraw them in settings"
+    },
     "redirectNotice": "You will be redirected to <strong>{{domain}}</strong>",
     "revokeNotice": "You can revoke this access anytime <settingsLink>here</settingsLink>",
     "allow": "Allow access",
@@ -34,7 +38,8 @@
       "update_user_lists": "Update your station lists",
       "create_submissions": "Submit station data changes as you",
       "update_submissions": "Update your submissions",
-      "delete_submissions": "Delete your submissions"
+      "delete_submissions": "Delete your submissions",
+      "upload_observations": "Upload measurements from this phone"
     }
   },
   "apps": {

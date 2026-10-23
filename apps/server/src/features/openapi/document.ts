@@ -1,13 +1,15 @@
 import type { FastifyDynamicSwaggerOptions, SwaggerTransform, SwaggerTransformObject } from "@fastify/swagger";
+import { measurementBatchSchema } from "@openbts/shared/contract";
 import type { FastifyContextConfig, FastifySchema, RouteOptions } from "fastify";
 import { jsonSchemaTransform } from "fastify-type-provider-zod";
+import { z } from "zod/v4";
 
 import { baseUrl } from "../../config.js";
 import { APP_NAME } from "../../constants.js";
 import { toDocumentedSchema } from "../../lib/documentedSchema.js";
 import { API_ERROR_SCHEMA, buildSharedErrorResponses, isErrorPlan, planErrorResponses, withErrorResponses } from "./errorResponses.js";
 import { type Json, type JsonObject, isJsonObject } from "./json.js";
-import { type OpenApiDocument, nameModels } from "./models.js";
+import { type OpenApiDocument, nameModels, toJsonModel } from "./models.js";
 import { buildSecuritySchemes, securityFor } from "./security.js";
 import { TAGS, TAG_GROUPS } from "./tags.js";
 
@@ -18,6 +20,7 @@ const ERROR_PLAN_KEY = "x-error-plan";
 const PLUGIN_PLACEHOLDER_DESCRIPTION = "Default Response";
 const SUCCESS_DESCRIPTIONS: Record<string, string> = { 200: "OK", 201: "Created", 204: "No content" };
 const METHOD_ORDER = ["get", "post", "put", "patch", "delete"];
+const STANDALONE_MODELS = { MeasurementBatch: measurementBatchSchema };
 
 const API_DESCRIPTION = [
   `Welcome to the ${APP_NAME} API! Everything you see on the site is available here: base stations, the locations they stand on, ` +
@@ -70,9 +73,11 @@ function declaredResponses(schema: FastifySchema): object {
   return typeof schema.response === "object" && schema.response !== null ? schema.response : {};
 }
 
-function withDocumentOnlyParts(schema: FastifySchema, { multipartBody, errorBodies }: FastifyContextConfig): FastifySchema {
+function withDocumentOnlyParts(schema: FastifySchema, { multipartBody, rawBodyTypes, errorBodies }: FastifyContextConfig): FastifySchema {
   const withErrorBodies = errorBodies ? { ...schema, response: { ...declaredResponses(schema), ...errorBodies } } : schema;
-  return multipartBody ? { ...withErrorBodies, consumes: [MULTIPART_CONTENT_TYPE], body: multipartBody } : withErrorBodies;
+  if (multipartBody) return { ...withErrorBodies, consumes: [MULTIPART_CONTENT_TYPE], body: multipartBody };
+  if (rawBodyTypes) return { ...withErrorBodies, consumes: [...rawBodyTypes], body: z.file() };
+  return withErrorBodies;
 }
 
 function describeSuccess(status: string, response: Json): Json {
@@ -117,6 +122,15 @@ export function findDocumentationGap({ url, schema }: RouteOptions): string | un
 
   const undescribed = categories.find((category) => !TAGS.some((tag) => tag.name === category));
   return undescribed === undefined ? undefined : `its category "${undescribed}" has no description`;
+}
+
+function toStandaloneModels(openapiObject: OpenApiDocument): JsonObject {
+  return Object.fromEntries(
+    Object.entries(STANDALONE_MODELS).flatMap(([name, model]) => {
+      const schema = toJsonModel(model, "input", openapiObject);
+      return schema ? [[name, schema]] : [];
+    }),
+  );
 }
 
 export function buildSwaggerOptions(prefix: string): FastifyDynamicSwaggerOptions {
@@ -167,7 +181,7 @@ export function buildSwaggerOptions(prefix: string): FastifyDynamicSwaggerOption
       components: {
         securitySchemes: openapiObject.components?.securitySchemes,
         responses: buildSharedErrorResponses(),
-        schemas: { ApiError: API_ERROR_SCHEMA, ...models },
+        schemas: { ApiError: API_ERROR_SCHEMA, ...models, ...toStandaloneModels(openapiObject) },
       },
     };
     return document as unknown as OpenApiDocument;

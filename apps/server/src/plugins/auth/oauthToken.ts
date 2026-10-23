@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { db } from "../../database/psql.js";
 import type { Session } from "../../interfaces/fastify.interface.js";
+import { isCollectorClient } from "./appClient.js";
 import type { RoutePermission } from "./permissions.js";
 
 export type OAuthTokenContext = {
@@ -33,11 +34,12 @@ export async function verifyOAuthAccessToken(bearerToken: string): Promise<{ use
   if (accessToken.expiresAt.getTime() <= Date.now()) return null;
   if (!accessToken.client || accessToken.client.disabled) return null;
 
+  const sessionId = isCollectorClient(accessToken.clientId) ? null : accessToken.sessionId;
   const [session, user] = await Promise.all([
-    accessToken.sessionId ? db.query.sessions.findFirst({ where: { id: accessToken.sessionId } }) : Promise.resolve(undefined),
+    sessionId ? db.query.sessions.findFirst({ where: { id: sessionId } }) : Promise.resolve(undefined),
     db.query.users.findFirst({ where: { id: accessToken.userId } }),
   ]);
-  if (accessToken.sessionId && (!session || session.expiresAt.getTime() <= Date.now())) return null;
+  if (sessionId && (!session || session.expiresAt.getTime() <= Date.now())) return null;
   if (!user) return null;
   if (user.banned && (!user.banExpires || user.banExpires.getTime() > Date.now())) return null;
 

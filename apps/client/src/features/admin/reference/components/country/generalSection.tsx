@@ -6,6 +6,7 @@ import { AvailabilityCard } from "./availabilityCard";
 import { COUNTRY_SECTION_IDS } from "./countrySections";
 import { DataAndSubmissionsCard } from "./dataAndSubmissionsCard";
 import { DefaultViewCard } from "./defaultViewCard";
+import { ToolsCard } from "./toolsCard";
 
 type GeneralSectionProps = {
   country: Country;
@@ -21,6 +22,7 @@ export function GeneralSection({ country, canEdit }: GeneralSectionProps) {
         <AvailabilityCard country={country} canEdit={canEdit} />
         <DefaultViewCard country={country} canEdit={canEdit} />
         <DataAndSubmissionsCard country={country} canEdit={canEdit} />
+        <ToolsCard country={country} canEdit={canEdit} />
       </div>
     </ReferenceSection>
   );

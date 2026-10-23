@@ -1,5 +1,6 @@
 import { Login01Icon, UserLock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,29 +11,39 @@ import { useRegisterPageSections } from "@/contexts/pageSections";
 import { AccountSection } from "@/features/settings/components/accountSection";
 import { AppsSection } from "@/features/settings/components/appsSection";
 import { IdentityBanner, type SettingsUser } from "@/features/settings/components/identityBanner";
+import { MeasurementsSection } from "@/features/settings/components/measurementsSection";
 import { PreferencesSection } from "@/features/settings/components/preferencesSection";
 import { ProfileSection } from "@/features/settings/components/profileSection";
 import { SecuritySection } from "@/features/settings/components/securitySection";
 import { SettingsIconTile } from "@/features/settings/components/settingsPrimitives";
+import { measurementTermsQueryOptions } from "@/features/settings/measurementQueries";
 import { ReauthProvider, useRequestReauth } from "@/features/settings/reauth";
 import { SETTINGS_SECTION_IDS, SETTINGS_SECTION_KEYS, type SettingsSectionKey, isSettingsSectionKey } from "@/features/settings/sections";
 import { useNavMode } from "@/hooks/usePreferences";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { cn } from "@/lib/utils";
 
-function SettingsPageSections() {
+function SettingsPageSections({ hasMeasurements }: { hasMeasurements: boolean }) {
   const { t } = useTranslation("settings");
-  useRegisterPageSections(SETTINGS_SECTION_KEYS.map((key) => ({ id: SETTINGS_SECTION_IDS[key], title: t(`sections.${key}`) })));
+  useRegisterPageSections(
+    SETTINGS_SECTION_KEYS.filter((key) => hasMeasurements || key !== "measurements").map((key) => ({
+      id: SETTINGS_SECTION_IDS[key],
+      title: t(`sections.${key}`),
+    })),
+  );
   return null;
 }
 
 function SignedInSettings({ user, section }: { user: SettingsUser; section: SettingsSectionKey | undefined }) {
   const { i18n } = useTranslation();
+  const { data: measurementTerms } = useQuery(measurementTermsQueryOptions(user.id));
+  const hasMeasurements = measurementTerms !== undefined && measurementTerms.acceptedVersion !== null;
+  const isSectionShown = section !== "measurements" || hasMeasurements;
 
   useEffect(() => {
-    if (section === undefined) return;
+    if (section === undefined || !isSectionShown) return;
     document.getElementById(SETTINGS_SECTION_IDS[section])?.scrollIntoView({ block: "start" });
-  }, [section]);
+  }, [section, isSectionShown]);
 
   return (
     <>
@@ -42,9 +53,10 @@ function SignedInSettings({ user, section }: { user: SettingsUser; section: Sett
         <ProfileSection user={user} />
         <SecuritySection user={user} />
         <AppsSection user={user} />
+        {hasMeasurements ? <MeasurementsSection user={user} terms={measurementTerms} /> : null}
         <PreferencesSection />
       </div>
-      <SettingsPageSections key={i18n.language} />
+      <SettingsPageSections key={`${i18n.language}-${hasMeasurements}`} hasMeasurements={hasMeasurements} />
     </>
   );
 }

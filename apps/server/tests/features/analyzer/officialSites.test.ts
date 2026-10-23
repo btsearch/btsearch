@@ -25,7 +25,7 @@ function networks(observed: readonly TestOperator[], members: readonly TestOpera
   dbMock.enqueueFor(
     "select",
     "plmns",
-    observed.map(({ id, plmn, countryCode }) => ({ code: plmn, operatorId: id, countryCode })),
+    observed.map(({ id, plmn, countryCode }) => ({ code: plmn, operatorId: id, countryCode, countryTools: ["analyzer"] })),
   );
   dbMock.enqueueFor(
     "select",

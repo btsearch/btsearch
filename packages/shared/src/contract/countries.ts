@@ -5,9 +5,21 @@ import { AT_LEAST_ONE_FIELD_ISSUE, countryCodeSchema, hasAnyField } from "./comm
 export const CONTRIBUTION_MODES = ["closed", "open"] as const;
 export type ContributionMode = (typeof CONTRIBUTION_MODES)[number];
 
+export const COUNTRY_TOOLS = ["analyzer", "measurements"] as const;
+export type CountryTool = (typeof COUNTRY_TOOLS)[number];
+
 const VISIBILITY_NOTE = "A hidden country and everything in it are only returned to administrators and to editors with a grant in that country";
 const CONTRIBUTIONS_NOTE = "A `closed` country does not accept submissions. Independent of `isVisible`";
 const DEFAULT_VIEW_NOTE = "The default map view for the country, as a bounding box in degrees";
+const TOOLS_NOTE =
+  "Without `analyzer`, `POST /cells/match` answers the cells of the country's networks with the reason `analyzerDisabled`, " +
+  "and `POST /cells/apply` and submissions with `origin` set to `analyzer` are refused for its stations with 403 `FEATURE_DISABLED`. " +
+  "Without `measurements`, the BTSearch app records nothing there, and readings from the country are dropped when uploads are processed";
+
+const countryToolsSchema = z
+  .array(z.enum(COUNTRY_TOOLS))
+  .max(COUNTRY_TOOLS.length)
+  .refine((tools) => new Set(tools).size === tools.length, { message: "Must not repeat a tool" });
 
 export const boundingBoxSchema = z
   .object({
@@ -49,6 +61,7 @@ export const countrySchema = z.object({
   code: countryCodeSchema,
   isVisible: z.boolean().describe(VISIBILITY_NOTE),
   contributions: z.enum(CONTRIBUTION_MODES).describe(CONTRIBUTIONS_NOTE),
+  tools: z.array(z.enum(COUNTRY_TOOLS)).describe(TOOLS_NOTE),
   features: countryFeaturesSchema,
   capabilities: countryCapabilitiesSchema,
   defaultView: boundingBoxSchema.nullable().describe(DEFAULT_VIEW_NOTE),
@@ -62,6 +75,7 @@ export const countryCreateSchema = z
     code: countryCodeSchema,
     isVisible: z.boolean().optional().describe(`${VISIBILITY_NOTE}. Defaults to \`false\``),
     contributions: z.enum(CONTRIBUTION_MODES).optional().describe(`${CONTRIBUTIONS_NOTE}. Defaults to \`closed\``),
+    tools: countryToolsSchema.optional().describe(`${TOOLS_NOTE}. Defaults to every tool`),
     features: countryFeaturesUpdateSchema.optional().describe("New owner proposals default to true. PSC and BSIC default to false"),
     defaultView: boundingBoxSchema.nullable().optional().describe(DEFAULT_VIEW_NOTE),
   })
@@ -72,6 +86,7 @@ export const countryUpdateSchema = z
   .object({
     isVisible: z.boolean().optional().describe(VISIBILITY_NOTE),
     contributions: z.enum(CONTRIBUTION_MODES).optional().describe(CONTRIBUTIONS_NOTE),
+    tools: countryToolsSchema.optional().describe(`${TOOLS_NOTE}. Replaces the whole list`),
     features: countryFeaturesUpdateSchema.optional(),
     defaultView: boundingBoxSchema.nullable().optional().describe(DEFAULT_VIEW_NOTE),
   })

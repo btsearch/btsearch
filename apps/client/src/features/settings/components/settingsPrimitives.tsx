@@ -3,11 +3,14 @@ import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ComponentProps, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export const SETTINGS_DESCRIPTION_CLASS = "text-[0.8125rem] leading-[1.125rem] text-muted-foreground";
@@ -251,6 +254,66 @@ export function StatusBadge({
       {icon ? <HugeiconsIcon icon={icon} data-icon="inline-start" /> : null}
       {children}
     </Badge>
+  );
+}
+
+export function UsageMeter({
+  label,
+  usage,
+  format,
+}: {
+  label: string;
+  usage: { used: number; max: number | null };
+  format: (value: number) => string;
+}) {
+  const { t } = useTranslation("settings");
+  const percent = usage.max !== null && usage.max > 0 ? Math.min((usage.used / usage.max) * 100, 100) : 0;
+
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-baseline justify-between gap-2 text-xs leading-4 text-muted-foreground">
+        <span className="truncate">{label}</span>
+        <span className="shrink-0 text-foreground tabular-nums">
+          {usage.max === null ? t("apiKeys.usage.unlimited") : `${format(usage.used)} / ${format(usage.max)}`}
+        </span>
+      </div>
+      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full rounded-full", percent > 60 ? "bg-destructive" : "bg-muted-foreground/40")} style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export function RowIconButton({
+  label,
+  icon,
+  onClick,
+  disabled = false,
+  destructive = false,
+}: {
+  label: string;
+  icon: IconSvgElement;
+  onClick: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          disabled={disabled}
+          onClick={onClick}
+          className={cn("text-muted-foreground", destructive && "hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/15")}
+        >
+          <HugeiconsIcon icon={icon} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -17,10 +17,10 @@ const observed: ObservedCell[] = [
 
 const sharedNetworkPlmn = "26034";
 
-function network(partners: { operatorId: number; ventureId: number }[] = [], { code = plmn, countryCode = "PL" } = {}) {
+function network(partners: { operatorId: number; ventureId: number }[] = [], { code = plmn, countryCode = "PL", countryTools = ["analyzer"] } = {}) {
   const ventureIds = partners.filter((partner) => partner.operatorId === 1).map((partner) => partner.ventureId);
   dbMock.enqueueFor("select", "countries", []);
-  dbMock.enqueueFor("select", "plmns", [{ code, operatorId: 1, countryCode }]);
+  dbMock.enqueueFor("select", "plmns", [{ code, operatorId: 1, countryCode, countryTools }]);
   dbMock.enqueueFor("select", "operator_links", partners);
   dbMock.enqueueFor(
     "select",
@@ -113,13 +113,22 @@ describe("POST /cells/match", () => {
 
   it("treats a network in a hidden country as unknown", async () => {
     dbMock.enqueueFor("select", "countries", [{ code: "DE" }]);
-    dbMock.enqueueFor("select", "plmns", [{ code: plmn, operatorId: 1, countryCode: "DE" }]);
+    dbMock.enqueueFor("select", "plmns", [{ code: plmn, operatorId: 1, countryCode: "DE", countryTools: ["analyzer"] }]);
     const app = await createRouteHarness(route);
     const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[0]] } });
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.results[0]).toMatchObject({ operatorId: null, reason: "operatorUnknown" });
     expect(dbMock.calls.some((call) => call.table === "cells")).toBe(false);
+  });
+
+  it("answers the cells of a country with the analyzer off as analyzerDisabled", async () => {
+    network([], { countryTools: ["measurements"] });
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[2]] } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({ operatorId: null, match: "none", reason: "analyzerDisabled", stationId: null });
   });
 
   it.each([undefined, null, 0, 4])("falls back to a UMTS cell's LAC and CID when RNC %s has no exact match", async (rnc) => {

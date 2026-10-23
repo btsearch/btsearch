@@ -57,6 +57,9 @@ const GUEST_REASONS: ErrorReasons = {
     "or the endpoint is disabled.",
 };
 
+const APP_ONLY_NOTE = "Only the BTSearch app can call this. A browser session, an API key and other applications are refused.";
+const APP_OR_SESSION_NOTE = "Only the BTSearch app or a browser session can call this. API keys and other applications are refused.";
+
 const PARSER_ERRORS: Partial<Record<DocumentedErrorStatus, ErrorExample[]>> = {
   400: [
     { code: "FST_ERR_CTP_INVALID_JSON_BODY", message: "Body is not valid JSON but content-type is set to 'application/json'" },
@@ -143,10 +146,10 @@ function canCarryBody(route: RouteOptions): boolean {
   return methodsOf(route).some((name) => !METHODS_WITHOUT_BODY.has(name));
 }
 
-function derivedStatuses(route: RouteOptions, { multipartBody }: FastifyContextConfig): Record<DocumentedErrorStatus, boolean> {
+function derivedStatuses(route: RouteOptions, { multipartBody, rawBodyTypes }: FastifyContextConfig): Record<DocumentedErrorStatus, boolean> {
   const { url, schema } = route;
   const takesJsonBody = schema?.body !== undefined;
-  const takesBody = takesJsonBody || multipartBody !== undefined;
+  const takesBody = takesJsonBody || multipartBody !== undefined || rawBodyTypes !== undefined;
 
   return {
     400: canCarryBody(route) || schema?.params !== undefined || schema?.querystring !== undefined,
@@ -154,7 +157,7 @@ function derivedStatuses(route: RouteOptions, { multipartBody }: FastifyContextC
     403: true,
     404: url.includes(":"),
     409: isPost(route),
-    413: takesJsonBody,
+    413: takesJsonBody || rawBodyTypes !== undefined,
     415: takesBody,
     429: true,
     500: true,
@@ -167,10 +170,17 @@ function withIdempotencyNote(reason: string, { retainIdempotencyKey = false }: F
   return `${reason} ${note}`;
 }
 
+function callersNote({ callers }: FastifyContextConfig): string | null {
+  if (!callers) return null;
+  return callers.includes("session") ? APP_OR_SESSION_NOTE : APP_ONLY_NOTE;
+}
+
 function reasonFor(status: DocumentedErrorStatus, route: RouteOptions, config: FastifyContextConfig): string | null {
   const { allowGuestAccess = false, errorReasons = {} } = config;
   const defaultReasons: ErrorReasons = allowGuestAccess ? GUEST_REASONS : {};
-  const reason = errorReasons[status] ?? defaultReasons[status] ?? null;
+  const ownReason = errorReasons[status] ?? defaultReasons[status] ?? null;
+  const callerNote = status === 403 ? callersNote(config) : null;
+  const reason = callerNote === null || ownReason === null ? (callerNote ?? ownReason) : `${callerNote} ${ownReason}`;
   const isAlsoReturnedForRepeatedKey = status === 409 && isPost(route);
 
   return reason !== null && isAlsoReturnedForRepeatedKey ? withIdempotencyNote(reason, config) : reason;

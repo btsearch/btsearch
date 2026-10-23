@@ -45,6 +45,7 @@ export function useAnalyzerTexts(): AnalyzerTexts {
     if (kind === "no-identifiers") return t("diff.noIdentifiers");
     if (kind === "gnbidLength") return t("diff.gnbidLength");
     if (kind === "no-gnbidLength") return t("diff.missingGnbidLength");
+    if (kind === "analyzer-disabled") return t("diff.analyzerDisabled");
     if (isMissingKind(kind)) return t("diff.missing", { field: CELL_NUMBER_LABELS[MISSING_KIND_FIELDS[kind]] });
     return t("diff.other", { field: CELL_NUMBER_LABELS[kind] });
   }
@@ -58,6 +59,7 @@ export function useAnalyzerTexts(): AnalyzerTexts {
     if (reason === "noDifferences") return t("diff.none");
     if (reason === "shared") return t("diff.shared");
     if (reason === "cellUnknown") return t("diff.unknownCell");
+    if (reason === "analyzerDisabled") return t("diff.analyzerDisabled");
     return reason === "operatorUnknown" ? t("main:unknownOperator") : t("diff.noIdentifiers");
   }
 
@@ -66,6 +68,7 @@ export function useAnalyzerTexts(): AnalyzerTexts {
     if (reason === "noDifferences") return t("reason.noDifferences");
     if (reason === "shared") return t("reason.shared");
     if (reason === "cellUnknown") return t("reason.cellUnknown");
+    if (reason === "analyzerDisabled") return t("reason.analyzerDisabled");
     return reason === "operatorUnknown" ? t("reason.operatorUnknown") : t("reason.noIdentifiers");
   }
 

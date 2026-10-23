@@ -12,12 +12,14 @@ import { actorIdFromRequest } from "../../../../features/access/access.js";
 import { loadRegionIdsByGrant, toRoleGrant } from "../../../../features/access/roleGrants.js";
 import { assertTokenScope } from "../../../../features/access/staff.js";
 import { MAX_USER_LISTS } from "../../../../features/lists/limits.js";
+import { findMeasurementUploadsLimit } from "../../../../features/measurements/quota.js";
 import { SECURITY_FOR_ANY_ACCOUNT_CREDENTIAL } from "../../../../features/openapi/security.js";
 import { findAnalyzerChangesLimit } from "../../../../features/submissions/analyzerLimit.js";
 import { toUserRole } from "../../../../features/users/profile.js";
 import { toUserRef } from "../../../../features/users/userRef.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
+import { isCollectorClient } from "../../../../plugins/auth/appClient.js";
 
 const schemaRoute = {
   summary: "Get the current user",
@@ -54,13 +56,15 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<Me>>) {
     grantRows.map((row) => row.id),
   );
   const analyzerChanges = await findAnalyzerChangesLimit(req, userId, user.role);
+  const isAppOrSession = req.oauthToken ? isCollectorClient(req.oauthToken.clientId) : req.apiToken === null;
+  const measurementUploads = isAppOrSession ? await findMeasurementUploadsLimit(userId) : null;
 
   return res.send({
     data: {
       ...toUserRef(user),
       role,
       grants: grantRows.map((row) => toRoleGrant({ row, regionIds: regionIdsByGrant.get(row.id) ?? [] })),
-      limits: { lists: MAX_USER_LISTS, analyzerChanges },
+      limits: { lists: MAX_USER_LISTS, analyzerChanges, measurementUploads },
     },
   });
 }

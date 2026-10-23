@@ -241,6 +241,11 @@ export const redisMock = {
     return "OK";
   }),
   del: vi.fn(async (key: string | string[]) => [key].flat().filter((name) => redisValues.delete(name)).length),
+  getDel: vi.fn(async (key: string) => {
+    const value = redisValues.get(key) ?? null;
+    redisValues.delete(key);
+    return value;
+  }),
   scanIterator: vi.fn(async function* scanKeys(options?: { MATCH?: string }) {
     const prefix = (options?.MATCH ?? "*").replace(/\*$/, "");
     const keys = [...redisValues.keys()].filter((key) => key.startsWith(prefix));

@@ -22,6 +22,7 @@ const KIND_GROUP_ORDER = [
   "official_dataset",
   "licensee",
   "analyzer",
+  "observations",
   "system",
   "revert",
 ];

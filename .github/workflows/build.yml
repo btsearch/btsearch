@@ -26,3 +26,53 @@ jobs:
         run: pnpm --filter @openbts/sora build
       - name: Build apps/client
         run: pnpm --filter @openbts/client build
+
+  server-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - name: Test apps/server
+        run: pnpm --filter @openbts/sora test
+
+  migrations:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6@sha256:60f6ad1d21ea86a67d47780b9a0d1e1d200500f62b19293fa834d0dea80b8677
+        env:
+          POSTGRES_USER: openbts
+          POSTGRES_PASSWORD: openbts
+          POSTGRES_DB: openbts
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openbts -d openbts"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - name: Build packages/drizzle
+        run: pnpm --filter @openbts/drizzle build
+      - name: Apply every migration to an empty database
+        working-directory: packages/drizzle
+        env:
+          DATABASE_URL: postgres://openbts:openbts@localhost:5432/openbts
+        run: node dist/migrate.js

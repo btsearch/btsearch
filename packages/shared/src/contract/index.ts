@@ -15,6 +15,7 @@ export * from "./geocoding.ts";
 export * from "./hunters.ts";
 export * from "./lists.ts";
 export * from "./me.ts";
+export * from "./measurements.ts";
 export * from "./microwaveLinks.ts";
 export * from "./nodeName.ts";
 export * from "./notifications.ts";

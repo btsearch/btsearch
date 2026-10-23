@@ -8,6 +8,11 @@ import { dbMock, userSession } from "../../../../helpers/boundaries.js";
 import { readDate, readUserId } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
+function scriptNoUploads(): void {
+  dbMock.enqueueFor("select", "uploads", [{ total: 0, bytes: null, oldestAt: null }]);
+  dbMock.enqueueFor("select", "contributors", []);
+}
+
 describe("getMe", () => {
   it("returns an editor's grants with sorted region ids and country-wide grants distinguished", async () => {
     const grantId = "123e4567-e89b-42d3-a456-426614174001";
@@ -38,6 +43,7 @@ describe("getMe", () => {
       { grantId, regionId: 3 },
       { grantId, regionId: 1 },
     ]);
+    scriptNoUploads();
     const app = await createRouteHarness(getMe, { session: userSession(readUserId, "editor") });
     const response = await app.inject({ url: "/me" });
     expect(response.statusCode).toBe(200);
@@ -54,6 +60,7 @@ describe("getMe", () => {
     const oldestAt = new Date(Date.now() - 60 * 60 * 1000);
     dbMock.enqueueFor("select", "users", [{ id: readUserId, username: "tester", name: "Test User", image: null, role }]);
     if (!isStaff) dbMock.enqueueFor("select", "submissions", [{ total: 31, oldestAt }]);
+    scriptNoUploads();
     const app = await createRouteHarness(getMe, { session: userSession(readUserId) });
     const response = await app.inject({ url: "/me" });
     expect(response.statusCode).toBe(200);
@@ -82,6 +89,7 @@ describe("getMe", () => {
   ])("reports the analyzer allowance with $title", async ({ recent, remaining, resets }) => {
     dbMock.enqueueFor("select", "users", [{ id: readUserId, username: "tester", name: "Test User", image: null, role: "user" }]);
     dbMock.enqueueFor("select", "submissions", [recent]);
+    scriptNoUploads();
     const app = await createRouteHarness(getMe, { session: userSession(readUserId) });
     const { analyzerChanges } = (await app.inject({ url: "/me" })).json().data.limits;
     expect(analyzerChanges).toMatchObject({ limit: ANALYZER_SUBMISSIONS_LIMIT.max, remaining });
@@ -95,6 +103,7 @@ describe("getMe", () => {
     const response = await app.inject({ url: "/me" });
     expect(response.statusCode).toBe(200);
     expect(response.json().data.limits.analyzerChanges).toMatchObject({ remaining: ANALYZER_SUBMISSIONS_LIMIT.max, resetsAt: null });
+    expect(response.json().data.limits.measurementUploads).toBeNull();
   });
 
   it.each([false, true])("requires an existing authenticated account (%s)", async (hasSession) => {

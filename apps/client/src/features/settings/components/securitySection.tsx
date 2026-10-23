@@ -9,7 +9,7 @@ import {
   SecurityCheckIcon,
   SmartPhone01Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useState } from "react";
@@ -32,6 +32,7 @@ import { ConfirmDialog } from "./confirmDialog";
 import type { SettingsUser } from "./identityBanner";
 import { AddPasskeyDialog, RenamePasskeyDialog, type SettingsPasskey } from "./passkeyDialogs";
 import {
+  RowIconButton,
   SETTINGS_DESCRIPTION_CLASS,
   SETTINGS_TWO_COLUMN_CLASS,
   SettingsCard,
@@ -48,7 +49,6 @@ import {
 import { SignInMethodsCard } from "./signInMethodsCard";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useRelativeTime } from "@/components/ui/relative-time";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth/client";
 import { getDateFormatter } from "@/lib/dateFormat";
 import { formatIpAddress } from "@/lib/format";
@@ -117,39 +117,6 @@ function TwoFactorCard({ user }: { user: SettingsUser }) {
         </Suspense>
       ) : null}
     </SettingsCard>
-  );
-}
-
-function RowIconButton({
-  label,
-  icon,
-  onClick,
-  disabled = false,
-  destructive = false,
-}: {
-  label: string;
-  icon: IconSvgElement;
-  onClick: () => void;
-  disabled?: boolean;
-  destructive?: boolean;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex" />}>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={label}
-          disabled={disabled}
-          onClick={onClick}
-          className={cn("text-muted-foreground", destructive && "hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/15")}
-        >
-          <HugeiconsIcon icon={icon} />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
   );
 }
 

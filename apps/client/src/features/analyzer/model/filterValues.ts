@@ -38,6 +38,7 @@ export const DIFFERENCE_KIND_ORDER: readonly DifferenceKind[] = [
   "unknown-cell",
   "unknown-operator",
   "no-identifiers",
+  "analyzer-disabled",
 ];
 
 export type AnalyzerFilters = {

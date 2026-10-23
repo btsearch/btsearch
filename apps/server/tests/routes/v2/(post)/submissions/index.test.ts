@@ -1158,6 +1158,19 @@ describe("POST /submissions", () => {
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
+  it("refuses an analyzer change in a country with the analyzer off", async () => {
+    dbMock.enqueueFor("select", "users", [{ role: "user" }]);
+    dbMock.enqueueFor("select", "role_grants", []);
+    dbMock.enqueueFor("select", "submissions", [{ total: 0, oldestAt: null }]);
+    dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
+    dbMock.enqueueFor("select", "operators", [{ id: 7 }], [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "countries", [{ tools: ["measurements"] }]);
+    dbMock.query.stations.findFirst.mockResolvedValue(undefined);
+    const response = await injectMutation(route, { ...request, payload: [{ ...change, origin: "analyzer" }] }, options);
+    expectError(response, 403, "FEATURE_DISABLED", "The analyzer is switched off in PL");
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
   it("counts every analyzer change of a request against what is left of the allowance", async () => {
     const oldestAt = new Date(Date.now() - 31 * 60 * 60 * 1000);
     dbMock.enqueueFor("select", "users", [{ role: "user" }]);

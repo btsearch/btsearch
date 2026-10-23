@@ -1,0 +1,119 @@
+{
+  "formatVersion": 1,
+  "uploadId": "01a12096-8da0-76f7-a07d-ae1f2a3b4c65",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12087-e7a0-7aaa-8bbb-ccccdddd0001",
+      "mode": "passive"
+    }
+  ],
+  "sims": [
+    {
+      "slot": 0,
+      "simPlmn": "26006",
+      "registeredPlmn": "26006",
+      "isRoaming": false,
+      "isDataSim": true
+    }
+  ],
+  "readers": [
+    {
+      "name": "btsearch",
+      "version": "0.4.0",
+      "source": "api",
+      "rules": 12
+    },
+    {
+      "name": "netmonsterCore",
+      "version": "1.2.9",
+      "source": "api"
+    }
+  ],
+  "cells": [
+    {
+      "rat": "lte",
+      "plmn": "26006",
+      "eci": 31604747,
+      "tac": 58140,
+      "earfcn": 1300,
+      "pci": 301,
+      "corrected": {
+        "tac": "tacByteOrder"
+      }
+    },
+    {
+      "rat": "lte",
+      "plmn": "26006",
+      "eci": 31604747,
+      "tac": 6627,
+      "earfcn": 1300,
+      "pci": 301
+    }
+  ],
+  "fixes": [
+    {
+      "t": 812345900,
+      "gnssTimeMillis": 1791547200900,
+      "latitude": 52.2297123,
+      "longitude": 21.0122456,
+      "accuracyMeters": 4.5,
+      "provider": "gps",
+      "isMock": false
+    }
+  ],
+  "snapshots": [
+    {
+      "t": 812346000,
+      "simSlot": 0,
+      "reader": 0,
+      "dataNetworkType": "lte",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "rsrpDbm": -95,
+          "rsrqDb": -11,
+          "derived": ["rssnrDb"],
+          "rssnrDb": 7
+        }
+      ]
+    },
+    {
+      "t": 812346000,
+      "simSlot": 0,
+      "reader": 1,
+      "dataNetworkType": "lte",
+      "measurements": [
+        {
+          "cell": 1,
+          "role": "serving",
+          "rsrpDbm": -95,
+          "rsrqDb": -11
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "type": "readerDiff",
+      "t": 812346000,
+      "reader": 1,
+      "fields": {
+        "tac": 1
+      }
+    }
+  ]
+}

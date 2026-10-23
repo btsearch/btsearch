@@ -8,6 +8,7 @@ const row = {
   code: "PL",
   isVisible: false,
   contributions: "closed",
+  tools: ["analyzer", "measurements"],
   structureOwnerProposals: true,
   psc: false,
   bsic: false,
@@ -37,6 +38,22 @@ describe("PATCH /countries/PL", () => {
     expect(values).toMatchObject(features);
     for (const name of ["structureOwnerProposals", "psc", "bsic"]) if (!(name in features)) expect(values).not.toHaveProperty(name);
     expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "audit_logs")).toBe(true);
+  });
+
+  it("replaces the whole list of tools", async () => {
+    dbMock.query.countries.findFirst.mockResolvedValue(row);
+    scriptAudit();
+    dbMock.enqueueFor("update", "countries", [{ ...row, tools: ["measurements"] }]);
+    scriptSourceCapabilities();
+    const response = await injectMutation(route, { ...request, payload: { tools: ["measurements"] } }, options);
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "countries")?.values).toMatchObject({ tools: ["measurements"] });
+  });
+
+  it("rejects a list that names a tool twice", async () => {
+    const response = await injectMutation(route, { ...request, payload: { tools: ["analyzer", "analyzer"] } }, options);
+    expectError(response, 400, "VALIDATION_ERROR");
+    expect(response.json().errors[0].details).toEqual([{ field: "tools", validationMessage: "Must not repeat a tool" }]);
   });
 
   it.each([{ features: {} }, { features: { psc: null } }, { features: { bsic: "true" } }, { features: { unknown: true } }])(

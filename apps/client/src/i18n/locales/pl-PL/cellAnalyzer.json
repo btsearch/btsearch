@@ -219,6 +219,7 @@
     "missingNetwork": "Brakująca sieć",
     "unknownCell": "Nie ma takiej komórki w bazie",
     "noIdentifiers": "Brak identyfikatorów w pliku",
+    "analyzerDisabled": "Kraj z wyłączonym analizatorem",
     "none": "Brak różnic",
     "confirm": "Potwierdź"
   },
@@ -228,6 +229,7 @@
     "cellUnknown": "Nie ma takiej komórki w bazie ani stacji, do której można ją dodać",
     "operatorUnknown": "W bazie nie ma operatora o tym kodzie sieci",
     "noIdentifiers": "Wiersz pliku nie zawiera identyfikatorów, po których można znaleźć komórkę",
+    "analyzerDisabled": "Analizator jest wyłączony w kraju tej sieci, więc komórka nie jest sprawdzana",
     "pending": "Wiersze można zaznaczać po analizie pliku"
   },
   "toolbar": {

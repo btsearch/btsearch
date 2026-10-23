@@ -1,4 +1,4 @@
-import { SentIcon, TaskDaily01Icon } from "@hugeicons/core-free-icons";
+import { SentIcon, SmartPhone01Icon, TaskDaily01Icon } from "@hugeicons/core-free-icons";
 import type { SettingsFeatures } from "@openbts/shared/contract";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -59,6 +59,13 @@ export function ContributionsCard({ features }: { features: SettingsFeatures }) 
         description={t("settings.features.lists.description")}
         isEnabled={features.lists}
         onEnabledChange={(isEnabled) => changeFeature("lists", isEnabled)}
+      />
+      <FeatureSwitchRow
+        icon={SmartPhone01Icon}
+        title={t("settings.features.measurementUploads.title")}
+        description={t("settings.features.measurementUploads.description")}
+        isEnabled={features.measurementUploads}
+        onEnabledChange={(isEnabled) => changeFeature("measurementUploads", isEnabled)}
       />
       <ConfirmDialog
         open={isConfirmOpen}

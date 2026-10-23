@@ -29,6 +29,7 @@ export const settingsFeaturesSchema = z.object({
         "Comments that a moderator writes or edits skip the review",
     ),
   lists: z.boolean().describe("Users can create and share lists"),
+  measurementUploads: z.boolean().describe("The BTSearch app can register devices and upload measurements"),
 });
 export type SettingsFeatures = z.infer<typeof settingsFeaturesSchema>;
 
@@ -55,8 +56,9 @@ export const settingsSchema = z.object({
     .boolean()
     .describe("When `true`, guests are rejected everywhere except the open routes, the sign-in routes and `GET /settings`"),
   features: settingsFeaturesSchema.describe(
-    "While `submissions`, `photoUploads`, `comments` or `lists` is disabled, its routes respond with 403 `FEATURE_DISABLED`. " +
-      "Moderating and deleting comments, and deleting the photos of rejected submissions, keep working",
+    "While `submissions`, `photoUploads`, `comments`, `lists` or `measurementUploads` is disabled, its routes respond with 403 `FEATURE_DISABLED`. " +
+      "Moderating and deleting comments, and deleting the photos of rejected submissions, keep working. " +
+      "Without `measurementUploads`, only device challenges, registering a device, uploading and accepting the terms stop",
   ),
   announcement: settingsAnnouncementSchema.nullable().describe("The site banner. `null` while it is disabled, unless you are an administrator"),
   access: settingsAccessSchema.optional().describe("Only returned to administrators"),

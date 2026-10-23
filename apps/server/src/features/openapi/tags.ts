@@ -189,6 +189,13 @@ export const TAGS: readonly DocumentedTag[] = [
     description:
       "The audit log. Every change to the data is recorded as an operation with the details of what changed, " + "and an operation can be reverted.",
   },
+  {
+    name: "measurements",
+    "x-displayName": "Measurements",
+    description:
+      "The radio and GPS readings the BTSearch app collects: its devices, its uploads and the contributor terms. " +
+      "Uploading needs the app's own OAuth client.",
+  },
 ];
 
 export const TAG_GROUPS: readonly TagGroup[] = [
@@ -197,5 +204,6 @@ export const TAG_GROUPS: readonly TagGroup[] = [
   { name: "Reference data", tags: ["countries", "regions", "operators", "brands", "bands", "spectrum-holdings", "structure-owners"] },
   { name: "Official sources and tools", tags: ["official", "emf", "terrain-profiles", "geocoding"] },
   { name: "Account", tags: ["me", "users", "hunters", "notifications", "push-subscriptions"] },
+  { name: "Measurements", tags: ["measurements"] },
   { name: "Administration", tags: ["settings", "role-grants", "audit-operations"] },
 ];

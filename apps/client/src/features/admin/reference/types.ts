@@ -16,6 +16,7 @@ export type {
   CountryCreate,
   CountryFeatures,
   CountryStatistics,
+  CountryTool,
   CountryUpdate,
   GrantRole,
   Operator,

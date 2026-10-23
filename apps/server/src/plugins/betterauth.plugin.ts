@@ -16,6 +16,7 @@ import { baseUrl } from "../config.js";
 import { APP_NAME, ARGON2_OPTIONS } from "../constants.js";
 import { db } from "../database/psql.js";
 import { redis } from "../database/redis.js";
+import { forgetContributorMeasurements } from "../features/measurements/withdrawals.js";
 import type { UserRole } from "../interfaces/auth.interface.js";
 import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
 import { withRedisDeadline } from "../lib/redisDeadline.js";
@@ -209,6 +210,11 @@ export const auth = betterAuth({
         },
         after: async (user, ctx) => {
           await auditLiftedBan(user, ctx);
+        },
+      },
+      delete: {
+        before: async (user) => {
+          await forgetContributorMeasurements(user.id);
         },
       },
     },

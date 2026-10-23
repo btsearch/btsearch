@@ -45,6 +45,7 @@ import { itemRefusal } from "../../lib/itemRefusals.js";
 import { locationRefs } from "../access/scope.js";
 import { RADIO_FIELD_NAMES } from "../cells/radioFields.js";
 import { isNormalRat } from "../cells/ratCellPersistence.js";
+import { assertAnalyzerEnabled } from "../countries/tools.js";
 import { assertOwnerFitsRegion, toStructureChange } from "../locations/structure.js";
 import { findRegionIdAt } from "../regions/lookup.js";
 import { findPlacementCountryCode } from "../stations/country.js";
@@ -97,7 +98,7 @@ type InvalidField = { field: string; validationMessage: string };
 type IdentifierPair = { fields: readonly [node: string, cell: string]; unknownTogetherMessage: string };
 type PhotoPickLocation = Pick<LocationChangeInput, "latitude" | "longitude">;
 export type BodyPath = (path: PropertyKey[]) => PropertyKey[];
-type TranslationContext = { bodyPath?: BodyPath; submissionId?: string; detachesLocation?: boolean };
+type TranslationContext = { bodyPath?: BodyPath; submissionId?: string; detachesLocation?: boolean; needsCountryCode?: boolean };
 
 const OMNIDIRECTIONAL_AZIMUTH = 360;
 
@@ -447,7 +448,7 @@ async function translateContent(stationId: number | null, content: ChangeContent
       ),
     ),
   };
-  if (!location?.address && !content.cells?.length) return { translated, addressRefusal: null };
+  if (!location?.address && !content.cells?.length && !context.needsCountryCode) return { translated, addressRefusal: null };
 
   const countryCode = await findPlacementCountryCode(placement);
   const addressRefusal = location?.address ? conventionsFor(countryCode).validateAddress(location.address) : null;
@@ -581,10 +582,11 @@ export async function toPhotoPickUpdate(
 export async function toSingleSubmission(body: SubmissionCreate, bodyPath?: BodyPath): Promise<SingleSubmission> {
   const stationId = body.stationId ?? null;
   const [{ translated, addressRefusal }, picks] = await Promise.all([
-    translateContent(stationId, body, { bodyPath }),
+    translateContent(stationId, body, { bodyPath, needsCountryCode: body.origin === "analyzer" }),
     translatePhotoPicks(stationId, body.photos, body.location),
   ]);
   assertValid(translated, addressRefusal, bodyPath);
+  if (body.origin === "analyzer") await assertAnalyzerEnabled(translated.placement_country_code);
 
   return {
     type: SUBMISSION_TYPES[body.action],

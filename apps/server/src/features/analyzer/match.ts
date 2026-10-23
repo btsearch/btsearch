@@ -1,5 +1,18 @@
 import { type OperatorRef, conventionsFor } from "@openbts/country-packs";
-import { bands, cellPlmns, cells, gsmCells, lteCells, nrCells, operatorLinks, operators, plmns, stations, umtsCells } from "@openbts/drizzle";
+import {
+  bands,
+  cellPlmns,
+  cells,
+  countries,
+  gsmCells,
+  lteCells,
+  nrCells,
+  operatorLinks,
+  operators,
+  plmns,
+  stations,
+  umtsCells,
+} from "@openbts/drizzle";
 import { DEFAULT_GNBID_LENGTH, splitNci } from "@openbts/shared/contract";
 import type {
   Cell,
@@ -33,7 +46,15 @@ import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, toCell } from "../stations/serialize.js";
 import { type OfficialSiteMatches, type UnmatchedCell, findOfficialSites } from "./officialSites.js";
 
-type Network = { operatorId: number; partnerIds: number[]; operator: OperatorRef; countryCode: string; code: string; hasGuestCells: boolean };
+type Network = {
+  operatorId: number;
+  partnerIds: number[];
+  operator: OperatorRef;
+  countryCode: string;
+  code: string;
+  hasGuestCells: boolean;
+  isAnalyzerEnabled: boolean;
+};
 type StoredCell = CellRows & { operatorId: number | null; through?: "extraCode" | "missingCode" };
 type IdentifierPair = [number, number];
 type IdentifiersByOperator<T> = Map<number, Map<string, T>>;
@@ -209,9 +230,10 @@ async function loadBroadcastCodes(codes: readonly string[]): Promise<Set<string>
 
 async function resolveNetworks(plmnCodes: readonly string[], hidden: readonly string[]): Promise<Map<string, Network>> {
   const rows = await db
-    .select({ code: plmns.code, operatorId: plmns.operatorId, countryCode: operators.countryCode })
+    .select({ code: plmns.code, operatorId: plmns.operatorId, countryCode: operators.countryCode, countryTools: countries.tools })
     .from(plmns)
     .innerJoin(operators, eq(operators.id, plmns.operatorId))
+    .innerJoin(countries, eq(countries.code, operators.countryCode))
     .where(inArray(plmns.code, unique(plmnCodes.flatMap(plmnCandidates))));
   const visible = new Map(rows.filter((row) => !hidden.includes(row.countryCode)).map((row) => [row.code, row]));
   const operatorIds = unique([...visible.values()].map((row) => row.operatorId));
@@ -234,6 +256,7 @@ async function resolveNetworks(plmnCodes: readonly string[], hidden: readonly st
       countryCode: row.countryCode,
       code: row.code,
       hasGuestCells: broadcastCodes.has(row.code),
+      isAnalyzerEnabled: row.countryTools.includes("analyzer"),
     });
   }
   return networks;
@@ -489,6 +512,7 @@ function resolveCell(
   featuresByStation: ReadonlyMap<number, CountryFeatures>,
 ): ObservedCellMatch {
   if (!network) return unmatched(null, "operatorUnknown");
+  if (!network.isAnalyzerEnabled) return unmatched(null, "analyzerDisabled");
   const own = network.operatorId;
   const compare = (stored: StoredCell, comparisons: readonly ComparedField[]) =>
     findDifferences(comparisons, featuresByStation.get(stored.cell.station_id) ?? disabledCountryFeatures);
@@ -633,7 +657,8 @@ export async function matchCells(
 ): Promise<CellMatchAnswer> {
   const hidden = await loadHiddenCountryCodes(req);
   const networks = await resolveNetworks(unique(observed.map((cell) => cell.plmn)), hidden);
-  const found = await findStoredCells(observed, networks, hidden);
+  const analyzedNetworks = new Map([...networks].filter(([, network]) => network.isAnalyzerEnabled));
+  const found = await findStoredCells(observed, analyzedNetworks, hidden);
   const storedStationIds = unique(Object.values(found).flatMap((index) => [...index.values()].map((row) => row.cell.station_id)));
   const featuresByStation = await getStationCountryFeatures(storedStationIds);
 

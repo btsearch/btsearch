@@ -6,7 +6,7 @@ import { readAuthError } from "./authErrors";
 import { API_BASE, fetchJson, fetchV2Data } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
-export type UsageWindow = {
+type UsageWindow = {
   used: number;
   max: number | null;
   window: number;

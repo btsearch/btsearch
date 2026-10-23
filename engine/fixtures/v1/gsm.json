@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "uploadId": "01a12096-8da0-72b3-9c3f-6a7b8c9d0e21",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12087-e7a0-7aaa-8bbb-ccccdddd0001",
+      "mode": "passive"
+    }
+  ],
+  "sims": [
+    {
+      "slot": 0,
+      "simPlmn": "26001",
+      "registeredPlmn": "26001",
+      "isRoaming": false,
+      "isDataSim": true
+    }
+  ],
+  "readers": [
+    {
+      "name": "netmonsterCore",
+      "version": "1.3.0",
+      "source": "api"
+    }
+  ],
+  "cells": [
+    {
+      "rat": "gsm",
+      "plmn": "26001",
+      "lac": 50114,
+      "cid": 12345,
+      "arfcn": 62,
+      "bsic": 23
+    },
+    {
+      "rat": "gsm",
+      "arfcn": 70,
+      "bsic": 41
+    }
+  ],
+  "fixes": [
+    {
+      "t": 812345900,
+      "gnssTimeMillis": 1791547200900,
+      "latitude": 50.0614201,
+      "longitude": 19.9365789,
+      "accuracyMeters": 4.5,
+      "speedMetersPerSecond": 1.2,
+      "provider": "gps",
+      "isMock": false
+    }
+  ],
+  "snapshots": [
+    {
+      "t": 812346200,
+      "simSlot": 0,
+      "reader": 0,
+      "dataNetworkType": "edge",
+      "dataActivity": "in",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "connectionStatus": "primaryServing",
+          "rssiDbm": -79,
+          "bitErrorRate": 0,
+          "timingAdvance": 3
+        },
+        {
+          "cell": 1,
+          "role": "neighbour",
+          "rssiDbm": -95
+        }
+      ]
+    }
+  ]
+}

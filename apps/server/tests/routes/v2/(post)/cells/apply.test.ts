@@ -35,7 +35,7 @@ function prepareLteUpdate(options: { oldTac?: number | null; operatorId?: number
   const station = stationRow({ operator_id: options.operatorId ?? null, location: null, sectors: [] });
   const countryCode = options.countryCode ?? "PL";
   dbMock.enqueueFor("select", "stations", [{ station, countryCode }], [{ locationCountry: null, operatorCountry: null }], []);
-  dbMock.enqueueFor("select", "countries", []);
+  dbMock.enqueueFor("select", "countries", [], [{ tools: ["analyzer"] }]);
   dbMock.enqueueFor("select", "cells", [old]);
   dbMock.enqueueFor("select", "bands", cellBands);
   dbMock.query.stations.findFirst.mockResolvedValue(station);
@@ -71,7 +71,7 @@ function prepareBatch(
       "stations",
       item.stationId === options.missingStationId ? [] : [{ station: station(item.stationId), countryCode: options.countryCode ?? null }],
     );
-  if (options.countryCode) dbMock.enqueueFor("select", "countries", ...items.map(() => []));
+  if (options.countryCode) dbMock.enqueueFor("select", "countries", ...items.map(() => []), ...items.map(() => [{ tools: ["analyzer"] }]));
   for (const item of items) {
     dbMock.enqueueFor(
       "select",
@@ -287,6 +287,19 @@ describe("POST /cells/apply", () => {
     const { response } = await request([{ stationId: 1, cells: [{ action: "create", ...cellInputs.lte }] }]);
     expect(response.statusCode).toBe(404);
     expect(response.json().errors[0].details).toEqual([{ field: "0" }]);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses a station in a country with the analyzer off before writes", async () => {
+    dbMock.enqueueFor("select", "stations", [{ station: stationRow({ operator_id: null }), countryCode: "DE" }]);
+    dbMock.enqueueFor("select", "countries", [], [{ tools: ["measurements"] }]);
+    const { response } = await request([{ stationId: 1, cells: [{ action: "create", ...cellInputs.lte }] }]);
+    expect(response.statusCode).toBe(403);
+    expect(response.json().errors[0]).toMatchObject({
+      code: "FEATURE_DISABLED",
+      message: "The analyzer is switched off in DE",
+      details: [{ field: "0" }],
+    });
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 

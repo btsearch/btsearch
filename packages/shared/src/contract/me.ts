@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 
 import { userRefSchema } from "./common.ts";
+import { measurementUploadsLimitSchema } from "./measurements.ts";
 import { roleGrantSchema } from "./roleGrants.ts";
 import { ANALYZER_SUBMISSIONS_LIMIT } from "./submissions.ts";
 
@@ -33,6 +34,9 @@ export const meSchema = userRefSchema.extend({
   limits: z.object({
     lists: z.number().int(),
     analyzerChanges: analyzerChangesLimitSchema.nullable().describe(ANALYZER_CHANGES_NOTE),
+    measurementUploads: measurementUploadsLimitSchema
+      .nullable()
+      .describe("What is left of your upload quota. `null` unless you call through the BTSearch app or a browser session"),
   }),
 });
 export type Me = z.infer<typeof meSchema>;

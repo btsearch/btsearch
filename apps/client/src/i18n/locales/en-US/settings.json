@@ -95,6 +95,7 @@
     "profile": "Public profile",
     "security": "Security",
     "apps": "Apps & API",
+    "measurements": "Measurements",
     "preferences": "Preferences"
   },
   "identity": {
@@ -329,6 +330,76 @@
     },
     "errors": {
       "loadFailed": "Couldn't load API keys"
+    }
+  },
+  "measurements": {
+    "uploadsOff": "Measurement uploads are switched off right now. You can still download and withdraw your measurements",
+    "reason": "Reason: {{reason}}",
+    "devices": {
+      "title": "Devices",
+      "description": "Phones the BTSearch app uploads measurements from",
+      "tiers": {
+        "strong": "Verified (StrongBox)",
+        "hardware": "Verified",
+        "software": "Software verification",
+        "none": "Not verified"
+      },
+      "revoked": "Revoked",
+      "lastUpload": "Last upload {{time}}",
+      "noUploads": "No uploads yet",
+      "revokedOn": "Revoked {{date}}",
+      "empty": "No devices",
+      "emptyDescription": "Register a phone in the BTSearch app",
+      "loadFailed": "Couldn't load devices",
+      "revokeConfirmTitle": "Revoke this device?",
+      "revokeConfirmDescription": "The app on \"{{name}}\" will stop uploading measurements. Measurements it already uploaded stay until you withdraw them. Only an administrator can restore the device",
+      "revokeSuccess": "Device revoked"
+    },
+    "limit": {
+      "title": "Upload limit",
+      "description": "Uploads from the last 24 hours count, including withdrawn ones",
+      "uploads": "Uploads",
+      "bytes": "Data",
+      "resetsAt": "The oldest upload stops counting at {{time}}",
+      "loadFailed": "Couldn't load the upload limit"
+    },
+    "terms": {
+      "title": "Contributor terms",
+      "version": "Version {{version}}",
+      "accepted": "Accepted",
+      "newVersion": "New version {{version}}",
+      "acceptedOn": "Accepted {{date}}",
+      "acceptHint": "Accept the new version here or in the app before you upload more measurements",
+      "read": "Read",
+      "accept": "Accept version {{version}}",
+      "acceptSuccess": "Terms accepted"
+    },
+    "uploads": {
+      "title": "Uploaded measurements",
+      "description": "Each upload is one file from the app. You can download or withdraw it",
+      "withdrawAll": "Withdraw all",
+      "statuses": {
+        "received": "Received",
+        "processing": "Processing",
+        "processed": "Processed",
+        "withdrawn": "Withdrawn",
+        "excluded": "Excluded"
+      },
+      "fileUntil": "File kept until {{date}}",
+      "fileDeletedSoon": "File will be deleted within the hour",
+      "fileDeleted": "File deleted",
+      "download": "Download file",
+      "withdraw": "Withdraw",
+      "empty": "No uploaded measurements",
+      "emptyDescription": "They show up here once the app uploads its first measurements",
+      "loadFailed": "Couldn't load uploaded measurements",
+      "withdrawConfirmTitle": "Withdraw this upload?",
+      "withdrawConfirmDescription": "The file from {{date}} will be deleted within the hour, and its readings will no longer be used. This can't be undone",
+      "withdrawSuccess": "Upload withdrawn",
+      "withdrawAllConfirmTitle": "Withdraw all measurements?",
+      "withdrawAllConfirmDescription": "You'll withdraw every upload from all your devices. The files will be deleted within the hour, but your devices will stay registered. This can't be undone",
+      "withdrawAllSuccess_one": "{{count, number}} upload withdrawn",
+      "withdrawAllSuccess_other": "{{count, number}} uploads withdrawn"
     }
   },
   "profile": {

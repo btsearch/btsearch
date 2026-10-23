@@ -24,6 +24,7 @@ import { APIv1Controller } from "./controllers/v1.controller.js";
 import { APIv2Controller } from "./controllers/v2.controller.js";
 import { redisReady } from "./database/redis.js";
 import { DetailedErrorResponse, ErrorResponse, ValidationError, callerFaultResponse } from "./errors.js";
+import { registerUnreadBodyParsers } from "./features/measurements/uploadBody.js";
 import { recordRoutePattern } from "./features/settings/routeRules.js";
 import { OnRequestHook } from "./hooks/onRequest.hook.js";
 import { OnSendHook } from "./hooks/onSend.hook.js";
@@ -187,7 +188,7 @@ export default class App {
           request: {
             query: req?.query,
             params: req?.params,
-            headers: req?.headers ? { ...req.headers, cookie: undefined, "x-api-key": undefined } : undefined,
+            headers: req?.headers ? { ...req.headers, authorization: undefined, cookie: undefined, "x-api-key": undefined } : undefined,
             body: req?.body,
           },
         });
@@ -230,6 +231,7 @@ export default class App {
       .register(import("@fastify/multipart"));
 
     this.fastify.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_req, body, done) => done(null, body));
+    registerUnreadBodyParsers(this.fastify);
   }
 
   private initControllers(): void {

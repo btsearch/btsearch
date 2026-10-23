@@ -95,6 +95,7 @@
     "profile": "Publiczny profil",
     "security": "Bezpieczeństwo",
     "apps": "Aplikacje i API",
+    "measurements": "Pomiary",
     "preferences": "Preferencje"
   },
   "identity": {
@@ -333,6 +334,78 @@
     },
     "errors": {
       "loadFailed": "Nie udało się wczytać kluczy API"
+    }
+  },
+  "measurements": {
+    "uploadsOff": "Przesyłanie pomiarów jest obecnie wyłączone. Swoje pomiary możesz nadal pobrać i wycofać",
+    "reason": "Powód: {{reason}}",
+    "devices": {
+      "title": "Urządzenia",
+      "description": "Telefony, z których aplikacja BTSearch przesyła pomiary",
+      "tiers": {
+        "strong": "Zweryfikowane (StrongBox)",
+        "hardware": "Zweryfikowane",
+        "software": "Weryfikacja programowa",
+        "none": "Bez weryfikacji"
+      },
+      "revoked": "Unieważnione",
+      "lastUpload": "Ostatnie przesłanie {{time}}",
+      "noUploads": "Jeszcze nic nie przesłano",
+      "revokedOn": "Unieważniono {{date}}",
+      "empty": "Brak urządzeń",
+      "emptyDescription": "Zarejestruj telefon w aplikacji BTSearch",
+      "loadFailed": "Nie udało się wczytać urządzeń",
+      "revokeConfirmTitle": "Unieważnić to urządzenie?",
+      "revokeConfirmDescription": "Aplikacja na urządzeniu \"{{name}}\" przestanie przesyłać pomiary. Przesłane już pomiary pozostaną, dopóki ich nie wycofasz. Przywrócić urządzenie może tylko administrator",
+      "revokeSuccess": "Urządzenie unieważnione"
+    },
+    "limit": {
+      "title": "Limit przesyłania",
+      "description": "Liczą się przesłania z ostatnich 24 godzin, także wycofane",
+      "uploads": "Przesłania",
+      "bytes": "Dane",
+      "resetsAt": "Najstarsze przesłanie przestanie się liczyć o {{time}}",
+      "loadFailed": "Nie udało się wczytać limitu przesyłania"
+    },
+    "terms": {
+      "title": "Warunki dla współtwórców",
+      "version": "Wersja {{version}}",
+      "accepted": "Zaakceptowana",
+      "newVersion": "Nowa wersja {{version}}",
+      "acceptedOn": "Zaakceptowano {{date}}",
+      "acceptHint": "Zaakceptuj nową wersję tutaj albo w aplikacji, zanim prześlesz kolejne pomiary",
+      "read": "Przeczytaj",
+      "accept": "Zaakceptuj wersję {{version}}",
+      "acceptSuccess": "Warunki zaakceptowane"
+    },
+    "uploads": {
+      "title": "Przesłane pomiary",
+      "description": "Każde przesłanie to jeden plik z aplikacji. Możesz go pobrać albo wycofać",
+      "withdrawAll": "Wycofaj wszystkie",
+      "statuses": {
+        "received": "Odebrane",
+        "processing": "Przetwarzanie",
+        "processed": "Przetworzone",
+        "withdrawn": "Wycofane",
+        "excluded": "Wykluczone"
+      },
+      "fileUntil": "Plik przechowywany do {{date}}",
+      "fileDeletedSoon": "Plik zostanie usunięty w ciągu godziny",
+      "fileDeleted": "Plik usunięty",
+      "download": "Pobierz plik",
+      "withdraw": "Wycofaj",
+      "empty": "Brak przesłanych pomiarów",
+      "emptyDescription": "Pojawią się tu, gdy aplikacja prześle pierwsze pomiary",
+      "loadFailed": "Nie udało się wczytać przesłanych pomiarów",
+      "withdrawConfirmTitle": "Wycofać to przesłanie?",
+      "withdrawConfirmDescription": "Plik z {{date}} zostanie usunięty w ciągu godziny, a jego odczyty nie będą już wykorzystywane. Tej operacji nie można cofnąć",
+      "withdrawSuccess": "Przesłanie wycofane",
+      "withdrawAllConfirmTitle": "Wycofać wszystkie pomiary?",
+      "withdrawAllConfirmDescription": "Wycofasz przesłania ze wszystkich swoich urządzeń. Pliki zostaną usunięte w ciągu godziny, a urządzenia pozostaną zarejestrowane. Tej operacji nie można cofnąć",
+      "withdrawAllSuccess_one": "Wycofano {{count, number}} przesłanie",
+      "withdrawAllSuccess_few": "Wycofano {{count, number}} przesłania",
+      "withdrawAllSuccess_many": "Wycofano {{count, number}} przesłań",
+      "withdrawAllSuccess_other": "Wycofano {{count, number}} przesłania"
     }
   },
   "profile": {

@@ -179,6 +179,10 @@
       "lists": {
         "description": "Tworzenie i udostępnianie list stacji"
       },
+      "measurementUploads": {
+        "title": "Przesyłanie pomiarów",
+        "description": "Aplikacja BTSearch może rejestrować telefony i przesyłać odczyty radiowe i GPS. Pomiary można też wyłączyć osobno dla każdego kraju"
+      },
       "comments": {
         "description": "Czytanie i pisanie komentarzy",
         "note": "Moderowanie i usuwanie komentarzy działa także wtedy, gdy komentarze są wyłączone"
@@ -848,6 +852,7 @@
       "official_dataset": "Zbiory danych rejestru",
       "licensee": "Posiadacze pozwoleń",
       "analyzer": "Analizator",
+      "observations": "Pomiary",
       "system": "System",
       "revert": "Cofnięcia",
       "structure_owner": "Właściciele obiektów"
@@ -881,6 +886,12 @@
       },
       "analyzer": {
         "apply": "Zastosowanie analizatora"
+      },
+      "observations": {
+        "device_revoke": "Unieważnienie urządzenia",
+        "device_restore": "Przywrócenie urządzenia",
+        "upload_download": "Pobranie przesłanych pomiarów",
+        "upload_exclude": "Wykluczenie przesłanych pomiarów"
       },
       "comment": {
         "create": "Utworzenie komentarza",
@@ -988,6 +999,8 @@
       "official_sources": "Źródła rejestru",
       "official_datasets": "Zbiory danych rejestru",
       "licensees": "Posiadacze pozwoleń",
+      "device_revocations": "Unieważnienia urządzeń",
+      "uploads": "Przesłane pomiary",
       "structure_owners": "Właściciele obiektów"
     },
     "ops": {
@@ -1088,6 +1101,14 @@
       "official_sources_few": "{{count, number}} źródła rejestru",
       "official_sources_many": "{{count, number}} źródeł rejestru",
       "official_sources_other": "{{count, number}} źródeł rejestru",
+      "device_revocations_one": "{{count, number}} unieważnienie urządzenia",
+      "device_revocations_few": "{{count, number}} unieważnienia urządzeń",
+      "device_revocations_many": "{{count, number}} unieważnień urządzeń",
+      "device_revocations_other": "{{count, number}} unieważnień urządzeń",
+      "uploads_one": "{{count, number}} przesłanie pomiarów",
+      "uploads_few": "{{count, number}} przesłania pomiarów",
+      "uploads_many": "{{count, number}} przesłań pomiarów",
+      "uploads_other": "{{count, number}} przesłań pomiarów",
       "official_datasets_one": "{{count, number}} zbiór danych rejestru",
       "official_datasets_few": "{{count, number}} zbiory danych rejestru",
       "official_datasets_many": "{{count, number}} zbiorów danych rejestru",
@@ -1479,6 +1500,21 @@
           "note": "Każde ustawienie jest niezależne i zapisuje się od razu. Wyłączenie PSC lub BSIC ukrywa istniejące wartości bez ich usuwania",
           "savedToast": "Ustawienia danych kraju zapisane",
           "saveFailed": "Nie udało się zapisać ustawień danych kraju"
+        },
+        "tools": {
+          "title": "Narzędzia",
+          "description": "Co strona i aplikacja BTSearch oferują w tym kraju",
+          "analyzer": {
+            "title": "Analizator",
+            "description": "Komórki z plików są porównywane z bazą. Po wyłączeniu analizator niczego w tym kraju nie sprawdza ani nie zmienia"
+          },
+          "measurements": {
+            "title": "Pomiary",
+            "description": "Aplikacja BTSearch zapisuje odczyty radiowe i GPS. Po wyłączeniu niczego w tym kraju nie zapisuje, a zebrane w nim odczyty są odrzucane"
+          },
+          "note": "Zmiany zapisują się od razu. Pomiary wymagają też włączonego przesyłania pomiarów w ustawieniach systemowych",
+          "savedToast": "Narzędzia kraju zapisane",
+          "saveFailed": "Nie udało się zapisać narzędzi kraju"
         },
         "availability": {
           "title": "Dostępność",

@@ -1,0 +1,174 @@
+{
+  "formatVersion": 1,
+  "uploadId": "01a12096-8da0-75e6-9f6c-9d0e1f2a3b54",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12087-e7a0-7aaa-8bbb-ccccdddd0001",
+      "mode": "passive"
+    }
+  ],
+  "sims": [
+    {
+      "slot": 0,
+      "simPlmn": "26003",
+      "registeredPlmn": "26003",
+      "isRoaming": false,
+      "isDataSim": true
+    }
+  ],
+  "readers": [
+    {
+      "name": "btsearch",
+      "version": "0.5.0",
+      "source": "api",
+      "shell": true,
+      "rules": 13
+    },
+    {
+      "name": "qualcommDiag",
+      "version": "0.2.0",
+      "source": "modemLog",
+      "rules": 3
+    }
+  ],
+  "cells": [
+    {
+      "rat": "lte",
+      "plmn": "26003",
+      "eci": 2834945,
+      "tac": 41240,
+      "earfcn": 1300,
+      "pci": 128,
+      "bands": [3],
+      "bandwidthKhz": 20000,
+      "ulEarfcn": 19300,
+      "ulBandwidthKhz": 20000,
+      "endcAvailable": true
+    },
+    {
+      "rat": "lte",
+      "plmn": "26003",
+      "eci": 2834947,
+      "tac": 41240,
+      "earfcn": 38950,
+      "pci": 130,
+      "bands": [40],
+      "bandwidthKhz": 20000,
+      "tdd": {
+        "subframeAssignment": 2,
+        "specialSubframePatterns": 7
+      }
+    },
+    {
+      "rat": "nr",
+      "arfcn": 636666,
+      "pci": 512,
+      "bands": [78],
+      "bandwidthKhz": 100000,
+      "tdd": {
+        "referenceScsKhz": 30,
+        "periodMicros": 2500,
+        "downlinkSlots": 3,
+        "downlinkSymbols": 10,
+        "uplinkSlots": 1,
+        "uplinkSymbols": 2
+      }
+    },
+    {
+      "rat": "lte",
+      "plmn": "26003",
+      "eci": 2899201,
+      "tac": 41240,
+      "earfcn": 6300,
+      "pci": 77,
+      "barred": true,
+      "reservedForOperatorUse": []
+    }
+  ],
+  "fixes": [
+    {
+      "t": 812345900,
+      "gnssTimeMillis": 1791547200900,
+      "latitude": 52.2319581,
+      "longitude": 21.0067249,
+      "accuracyMeters": 4.5,
+      "altitudeMeters": 112.3,
+      "verticalAccuracyMeters": 6.0,
+      "provider": "gps",
+      "isMock": false
+    }
+  ],
+  "snapshots": [
+    {
+      "t": 812346000,
+      "simSlot": 0,
+      "reader": 0,
+      "nrAvailable": true,
+      "dcNrRestricted": false,
+      "dataNetworkType": "lte",
+      "displayOverride": "nrNsa",
+      "dataActivity": "inOut",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "connectionStatus": "primaryServing",
+          "accessBarring": {},
+          "rsrpDbm": -89,
+          "rsrqDb": -10,
+          "rssnrDb": 12,
+          "cqi": 11,
+          "timingAdvance": 7
+        },
+        {
+          "cell": 1,
+          "role": "aggregated",
+          "connectionStatus": "secondaryServing",
+          "rsrpDbm": -97,
+          "rsrqDb": -12
+        },
+        {
+          "cell": 2,
+          "role": "nrSecondary",
+          "ssRsrpDbm": -95,
+          "ssRsrqDb": -11,
+          "ssSinrDb": 6
+        }
+      ]
+    },
+    {
+      "t": 812346050,
+      "simSlot": 0,
+      "reader": 1,
+      "dataNetworkType": "lte",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "rsrpDbm": -89,
+          "rsrqDb": -10,
+          "timingAdvance": 7
+        },
+        {
+          "cell": 3,
+          "role": "neighbour",
+          "rsrpDbm": -108,
+          "rsrqDb": -16
+        }
+      ]
+    }
+  ]
+}

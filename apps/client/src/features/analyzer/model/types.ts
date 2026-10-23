@@ -56,11 +56,12 @@ export type DifferenceKind =
   | "shared"
   | "unknown-cell"
   | "unknown-operator"
-  | "no-identifiers";
+  | "no-identifiers"
+  | "analyzer-disabled";
 export type DifferenceFilter = "any" | DifferenceKind;
 
 export type TickAction = "update" | "create" | "confirm";
-export type TickBlock = "pending" | "noDifferences" | "shared" | "cellUnknown" | "operatorUnknown" | "noIdentifiers";
+export type TickBlock = "pending" | "noDifferences" | "shared" | "cellUnknown" | "operatorUnknown" | "noIdentifiers" | "analyzerDisabled";
 export type TickState = { canTick: true; action: TickAction } | { canTick: false; reason: TickBlock };
 
 export type RowFacts = {

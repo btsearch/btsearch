@@ -1,7 +1,7 @@
 import type { FastifyContextConfig } from "fastify";
 
 import { API_KEY_PERMISSIONS } from "../../plugins/auth/permissions.js";
-import { OAUTH_SCOPES, OIDC_SCOPES } from "../../plugins/auth/scopes.js";
+import { APP_ONLY_SCOPES, OAUTH_SCOPES, OIDC_SCOPES } from "../../plugins/auth/scopes.js";
 
 export type SecurityRequirement = Record<string, readonly string[]>;
 
@@ -30,6 +30,17 @@ function describeScope(scope: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+function authorizationCodeFlow(baseUrl: string, scopes: readonly string[]) {
+  return {
+    authorizationCode: {
+      authorizationUrl: `${baseUrl}${AUTH_BASE_PATH}/oauth2/authorize`,
+      tokenUrl: `${baseUrl}${AUTH_BASE_PATH}/oauth2/token`,
+      refreshUrl: `${baseUrl}${AUTH_BASE_PATH}/oauth2/token`,
+      scopes: Object.fromEntries(scopes.map((scope) => [scope, describeScope(scope)])),
+    },
+  };
+}
+
 export function buildSecuritySchemes(baseUrl: string) {
   return {
     session: {
@@ -55,21 +66,22 @@ export function buildSecuritySchemes(baseUrl: string) {
       description:
         "An access token issued to an application the user has approved, sent as `Authorization: Bearer <token>`. " +
         "The names listed on an endpoint are the scopes the token needs. Staff scopes only work if the user also has the matching role.",
-      flows: {
-        authorizationCode: {
-          authorizationUrl: `${baseUrl}${AUTH_BASE_PATH}/oauth2/authorize`,
-          tokenUrl: `${baseUrl}${AUTH_BASE_PATH}/oauth2/token`,
-          refreshUrl: `${baseUrl}${AUTH_BASE_PATH}/oauth2/token`,
-          scopes: Object.fromEntries(OAUTH_SCOPES.map((scope) => [scope, describeScope(scope)])),
-        },
-      },
+      flows: authorizationCodeFlow(baseUrl, OAUTH_SCOPES),
+    },
+    app: {
+      type: "oauth2" as const,
+      description:
+        "An access token of the BTSearch app, sent as `Authorization: Bearer <token>`. " +
+        "Its scopes are only granted to the app's own OAuth client, so other applications cannot get them.",
+      flows: authorizationCodeFlow(baseUrl, APP_ONLY_SCOPES),
     },
   };
 }
 
 export function securityFor(config: FastifyContextConfig): SecurityRequirement[] {
-  const { permissions = [], permissionsCheckedByHandler = [], allowGuestAccess = false } = config;
+  const { permissions = [], permissionsCheckedByHandler = [], allowGuestAccess = false, callers } = config;
   const required = [...permissions, ...permissionsCheckedByHandler];
+  if (callers) return callers.map((caller) => ({ [caller]: required }));
   const needsSignedInUser = !allowGuestAccess && required.length === 0;
   const isOpenToApiKeys = !needsSignedInUser && required.every((permission) => apiKeyPermissions.has(permission));
   const isOpenToTokens = required.every((permission) => oauthScopes.has(permission));

@@ -1,0 +1,89 @@
+{
+  "formatVersion": 1,
+  "uploadId": "01a12096-8da0-73c4-9d4a-7b8c9d0e1f32",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12087-e7a0-7aaa-8bbb-ccccdddd0001",
+      "mode": "passive"
+    }
+  ],
+  "sims": [
+    {
+      "slot": 0,
+      "simPlmn": "26006",
+      "registeredPlmn": "26006",
+      "isRoaming": false,
+      "isDataSim": true
+    }
+  ],
+  "readers": [
+    {
+      "name": "btsearch",
+      "version": "0.4.0",
+      "source": "api",
+      "rules": 12
+    }
+  ],
+  "cells": [
+    {
+      "rat": "umts",
+      "plmn": "26006",
+      "lac": 1100,
+      "longCid": 7895554,
+      "uarfcn": 10563,
+      "psc": 211
+    },
+    {
+      "rat": "umts",
+      "uarfcn": 10563,
+      "psc": 87
+    }
+  ],
+  "fixes": [
+    {
+      "t": 812345900,
+      "gnssTimeMillis": 1791547200900,
+      "latitude": 51.1078852,
+      "longitude": 17.0385376,
+      "accuracyMeters": 4.5,
+      "provider": "gps",
+      "isMock": false
+    }
+  ],
+  "snapshots": [
+    {
+      "t": 812346100,
+      "simSlot": 0,
+      "reader": 0,
+      "dataNetworkType": "hspap",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "rscpDbm": -88,
+          "ecNoDb": -9,
+          "rssiDbm": -79
+        },
+        {
+          "cell": 1,
+          "role": "neighbour",
+          "rscpDbm": -101,
+          "ecNoDb": -15
+        }
+      ]
+    }
+  ]
+}

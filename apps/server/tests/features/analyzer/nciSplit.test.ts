@@ -21,7 +21,7 @@ const dialect = new PgDialect();
 
 function network(code: string, countryCode: string) {
   dbMock.enqueueFor("select", "countries", []);
-  dbMock.enqueueFor("select", "plmns", [{ code, operatorId: 1, countryCode }]);
+  dbMock.enqueueFor("select", "plmns", [{ code, operatorId: 1, countryCode, countryTools: ["analyzer"] }]);
   dbMock.enqueueFor("select", "operator_links", []);
   dbMock.enqueueFor("select", "operators", [operatorRow(1, null, countryCode)], []);
   dbMock.enqueueFor("select", "plmns", [primaryPlmn(1, code)], []);

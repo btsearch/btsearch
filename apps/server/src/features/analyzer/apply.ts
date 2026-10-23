@@ -11,6 +11,7 @@ import { itemRefusal, pointRefusalsAtItem } from "../../lib/itemRefusals.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { type AuditRecorder, type CellSnapshot, loadCellSnapshots, runAuditedOperation, standaloneAuditContext } from "../audit/index.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateKey } from "../cells/identityDuplicateSpecs.js";
+import { assertAnalyzerEnabled } from "../countries/tools.js";
 import { prepareStationChange } from "../stations/edit.js";
 import { findVisibleStationWithCountry } from "../stations/read.js";
 import { type AppliedChange, applyDirectChange, finishDirectChange } from "../submissions/actions.js";
@@ -38,6 +39,7 @@ function toConfirmedEdit(item: CellApply): StationEdit {
 
 async function prepareItem(req: FastifyRequest, item: CellApply, index: number): Promise<StationChange> {
   const { station, countryCode } = await findVisibleStationWithCountry(req, item.stationId);
+  await assertAnalyzerEnabled(countryCode);
   const { change, cellNetworks } = await prepareStationChange(req, toConfirmedEdit(item), (path) => [index, ...path]);
   return {
     stationId: item.stationId,

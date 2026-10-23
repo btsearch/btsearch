@@ -3,6 +3,7 @@ import Fastify, { type FastifyContextConfig, type FastifyInstance, type FastifyS
 import { type ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 
 import redis from "../../src/database/redis.js";
+import { registerUnreadBodyParsers } from "../../src/features/measurements/uploadBody.js";
 import type { ApiToken, FastifyZodInstance, Session } from "../../src/interfaces/fastify.interface.js";
 import { authHook } from "../../src/middlewares/auth.middleware.js";
 import { idempotencyHook } from "../../src/middlewares/idempotency.middleware.js";
@@ -34,6 +35,7 @@ export async function createRouteHarness(route: RouteDefinition, options: Harnes
   app.setSerializerCompiler(serializerCompiler);
   app.decorate("rateLimitService", new RateLimitService(redis));
   await app.register(multipart);
+  registerUnreadBodyParsers(app);
   app.decorateRequest("userSession", null);
   app.decorateRequest("apiToken", null);
   app.decorateRequest("oauthToken", null);

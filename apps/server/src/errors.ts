@@ -66,7 +66,19 @@ export type ErrorCode =
   | "PHOTO_TOO_SMALL"
   | "PHOTO_TOO_BLURRY"
   | "LIST_LIMIT_REACHED"
-  | "FEATURE_DISABLED";
+  | "FEATURE_DISABLED"
+  | "APP_UPDATE_REQUIRED"
+  | "TERMS_NOT_ACCEPTED"
+  | "DEVICE_LIMIT_REACHED"
+  | "DEVICE_REGISTRATION_LIMIT_REACHED"
+  | "DEVICE_REVOKED"
+  | "DEVICE_NOT_FOUND"
+  | "DEVICE_KEY_IN_USE"
+  | "PHONE_IN_USE"
+  | "INVALID_SIGNATURE"
+  | "CONTRIBUTOR_BLOCKED"
+  | "UPLOAD_ID_CONFLICT"
+  | "MEASUREMENT_QUOTA_EXCEEDED";
 
 interface ErrorDefinition {
   message: string;
@@ -173,6 +185,54 @@ export const errors: Record<ErrorCode, ErrorDefinition> = {
   FEATURE_DISABLED: {
     message: "This feature is disabled.",
     statusCode: 403,
+  },
+  APP_UPDATE_REQUIRED: {
+    message: "This version of the app is too old. Update the app and try again.",
+    statusCode: 403,
+  },
+  TERMS_NOT_ACCEPTED: {
+    message: "Accept the current contributor terms first.",
+    statusCode: 403,
+  },
+  DEVICE_LIMIT_REACHED: {
+    message: "You have reached the maximum number of active devices. Revoke one first.",
+    statusCode: 409,
+  },
+  DEVICE_REGISTRATION_LIMIT_REACHED: {
+    message: "You have registered too many devices today. Please try again later.",
+    statusCode: 429,
+  },
+  DEVICE_REVOKED: {
+    message: "This device is revoked.",
+    statusCode: 403,
+  },
+  DEVICE_NOT_FOUND: {
+    message: "This device is not registered to your account. Register it again.",
+    statusCode: 404,
+  },
+  DEVICE_KEY_IN_USE: {
+    message: "This key is registered to another account. Create a new key.",
+    statusCode: 409,
+  },
+  PHONE_IN_USE: {
+    message: "This phone is registered to another account.",
+    statusCode: 409,
+  },
+  INVALID_SIGNATURE: {
+    message: "The device signature does not verify.",
+    statusCode: 403,
+  },
+  CONTRIBUTOR_BLOCKED: {
+    message: "You are blocked from contributing measurements.",
+    statusCode: 403,
+  },
+  UPLOAD_ID_CONFLICT: {
+    message: "An upload with this id already exists, from another device or with another body.",
+    statusCode: 409,
+  },
+  MEASUREMENT_QUOTA_EXCEEDED: {
+    message: "Measurement upload quota exceeded. Please try again later.",
+    statusCode: 429,
   },
 };
 

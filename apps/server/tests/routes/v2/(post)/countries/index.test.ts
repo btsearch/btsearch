@@ -8,6 +8,7 @@ const row = {
   code: "PL",
   isVisible: false,
   contributions: "closed",
+  tools: ["analyzer", "measurements"],
   structureOwnerProposals: true,
   psc: false,
   bsic: false,

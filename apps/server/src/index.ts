@@ -6,6 +6,9 @@ import { availableParallelism, constants } from "node:os";
 import App from "./app.js";
 import { officialAutoImportEnabled, port } from "./config.js";
 import { systemAuditContext } from "./features/audit/index.js";
+import { refreshBootKeyLists } from "./features/measurements/attestation/bootKeyList.js";
+import { refreshAttestationRevocations } from "./features/measurements/attestation/revocationList.js";
+import { purgeRawFiles, sweepOrphanFiles } from "./features/measurements/purge.js";
 import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./features/notifications/service.js";
 import { scheduleDueImports } from "./features/official/import/schedule.js";
 import { cleanupExpiredInactiveStations } from "./features/stations/inactiveCleanup.js";
@@ -13,6 +16,7 @@ import { takeContributionSnapshot } from "./features/stats/contributionSnapshot.
 import { cleanupOrphanedSubmissions, removeRejectedSubmissionPhotos } from "./features/submissions/cleanup.js";
 import { withRedisDeadline } from "./lib/redisDeadline.js";
 import { acquireRedisLock, refreshOwnedRedisLock, releaseOwnedRedisLock } from "./lib/redisLock.js";
+import { warnAboutCollectorClients } from "./plugins/auth/appClient.js";
 import { refreshDisposableEmailBlocklist } from "./plugins/auth/disposableEmailBlocklist.js";
 import { installProcessErrorHandlers, logger } from "./utils/logger.js";
 
@@ -113,6 +117,18 @@ function startScheduledTasks(term: SchedulerTerm): void {
   runEvery(term, NOTIFICATION_DIGEST_INTERVAL_MS, NOTIFICATION_DIGEST_INTERVAL_MS, deliverNotificationDigests);
   runEvery(term, 90_000, DAY_MS, () =>
     takeContributionSnapshot().catch((e) => logger.error("Failed to take contribution snapshot", { error: describeError(e) })),
+  );
+  runEvery(term, 2 * MINUTE_MS, DAY_MS, () =>
+    refreshAttestationRevocations().catch((e) => logger.error("Failed to refresh the attestation revocation list", { error: describeError(e) })),
+  );
+  runEvery(term, 3 * MINUTE_MS, DAY_MS, () =>
+    refreshBootKeyLists().catch((e) => logger.error("Failed to refresh the boot key lists", { error: describeError(e) })),
+  );
+  runEvery(term, 4 * MINUTE_MS, HOUR_MS, () =>
+    purgeRawFiles().catch((e) => logger.error("Failed to purge raw measurement files", { error: describeError(e) })),
+  );
+  runEvery(term, 20 * MINUTE_MS, DAY_MS, () =>
+    sweepOrphanFiles().catch((e) => logger.error("Failed to sweep orphaned raw measurement files", { error: describeError(e) })),
   );
 }
 
@@ -228,6 +244,7 @@ if (cluster.isPrimary) {
   process.on("SIGTERM", () => void stop("SIGTERM"));
 
   void tryBecomeScheduler();
+  void warnAboutCollectorClients().catch((e) => logger.error("Failed to check the collector apps' OAuth clients", { error: describeError(e) }));
 } else {
   installProcessErrorHandlers();
   const workerPort = Number(process.env.WORKER_PORT) || port;

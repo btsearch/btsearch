@@ -2,11 +2,13 @@ import type { DialogRootChangeEventDetails } from "@base-ui/react/dialog";
 import {
   Alert02Icon,
   ArrowDataTransferHorizontalIcon,
+  ArrowUpRight01Icon,
   Clock01Icon,
   Globe02Icon,
   PencilEdit01Icon,
   ShieldUserIcon,
   Tick02Icon,
+  Upload04Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -160,6 +162,31 @@ function ConsentDialogBody({ clientId, requestedScopes, redirectUri }: { clientI
           </div>
         ) : null}
 
+        {grouped.measurementUpload ? (
+          <div className="px-3 py-2.5 space-y-1.5">
+            <ScopeSectionLabel>{t("settings:sections.measurements")}</ScopeSectionLabel>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <HugeiconsIcon icon={Upload04Icon} className="size-3.5 shrink-0" />
+              {t("authorize.scopes.upload_observations")}
+            </div>
+            <div className="space-y-1 pl-5.5 text-xs text-muted-foreground">
+              <p>{t("authorize.measurements.collected")}</p>
+              <p>{t("authorize.measurements.license")}</p>
+              <p>
+                <Link
+                  to="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 text-foreground font-medium underline underline-offset-4 hover:text-primary"
+                >
+                  {t("nav:items.privacy")}
+                  <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
+                </Link>
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {grouped.read.length > 0 ? (
           <div className="px-3 py-2.5 space-y-1.5">
             <ScopeSectionLabel>{t("authorize.readAccess")}</ScopeSectionLabel>
@@ -294,7 +321,7 @@ export function OAuthConsentGate() {
 
   return (
     <Dialog open onOpenChange={blockDismiss} modal>
-      <DialogContent showCloseButton={false} className="max-w-sm sm:max-w-md">
+      <DialogContent showCloseButton={false} className="sm:max-w-md">
         <ConsentDialogBody clientId={clientId} requestedScopes={requestedScopes} redirectUri={redirectUri} />
       </DialogContent>
     </Dialog>

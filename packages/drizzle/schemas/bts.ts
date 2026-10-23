@@ -33,6 +33,7 @@ export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
 export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL"]);
 export const BackhaulMedium = pgEnum("uplink_type", ["fiber", "microwave", "satellite", "xdsl"]);
 export const ContributionMode = pgEnum("contribution_mode", ["closed", "open"]);
+export const CountryTool = pgEnum("country_tool", ["analyzer", "measurements"]);
 export const PlmnRole = pgEnum("plmn_role", ["primary", "secondary"]);
 export const OperatorLinkKind = pgEnum("operator_link_kind", ["jv_member"]);
 export const OfficialLayer = pgEnum("official_layer", ["sites", "microwave_links"]);
@@ -76,6 +77,7 @@ export const countries = pgTable(
     code: char("code", { length: 2 }).primaryKey(),
     isVisible: boolean("is_visible").notNull().default(false),
     contributions: ContributionMode("contributions").notNull().default("closed"),
+    tools: CountryTool("tools").array().notNull().default(["analyzer", "measurements"]),
     structureOwnerProposals: boolean("structure_owner_proposals").notNull().default(true),
     psc: boolean("psc").notNull().default(false),
     bsic: boolean("bsic").notNull().default(false),

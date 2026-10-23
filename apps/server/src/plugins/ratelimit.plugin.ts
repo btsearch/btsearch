@@ -60,6 +60,8 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       },
       { url: "/api/v1/terrain-profile/analyses/:analysis_id", max: 120, window: 60 },
       { url: "/api/v2/terrain-profiles/:id", max: 120, window: 60 },
+      { url: "/api/v2/measurements/uploads/:id", max: 60, window: 60, roles: { admin: { max: Number.POSITIVE_INFINITY, window: 60 } } },
+      { url: "/api/v2/measurements/device-challenges", max: 10, window: 3600, roles: { admin: { max: Number.POSITIVE_INFINITY, window: 3600 } } },
       {
         url: "/api/v1/geocoding/search",
         max: 20,

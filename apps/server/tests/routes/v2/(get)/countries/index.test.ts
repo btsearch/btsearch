@@ -17,8 +17,9 @@ const packCapabilities = {
   kmz: true,
 };
 const noCapabilities = { official: false, microwaveLinks: false, emf: false, terrainProfiles: null, kmz: false };
-const visible = { code: "PL", isVisible: true, contributions: "open", features, capabilities: packCapabilities, defaultView: null };
-const hidden = { code: "US", isVisible: false, contributions: "closed", features, capabilities: noCapabilities, defaultView: null };
+const tools = ["analyzer", "measurements"];
+const visible = { code: "PL", isVisible: true, contributions: "open", tools, features, capabilities: packCapabilities, defaultView: null };
+const hidden = { code: "US", isVisible: false, contributions: "closed", tools, features, capabilities: noCapabilities, defaultView: null };
 const viewColumns = { ...features, viewWest: null, viewSouth: null, viewEast: null, viewNorth: null };
 const polishSource = { id: 1, countryCode: "PL", isVisible: true, layers: ["sites", "microwave_links"] };
 

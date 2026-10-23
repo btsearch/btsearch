@@ -1,0 +1,118 @@
+{
+  "formatVersion": 1,
+  "uploadId": "01a12096-8da0-77a8-b18e-bf2a3b4c5d76",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12087-e7a0-7aaa-8bbb-ccccdddd0001",
+      "mode": "passive"
+    },
+    {
+      "id": "01a1208d-65e0-7aaa-8bbb-ccccdddd0002",
+      "mode": "passive"
+    }
+  ],
+  "sims": [
+    {
+      "slot": 0,
+      "simPlmn": "26223",
+      "registeredPlmn": "26202",
+      "isRoaming": true,
+      "isDataSim": true
+    },
+    {
+      "slot": 1,
+      "simPlmn": "26001",
+      "isDataSim": false
+    }
+  ],
+  "readers": [
+    {
+      "name": "btsearch",
+      "version": "0.4.0",
+      "source": "api",
+      "rules": 12
+    }
+  ],
+  "cells": [
+    {
+      "rat": "lte",
+      "plmn": "26202",
+      "eci": 12846081,
+      "tac": 3401,
+      "earfcn": 6300,
+      "pci": 44,
+      "bands": [20],
+      "additionalPlmns": []
+    }
+  ],
+  "fixes": [
+    {
+      "t": 812345900,
+      "gnssTimeMillis": 1791547200900,
+      "latitude": 52.5200066,
+      "longitude": 13.404954,
+      "accuracyMeters": 4.5,
+      "provider": "gps",
+      "isMock": false
+    }
+  ],
+  "snapshots": [
+    {
+      "t": 812346000,
+      "simSlot": 0,
+      "reader": 0,
+      "dataNetworkType": "lte",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "rsrpDbm": -101,
+          "rsrqDb": -13
+        }
+      ]
+    },
+    {
+      "t": 812644000,
+      "simSlot": 0,
+      "registeredPlmn": "26203",
+      "reader": 0,
+      "dataNetworkType": "lte",
+      "measurements": []
+    }
+  ],
+  "events": [
+    {
+      "type": "sessionEnd",
+      "t": 812465000,
+      "session": 0
+    },
+    {
+      "type": "exclusionGap",
+      "t": 812465000,
+      "untilT": 812635000
+    },
+    {
+      "type": "simChanged",
+      "t": 812640000,
+      "simSlot": 1
+    },
+    {
+      "type": "sessionStart",
+      "t": 812645000,
+      "session": 1
+    }
+  ]
+}

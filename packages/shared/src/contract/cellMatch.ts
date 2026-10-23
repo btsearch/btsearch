@@ -12,7 +12,7 @@ const NCI_BITS = 36;
 export const CELL_MATCHES = ["cell", "cellByLac", "station", "none"] as const;
 export type CellMatch = (typeof CELL_MATCHES)[number];
 
-export const CELL_MATCH_REASONS = ["cellUnknown", "operatorUnknown", "noIdentifiers"] as const;
+export const CELL_MATCH_REASONS = ["cellUnknown", "operatorUnknown", "noIdentifiers", "analyzerDisabled"] as const;
 export type CellMatchReason = (typeof CELL_MATCH_REASONS)[number];
 
 export const CELL_MATCH_INCLUDES = ["stations", "cells", "officialSites"] as const;
@@ -172,7 +172,12 @@ export function splitNci(nci: number, gnbidLength: number): NrIdentity | null {
 export const cellMatchResultSchema = z.object({
   operatorId: z.number().int().nullable().describe("The operator the network code belongs to"),
   match: z.enum(CELL_MATCHES).describe(MATCH_NOTE),
-  reason: z.enum(CELL_MATCH_REASONS).nullable().describe("Why nothing was found. `null` unless `match` is `none`"),
+  reason: z
+    .enum(CELL_MATCH_REASONS)
+    .nullable()
+    .describe(
+      "Why nothing was found. `null` unless `match` is `none`. With `analyzerDisabled`, the analyzer is switched off in the network's country and `operatorId` is `null`",
+    ),
   stationId: z.number().int().nullable().describe("The station the cell or its base station was found on. `null` if `match` is `none`"),
   cellId: z.number().int().nullable().describe("`null` if `match` is `station` or `none`"),
   isShared: z.boolean().describe("Whether the station belongs to a partner in a shared network rather than to the operator in the log"),

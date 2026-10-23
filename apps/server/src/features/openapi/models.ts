@@ -44,14 +44,19 @@ function schemaText(schema: JsonObject): SchemaText {
   return JSON.stringify(schema);
 }
 
-function contractSchemaText(contractSchema: z.ZodType, direction: Direction, openapiObject: OpenApiDocument): SchemaText | undefined {
+export function toJsonModel(contractSchema: z.ZodType, direction: Direction, openapiObject: OpenApiDocument): JsonObject | undefined {
   const routeSchema = direction === "input" ? { body: contractSchema } : { response: { 200: contractSchema } };
   const { schema } = jsonSchemaTransform({ schema: routeSchema, url: PLACEHOLDER_ROUTE.url, route: PLACEHOLDER_ROUTE, openapiObject });
   const converted: unknown = toDocumentedSchema(schema);
   if (!isJsonObject(converted)) return undefined;
 
   const jsonSchema = isJsonObject(converted.response) ? converted.response[200] : converted.body;
-  return isModel(jsonSchema) ? schemaText(jsonSchema) : undefined;
+  return isModel(jsonSchema) ? jsonSchema : undefined;
+}
+
+function contractSchemaText(contractSchema: z.ZodType, direction: Direction, openapiObject: OpenApiDocument): SchemaText | undefined {
+  const jsonSchema = toJsonModel(contractSchema, direction, openapiObject);
+  return jsonSchema === undefined ? undefined : schemaText(jsonSchema);
 }
 
 function collectSchemaTexts(node: Json, schemaTexts: Set<SchemaText>): void {

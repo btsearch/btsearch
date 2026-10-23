@@ -48,6 +48,7 @@ const NOT_FOUND_KINDS: Record<CellMatchReason, DifferenceKind> = {
   cellUnknown: "unknown-cell",
   operatorUnknown: "unknown-operator",
   noIdentifiers: "no-identifiers",
+  analyzerDisabled: "analyzer-disabled",
 };
 
 export function toLogRows(parsed: readonly ParsedRow[]): LogRows {

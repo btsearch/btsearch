@@ -1,4 +1,4 @@
-export const SETTINGS_SECTION_KEYS = ["account", "profile", "security", "apps", "preferences"] as const;
+export const SETTINGS_SECTION_KEYS = ["account", "profile", "security", "apps", "measurements", "preferences"] as const;
 
 export type SettingsSectionKey = (typeof SETTINGS_SECTION_KEYS)[number];
 
@@ -7,6 +7,7 @@ export const SETTINGS_SECTION_IDS: Record<SettingsSectionKey, string> = {
   profile: "settings-profile",
   security: "settings-security",
   apps: "settings-apps",
+  measurements: "settings-measurements",
   preferences: "settings-preferences",
 };
 

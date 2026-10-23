@@ -187,6 +187,7 @@
     "missingNetwork": "Missing network",
     "unknownCell": "No such cell in the database",
     "noIdentifiers": "No identifiers in the file",
+    "analyzerDisabled": "Country with the analyzer off",
     "none": "No differences",
     "confirm": "Confirm"
   },
@@ -196,6 +197,7 @@
     "cellUnknown": "The database has no such cell and no station it could be added to",
     "operatorUnknown": "The database has no operator with this network code",
     "noIdentifiers": "The file row has no identifiers the cell could be found by",
+    "analyzerDisabled": "The analyzer is switched off in this network's country, so the cell is not checked",
     "pending": "Rows can be selected after the file is analyzed"
   },
   "toolbar": {

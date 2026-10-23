@@ -64,6 +64,19 @@ import {
   umtsCells,
 } from "./bts.ts";
 import {
+  contributorBlocks,
+  contributors,
+  deviceAttestations,
+  deviceAttestedSignatures,
+  deviceCertificates,
+  deviceModels,
+  deviceRevocations,
+  devices,
+  socs,
+  termsAcceptances,
+  uploads,
+} from "./observations.ts";
+import {
   proposedCells,
   proposedGSMCells,
   proposedLTECells,
@@ -149,6 +162,17 @@ export const relations = defineRelations(
     submissionPhotos,
     submissionLocationPhotoSelections,
     statsSnapshots,
+    socs,
+    deviceModels,
+    devices,
+    deviceAttestations,
+    deviceAttestedSignatures,
+    deviceCertificates,
+    deviceRevocations,
+    contributors,
+    termsAcceptances,
+    contributorBlocks,
+    uploads,
   },
   (helpers) => ({
     countries: {
@@ -840,6 +864,107 @@ export const relations = defineRelations(
       operator: helpers.one.operators({
         from: helpers.statsSnapshots.operator_id,
         to: helpers.operators.id,
+        optional: false,
+      }),
+    },
+    socs: {
+      deviceModels: helpers.many.deviceModels(),
+    },
+    deviceModels: {
+      soc: helpers.one.socs({
+        from: helpers.deviceModels.socId,
+        to: helpers.socs.id,
+      }),
+      devices: helpers.many.devices(),
+    },
+    devices: {
+      user: helpers.one.users({
+        from: helpers.devices.userId,
+        to: helpers.users.id,
+      }),
+      model: helpers.one.deviceModels({
+        from: helpers.devices.modelId,
+        to: helpers.deviceModels.id,
+        optional: false,
+      }),
+      attestation: helpers.one.deviceAttestations({
+        from: helpers.devices.id,
+        to: helpers.deviceAttestations.deviceId,
+      }),
+      revocation: helpers.one.deviceRevocations({
+        from: helpers.devices.id,
+        to: helpers.deviceRevocations.deviceId,
+      }),
+      certificates: helpers.many.deviceCertificates(),
+      attestedSignatures: helpers.many.deviceAttestedSignatures(),
+      uploads: helpers.many.uploads(),
+    },
+    deviceAttestations: {
+      device: helpers.one.devices({
+        from: helpers.deviceAttestations.deviceId,
+        to: helpers.devices.id,
+        optional: false,
+      }),
+    },
+    deviceAttestedSignatures: {
+      device: helpers.one.devices({
+        from: helpers.deviceAttestedSignatures.deviceId,
+        to: helpers.devices.id,
+        optional: false,
+      }),
+    },
+    deviceCertificates: {
+      device: helpers.one.devices({
+        from: helpers.deviceCertificates.deviceId,
+        to: helpers.devices.id,
+        optional: false,
+      }),
+    },
+    deviceRevocations: {
+      device: helpers.one.devices({
+        from: helpers.deviceRevocations.deviceId,
+        to: helpers.devices.id,
+        optional: false,
+      }),
+      revokedBy: helpers.one.users({
+        from: helpers.deviceRevocations.revokedById,
+        to: helpers.users.id,
+      }),
+    },
+    contributors: {
+      user: helpers.one.users({
+        from: helpers.contributors.userId,
+        to: helpers.users.id,
+        optional: false,
+      }),
+      termsAcceptances: helpers.many.termsAcceptances(),
+      block: helpers.one.contributorBlocks({
+        from: helpers.contributors.userId,
+        to: helpers.contributorBlocks.userId,
+      }),
+    },
+    termsAcceptances: {
+      contributor: helpers.one.contributors({
+        from: helpers.termsAcceptances.userId,
+        to: helpers.contributors.userId,
+        optional: false,
+      }),
+    },
+    contributorBlocks: {
+      contributor: helpers.one.contributors({
+        from: helpers.contributorBlocks.userId,
+        to: helpers.contributors.userId,
+        optional: false,
+      }),
+      blockedBy: helpers.one.users({
+        from: helpers.contributorBlocks.blockedById,
+        to: helpers.users.id,
+      }),
+    },
+    uploads: {
+      device: helpers.one.devices({
+        from: helpers.uploads.deviceId,
+        to: helpers.devices.id,
         optional: false,
       }),
     },

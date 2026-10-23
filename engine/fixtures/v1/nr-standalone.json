@@ -1,0 +1,106 @@
+{
+  "formatVersion": 1,
+  "uploadId": "01a12096-8da0-74d5-9e5b-8c9d0e1f2a43",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05",
+    "radioVersion": "g5300i-240913-241211-B-12701234,g5300i-240913-241211-B-12701234"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12087-e7a0-7aaa-8bbb-ccccdddd0001",
+      "mode": "active"
+    }
+  ],
+  "startsMidTrip": true,
+  "endsMidTrip": true,
+  "sims": [
+    {
+      "slot": 1,
+      "simPlmn": "26002",
+      "registeredPlmn": "26002",
+      "isRoaming": false,
+      "isDataSim": true
+    }
+  ],
+  "readers": [
+    {
+      "name": "btsearch",
+      "version": "0.4.0",
+      "source": "api",
+      "rules": 12
+    }
+  ],
+  "cells": [
+    {
+      "rat": "nr",
+      "plmn": "26002",
+      "nci": 5056786433,
+      "tac": 30210,
+      "arfcn": 643334,
+      "pci": 412,
+      "bands": [78]
+    },
+    {
+      "rat": "nr",
+      "arfcn": 643334,
+      "pci": 413
+    }
+  ],
+  "fixes": [
+    {
+      "t": 812345900,
+      "gnssTimeMillis": 1791547200900,
+      "latitude": 52.4064021,
+      "longitude": 16.9251681,
+      "accuracyMeters": 4.5,
+      "speedMetersPerSecond": 16.1,
+      "bearingDegrees": 88.0,
+      "provider": "gps",
+      "isMock": false
+    }
+  ],
+  "snapshots": [
+    {
+      "t": 812346000,
+      "simSlot": 1,
+      "reader": 0,
+      "dataNetworkType": "nr",
+      "displayOverride": "none",
+      "dataActivity": "inOut",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "connectionStatus": "primaryServing",
+          "ssRsrpDbm": -92,
+          "ssRsrqDb": -11,
+          "ssSinrDb": 9,
+          "timingAdvance": 4
+        },
+        {
+          "cell": 1,
+          "role": "neighbour",
+          "ssRsrpDbm": -104,
+          "ssRsrqDb": -14
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "type": "sessionStart",
+      "t": 812345000,
+      "session": 0
+    }
+  ]
+}

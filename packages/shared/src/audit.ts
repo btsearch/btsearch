@@ -58,6 +58,10 @@ export const AUDIT_OPERATION_KINDS = [
   "settings.update",
   "official.import",
   "official_source.update",
+  "observations.device_revoke",
+  "observations.device_restore",
+  "observations.upload_download",
+  "observations.upload_exclude",
   "official_dataset.update",
   "licensee.update",
   "system.inactive_cleanup",
@@ -103,6 +107,8 @@ export const AUDIT_ENTITIES = [
   "official_sources",
   "official_datasets",
   "licensees",
+  "device_revocations",
+  "uploads",
 ] as const;
 
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];

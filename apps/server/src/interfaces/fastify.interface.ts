@@ -13,6 +13,7 @@ import type { z } from "zod/v4";
 
 import type { ScopeResolver } from "../features/access/scope.js";
 import type { ErrorBodies, ErrorReasons } from "../features/openapi/errorResponses.js";
+import type { RouteCaller } from "../plugins/auth/appClient.js";
 import type { OAuthTokenContext } from "../plugins/auth/oauthToken.js";
 import type { RoutePermission } from "../plugins/auth/permissions.js";
 import type { auth } from "../plugins/betterauth.plugin.js";
@@ -50,8 +51,10 @@ declare module "fastify" {
     permissionsCheckedByHandler?: RoutePermission[];
     scope?: ScopeResolver;
     allowGuestAccess?: boolean;
+    callers?: readonly RouteCaller[];
     retainIdempotencyKey?: boolean;
     multipartBody?: z.ZodType;
+    rawBodyTypes?: readonly string[];
     errorReasons?: ErrorReasons;
     errorBodies?: ErrorBodies;
   }

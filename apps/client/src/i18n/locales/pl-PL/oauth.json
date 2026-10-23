@@ -8,6 +8,10 @@
     "readAccess": "Dostęp do odczytu",
     "writeAccess": "Działania w Twoim imieniu",
     "offlineAccess": "Zachowuje stały dostęp, dopóki go nie odwołasz",
+    "measurements": {
+      "collected": "Podczas nagrywania aplikacja zbiera odczyty sieci komórkowej i pozycję GPS, a także model telefonu i wersję aplikacji. Nigdy nie zbiera numeru telefonu, IMEI ani IMSI",
+      "license": "Pomiary są publikowane jako otwarte dane na licencji ODbL. Możesz je wycofać w ustawieniach"
+    },
     "redirectNotice": "Nastąpi przekierowanie do <strong>{{domain}}</strong>",
     "revokeNotice": "Dostęp możesz odwołać w każdej chwili <settingsLink>tutaj</settingsLink>",
     "allow": "Zezwól na dostęp",
@@ -34,7 +38,8 @@
       "update_user_lists": "Aktualizowanie Twoich list stacji",
       "create_submissions": "Zgłaszanie zmian danych stacji w Twoim imieniu",
       "update_submissions": "Aktualizowanie Twoich zgłoszeń",
-      "delete_submissions": "Usuwanie Twoich zgłoszeń"
+      "delete_submissions": "Usuwanie Twoich zgłoszeń",
+      "upload_observations": "Przesyłanie pomiarów z tego telefonu"
     }
   },
   "apps": {
