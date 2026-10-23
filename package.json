@@ -6,8 +6,8 @@
     "packages/*"
   ],
   "scripts": {
-    "start:client": "pnpm --filter @sakilabs/openbts_client run start",
-    "start:server": "pnpm --filter @sakilabs/openbts_server run start",
+    "start:client": "pnpm --filter @openbts/client run preview",
+    "start:server": "pnpm --filter @openbts/sora run start",
     "sql:extract-tables": "tsx scripts/extract-postgres-tables.mts",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check"

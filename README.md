@@ -7,149 +7,122 @@
   </a>
 </h1>
 
-BTSearch to Polska mapa stacji bazowych w całej Polsce wraz z łatwym dostępem do pozwoleń UKE i radiolinii
+**BTSearch** is an interactive map of mobile network base stations. It combines data contributed by the community with official records published by telecom regulators, making it easy to check who operates a site, which bands and cells it uses, and what information is available in public registers.
 
-## Features
+The project began in Poland, but the platform is designed to work anywhere.
 
-- View stations on simple to use map
-- See UKE (Urząd Komunikacji Elektronicznej) permits and microwave links
-- Very powerful & public REST API
-- Create private or public lists with your favorite stations
-- Fast & beautiful interface
+## What you can do
 
-<sup>and much more...</sup>
+- Browse base stations on the map and filter them by operator, band, or technology,
+- Open a station to view its cells, photos, comments, change history, and matching official permits,
+- Explore microwave links, spectrum holdings, and EMF measurements where that data is available,
+- Draw a terrain profile between two points,
+- Import logs from NetMonster, NetMonitor, or NSG, compare the cells with the database, and submit anything that is missing,
+- Export cell data in CLF format for use with network monitoring apps like NetMonitor,
+- Create public or private station lists and receive notifications when watched stations change,
+- Add new stations or correct existing information
 
-## Getting started
+The interface is available in English and Polish.
 
-### Prerequisites
+## API
 
-- [Bun](https://bun.sh/) (v1.0 or later)
-- [Docker](https://www.docker.com/) & Docker Compose (for the database)
+BTSearch data is available through a public REST API.
 
-### 1. Installation
+- **v2:** `https://btsearch.pl/api/v2`  
+  Interactive documentation: [btsearch.pl/api/v2/docs](https://btsearch.pl/api/v2/docs)
+- **v1:** `https://btsearch.pl/api/v1`  
+  This version still works, but it is being phased out. New integrations should use v2.
 
-Install dependencies from the root directory. Bun handles the pnpm workspace structure automatically.
+Requests can be authenticated using an API key (`X-Api-Key`), an OAuth token, or a session cookie.
 
-```bash
-bun install
-```
+## Running the project locally
 
-> **Note:** You may see a warning about the `engines` field preferring pnpm. You can safely ignore this when using Bun.
+You will need Node.js 26, pnpm 12, and Docker.
 
-### 2. Database Setup
+### 1. Install dependencies and build the shared packages
 
-The server requires PostgreSQL and Redis. You can spin these up using the provided Docker Compose file.
-
-```bash
-# Start only the database and redis services
-docker-compose up -d postgres pgbouncer redis
-```
-
-The database runs the official `postgis/postgis` image (PostgreSQL 18 with PostGIS, which the server requires), with `docker/postgres/postgresql.conf` mounted as its config.
-
-Ensure the database is running before starting the server.
-
-#### Database Migrations
-
-Before running the server, apply the database schema:
+The server and client use the compiled output of the shared packages, so you need to build them before starting the apps. Rebuild them whenever you make changes to their source code.
 
 ```bash
-cd packages/drizzle
-export DATABASE_URL="postgres://user:password@localhost:6432/openbts"
-bun run db:migrate
+pnpm install
+pnpm --filter @openbts/drizzle build
+pnpm --filter @openbts/shared build
+pnpm --filter @openbts/country-packs build
 ```
 
-### 3. Server Setup (`apps/server`)
-
-#### Configuration
-
-1. Navigate to the server directory:
-   ```bash
-   cd apps/server
-   ```
-2. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-3. Edit `.env` to match your local Docker setup:
-   ```env
-   PORT=3030
-   DATABASE_URL="postgres://user:password@localhost:5432/openbts"
-   REDIS_URL="redis://localhost:6379"
-   BETTER_AUTH_SECRET="your-generated-secret"
-   ```
-
-#### Running in Development
-
-Start the server in watch mode:
+### 2. Start PostgreSQL, PgBouncer, and Redis
 
 ```bash
-bun run dev
+docker compose up -d postgres pgbouncer redis
 ```
 
-_The server will run on `http://localhost:3030`._
+The project uses PostgreSQL 18 with PostGIS 3.6.
 
-#### Building & Running Production
+PgBouncer reads its users from `docker/pgbouncer/userlist.txt`. Make sure the database user defined in `docker-compose.yml` is also listed there.
+
+### 3. Create the database schema
+
+Run the migrations against an empty database:
 
 ```bash
-# Build the TypeScript code
-bun run build
-
-# Start the compiled server
-bun run start
+DATABASE_URL="postgres://user:password@localhost:6432/openbts" pnpm --filter @openbts/drizzle db:migrate
 ```
 
-### 4. Client Setup (`apps/client`)
-
-#### Configuration
-
-The client uses environment variables to configure the API endpoint.
-
-1. Navigate to the client directory:
-   ```bash
-   cd apps/client
-   ```
-2. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-3. (Optional) Edit `.env` if your server is running on a different port:
-   ```env
-   VITE_API_URL=http://localhost:3030/api/v1
-   ```
-
-#### Running in Development
-
-Start the dev server:
+### 4. Start the server
 
 ```bash
-bun run dev
+cp apps/server/.env.example apps/server/.env
+pnpm --filter @openbts/sora dev
 ```
 
-_Access the client at the URL shown in the terminal (usually `http://localhost:5173`)._
+At minimum, configure `DATABASE_URL` and `BETTER_AUTH_SECRET`. Redis defaults to `redis://localhost:6379`.
 
-#### Building & Previewing
+Official-data imports run separately through `src/importer.ts`. Set `OFFICIAL_AUTO_IMPORT=false` if you do not want the server to schedule imports automatically.
 
-To test the production build locally:
+### 5. Start the client
 
 ```bash
-# Build the application
-bun run build
-
-# Preview the production build
-bun run preview
+cp apps/client/.env.example apps/client/.env
+pnpm --filter @openbts/client dev
 ```
 
----
+Add the following value to `apps/client/.env` so the client connects to the local API worker:
 
-### Stack
+```env
+VITE_API_URL=http://localhost:3031/api/v1
+```
 
-- [Fastify 5](https://fastify.dev/)
-  - [Drizzle](https://orm.drizzle.team/)
-  - [Better Auth](https://better-auth.com/)
-- [Vite](https://vite.dev/)
-  - [TanStack Router](https://tanstack.com/router/latest/)
-  - [MapLibreJS](https://maplibre.org/)
-- [PostgreSQL](https://www.postgresql.org/)
-  - [PostGIS](https://postgis.net/)
-- [Redis](https://redis.io/)
+Vite will serve the client at `http://localhost:5173`.
+
+## Repository structure
+
+| Path                     | Description                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| `apps/client`            | React PWA built with Vite, TanStack Router and Query, Tailwind, and MapLibre.   |
+| `apps/server`            | Fastify API, official-data importer, and OG image renderer, with Better Auth.   |
+| `apps/discord-bot`       | Discord bot with commands for stations, locations, searches, and import status. |
+| `packages/drizzle`       | Database schema and migrations using Drizzle, PostgreSQL, and PostGIS.          |
+| `packages/shared`        | Shared types, Zod schemas, and helpers used by both the client and server.      |
+| `packages/country-packs` | Country-specific rules and readers for official registers.                      |
+
+## Contributing
+
+Found a bug or have an idea? Open an issue on [GitHub](https://github.com/btsearch/btsearch/issues).
+
+You can also join the community on [Discord](https://discord.gg/SZETJPeayg).
+
+## Official data sources
+
+Official registers are imported on a schedule and stored separately from community-contributed data. Every source is credited wherever its data appears.
+
+| Country        | Source                                                           | Imported data                             | Licence                      |
+| -------------- | ---------------------------------------------------------------- | ----------------------------------------- | ---------------------------- |
+| Poland         | [UKE](https://www.uke.gov.pl)                                    | Permits, device register, microwave links | CC BY 4.0                    |
+| France         | [ANFR](https://www.anfr.fr)                                      | Mobile network sites and equipment        | Licence Ouverte 2.0          |
+| United Kingdom | [Ofcom](https://www.ofcom.org.uk) (Wireless Telegraphy Register) | Microwave links                           | Open Government Licence v3.0 |
+
+The readers responsible for importing this data live in `packages/country-packs`. If your country publishes similar information and you would like to see it included, feel free to open an issue.
+
+## License
+
+The source code is licensed under [GPL-3.0](LICENSE). Official datasets retain the licences assigned by their original publishers, as listed above.
