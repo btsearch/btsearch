@@ -10,6 +10,7 @@ import {
   memo,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -100,6 +101,23 @@ type MapSearchOverlayProps = {
 function SearchPanelFrame({ children }: { children: ReactNode }) {
   const isPresent = useIsPresent();
   const transition = useCalmTransition();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const search = panel?.closest("search");
+    if (!panel || !search) return;
+
+    const measureTop = () => panel.style.setProperty("--search-panel-top", `${Math.round(panel.getBoundingClientRect().top)}px`);
+    measureTop();
+    const observer = new ResizeObserver(measureTop);
+    observer.observe(search.firstElementChild ?? search);
+    window.addEventListener("resize", measureTop);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureTop);
+    };
+  }, []);
 
   return (
     <motion.div
@@ -111,7 +129,10 @@ function SearchPanelFrame({ children }: { children: ReactNode }) {
       className={cn("relative z-10 overflow-hidden rounded-b-2xl", !isPresent && "group-data-compact/search:hidden")}
     >
       <SmoothHeight className="m-0" contentClassName="p-0">
-        <div className="flex max-h-[min(85dvh,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] min-h-0 flex-col">
+        <div
+          ref={panelRef}
+          className="flex max-h-[min(85dvh,calc(100dvh-var(--search-panel-top,8rem)-1rem-var(--floating-nav-map-offset,0rem)))] min-h-0 flex-col"
+        >
           {children}
         </div>
       </SmoothHeight>

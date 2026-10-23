@@ -144,6 +144,7 @@
     "siteIdRemoval": "ID stacji {{siteId}} zostanie usunięte. Stacja będzie widoczna jako {{nodeName}}",
     "errors": {
       "siteIdRequiredWithoutNode": "ID stacji: wymagane, chyba że komórka ma eNB, gNB, RNC albo LAC",
+      "siteIdReserved": "ID stacji: nie może zaczynać się od {{prefix}}",
       "siteIdTooLong": "ID stacji: najwyżej {{max}} znaków",
       "operatorRequired": "Operator: wymagany",
       "networksIdInvalid": "N! ID: najwyżej {{max}} cyfr, bez innych znaków",

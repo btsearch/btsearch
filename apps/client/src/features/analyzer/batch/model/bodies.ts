@@ -79,6 +79,7 @@ function toCreateChange({ rat, bandId, numbers, plmns }: PendingEntry): CellCrea
 
   const created: Extract<CellCreateChange, { rat: "nr" }> = { action: "create", rat, bandId, mode: STANDALONE_MODE, cellType: DEFAULT_CELL_TYPE };
   if (numbers.gnbid !== undefined) created.gnbid = numbers.gnbid;
+  if (numbers.gnbidLength !== undefined) created.gnbidLength = numbers.gnbidLength;
   if (numbers.clid !== undefined) created.clid = numbers.clid;
   if (numbers.tac !== undefined) created.tac = numbers.tac;
   if (numbers.pci !== undefined) created.pci = numbers.pci;

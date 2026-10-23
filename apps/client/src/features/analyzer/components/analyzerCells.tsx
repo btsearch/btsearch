@@ -232,7 +232,7 @@ function IdChipLine({ chips }: { chips: readonly IdChip[] }) {
 }
 
 export function IdentifiersCell({ view, isSingleLine = false }: RowLineProps) {
-  const { identity, values } = buildIdChips(view.row, view.result);
+  const { identity, values } = buildIdChips(view.row, view.result, view.facts.gnbidLength);
   const isNewCell = view.facts.kinds.includes("new");
   const lines = isSingleLine ? [[...identity, ...values].filter((chip) => isPhoneChip(chip, isNewCell))] : [identity, values];
   const shownLines = lines.filter((chips) => chips.length > 0);

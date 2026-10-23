@@ -36,8 +36,22 @@ type ReqQuery = { Querystring: SubmissionListQuery };
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<SubmissionList>>) {
   res.header("Cache-Control", "private, no-store");
   if (!getRuntimeSettings().submissionsEnabled) throw new ErrorResponse("FEATURE_DISABLED");
-  const { submitters, submitterIds, statuses, actions, countryCodes, operatorIds, regionIds, q, createdAfter, sort, include, limit, includeTotal } =
-    req.query;
+  const {
+    submitters,
+    submitterIds,
+    statuses,
+    actions,
+    countryCodes,
+    operatorIds,
+    regionIds,
+    stationIds,
+    q,
+    createdAfter,
+    sort,
+    include,
+    limit,
+    includeTotal,
+  } = req.query;
   const offset = resolveOffset(req.query);
 
   const access = await accessFromRequest(req);
@@ -59,6 +73,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       : undefined,
     submitterIds ? inArray(submissions.submitter_id, submitterIds) : undefined,
     countryCodes ? inArray(submissions.country_code, countryCodes) : undefined,
+    stationIds ? inArray(submissions.station_id, stationIds) : undefined,
     createdAfter ? gte(submissions.createdAt, new Date(createdAfter)) : undefined,
     statuses
       ? inArray(

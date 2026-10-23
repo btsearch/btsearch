@@ -225,6 +225,16 @@ describe("GET /submissions", () => {
     ]);
   });
 
+  it("filters by the stations the submissions change", async () => {
+    scriptReaderAccess("user");
+    dbMock.enqueueFor("select", "submissions", []);
+    const response = await injectMutation(route, { ...request, url: "/submissions?stationIds=4,9" }, options);
+    expect(response.statusCode, response.body).toBe(200);
+    const filter = whereQuery("submissions", "select");
+    expect(filter.params).toEqual([submitterId, 4, 9]);
+    expect(filter.sql).toContain('"submissions"."submissions"."station_id" in ($2, $3)');
+  });
+
   it("returns only the requested page and accepts its cursor as the next offset", async () => {
     dbMock.enqueueFor("select", "users", [{ role: "user" }]);
     dbMock.enqueueFor("select", "role_grants", []);

@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { describeCellValues, getCellTitle, listHistoryCellGroups } from "./cellChanges";
+import { describeCellValues, getCellTitle, listCellFieldChanges, listHistoryCellGroups } from "./cellChanges";
 import { describeFieldChanges } from "./fieldChanges";
 import { HistoryChangeLines } from "./historyChangeLines";
 import type { HistoryNames } from "./names";
@@ -41,7 +41,7 @@ function HistoryCellRow({ cell, action, names }: HistoryCellRowProps) {
     <div className="grid gap-0.5 px-2.5 py-1.5 sm:grid-cols-[minmax(11rem,14rem)_1fr] sm:gap-3">
       <p className="text-xs font-semibold leading-5 text-foreground">{getCellTitle(cell, action, names, t)}</p>
       {action === "update" ? (
-        <HistoryChangeLines lines={describeFieldChanges(cell.fields, names, t)} />
+        <HistoryChangeLines lines={describeFieldChanges(listCellFieldChanges(cell), names, t)} />
       ) : (
         <HistoryCellValues cell={cell} isRemoved={action === "delete"} names={names} />
       )}

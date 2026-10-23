@@ -4,12 +4,13 @@ import type { AnalyzerDraft, DraftRow, DraftStation } from "../../model/draft";
 import { listNumberDifferences } from "../../model/rows";
 import { getBandCode, getBandLabel } from "@/features/station-details/station/utils/bands";
 import type { LockedValue } from "@/features/station-editing/components/cells/lockedCellRow";
-import { DEFAULT_CELL_TYPE, RAT_FIELDS, isCellNumberField } from "@/features/station-editing/model/ratFields";
+import { DEFAULT_CELL_TYPE, RAT_FIELDS } from "@/features/station-editing/model/ratFields";
 import type { CellNumberField, Rat } from "@/features/station-editing/model/types";
 
 export type BatchRow = DraftRow & { key: string };
 export type BatchStation = { station: DraftStation; rows: BatchRow[] };
-export type RowNumbers = Partial<Record<CellNumberField, number>>;
+type RowNumberField = CellNumberField | "gnbidLength";
+export type RowNumbers = Partial<Record<RowNumberField, number>>;
 export type RowValues = Readonly<Partial<Record<string, LockedValue>>>;
 
 export type RowValueContext = {
@@ -56,13 +57,14 @@ export function listBatchStations(draft: AnalyzerDraft): BatchStation[] {
   });
 }
 
-export function readNumber(source: object, field: CellNumberField): number | null {
+export function readNumber(source: object, field: RowNumberField): number | null {
   const value: unknown = (source as Record<string, unknown>)[field];
   return typeof value === "number" ? value : null;
 }
 
-function listNumberFields(rat: Rat): CellNumberField[] {
-  return RAT_FIELDS[rat].numbers.map((spec) => spec.field);
+function listNumberFields(rat: Rat): RowNumberField[] {
+  const fields: RowNumberField[] = RAT_FIELDS[rat].numbers.map((spec) => spec.field);
+  return rat === "nr" ? [...fields, "gnbidLength"] : fields;
 }
 
 function getCreatedNumbers(row: DraftRow): RowNumbers {
@@ -74,6 +76,7 @@ function getCreatedNumbers(row: DraftRow): RowNumbers {
   if (row.nrIdentity !== null) {
     numbers.gnbid = row.nrIdentity.gnbid;
     numbers.clid = row.nrIdentity.clid;
+    numbers.gnbidLength = row.nrIdentity.gnbidLength;
   }
   return numbers;
 }
@@ -83,9 +86,7 @@ export function getRowNumbers(row: DraftRow): RowNumbers {
   if (row.action === "create") return getCreatedNumbers(row);
 
   const numbers: RowNumbers = {};
-  for (const difference of listNumberDifferences(row.differences)) {
-    if (isCellNumberField(difference.field)) numbers[difference.field] = difference.observed;
-  }
+  for (const difference of listNumberDifferences(row.differences)) numbers[difference.field] = difference.observed;
   return numbers;
 }
 

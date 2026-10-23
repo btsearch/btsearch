@@ -41,7 +41,7 @@ export const linkRow = {
   dataset_id: 12,
   source_ref: null,
   permit_number: "12345/2026",
-  decision_type: "permit_change",
+  decision_type: "permit_change" as string | null,
   issue_date: "2026-03-04",
   expiry_date: "2036-03-04",
   specs_date: new Date("2026-09-30T00:00:00.000Z"),

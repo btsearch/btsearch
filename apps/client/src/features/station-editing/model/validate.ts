@@ -1,5 +1,6 @@
 import { conventionsFor } from "@openbts/country-packs";
 import { isChannelValidForBand } from "@openbts/shared/bandCatalog";
+import { RESERVED_SITE_ID_PREFIX } from "@openbts/shared/contract";
 import type { Band, Operator, StationIdentifierKind } from "@openbts/shared/contract";
 
 import { countCellEntries } from "./bodies";
@@ -66,7 +67,7 @@ type SubmissionExtrasInput = {
   mainPhotoId: string | null;
 };
 
-type CellGroup = { keys: DraftKey[]; hasWrittenCell: boolean };
+type CellGroup = { cells: CellDraft[]; hasWrittenCell: boolean };
 type RowScope = "cell" | "sector";
 
 export const EDIT_LIMITS = {
@@ -151,6 +152,9 @@ function validateStation(session: EditSession): EditError[] {
   const errors: EditError[] = [];
 
   if (missingSiteIdKey !== null) errors.push(toError(stationTarget("siteId"), missingSiteIdKey, undefined, isNewStation));
+  if (siteId.startsWith(RESERVED_SITE_ID_PREFIX)) {
+    errors.push(toError(stationTarget("siteId"), "stations:edit.errors.siteIdReserved", { prefix: RESERVED_SITE_ID_PREFIX }));
+  }
   if (siteId.length > EDIT_LIMITS.siteId) {
     errors.push(toError(stationTarget("siteId"), "stations:edit.errors.siteIdTooLong", { max: EDIT_LIMITS.siteId }));
   }
@@ -344,17 +348,22 @@ function getPciKey(cell: CellDraft): string | null {
   return `${cell.bandId}:${node}${pci}:${channel ?? ""}`;
 }
 
+function isNsaAndSaOfOneSector(cell: CellDraft, other: CellDraft): boolean {
+  if (cell.rat !== "nr" || (cell.mode === "sa") === (other.mode === "sa")) return false;
+  return cell.sectorKey === null || other.sectorKey === null || cell.sectorKey === other.sectorKey;
+}
+
 function groupCells(cells: readonly CellDraft[], written: ReadonlySet<DraftKey>, getKey: (cell: CellDraft) => string | null): CellGroup[] {
   const groups = new Map<string, CellGroup>();
   for (const cell of cells) {
     const key = getKey(cell);
     if (key === null) continue;
-    const group = groups.get(key) ?? { keys: [], hasWrittenCell: false };
-    group.keys.push(cell.key);
+    const group = groups.get(key) ?? { cells: [], hasWrittenCell: false };
+    group.cells.push(cell);
     group.hasWrittenCell ||= written.has(cell.key);
     groups.set(key, group);
   }
-  return [...groups.values()].filter((group) => group.keys.length > 1 && group.hasWrittenCell);
+  return [...groups.values()].filter((group) => group.cells.length > 1 && group.hasWrittenCell);
 }
 
 function getIdentityLabel(session: EditSession, rat: Rat): string {
@@ -370,10 +379,11 @@ function validateDuplicates(session: EditSession, rat: Rat, cells: readonly Cell
   const pciGroups = groupCells(cells, written, getPciKey);
 
   for (const cell of cells) {
-    if (cellIdField !== null && identityGroups.some((group) => group.keys.includes(cell.key))) {
+    if (cellIdField !== null && identityGroups.some((group) => group.cells.includes(cell))) {
       errors.push(toError(cellTarget(cell, cellIdField), "stations:edit.errors.cellIdentityDuplicate", { fields: getIdentityLabel(session, rat) }));
     }
-    if (pciGroups.some((group) => group.keys.includes(cell.key))) {
+    const pciGroup = pciGroups.find((group) => group.cells.includes(cell));
+    if (pciGroup?.cells.some((other) => other !== cell && !isNsaAndSaOfOneSector(cell, other))) {
       errors.push(toError(cellTarget(cell, "pci"), "stations:edit.errors.pciDuplicate", { pci: getCellNumber(cell, "pci") ?? "" }));
     }
   }

@@ -7,6 +7,8 @@ import { stationSchema } from "./stations.ts";
 export const CELL_MATCH_LIMIT = 5000;
 export const OFFICIAL_SITES_PER_CELL = 5;
 
+const NCI_BITS = 36;
+
 export const CELL_MATCHES = ["cell", "cellByLac", "station", "none"] as const;
 export type CellMatch = (typeof CELL_MATCHES)[number];
 
@@ -16,7 +18,20 @@ export type CellMatchReason = (typeof CELL_MATCH_REASONS)[number];
 export const CELL_MATCH_INCLUDES = ["stations", "cells", "officialSites"] as const;
 export type CellMatchInclude = (typeof CELL_MATCH_INCLUDES)[number];
 
-export const CELL_DIFFERENCE_FIELDS = ["lac", "rnc", "uarfcn", "tac", "pci", "earfcn", "arfcn", "psc", "bsic"] as const;
+export const CELL_DIFFERENCE_FIELDS = [
+  "lac",
+  "rnc",
+  "uarfcn",
+  "tac",
+  "pci",
+  "earfcn",
+  "arfcn",
+  "psc",
+  "bsic",
+  "gnbid",
+  "clid",
+  "gnbidLength",
+] as const;
 export type CellDifferenceField = (typeof CELL_DIFFERENCE_FIELDS)[number];
 
 export const CELL_NETWORK_MATCHES = ["own", "partner", "extraCode", "missingCode"] as const;
@@ -30,7 +45,8 @@ const DIFFERENCES_NOTE =
   "The values from the log that are missing from the stored cell or differ from it. " +
   "`psc` and `bsic` are only compared while the site has them enabled. " +
   "`network` holds the network code a `missingCode` cell is not recorded as broadcasting. " +
-  "A cell found through `extraCode` gets no `tac` or `lac` difference, since each network may use its own";
+  "A cell found through `extraCode` gets no `tac` or `lac` difference, since each network may use its own. " +
+  "`gnbid`, `clid` and `gnbidLength` are compared only for operators whose gNBID is not 24 bits long, so a cell stored with another split shows up here";
 const NETWORK_MATCH_NOTE =
   "How the station relates to the network in the log. `own`: it belongs to that network's operator. " +
   "`partner`: it belongs to a partner in a shared network. `extraCode`: the cell broadcasts the network's code besides the owner's. " +
@@ -90,9 +106,15 @@ export const observedNrCellSchema = z
     nci: identifierSchema(68_719_476_735)
       .nullable()
       .optional()
-      .describe("The 36-bit cell identity of a standalone cell. The server splits it into the gNBID and the cell id"),
-    gnbid: identifierSchema(GNBID_MAX).nullable().optional().describe("Send it only if the log already has the identity split, together with `clid`"),
-    clid: identifierSchema(16_383).nullable().optional().describe("Send it only if the log already has the identity split, together with `gnbid`"),
+      .describe("The 36-bit cell identity of a standalone cell. The server splits it into the gNBID and the cell id by the operator's gNBID length"),
+    gnbid: identifierSchema(GNBID_MAX)
+      .nullable()
+      .optional()
+      .describe("Send it only if the log already has the identity split, together with `clid`. Ignored when `nci` is sent"),
+    clid: identifierSchema(16_383)
+      .nullable()
+      .optional()
+      .describe("Send it only if the log already has the identity split, together with `gnbid`. Ignored when `nci` is sent"),
     tac: observedValueSchema(16_777_215),
     pci: observedValueSchema(1007),
     arfcn: observedValueSchema(3_279_165),
@@ -137,8 +159,15 @@ export type CellDifference = z.infer<typeof cellDifferenceSchema>;
 export const nrIdentitySchema = z.object({
   gnbid: z.number().int().describe(CELL_FIELD_NOTES.gnbid),
   clid: z.number().int().describe(CELL_FIELD_NOTES.clid),
+  gnbidLength: z.number().int().describe(CELL_FIELD_NOTES.gnbidLength),
 });
 export type NrIdentity = z.infer<typeof nrIdentitySchema>;
+
+export function splitNci(nci: number, gnbidLength: number): NrIdentity | null {
+  const cellsPerGnb = 2 ** (NCI_BITS - gnbidLength);
+  const gnbid = Math.floor(nci / cellsPerGnb);
+  return gnbid === 0 ? null : { gnbid, clid: nci % cellsPerGnb, gnbidLength };
+}
 
 export const cellMatchResultSchema = z.object({
   operatorId: z.number().int().nullable().describe("The operator the network code belongs to"),
@@ -149,7 +178,9 @@ export const cellMatchResultSchema = z.object({
   isShared: z.boolean().describe("Whether the station belongs to a partner in a shared network rather than to the operator in the log"),
   networkMatch: z.enum(CELL_NETWORK_MATCHES).nullable().describe(NETWORK_MATCH_NOTE),
   differences: z.array(cellDifferenceSchema).describe(DIFFERENCES_NOTE),
-  nrIdentity: nrIdentitySchema.nullable().describe("NR only. The gNBID and cell id used to look up the cell"),
+  nrIdentity: nrIdentitySchema
+    .nullable()
+    .describe("NR only. The gNBID and cell id used to look up the cell, and the gNBID length they were split by"),
   officialSiteIds: z
     .array(z.number().int())
     .max(OFFICIAL_SITES_PER_CELL)

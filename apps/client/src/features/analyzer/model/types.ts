@@ -74,6 +74,7 @@ export type RowFacts = {
   tick: TickState;
   stationId: number | null;
   isUnconfirmed: boolean;
+  gnbidLength: number;
 };
 
 export type ChipKind = "same" | "changed" | "added";

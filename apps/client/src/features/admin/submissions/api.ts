@@ -13,11 +13,12 @@ type AdminSubmissionListRequest = {
   pageSize: number;
   sortOrder: "asc" | "desc";
   search: string;
+  stationId: number | undefined;
   filters: SubmissionListFilters;
 };
 
 type AdminSubmissionListQuery = Required<Pick<SubmissionListQuery, "limit" | "offset" | "sort">> &
-  Pick<SubmissionListQuery, "statuses" | "actions" | "q" | "submitterIds" | "countryCodes" | "operatorIds" | "regionIds">;
+  Pick<SubmissionListQuery, "statuses" | "actions" | "q" | "submitterIds" | "countryCodes" | "operatorIds" | "regionIds" | "stationIds">;
 
 type AdminSubmissionListPage = {
   rows: SubmissionListRow[];
@@ -72,7 +73,14 @@ export function toSubmissionListRow(submission: Submission): SubmissionListRow {
   };
 }
 
-function toAdminSubmissionListQuery({ pageIndex, pageSize, sortOrder, search, filters }: AdminSubmissionListRequest): AdminSubmissionListQuery {
+function toAdminSubmissionListQuery({
+  pageIndex,
+  pageSize,
+  sortOrder,
+  search,
+  stationId,
+  filters,
+}: AdminSubmissionListRequest): AdminSubmissionListQuery {
   const query: AdminSubmissionListQuery = {
     limit: pageSize,
     offset: clampSubmissionListPage(pageIndex, pageSize) * pageSize,
@@ -87,6 +95,7 @@ function toAdminSubmissionListQuery({ pageIndex, pageSize, sortOrder, search, fi
   if (filters.countryCodes.length > 0) query.countryCodes = filters.countryCodes;
   if (filters.operatorIds.length > 0) query.operatorIds = filters.operatorIds;
   if (filters.regionIds.length > 0) query.regionIds = filters.regionIds;
+  if (stationId !== undefined) query.stationIds = [stationId];
   return query;
 }
 
@@ -105,6 +114,7 @@ function toSearchParams(query: AdminSubmissionListQuery): URLSearchParams {
   appendList(params, "countryCodes", query.countryCodes);
   appendList(params, "operatorIds", query.operatorIds);
   appendList(params, "regionIds", query.regionIds);
+  appendList(params, "stationIds", query.stationIds);
   if (query.q !== undefined) params.set("q", query.q);
   return params;
 }

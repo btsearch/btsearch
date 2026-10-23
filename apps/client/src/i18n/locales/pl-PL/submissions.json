@@ -87,6 +87,7 @@
     "sortDescending": "malejąco",
     "openSubmission": "Otwórz zgłoszenie {{id}} dla {{stationId}}. Typ: {{type}}. Status: {{status}}",
     "searchPlaceholder": "Szukaj po ID stacji lub ID zgłoszenia...",
+    "stationFilterClear": "Pokaż zgłoszenia wszystkich stacji, nie tylko {{station}}",
     "empty": "Brak zgłoszeń do wyświetlenia",
     "emptyHint": "Brak zgłoszeń pasujących do wybranych filtrów",
     "emptyHintUser": "Nie złożyłeś jeszcze żadnych zgłoszeń. Zacznij od utworzenia nowego zgłoszenia"

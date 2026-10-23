@@ -305,6 +305,12 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     findTargets: atStation("siteId"),
   },
   {
+    pattern: /^A station number cannot start with (.)$/,
+    messageKey: "stations:edit.errors.siteIdReserved",
+    findTargets: atStation("siteId"),
+    readValues: (match) => ({ prefix: readGroup(match, 1) }),
+  },
+  {
     pattern: /^(A new station's backhaul speed needs a backhaul type|medium is required for a new station's backhaul)$/,
     messageKey: "stations:edit.errors.backhaulMediumRequired",
     findTargets: atStation("backhaulMedium"),

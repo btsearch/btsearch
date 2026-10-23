@@ -85,6 +85,7 @@
     "sortDescending": "descending",
     "openSubmission": "Open submission {{id}} for {{stationId}}. Type: {{type}}. Status: {{status}}",
     "searchPlaceholder": "Search by station ID or submission ID...",
+    "stationFilterClear": "Show submissions for all stations, not only {{station}}",
     "empty": "No submissions to display",
     "emptyHint": "No submissions matching selected filters",
     "emptyHintUser": "You haven't submitted any stations yet. Start by creating a new submission"

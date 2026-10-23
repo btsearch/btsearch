@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 
 import { AUDIT_SOURCES } from "../audit.ts";
+import { NR_MODES } from "./cells.ts";
 import { cursorSchema, pagingSchema, userRefSchema } from "./common.ts";
 import { CELL_RATS } from "./constants.ts";
 import { photoUrlsSchema } from "./photos.ts";
@@ -148,6 +149,7 @@ export const stationHistoryCellSchema = z.object({
   bandId: z.number().int().nullable(),
   cid: z.number().int().nullable().describe("Only set for GSM and UMTS cells"),
   clid: z.number().int().nullable().describe("Only set for LTE and NR cells"),
+  mode: z.enum(NR_MODES).nullable().describe("Only set for NR cells. The mode after the change, or for a removed cell, the mode it had"),
   fields: z
     .array(z.union([valueChangeSchema(STATION_HISTORY_CELL_FIELDS), sectorRefChangeSchema, extraPlmnsChangeSchema]))
     .describe("The fields that changed on the cell. For a new or removed cell, every value it has"),

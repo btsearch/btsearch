@@ -81,6 +81,8 @@ type AdminSubmissionsSearch = {
   page: number;
   q: string | undefined;
   submitter?: string;
+  station?: number;
+  siteId?: string;
 };
 
 function toOperatorOption(operator: Operator, brands: readonly Brand[] | undefined): SubmissionOperatorOption {
@@ -94,7 +96,7 @@ function AdminSubmissionsListPage() {
   const viewerReady = !isSessionPending && !sessionError;
   const userId = session?.user.id;
   const navigate = useNavigate();
-  const { page, q, submitter } = Route.useSearch();
+  const { page, q, submitter, station, siteId } = Route.useSearch();
   const navActionTarget = useNavActionTarget();
   const isMobile = useIsMobile();
   const hasFloatingMobileFilters = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
@@ -167,6 +169,10 @@ function AdminSubmissionsListPage() {
 
   const handleRegionChange = useCallback((regionIds: number[]) => changeFilters({ regionIds }), [changeFilters]);
 
+  const handleStationClear = useCallback(() => {
+    void navigate({ from: Route.fullPath, search: (search) => ({ ...search, station: undefined, siteId: undefined, page: 0 }), replace: true });
+  }, [navigate]);
+
   const handleSortToggle = useCallback(() => {
     const nextSortOrder = sortOrder === "asc" ? "desc" : "asc";
     setSortOrder(nextSortOrder);
@@ -181,7 +187,7 @@ function AdminSubmissionsListPage() {
     debouncedUpdate("");
     void navigate({
       from: Route.fullPath,
-      search: (search) => ({ ...search, q: undefined, submitter: undefined, page: 0 }),
+      search: (search) => ({ ...search, q: undefined, submitter: undefined, station: undefined, siteId: undefined, page: 0 }),
       replace: true,
     });
   }, [debouncedUpdate, filters, navigate, saveFilters]);
@@ -232,6 +238,7 @@ function AdminSubmissionsListPage() {
       pageSize: pagination.pageSize,
       sortOrder,
       search: activeSearch,
+      stationId: station,
       filters,
     }),
     enabled: isPageSizeMeasured && userId !== undefined,
@@ -242,10 +249,12 @@ function AdminSubmissionsListPage() {
   const activeFilterCount =
     Number(filters.type !== "all") +
     Number(searchInput.trim().length > 0) +
+    Number(station !== undefined) +
     Number(filters.submitterIds.length > 0) +
     Number(filters.countryCodes.length > 0) +
     Number(filters.operatorIds.length > 0) +
     Number(filters.regionIds.length > 0);
+  const stationLabel = station === undefined ? null : (siteId ?? submissions[0]?.siteId ?? String(station));
   const columns = useSubmissionsColumns({
     sortOrder,
     onSortToggle: handleSortToggle,
@@ -289,6 +298,7 @@ function AdminSubmissionsListPage() {
     regionIds: filters.regionIds,
     scope: filterScope,
     searchInput,
+    stationLabel,
     activeFilterCount,
     onStatusChange: handleStatusFilter,
     onTypeChange: handleTypeFilter,
@@ -297,6 +307,7 @@ function AdminSubmissionsListPage() {
     onOperatorChange: handleOperatorChange,
     onRegionChange: handleRegionChange,
     onSearchChange: handleSearchChange,
+    onStationClear: handleStationClear,
     onClearAll: handleClearAll,
   };
   const mobileFilterRail = isMobile ? <SubmissionsMobileFilterRail {...filterProps} /> : null;
@@ -458,6 +469,8 @@ export const Route = createFileRoute("/_layout/admin/_layout/submissions/")({
     page: typeof search.page === "number" && search.page >= 0 ? Math.floor(search.page) : 0,
     q: typeof search.q === "string" && search.q ? search.q : undefined,
     submitter: parseUserId(search.submitter),
+    station: typeof search.station === "number" && Number.isSafeInteger(search.station) && search.station > 0 ? search.station : undefined,
+    siteId: typeof search.siteId === "string" && search.siteId ? search.siteId : undefined,
   }),
   component: AdminSubmissionsListPage,
   staticData: {

@@ -8,7 +8,7 @@ type BatchColumns = {
   gridStyle: CSSProperties;
 };
 
-const SHOWN_COLUMN_KINDS: ReadonlySet<CellColumn["kind"]> = new Set(["band", "sector", "number", "cellType", "confirmed"]);
+const SHOWN_COLUMN_KINDS: ReadonlySet<CellColumn["kind"]> = new Set(["band", "sector", "number", "gnbidLength", "cellType", "confirmed"]);
 const CONTROL_FIELDS: Record<Rat, readonly CellNumberField[]> = {
   gsm: ["lac"],
   umts: ["lac", "rnc", "uarfcn"],

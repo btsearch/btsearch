@@ -3,8 +3,10 @@ import { useTranslation } from "react-i18next";
 import { ANY_DIFFERENCE, type AnalyzerFilters, DIFFERENCE_FIELDS } from "../model/filterValues";
 import type { DifferenceField, DifferenceFilter, DifferenceKind, RowStatus, TickBlock } from "../model/types";
 import { CELL_NUMBER_LABELS } from "@/features/station-editing/model/ratFields";
+import type { CellNumberField } from "@/features/station-editing/model/types";
 
-type MissingKind = `no-${DifferenceField}`;
+type LabelledField = Extract<DifferenceField, CellNumberField>;
+type MissingKind = `no-${LabelledField}`;
 type AnalyzerSort = AnalyzerFilters["sort"];
 
 type AnalyzerTexts = {
@@ -16,9 +18,10 @@ type AnalyzerTexts = {
   getSortLabel: (sort: AnalyzerSort) => string;
 };
 
-const MISSING_KIND_FIELDS = Object.fromEntries(DIFFERENCE_FIELDS.map((field) => [`no-${field}`, field])) as Record<MissingKind, DifferenceField>;
+const LABELLED_FIELDS = DIFFERENCE_FIELDS.filter((field): field is LabelledField => field in CELL_NUMBER_LABELS);
+const MISSING_KIND_FIELDS = Object.fromEntries(LABELLED_FIELDS.map((field) => [`no-${field}`, field])) as Record<MissingKind, LabelledField>;
 
-function isMissingKind(kind: DifferenceField | MissingKind): kind is MissingKind {
+function isMissingKind(kind: LabelledField | MissingKind): kind is MissingKind {
   return kind in MISSING_KIND_FIELDS;
 }
 
@@ -40,6 +43,8 @@ export function useAnalyzerTexts(): AnalyzerTexts {
     if (kind === "unknown-cell") return t("diff.unknownCell");
     if (kind === "unknown-operator") return t("main:unknownOperator");
     if (kind === "no-identifiers") return t("diff.noIdentifiers");
+    if (kind === "gnbidLength") return t("diff.gnbidLength");
+    if (kind === "no-gnbidLength") return t("diff.missingGnbidLength");
     if (isMissingKind(kind)) return t("diff.missing", { field: CELL_NUMBER_LABELS[MISSING_KIND_FIELDS[kind]] });
     return t("diff.other", { field: CELL_NUMBER_LABELS[kind] });
   }

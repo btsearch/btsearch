@@ -31,6 +31,7 @@ type SharedFilterProps = {
   regionIds: number[];
   scope: SubmissionFilterScope;
   searchInput: string;
+  stationLabel: string | null;
   activeFilterCount: number;
   onStatusChange: (status: SubmissionStatusFilter) => void;
   onTypeChange: (type: SubmissionTypeFilter) => void;
@@ -39,6 +40,7 @@ type SharedFilterProps = {
   onOperatorChange: (operatorIds: number[]) => void;
   onRegionChange: (regionIds: number[]) => void;
   onSearchChange: (value: string) => void;
+  onStationClear: () => void;
   onClearAll: () => void;
 };
 
@@ -52,6 +54,24 @@ function typeLabel(filter: SubmissionTypeFilter, t: TFunction) {
   if (filter === "all") return t("common:submissionType.all");
   const type = toV1SubmissionType(filter);
   return t(`common:submissionType.${type}`);
+}
+
+function StationFilterButton({ label, onClear }: { label: string; onClear: () => void }) {
+  const { t } = useTranslation("submissions");
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-8"
+      onClick={onClear}
+      aria-label={t("table.stationFilterClear", { station: label })}
+    >
+      {label}
+      <HugeiconsIcon icon={Cancel01Icon} data-icon="inline-end" aria-hidden="true" />
+    </Button>
+  );
 }
 
 export function SubmissionsStatusQueue({ value, onChange }: { value: SubmissionStatusFilter; onChange: (value: SubmissionStatusFilter) => void }) {
@@ -69,6 +89,7 @@ export function SubmissionsFilterToolbar({
   regionIds,
   scope,
   searchInput,
+  stationLabel,
   activeFilterCount,
   onTypeChange,
   onSubmitterChange,
@@ -76,6 +97,7 @@ export function SubmissionsFilterToolbar({
   onOperatorChange,
   onRegionChange,
   onSearchChange,
+  onStationClear,
   onClearAll,
 }: Omit<SharedFilterProps, "statusFilter" | "onStatusChange">) {
   const { t } = useTranslation(["submissions", "common"]);
@@ -108,6 +130,13 @@ export function SubmissionsFilterToolbar({
           ) : null}
         </div>
       </div>
+
+      {stationLabel !== null ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">{t("common:labels.station")}</span>
+          <StationFilterButton label={stationLabel} onClear={onStationClear} />
+        </div>
+      ) : null}
 
       <div className="flex w-36 flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">{t("common:labels.type")}</span>
@@ -166,6 +195,7 @@ export function SubmissionsMobileFilterRail({
   regionIds,
   scope,
   searchInput,
+  stationLabel,
   activeFilterCount,
   onStatusChange,
   onTypeChange,
@@ -174,6 +204,7 @@ export function SubmissionsMobileFilterRail({
   onOperatorChange,
   onRegionChange,
   onSearchChange,
+  onStationClear,
   onClearAll,
 }: SharedFilterProps) {
   const { t } = useTranslation(["submissions", "common", "main"]);
@@ -199,6 +230,8 @@ export function SubmissionsMobileFilterRail({
       </div>
 
       <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+
+      {stationLabel !== null ? <StationFilterButton label={stationLabel} onClear={onStationClear} /> : null}
 
       <MobileFilterChip active={hasSearch} icon={Search01Icon} label={t("common:labels.search")}>
         <MobileFilterPanelTitle>{t("common:labels.search")}</MobileFilterPanelTitle>

@@ -806,6 +806,7 @@ export const submissionListQuerySchema = z
     countryCodes: csvCountryCodesSchema.optional().describe("Filters by `countryCode`. Comma-separated two-letter country codes"),
     operatorIds: csvIdsSchema.optional().describe(OPERATORS_FILTER_NOTE),
     regionIds: csvIdsSchema.optional().describe(REGIONS_FILTER_NOTE),
+    stationIds: csvIdsSchema.optional().describe("Filters by the station the submission changes. Comma-separated ids"),
     q: z.string().trim().min(1).max(100).optional().describe("Matches the start of a submission id or any part of the station's site id"),
     createdAfter: instantSchema.optional().describe("Only submissions created at or after this time"),
     sort: z.enum(SUBMISSION_SORTS).default("-createdAt"),

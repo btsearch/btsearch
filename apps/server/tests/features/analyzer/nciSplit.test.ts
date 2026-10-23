@@ -28,12 +28,29 @@ function network(code: string, countryCode: string) {
   dbMock.enqueueFor("select", "operator_links", []);
 }
 
-async function matchNci(code: string, countryCode: string) {
-  network(code, countryCode);
-  dbMock.enqueueFor("select", "cells", [], []);
+function storedNrCell(gnbid: number, clid: number, gnbidLength: number) {
+  const nci = BigInt(gnbid * 2 ** (36 - gnbidLength) + clid);
+  return {
+    cell: { id: 10, station_id: 20, band_id: 1 },
+    operatorId: 1,
+    gsm: null,
+    umts: null,
+    lte: null,
+    nr: { gnbid, clid, gnbid_length: gnbidLength, nci, nrtac: null, pci: null, arfcn: null },
+  };
+}
+
+async function postNci(code: string) {
   const app = await createRouteHarness(route);
   const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [{ rat: "nr", plmn: code, nci: 819202 }] } });
   expect(response.statusCode, response.body).toBe(200);
+  return response.json().data.results[0];
+}
+
+async function matchNci(code: string, countryCode: string) {
+  network(code, countryCode);
+  dbMock.enqueueFor("select", "cells", [], []);
+  await postNci(code);
   return dbMock.calls
     .filter((call) => call.operation === "select" && call.table === "cells")
     .map((call) => dialect.sqlToQuery(call.clauses.where?.[0] as never).params);
@@ -52,6 +69,39 @@ describe("NCI split in the analyzer", () => {
 
     expect(lookups.some((params) => params.includes(50))).toBe(true);
     expect(lookups.some((params) => params.includes(200))).toBe(false);
+  });
+
+  it("reports the gNBID length it split by", async () => {
+    network("26201", "DE");
+    dbMock.enqueueFor("select", "cells", [], []);
+
+    expect(await postNci("26201")).toMatchObject({ match: "none", nrIdentity: { gnbid: 3200, clid: 2, gnbidLength: 28 } });
+  });
+
+  it("flags a cell stored with another split when the operator's gNBID length is known", async () => {
+    network("26201", "DE");
+    dbMock.enqueueFor("select", "cells", [], [storedNrCell(200, 2, 24)]);
+
+    expect(await postNci("26201")).toMatchObject({
+      match: "cell",
+      cellId: 10,
+      nrIdentity: { gnbid: 3200, clid: 2, gnbidLength: 28 },
+      differences: [
+        { field: "gnbid", observed: 3200, stored: 200 },
+        { field: "gnbidLength", observed: 28, stored: 24 },
+      ],
+    });
+  });
+
+  it("flags only the length of a cell stored with the right split but the default length", async () => {
+    network("26201", "DE");
+    dbMock.enqueueFor("select", "cells", [storedNrCell(3200, 2, 24)], []);
+
+    expect(await postNci("26201")).toMatchObject({
+      match: "cell",
+      nrIdentity: { gnbid: 3200, clid: 2, gnbidLength: 28 },
+      differences: [{ field: "gnbidLength", observed: 28, stored: 24 }],
+    });
   });
 
   it("splits an NCI at 24 bits for an operator whose pack does not say otherwise", async () => {

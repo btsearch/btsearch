@@ -247,7 +247,7 @@ export function StationHistoryDialogPanel({
                 {canOpenAdminHistory ? (
                   <Link
                     to={canOpenAuditLog ? "/admin/audit-logs" : "/admin/submissions"}
-                    search={canOpenAuditLog ? { q: String(stationId) } : { q: stationCode, page: 0 }}
+                    search={canOpenAuditLog ? { q: String(stationId) } : { q: undefined, station: stationId, siteId: stationCode, page: 0 }}
                     target="_blank"
                     rel="noopener noreferrer"
                     onPointerDown={(event) => event.stopPropagation()}

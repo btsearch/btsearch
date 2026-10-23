@@ -1,5 +1,6 @@
 import { type OperatorRef, conventionsFor } from "@openbts/country-packs";
 import { bands, cellPlmns, cells, gsmCells, lteCells, nrCells, operatorLinks, operators, plmns, stations, umtsCells } from "@openbts/drizzle";
+import { DEFAULT_GNBID_LENGTH, splitNci } from "@openbts/shared/contract";
 import type {
   Cell,
   CellDifference,
@@ -55,7 +56,6 @@ type ChannelIdentifiers = [first: number, second: number, pci: number, channel: 
 
 const PAIRS_PER_QUERY = 200;
 const VALUES_PER_QUERY = 1000;
-const NCI_BITS = 36;
 const NETWORK_MATCH_RANKS: Record<CellNetworkMatch, number> = { own: 0, extraCode: 1, partner: 2, missingCode: 3 };
 const STORED_CELL_COLUMNS = { cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells, operatorId: stations.operator_id };
 const SHARED_AREA_FIELDS = new Set<string>(["tac", "lac"]);
@@ -76,23 +76,20 @@ function knownRnc(rnc: number | null | undefined): number | null {
   return rnc === undefined || rnc === null || rnc === 0 ? null : rnc;
 }
 
-function nrCellIdentity({ operator, countryCode }: Network, cell: Extract<ObservedCell, { rat: "nr" }>): NrIdentity | null {
-  if (typeof cell.gnbid === "number" && typeof cell.clid === "number") return cell.gnbid === 0 ? null : { gnbid: cell.gnbid, clid: cell.clid };
-  if (typeof cell.nci !== "number") return null;
-
-  const cellsPerGnb = 2 ** (NCI_BITS - conventionsFor(countryCode).gnbidLength(operator));
-  const gnbid = Math.floor(cell.nci / cellsPerGnb);
-  return gnbid === 0 ? null : { gnbid, clid: cell.nci % cellsPerGnb };
+function operatorGnbidLength({ operator, countryCode }: Network): number {
+  return conventionsFor(countryCode).gnbidLength(operator);
 }
 
-function unsplitNci(cell: Extract<ObservedCell, { rat: "nr" }>): number | null {
-  const isSplit = typeof cell.gnbid === "number" && typeof cell.clid === "number";
-  return isSplit || typeof cell.nci !== "number" ? null : cell.nci;
+function nrCellIdentity(network: Network, cell: Extract<ObservedCell, { rat: "nr" }>): NrIdentity | null {
+  const gnbidLength = operatorGnbidLength(network);
+  if (typeof cell.nci === "number") return splitNci(cell.nci, gnbidLength);
+  if (typeof cell.gnbid !== "number" || typeof cell.clid !== "number" || cell.gnbid === 0) return null;
+  return { gnbid: cell.gnbid, clid: cell.clid, gnbidLength };
 }
 
 function storedNrIdentity({ nr }: StoredCell): NrIdentity | null {
   if (!nr || nr.gnbid === null || nr.gnbid === 0 || nr.clid === null) return null;
-  return { gnbid: nr.gnbid, clid: nr.clid };
+  return { gnbid: nr.gnbid, clid: nr.clid, gnbidLength: nr.gnbid_length ?? DEFAULT_GNBID_LENGTH };
 }
 
 function addIdentifier<T extends number | readonly number[]>(identifiers: IdentifiersByOperator<T>, operatorId: number, identifier: T): void {
@@ -297,8 +294,7 @@ async function findStoredCells(
       case "nr": {
         const identity = nrCellIdentity(network, cell);
         if (identity) addIdentifier(gnbids, own, identity.gnbid);
-        const nci = unsplitNci(cell);
-        if (nci !== null) addIdentifier(ncis, own, nci);
+        if (typeof cell.nci === "number") addIdentifier(ncis, own, cell.nci);
         break;
       }
     }
@@ -398,7 +394,7 @@ async function findMissingCodeCells(
     } else if (cell.rat === "nr" && typeof cell.pci === "number" && typeof cell.arfcn === "number") {
       const identity = nrCellIdentity(network, cell);
       if (identity === null) continue;
-      const nci = unsplitNci(cell);
+      const nci = cell.nci ?? null;
       const isFound =
         (nci !== null && found.nrByNci.has(identityKey(own, nci))) ||
         found.nr.has(identityKey(own, identity.gnbid, identity.clid)) ||
@@ -551,15 +547,18 @@ function resolveCell(
 
     case "nr": {
       const split = nrCellIdentity(network, cell);
-      const nci = unsplitNci(cell);
+      const nci = cell.nci ?? null;
       const byNci = nci === null ? undefined : found.nrByNci.get(identityKey(own, nci));
-      const bySplit = byNci !== undefined || split === null ? undefined : found.nr.get(identityKey(own, split.gnbid, split.clid));
-      const identity = byNci ? storedNrIdentity(byNci) : split;
+      const exact = byNci ?? (split === null ? undefined : found.nr.get(identityKey(own, split.gnbid, split.clid)));
+      const hasKnownGnbidLength = operatorGnbidLength(network) !== DEFAULT_GNBID_LENGTH;
+      const identity = exact !== undefined && !hasKnownGnbidLength ? storedNrIdentity(exact) : split;
       if (identity === null) return unmatched(own, "noIdentifiers");
 
-      const exact = byNci ?? bySplit;
       if (exact?.nr) {
         const differences = compare(exact, [
+          ["gnbid", identity.gnbid, exact.nr.gnbid],
+          ["clid", identity.clid, exact.nr.clid],
+          ["gnbidLength", identity.gnbidLength, exact.nr.gnbid_length ?? DEFAULT_GNBID_LENGTH],
           ["tac", cell.tac, exact.nr.nrtac],
           ["pci", cell.pci, exact.nr.pci],
           ["arfcn", cell.arfcn, exact.nr.arfcn],

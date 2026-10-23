@@ -37,6 +37,7 @@ type CellIdentityDuplicateCheck = {
 type PciDuplicateEntry = {
   bandId: number;
   enbid?: number;
+  type?: "nsa" | "sa";
   pci: number;
   channel?: number | null;
   excludeCellId?: number;
@@ -54,6 +55,7 @@ type PciDuplicateCheckSpec = PciDuplicateSpec & {
   cellIdColumn: typeof lteCells.cell_id | typeof nrCells.cell_id;
   pciColumn: typeof lteCells.pci | typeof nrCells.pci;
   enbidColumn?: typeof lteCells.enbid;
+  typeColumn?: typeof nrCells.type;
   channelColumn: typeof lteCells.earfcn | typeof nrCells.arfcn;
   label: string;
 };
@@ -77,6 +79,7 @@ const PCI_DUPLICATE_CHECKS: PciDuplicateCheckSpec[] = [
     table: nrCells,
     cellIdColumn: nrCells.cell_id,
     pciColumn: nrCells.pci,
+    typeColumn: nrCells.type,
     channelColumn: nrCells.arfcn,
     label: "NR",
   }),
@@ -362,6 +365,7 @@ function getPciDuplicateEntriesByRat(sources: PciDuplicateSource[]): Map<string,
       excludeCellId: source.excludeCellId,
     };
     if (duplicateKey.rat === "LTE" && source.details.enbid !== null && source.details.enbid !== undefined) entry.enbid = source.details.enbid;
+    if (duplicateKey.rat === "NR" && source.details.type !== null && source.details.type !== undefined) entry.type = source.details.type;
     entries.push(entry);
     entriesByRat.set(duplicateKey.rat, entries);
   }
@@ -477,6 +481,7 @@ async function checkPciDuplicatesForSpec(
       eq(cells.band_id, entry.bandId),
       eq(spec.pciColumn, entry.pci),
       spec.enbidColumn !== undefined && entry.enbid !== undefined ? eq(spec.enbidColumn, entry.enbid) : undefined,
+      spec.typeColumn !== undefined && entry.type !== undefined ? eq(spec.typeColumn, entry.type) : undefined,
       entry.channel !== null && entry.channel !== undefined ? or(isNull(spec.channelColumn), eq(spec.channelColumn, entry.channel)) : undefined,
       entry.excludeCellId !== undefined ? ne(spec.cellIdColumn, entry.excludeCellId) : undefined,
     ),

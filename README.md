@@ -1,4 +1,11 @@
-<h1 align="center"><b>BTSearch</b></h1>
+<h1 align="center">
+  <a href="https://btsearch.pl">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.png">
+      <img src=".github/assets/banner-light.png" alt="BTSearch">
+    </picture>
+  </a>
+</h1>
 
 BTSearch to Polska mapa stacji bazowych w całej Polsce wraz z łatwym dostępem do pozwoleń UKE i radiolinii
 

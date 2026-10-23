@@ -212,7 +212,7 @@ function isDraftObserved(value: unknown): boolean {
 }
 
 function isDraftIdentity(value: unknown): boolean {
-  return value === null || (isRecord(value) && isInteger(value.gnbid) && isInteger(value.clid));
+  return value === null || (isRecord(value) && isInteger(value.gnbid) && isInteger(value.clid) && isInteger(value.gnbidLength));
 }
 
 function isDraftTarget(row: UnknownRecord): boolean {

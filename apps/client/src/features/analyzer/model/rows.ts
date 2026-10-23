@@ -1,3 +1,5 @@
+import { conventionsFor } from "@openbts/country-packs";
+import { DEFAULT_GNBID_LENGTH, splitNci } from "@openbts/shared/contract";
 import type {
   Cell,
   CellDifference,
@@ -134,7 +136,8 @@ function buildOneRowFacts(row: LogRow, result: CellMatchResult | null, input: Fa
   const { lookups, tables } = input;
   const storedCell = findStoredCell(result, tables);
   const operatorId = findRowOperatorId(row, result, lookups?.operatorIdByPlmn);
-  const countryCode = operatorId === null ? null : (lookups?.operatorsById.get(operatorId)?.operator.countryCode ?? null);
+  const operator = operatorId === null ? undefined : lookups?.operatorsById.get(operatorId)?.operator;
+  const countryCode = operator?.countryCode ?? null;
 
   let bandId: number | null = null;
   if (result !== null && result.cellId !== null) bandId = storedCell?.bandId ?? null;
@@ -151,6 +154,7 @@ function buildOneRowFacts(row: LogRow, result: CellMatchResult | null, input: Fa
     tick: getTickState(result, storedCell, input.isStaff),
     stationId: result?.stationId ?? null,
     isUnconfirmed: storedCell !== undefined && !storedCell.isConfirmed,
+    gnbidLength: operator === undefined ? DEFAULT_GNBID_LENGTH : conventionsFor(operator.countryCode).gnbidLength(operator),
   };
 }
 
@@ -169,14 +173,14 @@ function toChip(field: ChipField, value: number | null | undefined, result: Cell
   return [{ field, label, value, kind, stored: null }];
 }
 
-function buildNrIdentityChips(observed: Extract<ObservedCell, { rat: "nr" }>, result: CellMatchResult | null): IdChip[] {
-  const identity = result?.nrIdentity ?? null;
-  if (identity !== null) return [...toChip("gnbid", identity.gnbid, result, false), ...toChip("clid", identity.clid, result, true)];
+function buildNrIdentityChips(observed: Extract<ObservedCell, { rat: "nr" }>, result: CellMatchResult | null, gnbidLength: number): IdChip[] {
   if (observed.nci === null || observed.nci === undefined) return [];
+  const identity = result === null ? splitNci(observed.nci, gnbidLength) : result.nrIdentity;
+  if (identity !== null) return [...toChip("gnbid", identity.gnbid, result, false), ...toChip("clid", identity.clid, result, true)];
   return [{ field: NCI_CHIP_FIELD, label: NCI_CHIP_LABEL, value: observed.nci, kind: "same", stored: null }];
 }
 
-export function buildIdChips(row: LogRow, result: CellMatchResult | null): IdChipLines {
+export function buildIdChips(row: LogRow, result: CellMatchResult | null, gnbidLength: number): IdChipLines {
   const { observed } = row;
 
   if (observed.rat === "lte") {
@@ -199,7 +203,7 @@ export function buildIdChips(row: LogRow, result: CellMatchResult | null): IdChi
     return { identity: [...toChip("lac", observed.lac, result, false), ...toChip("cid", observed.cid, result, false)], values: [] };
   }
   return {
-    identity: buildNrIdentityChips(observed, result),
+    identity: buildNrIdentityChips(observed, result, gnbidLength),
     values: [
       ...toChip("tac", observed.tac, result, true),
       ...toChip("pci", observed.pci, result, true),

@@ -2,6 +2,7 @@ import type { AuditOperationKind } from "@openbts/shared/audit";
 import type {
   CellRat,
   CountryFeatures,
+  NrMode,
   Sector,
   StationHistoryAction,
   StationHistoryCell,
@@ -263,6 +264,11 @@ function cellNumber(column: string, flat: HistoryObject, context: HistoryContext
   return typeof value === "number" ? value : null;
 }
 
+function nrMode(flat: HistoryObject | null): NrMode | null {
+  const value = flat?.type;
+  return value === "nsa" || value === "sa" ? value : null;
+}
+
 function cellChange(row: AuditRow, action: StationHistoryAction, context: HistoryContext): StationHistoryCell | null {
   const id = Number(row.record_id);
   const oldFlat = flattenCell(row.old_values, context.countryFeatures);
@@ -285,6 +291,7 @@ function cellChange(row: AuditRow, action: StationHistoryAction, context: Histor
     bandId: cellNumber("band_id", identity, context),
     cid: hasCid ? cellNumber("cid", identity, context) : null,
     clid: hasCid ? null : cellNumber("clid", identity, context),
+    mode: rat === "nr" ? nrMode(action === "delete" ? oldFlat : newFlat) : null,
     fields,
   };
 }

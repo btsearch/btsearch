@@ -209,6 +209,8 @@
     "any": "Dowolna różnica",
     "other": "Inny {{field}}",
     "missing": "Brak {{field}} w bazie",
+    "gnbidLength": "Inna długość gNBID",
+    "missingGnbidLength": "Brak długości gNBID w bazie",
     "new": "Nowa komórka",
     "newHint": "Stacja jest w bazie, a tej komórki na niej nie ma",
     "byLac": "Dopasowana po LAC i CID",

@@ -177,6 +177,8 @@
     "any": "Any difference",
     "other": "Different {{field}}",
     "missing": "No {{field}} in the database",
+    "gnbidLength": "Different gNBID length",
+    "missingGnbidLength": "No gNBID length in the database",
     "new": "New cell",
     "newHint": "The station is in the database, but this cell is not on it",
     "byLac": "Matched by LAC and CID",

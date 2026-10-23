@@ -41,7 +41,12 @@ export function getCellTitle(cell: StationHistoryCell, action: StationHistoryAct
   return identifier === null ? bandTitle : `${bandTitle}${TITLE_SEPARATOR}${identifier}`;
 }
 
+export function listCellFieldChanges(cell: StationHistoryCell): StationHistoryCell["fields"] {
+  if (cell.mode !== "nsa") return cell.fields;
+  return cell.fields.filter((change) => change.field !== "gnbidLength");
+}
+
 export function describeCellValues(cell: StationHistoryCell, names: HistoryNames, t: TFunction): HistoryCellValue[] {
-  const changes = cell.fields.filter((change) => !IDENTITY_FIELDS.has(change.field));
+  const changes = listCellFieldChanges(cell).filter((change) => !IDENTITY_FIELDS.has(change.field));
   return describeFieldChanges(changes, names, t).map(({ key, label, from, to }) => ({ key, label, value: to ?? from ?? MISSING_VALUE }));
 }

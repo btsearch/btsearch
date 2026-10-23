@@ -1,4 +1,4 @@
-import type { CellRat } from "@openbts/shared/contract";
+import { CELL_DIFFERENCE_FIELDS, type CellRat } from "@openbts/shared/contract";
 
 import type { DifferenceField, DifferenceFilter, DifferenceKind } from "./types";
 import { FIRST_LIST_PAGE } from "@/features/stations/list/data/listPaging";
@@ -8,7 +8,7 @@ export const ANALYZER_VIEWS = ["cells", "stations"] as const;
 export const ANALYZER_SORTS = ["file", "station", "result"] as const;
 export const ANALYZER_RATS: readonly CellRat[] = ["gsm", "umts", "lte", "nr"];
 export const ANY_DIFFERENCE = "any";
-export const DIFFERENCE_FIELDS: readonly DifferenceField[] = ["lac", "rnc", "uarfcn", "tac", "pci", "earfcn", "arfcn", "psc", "bsic"];
+export const DIFFERENCE_FIELDS: readonly DifferenceField[] = CELL_DIFFERENCE_FIELDS;
 export const DIFFERENCE_KIND_ORDER: readonly DifferenceKind[] = [
   "tac",
   "pci",
@@ -20,6 +20,9 @@ export const DIFFERENCE_KIND_ORDER: readonly DifferenceKind[] = [
   "earfcn",
   "uarfcn",
   "arfcn",
+  "gnbidLength",
+  "gnbid",
+  "clid",
   "no-tac",
   "no-lac",
   "no-rnc",

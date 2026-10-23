@@ -108,6 +108,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           ? {
               pci: nrDetails?.pci !== undefined ? nrDetails.pci : cell.nr?.pci,
               arfcn: nrDetails?.arfcn !== undefined ? nrDetails.arfcn : cell.nr?.arfcn,
+              type: nrDetails?.type !== undefined ? nrDetails.type : cell.nr?.type,
             }
           : null;
     await checkPciDuplicate(cell.station_id, { rat: cell.rat, bandId: effectiveBandId, details: effectiveDetails, excludeCellId: id });

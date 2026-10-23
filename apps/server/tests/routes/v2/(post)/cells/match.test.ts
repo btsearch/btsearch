@@ -48,7 +48,7 @@ function stored(rat: string, id = 10, operatorId = 1) {
     gsm: rat === "gsm" ? { lac: 1, cid: 2, bsic: null } : null,
     umts: rat === "umts" ? { lac: 1, cid: 2, rnc: 3, psc: null, arfcn: null } : null,
     lte: rat === "lte" ? { enbid: 100, clid: 2, tac: null, pci: null, earfcn: null } : null,
-    nr: rat === "nr" ? { gnbid: 200, clid: 2, nci: 819202n, nrtac: null, pci: null, arfcn: null } : null,
+    nr: rat === "nr" ? { gnbid: 200, clid: 2, gnbid_length: 24, nci: 819202n, nrtac: null, pci: null, arfcn: null } : null,
   };
 }
 
@@ -101,7 +101,7 @@ describe("POST /cells/match", () => {
           isShared: false,
           networkMatch: "own",
           differences: [],
-          nrIdentity: cell.rat === "nr" ? { gnbid: 200, clid: 2 } : null,
+          nrIdentity: cell.rat === "nr" ? { gnbid: 200, clid: 2, gnbidLength: 24 } : null,
         },
       ],
     });
@@ -193,12 +193,22 @@ describe("POST /cells/match", () => {
 
   it("uses the stored NR split when an NCI has a non-default gNBID length", async () => {
     network();
-    dbMock.enqueueFor("select", "cells", [], [{ ...stored("nr"), nr: { gnbid: 400, clid: 2, nci: 819202n, nrtac: null, pci: null, arfcn: null } }]);
+    dbMock.enqueueFor(
+      "select",
+      "cells",
+      [],
+      [{ ...stored("nr"), nr: { gnbid: 400, clid: 2, gnbid_length: 25, nci: 819202n, nrtac: null, pci: null, arfcn: null } }],
+    );
     const app = await createRouteHarness(route);
     const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [{ rat: "nr", plmn, nci: 819202 }] } });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.results[0]).toMatchObject({ match: "cell", cellId: 10, nrIdentity: { gnbid: 400, clid: 2 } });
+    expect(response.json().data.results[0]).toMatchObject({
+      match: "cell",
+      cellId: 10,
+      differences: [],
+      nrIdentity: { gnbid: 400, clid: 2, gnbidLength: 25 },
+    });
   });
 
   it.each([true, false])("reports a BSIC difference only when the feature is enabled (%s)", async (enabled) => {
