@@ -630,7 +630,7 @@ export function SubmissionPhotosPanel({ draft, stationId, locationId, submission
                     <InlineError className="m-3" onRetry={() => locationPhotosQuery.refetch()} isRetrying={locationPhotosQuery.isFetching} />
                   ) : null}
                   {showsLocationPhotos ? (
-                    <div className="custom-scrollbar grid max-h-80 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 overflow-y-auto p-3">
+                    <div className="custom-scrollbar grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 p-3 md:max-h-80 md:overflow-y-auto">
                       {locationPhotos.map((photo, index) => {
                         const isMarkedForRemoval = locationPhotoIdsToRemove.includes(photo.id);
                         const isSelected = isShownAfterSending(photo);
@@ -671,7 +671,7 @@ export function SubmissionPhotosPanel({ draft, stationId, locationId, submission
                 ) : null}
                 {showsUploads && uploadCount === 0 ? <EmptyUploadState canEdit={canEdit} onUploadClick={openFilePicker} /> : null}
                 {showsUploads && uploadCount > 0 ? (
-                  <div className="custom-scrollbar grid max-h-96 grid-cols-2 gap-2 overflow-y-auto p-3 sm:grid-cols-3">
+                  <div className="custom-scrollbar grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 md:max-h-96 md:overflow-y-auto">
                     {storedPhotos.map((photo, index) => (
                       <UploadPhotoCard
                         key={photo.id}

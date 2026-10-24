@@ -243,7 +243,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                 </Button>
               </div>
             ) : (
-              <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-96 overflow-y-auto">
+              <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 md:max-h-96 md:overflow-y-auto">
                 {photos.map((file, index) => (
                   <div key={`${file.name}-${index}`} className="rounded-lg overflow-hidden border bg-muted">
                     <PhotoImage

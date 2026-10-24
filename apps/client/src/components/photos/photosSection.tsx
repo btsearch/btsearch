@@ -241,7 +241,7 @@ export function PhotosSection<Row>({
               </div>
             ) : null}
             {photos.length > 0 ? (
-              <div className="p-3 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-96 overflow-y-auto custom-scrollbar">
+              <div className="p-3 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 md:max-h-96 md:overflow-y-auto custom-scrollbar">
                 {photos.map((photo, idx) => (
                   <div
                     key={photo.id}

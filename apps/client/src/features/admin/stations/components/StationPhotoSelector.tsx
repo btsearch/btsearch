@@ -279,7 +279,7 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
           className="sr-only"
           onChange={handleFileChange}
         />
-        <div className="p-3 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-96 overflow-y-auto">
+        <div className="p-3 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 md:max-h-96 md:overflow-y-auto">
           {locationPhotos.map((photo, index) => {
             const isSelected = selected.has(photo.id);
             const isMain = mainId === photo.id;
