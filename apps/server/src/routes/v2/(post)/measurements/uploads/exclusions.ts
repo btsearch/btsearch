@@ -2,7 +2,7 @@ import { measurementExclusionResultSchema, measurementExclusionSchema } from "@o
 import type { MeasurementExclusion, MeasurementExclusionResult } from "@openbts/shared/contract";
 import type { FastifyRequest } from "fastify/types/request.js";
 
-import { excludeUploads } from "../../../../../features/measurements/exclusions.js";
+import { excludeUploads } from "../../../../../features/measurements/uploads/exclusions.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -13,6 +13,7 @@ const schemaRoute = {
   description:
     "Withdrawn and excluded uploads are left as they are, so an excluded upload keeps its first `reason`. " +
     "Excluded files are kept until they expire, as evidence. Works while uploads are switched off.",
+  tags: ["measurement-administration"],
   body: measurementExclusionSchema,
   response: { 200: measurementExclusionResultSchema },
 };

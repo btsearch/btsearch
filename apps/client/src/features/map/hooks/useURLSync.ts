@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 
+import type { StationCoverageRequest } from "../crowd/coverage/coverageStore";
 import {
   DEFAULT_MAP_FILTERS,
   DEFAULT_RECENT_DAYS,
@@ -13,7 +14,9 @@ import {
   sanitizeMapFilters,
 } from "../data/mapFilters";
 import { findOperatorIdsByMncs } from "../data/mapLookups";
+import { UNKNOWN_COVERAGE_BAND_TOKEN } from "../mapLinks";
 import { operatorsQueryOptions } from "@/features/shared/lookups";
+import { isRecordId } from "@/lib/apiValues";
 import { isBackhaulMedium } from "@/lib/format/backhaul";
 import type { StationStatus } from "@/types/station";
 
@@ -25,6 +28,8 @@ export type UrlInitialization = {
   officialSiteId?: number;
   locationId?: number;
   microwaveLinkId?: number;
+  observedSiteId?: number;
+  coverage?: StationCoverageRequest;
 };
 
 type UseUrlSyncArgs = {
@@ -45,7 +50,7 @@ type ParsedUrlHash = Omit<UrlInitialization, "filters"> & {
 };
 
 const LEGACY_FILTER_PARAM_KEYS = ["operators", "bands", "rat", "status", "source", "new", "radiolines", "stations", "rl_operators", "heatmap"];
-const TARGET_TOKEN_KEYS: ReadonlySet<string> = new Set(["L", "R", "S", "U"]);
+const TARGET_TOKEN_KEYS: ReadonlySet<string> = new Set(["L", "R", "S", "U", "E", "C"]);
 const STATION_STATUS_URL_CODES: Record<StationStatus, string> = {
   published: "p",
   pending: "n",
@@ -102,6 +107,21 @@ function parseLegacyFilters(params: URLSearchParams): UrlFilters | null {
   return { filters, legacyOperatorMncs: parseNumberList(params.get("operators")) };
 }
 
+function parseCoverageBandToken(value: string | undefined): StationCoverageRequest["bandId"] {
+  if (value === UNKNOWN_COVERAGE_BAND_TOKEN) return null;
+  const bandId = Number(value);
+  return isRecordId(bandId) ? bandId : undefined;
+}
+
+function parseCoverageToken(value: string): StationCoverageRequest | undefined {
+  const [station, band, cell] = value.split(",");
+  const stationId = Number(station);
+  if (!isRecordId(stationId)) return undefined;
+
+  const observedCellId = Number(cell);
+  return { stationId, bandId: parseCoverageBandToken(band), observedCellId: isRecordId(observedCellId) ? observedCellId : null };
+}
+
 function parseRecentToken(value: string): Pick<MapFilters, "recentDays" | "recentDateFields"> {
   const days = value.replace(/[^0-9]/g, "");
   const fieldCodes = value.replace(/[0-9]/g, "");
@@ -115,13 +135,20 @@ function parseRecentToken(value: string): Pick<MapFilters, "recentDays" | "recen
   };
 }
 
-function parseFlagToken(value: string): Pick<MapFilters, "showRadiolines" | "showHeatmap" | "showStations" | "source" | "showPlannedMeasurements"> {
+type UrlFlagFilters = Pick<
+  MapFilters,
+  "showRadiolines" | "showHeatmap" | "showStations" | "source" | "showPlannedMeasurements" | "showEstimatedSites" | "showTrails"
+>;
+
+function parseFlagToken(value: string): UrlFlagFilters {
   return {
     showRadiolines: value.includes("r"),
     showHeatmap: value.includes("h"),
     showStations: !value.includes("s"),
     source: value.includes("u") ? "official" : "internal",
     showPlannedMeasurements: value.includes("p"),
+    showEstimatedSites: !value.includes("e"),
+    showTrails: value.includes("t"),
   };
 }
 
@@ -191,6 +218,8 @@ function parseUrlHash(): ParsedUrlHash {
   let officialSiteId: number | undefined;
   let locationId: number | undefined;
   let microwaveLinkId: number | undefined;
+  let observedSiteId: number | undefined;
+  let coverage: StationCoverageRequest | undefined;
 
   if (hasTokens) {
     const tokens = hash.split("~").slice(1);
@@ -203,8 +232,12 @@ function parseUrlHash(): ParsedUrlHash {
       else if (key === "U") {
         const id = Number(value);
         if (Number.isSafeInteger(id) && id > 0) officialSiteId = id;
-      }
+      } else if (key === "E") {
+        const id = Number(value);
+        if (isRecordId(id)) observedSiteId = id;
+      } else if (key === "C") coverage = parseCoverageToken(value);
     }
+    if (stationId === undefined && coverage !== undefined) stationId = String(coverage.stationId);
     urlFilters = parseTokenFilters(tokens.filter((token) => !TARGET_TOKEN_KEYS.has(token[0])));
   } else if (hasQuery) {
     const queryPart = hash.split("?")[1] ?? "";
@@ -225,6 +258,8 @@ function parseUrlHash(): ParsedUrlHash {
     officialSiteId,
     locationId: locationId !== undefined && !Number.isNaN(locationId) ? locationId : undefined,
     microwaveLinkId: microwaveLinkId !== undefined && !Number.isNaN(microwaveLinkId) ? microwaveLinkId : undefined,
+    observedSiteId,
+    coverage,
   };
 }
 
@@ -249,6 +284,8 @@ function buildUrlHash(filters: MapFilters, map: MapLibreMap): string {
     filters.showPlannedMeasurements && "p",
     !filters.showStations && "s",
     filters.source === "official" && "u",
+    !filters.showEstimatedSites && "e",
+    filters.showTrails && "t",
   ]
     .filter(Boolean)
     .join("");
@@ -293,7 +330,7 @@ export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitializ
     if (!enabled || !isLoaded || !map || hasStartedInitialization.current) return;
     hasStartedInitialization.current = true;
 
-    const { urlFilters, center, zoom, stationId, officialSiteId, locationId, microwaveLinkId } = parseUrlHash();
+    const { urlFilters, center, zoom, stationId, officialSiteId, locationId, microwaveLinkId, observedSiteId, coverage } = parseUrlHash();
 
     if (center || zoom !== undefined) {
       map.flyTo({
@@ -308,7 +345,7 @@ export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitializ
       if (!isMounted.current) return;
 
       const initialFilters = urlFilters === null ? undefined : addOperatorIds(urlFilters.filters, convertedOperatorIds);
-      notifyInitialized({ filters: initialFilters, center, zoom, stationId, officialSiteId, locationId, microwaveLinkId });
+      notifyInitialized({ filters: initialFilters, center, zoom, stationId, officialSiteId, locationId, microwaveLinkId, observedSiteId, coverage });
       isInitialized.current = true;
     };
 

@@ -2,9 +2,9 @@ import { UserBlock01Icon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Trans, useTranslation } from "react-i18next";
 
-import { accountHistoryQueryOptions } from "../../api/activity";
+import { activeBanOperationQueryOptions } from "../../api/activity";
 import type { AdminUser, AuditOperation } from "../../types";
-import { findActiveBanOperation, getOperationAuthor } from "../../utils/accountHistory";
+import { getOperationAuthor } from "../../utils/accountHistory";
 import { getBanReasonLabel, getBanUntilLabel } from "../../utils/ban";
 import { formatLongDate } from "../../utils/dates";
 import { resolveDisplayName } from "../../utils/identity";
@@ -38,8 +38,7 @@ function BanAuthorship({ operation }: { operation: AuditOperation }) {
 
 export function BanNotice({ user }: { user: AdminUser }) {
   const { t, i18n } = useTranslation("admin");
-  const { data: accountHistory } = useQuery(accountHistoryQueryOptions(user.id));
-  const banOperation = accountHistory === undefined ? null : findActiveBanOperation(accountHistory);
+  const { data: banOperation = null } = useQuery(activeBanOperationQueryOptions(user.id));
 
   return (
     <div role="status" className="rounded-xl border border-destructive/25 bg-destructive/5">

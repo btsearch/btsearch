@@ -19,7 +19,7 @@ const schemaRoute = {
     "While the status is `pending`, or the profile is `ready` with a `surfaceVerdict` of `pending`, wait the number of seconds " +
     "in the `Retry-After` and `X-Retry-After` headers before polling again. " +
     "An analysis whose antenna and ground heights take longer than the time limit, one minute by default, fails. " +
-    "The heights of buildings and trees follow later, within five minutes by default; if they do not arrive, `surfaceVerdict` becomes `unknown`. " +
+    "The heights of buildings and trees follow later, within five minutes by default. If they do not arrive, `surfaceVerdict` becomes `unknown`. " +
     "The status `cancelled` means the profile was stopped with `DELETE /terrain-profiles/{id}`.",
   params: terrainProfileParamsSchema,
   querystring: terrainProfileQuerySchema,

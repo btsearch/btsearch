@@ -4,8 +4,8 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../../errors.js";
-import { toMeasurementDevice } from "../../../../../features/measurements/devices.js";
-import { registerDevice } from "../../../../../features/measurements/registration.js";
+import { registerDevice } from "../../../../../features/measurements/devices/registration.js";
+import { loadDeviceDetails, toMeasurementDevice } from "../../../../../features/measurements/devices/serialize.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { UNLIMITED, countAgainstLimit } from "../../../../../lib/requestLimit.js";
@@ -25,10 +25,10 @@ const schemaRoute = {
   response: { 200: deviceResponseSchema, 201: deviceResponseSchema },
 };
 const errorReasons = {
-  400: "`challenge` is unknown, expired, another account's or used by another key; `challengeSignature` does not verify; or `certificateChain` is broken or attests another challenge or key.",
+  400: "One of these: `challenge` is unknown, expired, another account's or used by another key, `challengeSignature` does not verify, or `certificateChain` is broken or attests another challenge or key.",
   403:
     "Also returned while uploads are switched off, with `APP_UPDATE_REQUIRED` when `app.versionCode` is below `minAppVersionCode`, " +
-    "with `TERMS_NOT_ACCEPTED` until you accept the current terms, and with `CONTRIBUTOR_BLOCKED`, whose `details` holds one `{ until }`: " +
+    "with `TERMS_NOT_ACCEPTED` until you accept the current terms, and with `CONTRIBUTOR_BLOCKED`, whose `details` holds one `{ endsAt }`: " +
     "when the block ends, or `null` if it has no end.",
   409:
     "With `DEVICE_KEY_IN_USE`, the key is registered to another account, so start again with a new challenge and a new key. " +
@@ -43,7 +43,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   if (userId === undefined || clientId === undefined) throw new ErrorResponse("UNAUTHORIZED");
 
   const { device, isNew } = await registerDevice(res, userId, clientId, req.body, () => countAgainstLimit(req, res, REGISTRATION_LIMIT));
-  return res.status(isNew ? 201 : 200).send({ data: toMeasurementDevice(device) });
+  return res.status(isNew ? 201 : 200).send({ data: toMeasurementDevice(device, await loadDeviceDetails(req, [device])) });
 }
 
 const registerMeasurementDevice: Route<ReqBody, MeasurementDevice> = {

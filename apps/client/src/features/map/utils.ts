@@ -1,4 +1,13 @@
-import type { Brand, Licensee, MicrowaveLink, OfficialSite, OfficialSitePermit, StationCell } from "@openbts/shared/contract";
+import type {
+  Band,
+  Brand,
+  Licensee,
+  MicrowaveLink,
+  ObservedCellRecord,
+  OfficialSite,
+  OfficialSitePermit,
+  StationCell,
+} from "@openbts/shared/contract";
 import { calculateBearing, calculateDistance, destinationPoint, formatDistance } from "@openbts/shared/geo";
 import { calculateMicrowaveLinkSpeed, formatBandwidth, formatFrequency, formatSpeed, getModulationBits } from "@openbts/shared/microwaveLinkUtils";
 
@@ -70,6 +79,14 @@ export function getStationBands(cells: Cell[]): string[] {
 
 export function getCellTechnologyBands(cells: readonly StationCell[]): string[] {
   return sortBands([...new Set(cells.map((cell) => `${toRatType(cell.rat)}${cell.band?.labelMhz ?? ""}`))]);
+}
+
+export function getObservedCellTechnologyBands(cells: readonly ObservedCellRecord[], bandsById: ReadonlyMap<number, Band> | undefined): string[] {
+  const bands = cells.map((cell) => {
+    const band = cell.bandId === null ? undefined : bandsById?.get(cell.bandId);
+    return `${toRatType(cell.rat)}${band?.labelMhz ?? ""}`;
+  });
+  return sortBands([...new Set(bands)]);
 }
 
 export function getOfficialPermitBands(permits: readonly Pick<OfficialSitePermit, "label">[]): string[] {

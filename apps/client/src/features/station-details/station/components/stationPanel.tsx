@@ -148,7 +148,7 @@ export function StationPanel({
       heading={heading}
       toolbar={toolbar}
       actions={station ? <StationPanelActions key={station.id} station={station} editTarget={editTarget} onClose={onClose} /> : null}
-      banners={station ? <StationPanelBanners station={station} /> : null}
+      banners={station ? <StationPanelBanners station={station} canReviewFlags={editTarget === "editor"} onClose={onClose} /> : null}
       strip={
         <StationSiblingStrip
           stationId={stationId}

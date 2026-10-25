@@ -1,0 +1,9 @@
+{
+  "sealedBy": "apps/server/src/features/measurements/seal.ts",
+  "uploadId": "01a12096-8da0-7c1d-9b2e-5f6a7b8c9d0e",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "sealKeys": "test:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "encoding": "zstd",
+  "bodyBytes": 939,
+  "bodySha256": "2ab9c77b62857989811e47b47b08e80dde9c63eb7e4f316200f1cf1d60c4953c"
+}

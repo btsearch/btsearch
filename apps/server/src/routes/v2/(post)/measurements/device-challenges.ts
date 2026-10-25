@@ -5,7 +5,7 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
-import { issueDeviceChallenge } from "../../../../features/measurements/challenges.js";
+import { issueDeviceChallenge } from "../../../../features/measurements/devices/challenges.js";
 import { assertMeasurementUploadsEnabled } from "../../../../features/measurements/settings.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -36,7 +36,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<DeviceCha
 const createDeviceChallenge: Route<RouteGenericInterface, DeviceChallenge> = {
   url: "/measurements/device-challenges",
   method: "POST",
-  config: { permissions: ["upload:observations"], callers: ["app"], errorReasons },
+  config: { permissions: ["upload:observations"], callers: ["app"], idempotentReplay: false, errorReasons },
   schema: schemaRoute,
   handler,
 };

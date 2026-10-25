@@ -1,4 +1,5 @@
-import type { SQL } from "drizzle-orm";
+import { curatedCellSummaries } from "@openbts/drizzle";
+import { type SQL, getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
@@ -6,7 +7,7 @@ import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import getLocation from "../../../../../src/routes/v2/(get)/locations/[id].js";
 import getLocations from "../../../../../src/routes/v2/(get)/locations/index.js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
-import { readLocation, readStation, readUserId } from "../../../../helpers/readFixtures.js";
+import { readCell, readLocation, readStation, readUserId } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness, createRouteHarnessWithErrors } from "../../../../helpers/routeHarness.js";
 
 describe("getLocations", () => {
@@ -170,6 +171,25 @@ describe("getLocation", () => {
     const response = await app.inject({ method: "GET", url: "/locations/1?include=region,stations" });
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toMatchObject({ id: 1, region: readLocation.region, stations: [], latitude: 52, longitude: 21 });
+  });
+
+  it("carries each station's and each cell's sightings with include=stations.sightings,stations.cells.sightings", async () => {
+    dbMock.enqueueFor("select", "locations", [readLocation]);
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "stations", [{ station: { ...readStation, location_id: 1 } }], []);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    dbMock.enqueueFor("select", "cells", [readCell]);
+    dbMock.enqueueFor("select", "bands", [{ id: 3, rat: "LTE", code: "B3", name: "1800", value: 1800, duplex: "FDD", variant: "commercial" }]);
+    dbMock.enqueueFor("select", getTableName(curatedCellSummaries), [{ stationId: 1, firstSeenOn: "2026-10-01", lastSeenOn: "2026-10-30" }]);
+    dbMock.enqueueFor("select", getTableName(curatedCellSummaries), [
+      { cellId: 1, rat: "LTE", firstSeenOn: "2026-10-22", lastSeenOn: "2026-10-30", bandwidthKhz: 20000 },
+    ]);
+    const app = await createRouteHarness(getLocation);
+    const response = await app.inject({ url: "/locations/1?include=stations.sightings,stations.cells.sightings" });
+    expect(response.statusCode).toBe(200);
+    const [station] = response.json().data.stations;
+    expect(station.sightings).toEqual({ firstSeenOn: "2026-10-01", lastSeenOn: "2026-10-30" });
+    expect(station.cells[0].sightings).toEqual({ firstSeenOn: "2026-10-22", lastSeenOn: "2026-10-30", bandwidthKhz: 20000 });
   });
 
   it.each(["missing", "hidden"])("returns 404 for a %s location", async (kind) => {

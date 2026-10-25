@@ -2,7 +2,7 @@ import { createHash, createHmac, generateKeyPairSync, randomBytes, sign } from "
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { verifyAttestation } from "../../../../../../src/features/measurements/attestation/verify.js";
-import { issueDeviceChallenge, useDeviceChallenge } from "../../../../../../src/features/measurements/challenges.js";
+import { issueDeviceChallenge, useDeviceChallenge } from "../../../../../../src/features/measurements/devices/challenges.js";
 import route from "../../../../../../src/routes/v2/(post)/measurements/devices/index.js";
 import { dbMock, redisMock, userSession } from "../../../../../helpers/boundaries.js";
 import { appClientId, appToken, crowdSettingsRow, deviceId, deviceRow, setMeasurementUploads } from "../../../../../helpers/measurementFixtures.js";
@@ -49,7 +49,7 @@ function scriptChecks({
 } = {}) {
   dbMock.enqueueFor("select", "devices", keyHolder, [{ active, recent, oldestRecentAt }], phoneHolder);
   dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
-  dbMock.enqueueFor("select", "terms_acceptances", [{ version: acceptedVersion, acceptedAt: new Date() }]);
+  dbMock.enqueueFor("select", "terms_acceptances", [{ userId, version: acceptedVersion, acceptedAt: new Date() }]);
   dbMock.enqueueFor("select", "contributor_blocks", isBlocked ? [{ until: null }] : []);
 }
 
@@ -57,7 +57,7 @@ function scriptInsert() {
   dbMock.enqueueFor("insert", "socs", [{ id: 3 }]);
   dbMock.enqueueFor("insert", "device_models", [{ id: 7 }]);
   dbMock.enqueueFor("insert", "devices", [{ id: deviceId }]);
-  dbMock.enqueueFor("select", "devices", [deviceRow()]);
+  dbMock.enqueueFor("select", "devices", [deviceRow()], []);
 }
 
 function insertedInto(table: string) {
@@ -82,6 +82,7 @@ describe("POST /measurements/devices", () => {
     const response = await register(registration(challenge));
 
     expect(response.statusCode).toBe(201);
+    expect(insertedInto("socs")).toEqual({ manufacturer: "Google", model: "Tensor G3", modemFamily: "samsung" });
     expect(insertedInto("devices")).toEqual({
       userId,
       modelId: 7,
@@ -125,9 +126,16 @@ describe("POST /measurements/devices", () => {
     expect(insertedInto("device_certificates")).toEqual([{ deviceId, position: 0, serial: Buffer.from([1]), der: leaf }]);
   });
 
+  it("refuses a new key while uploads are switched off, before it needs the phone key", async () => {
+    setMeasurementUploads(false);
+    vi.stubEnv("OBSERVATIONS_PHONE_KEY", "");
+    dbMock.enqueueFor("select", "devices", []);
+    expectError(await register(registration(randomBytes(32).toString("base64url"))), 403, "FEATURE_DISABLED");
+  });
+
   it("answers 200 with the device when its key is sent again, even while uploads are switched off", async () => {
     setMeasurementUploads(false);
-    dbMock.enqueueFor("select", "devices", [{ id: deviceId, userId }], [deviceRow()]);
+    dbMock.enqueueFor("select", "devices", [{ id: deviceId, userId }], [deviceRow()], []);
     expect((await register(registration(randomBytes(32).toString("base64url")))).statusCode).toBe(200);
   });
 
@@ -161,7 +169,7 @@ describe("POST /measurements/devices", () => {
     dbMock.enqueueFor("insert", "socs", [{ id: 3 }]);
     dbMock.enqueueFor("insert", "device_models", [{ id: 7 }]);
     dbMock.enqueueFor("insert", "devices", []);
-    dbMock.enqueueFor("select", "devices", [{ id: deviceId, userId }], [deviceRow()]);
+    dbMock.enqueueFor("select", "devices", [{ id: deviceId, userId }], [deviceRow()], []);
     expect((await register(registration(challenge))).statusCode).toBe(200);
   });
 

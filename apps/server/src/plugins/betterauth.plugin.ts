@@ -16,20 +16,21 @@ import { baseUrl } from "../config.js";
 import { APP_NAME, ARGON2_OPTIONS } from "../constants.js";
 import { db } from "../database/psql.js";
 import { redis } from "../database/redis.js";
-import { forgetContributorMeasurements } from "../features/measurements/withdrawals.js";
+import {
+  auditLiftedBan,
+  auditLinkedAccount,
+  auditPasswordReset,
+  auditUserSecurityChange,
+  rememberCreatedUser,
+  rememberLiftedBan,
+  rememberUserSecurityChange,
+} from "../features/audit/auth/databaseHooks.js";
+import { forgetContributorMeasurements } from "../features/measurements/contributors/accountDeletion.js";
 import type { UserRole } from "../interfaces/auth.interface.js";
 import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
 import { withRedisDeadline } from "../lib/redisDeadline.js";
 import { isDisposableEmail, isDisposableEmailBlocklistReady } from "./auth/disposableEmailBlocklist.js";
-import {
-  afterAuthHook,
-  assertSocialSignUpWithinLimit,
-  auditLiftedBan,
-  beforeAuthHook,
-  countSignUp,
-  releaseVerificationResendCooldown,
-  rememberLiftedBan,
-} from "./auth/hooks.js";
+import { afterAuthHook, assertSocialSignUpWithinLimit, beforeAuthHook, countSignUp, releaseVerificationResendCooldown } from "./auth/hooks.js";
 import { API_KEY_PERMISSIONS, accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
 import { OAUTH_SCOPES, OAUTH_USER_SCOPES } from "./auth/scopes.js";
 
@@ -199,6 +200,7 @@ export const auth = betterAuth({
           await assertSocialSignUpWithinLimit(ctx);
         },
         after: async (_user, ctx) => {
+          rememberCreatedUser(ctx);
           await countSignUp(ctx);
         },
       },
@@ -207,14 +209,23 @@ export const auth = betterAuth({
           assertSingleRole(data);
           assertNameFits(data);
           rememberLiftedBan(data, ctx);
+          await rememberUserSecurityChange(data, ctx);
         },
         after: async (user, ctx) => {
           await auditLiftedBan(user, ctx);
+          await auditUserSecurityChange(user, ctx);
         },
       },
       delete: {
         before: async (user) => {
           await forgetContributorMeasurements(user.id);
+        },
+      },
+    },
+    account: {
+      create: {
+        after: async (account, ctx) => {
+          await auditLinkedAccount(account, ctx);
         },
       },
     },
@@ -224,6 +235,9 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
       await sendPasswordResetEmail(user.email, url, getAuthEmailRecipient(user));
+    },
+    onPasswordReset: async ({ user }, request) => {
+      await auditPasswordReset(user, request);
     },
     password: {
       hash: async (password) => {

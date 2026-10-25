@@ -5,6 +5,8 @@ upstream sora_backend {
 }
 
 proxy_cache_path /var/cache/nginx/og-images levels=1:2 keys_zone=og_images:10m max_size=512m inactive=24h use_temp_path=off;
+proxy_cache_path /var/cache/nginx/tiles levels=1:2 keys_zone=tiles:50m max_size=5g inactive=7d use_temp_path=off;
+proxy_cache_path /var/cache/nginx/observed-sites levels=1:2 keys_zone=observed_sites:20m max_size=2g inactive=1d use_temp_path=off;
 
 server {
     listen 80 default_server;
@@ -95,6 +97,103 @@ server {
         proxy_pass_request_headers on;
         proxy_buffering off;
         proxy_store off;
+    }
+
+    # Measurement uploads from the app: bodies up to 4 MiB, read whole, never sent again after a timeout
+    location ~ ^/api/v2/measurements/uploads/ {
+        client_max_body_size 4m;
+        client_body_buffer_size 4m;
+        proxy_request_buffering on;
+        proxy_connect_timeout 1s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 30s;
+        proxy_next_upstream error;
+        proxy_next_upstream_tries 2;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Server $host;
+        proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_pass http://sora_backend;
+        proxy_pass_request_headers on;
+        proxy_buffering off;
+        proxy_store off;
+    }
+
+    location ~ ^/api/v2/observed/(trails|coverage)/[0-9]+/[0-9]+/[0-9]+$ {
+        proxy_cache tiles;
+        proxy_cache_key "$scheme$host$request_uri";
+        proxy_cache_bypass $http_x_api_key;
+        proxy_no_cache $http_x_api_key;
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 10s;
+        proxy_cache_lock_age 10s;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_valid 200 1h;
+        proxy_ignore_headers Vary;
+        proxy_hide_header Vary;
+        proxy_hide_header Access-Control-Allow-Credentials;
+        proxy_hide_header Access-Control-Allow-Origin;
+        proxy_hide_header Access-Control-Expose-Headers;
+        proxy_hide_header X-Request-Id;
+        proxy_hide_header X-Response-Time;
+        proxy_hide_header X-RateLimit-Limit;
+        proxy_hide_header X-RateLimit-Remaining;
+        proxy_hide_header X-RateLimit-Reset;
+        proxy_hide_header X-Quota-Limit;
+        proxy_hide_header X-Quota-Remaining;
+        proxy_hide_header X-Quota-Reset;
+        proxy_connect_timeout 1s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+        proxy_next_upstream error timeout http_502 http_504;
+        proxy_next_upstream_tries 2;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Server $host;
+        proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_pass http://sora_backend;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header X-Cache-Status $upstream_cache_status always;
+    }
+
+    location = /api/v2/observed/sites {
+        proxy_cache observed_sites;
+        proxy_cache_key "$scheme$host$request_uri";
+        proxy_cache_bypass $http_x_api_key;
+        proxy_no_cache $http_x_api_key;
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 10s;
+        proxy_cache_lock_age 10s;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_valid 200 5m;
+        proxy_ignore_headers Vary;
+        proxy_hide_header Vary;
+        proxy_hide_header Access-Control-Allow-Credentials;
+        proxy_hide_header Access-Control-Allow-Origin;
+        proxy_hide_header Access-Control-Expose-Headers;
+        proxy_hide_header X-Request-Id;
+        proxy_hide_header X-Response-Time;
+        proxy_hide_header X-RateLimit-Limit;
+        proxy_hide_header X-RateLimit-Remaining;
+        proxy_hide_header X-RateLimit-Reset;
+        proxy_hide_header X-Quota-Limit;
+        proxy_hide_header X-Quota-Remaining;
+        proxy_hide_header X-Quota-Reset;
+        proxy_connect_timeout 1s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+        proxy_next_upstream error timeout http_502 http_504;
+        proxy_next_upstream_tries 2;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Server $host;
+        proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_pass http://sora_backend;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header X-Cache-Status $upstream_cache_status always;
     }
 
     location /api {

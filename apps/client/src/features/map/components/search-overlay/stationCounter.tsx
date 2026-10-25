@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import type { MapCrowdState } from "../../crowd/useMapCrowd";
 import type { MapCountries } from "../../data/mapCountries";
 import { countryStatisticsQueryOptions, readMapDataDates } from "../../statsApi";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -20,6 +21,7 @@ type StationCounterProps = {
   zoom?: number;
   source: StationSource;
   mapCountries: MapCountries;
+  crowd?: MapCrowdState;
   onSourceChange: (source: StationSource) => void;
 };
 
@@ -48,6 +50,7 @@ export function StationCounter({
   zoom,
   source,
   mapCountries,
+  crowd,
   onSourceChange,
 }: StationCounterProps) {
   const { t } = useTranslation("main");
@@ -56,6 +59,8 @@ export function StationCounter({
   const hasMoreMicrowaveLinks = microwaveLinkTotalCount > microwaveLinkCount;
   const showMicrowaveLinks = microwaveLinkCount > 0 || isMicrowaveLinksFetching;
   const hasSourceSwitch = mapCountries.capabilities.official;
+  const estimatedSiteCount = crowd?.estimatedSiteCount ?? 0;
+  const estimatedSiteOverflow = crowd?.estimatedSiteOverflow ?? null;
 
   const { data: statistics } = useQuery({ ...countryStatisticsQueryOptions(), enabled: hasSourceSwitch });
   const dataDates = readMapDataDates(statistics, mapCountries.onScreen);
@@ -117,6 +122,28 @@ export function StationCounter({
               shown: microwaveLinkCount,
             })}
           </TooltipContent>
+        </Tooltip>
+      ) : null}
+      {estimatedSiteCount > 0 ? (
+        <Tooltip>
+          <TooltipTrigger
+            className={cn("px-2 py-1.5 flex items-center gap-2 border-r border-border/50", estimatedSiteOverflow !== null && "cursor-help")}
+            disabled={estimatedSiteOverflow === null}
+          >
+            <div className="flex items-baseline gap-1">
+              <span className={cn("text-sm font-bold tabular-nums leading-none tracking-tight", estimatedSiteOverflow !== null && "text-amber-500")}>
+                {estimatedSiteCount.toLocaleString(i18n.language)}
+              </span>
+              <span className="text-[9px] font-bold text-muted-foreground leading-none uppercase tracking-wider">
+                {t("overlay.estimatedSites", { count: estimatedSiteCount })}
+              </span>
+            </div>
+          </TooltipTrigger>
+          {estimatedSiteOverflow === null ? null : (
+            <TooltipContent side="bottom">
+              {t("overlay.moreEstimatedSites", { total: estimatedSiteOverflow.total, shown: estimatedSiteOverflow.shown })}
+            </TooltipContent>
+          )}
         </Tooltip>
       ) : null}
       {hasSourceSwitch ? (

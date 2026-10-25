@@ -7,6 +7,7 @@ import type { DashboardLayout, QueueSwitch } from "./cards/dashboardCard";
 import { DatabaseCard } from "./cards/databaseCard";
 import { ImportCard } from "./cards/importCard";
 import { NotesCard } from "./cards/notesCard";
+import { ObservationFlagsCard } from "./cards/observationFlagsCard";
 import { SubmissionsCard } from "./cards/submissionsCard";
 import { type DashboardAccess, useDashboardAccess } from "./useDashboardAccess";
 import { InlineError } from "@/components/ui/error-state";
@@ -20,7 +21,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { hasFailedLoad } from "@/lib/queryLoadState";
 import { cn } from "@/lib/utils";
 
-type QueueFeature = "submissions" | "commentReview";
+type QueueFeature = "submissions" | "commentReview" | "observations";
 
 type AreaLineProps = {
   access: DashboardAccess;
@@ -102,6 +103,11 @@ export function DashboardPage() {
 
         <div className={columnClass}>
           <DatabaseCard layout={layout} className={isColumns ? "flex-1" : undefined} />
+          <ObservationFlagsCard
+            queueSwitch={readQueueSwitch(settingsQuery.data, hasSettingsFailed, "observations")}
+            isAdmin={isAdmin}
+            lookups={lookups}
+          />
           {isAdmin ? <ImportCard /> : null}
         </div>
       </div>

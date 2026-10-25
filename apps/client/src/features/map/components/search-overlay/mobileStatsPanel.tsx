@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import type { MapCrowdState } from "../../crowd/useMapCrowd";
 import type { MapCountries } from "../../data/mapCountries";
 import { useOfficialLabel } from "../../hooks/useOfficialLabel";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,12 +19,13 @@ type MobileStatsPanelProps = {
   zoom?: number;
   source: StationSource;
   mapCountries: MapCountries;
+  crowd?: MapCrowdState;
   onSourceChange: (source: StationSource) => void;
 };
 
-function getPanelCursorClass(isSourceSwitch: boolean, hasMoreLocations: boolean): string | undefined {
+function getPanelCursorClass(isSourceSwitch: boolean, hasHint: boolean): string | undefined {
   if (isSourceSwitch) return "cursor-pointer";
-  return hasMoreLocations ? "cursor-help" : undefined;
+  return hasHint ? "cursor-help" : undefined;
 }
 
 export function MobileStatsPanel({
@@ -37,6 +39,7 @@ export function MobileStatsPanel({
   zoom,
   source,
   mapCountries,
+  crowd,
   onSourceChange,
 }: MobileStatsPanelProps) {
   const { t } = useTranslation("main");
@@ -45,6 +48,9 @@ export function MobileStatsPanel({
   const hasMoreMicrowaveLinks = microwaveLinkTotalCount > microwaveLinkCount;
   const showMicrowaveLinks = microwaveLinkCount > 0 || isMicrowaveLinksFetching;
   const hasSourceSwitch = mapCountries.capabilities.official;
+  const estimatedSiteCount = crowd?.estimatedSiteCount ?? 0;
+  const estimatedSiteOverflow = crowd?.estimatedSiteOverflow ?? null;
+  const hasHint = hasMoreLocations || estimatedSiteOverflow !== null;
 
   function handleSourceSwitch() {
     onSourceChange(source === "internal" ? "official" : "internal");
@@ -57,7 +63,7 @@ export function MobileStatsPanel({
           type="button"
           onMouseDown={(event) => event.preventDefault()}
           onClick={hasSourceSwitch ? handleSourceSwitch : undefined}
-          className={cn("px-2 py-1.5 bg-muted/30 flex items-center gap-2", getPanelCursorClass(hasSourceSwitch, hasMoreLocations))}
+          className={cn("px-2 py-1.5 bg-muted/30 flex items-center gap-2", getPanelCursorClass(hasSourceSwitch, hasHint))}
         >
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1">
@@ -86,6 +92,21 @@ export function MobileStatsPanel({
                   </span>
                 </>
               ) : null}
+              {estimatedSiteCount > 0 ? (
+                <>
+                  {showStations || showMicrowaveLinks ? (
+                    <span aria-hidden="true" className="text-[8px] text-muted-foreground leading-none">
+                      ·
+                    </span>
+                  ) : null}
+                  <span className={cn("text-xs font-bold leading-none", estimatedSiteOverflow !== null && "text-amber-500")}>
+                    {estimatedSiteCount.toLocaleString(i18n.language)}
+                  </span>
+                  <span className="text-[8px] font-bold text-muted-foreground leading-none uppercase tracking-wider">
+                    {t("overlay.estimatedSites", { count: estimatedSiteCount })}
+                  </span>
+                </>
+              ) : null}
             </div>
             <div className="flex items-center gap-1">
               {hasSourceSwitch ? (
@@ -105,9 +126,9 @@ export function MobileStatsPanel({
             </div>
           </div>
         </TooltipTrigger>
-        {hasMoreLocations ? (
+        {hasHint ? (
           <TooltipContent side="top">
-            {showStations ? <p>{t("overlay.moreStations", { total: totalCount, shown: locationCount })}</p> : null}
+            {showStations && hasMoreLocations ? <p>{t("overlay.moreStations", { total: totalCount, shown: locationCount })}</p> : null}
             {hasMoreMicrowaveLinks ? (
               <p>
                 {t("overlay.moreRadiolines", {
@@ -116,6 +137,9 @@ export function MobileStatsPanel({
                 })}
               </p>
             ) : null}
+            {estimatedSiteOverflow === null ? null : (
+              <p>{t("overlay.moreEstimatedSites", { total: estimatedSiteOverflow.total, shown: estimatedSiteOverflow.shown })}</p>
+            )}
           </TooltipContent>
         ) : null}
       </Tooltip>

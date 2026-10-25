@@ -10,7 +10,7 @@
     "offlineAccess": "Zachowuje stały dostęp, dopóki go nie odwołasz",
     "measurements": {
       "collected": "Podczas nagrywania aplikacja zbiera odczyty sieci komórkowej i pozycję GPS, a także model telefonu i wersję aplikacji. Nigdy nie zbiera numeru telefonu, IMEI ani IMSI",
-      "license": "Pomiary są publikowane jako otwarte dane na licencji ODbL. Możesz je wycofać w ustawieniach"
+      "license": "Stacje, komórki i zasięg wyznaczone z Twoich pomiarów publikujemy jako otwarte dane na licencji ODbL. Surowych pomiarów nie publikujemy nigdy. Przesłane pomiary możesz wycofać w ustawieniach, ale kopie, które ktoś już pobrał, zostaną u niego"
     },
     "redirectNotice": "Nastąpi przekierowanie do <strong>{{domain}}</strong>",
     "revokeNotice": "Dostęp możesz odwołać w każdej chwili <settingsLink>tutaj</settingsLink>",
@@ -33,12 +33,14 @@
       "read_submissions": "Twoje zgłoszenia",
       "read_official_permits": "Rejestr pozwoleń",
       "read_microwave_links": "Radiolinie z rejestru",
+      "read_observations": "Komórki i stacje z pomiarów telefonów",
       "create_comments": "Publikowanie komentarzy do stacji w Twoim imieniu",
       "create_user_lists": "Tworzenie Twoich list stacji",
       "update_user_lists": "Aktualizowanie Twoich list stacji",
       "create_submissions": "Zgłaszanie zmian danych stacji w Twoim imieniu",
       "update_submissions": "Aktualizowanie Twoich zgłoszeń",
       "delete_submissions": "Usuwanie Twoich zgłoszeń",
+      "moderate_observations": "Rozpatrywanie flag z pomiarów w kolejce edytorów w Twoim imieniu",
       "upload_observations": "Przesyłanie pomiarów z tego telefonu"
     }
   },

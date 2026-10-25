@@ -1,15 +1,17 @@
+import "dotenv/config";
 import { appSigningKeys, oauthClients } from "@openbts/drizzle";
 import { sql as connection, db } from "@openbts/drizzle/db";
 import { eq } from "drizzle-orm";
 import { parseArgs } from "node:util";
 
-import { collectorClientIds } from "../plugins/auth/appClient.js";
+import { unique } from "../lib/collections.js";
+import { appClientIds } from "../plugins/auth/appClient.js";
 import { APP_ONLY_SCOPES, OAUTH_SCOPES } from "../plugins/auth/scopes.js";
 
 const USAGE = [
   "usage: setupAppClient --client-id <id> [--name <name>] --redirect-uri <uri> [--redirect-uri <uri> ...] --package <name> --signing-digest <sha256> [--signing-digest <sha256> ...] [--development] [--apply]",
-  "writes the OAuth client of a collector app and the app's signing keys",
-  "--client-id must be one of COLLECTOR_OAUTH_CLIENT_IDS; --name is what the consent screen shows, BTSearch unless given",
+  "writes the OAuth client of an app and the app's signing keys",
+  "--client-id must be one of APP_OAUTH_CLIENT_IDS; --name is what the consent screen shows, BTSearch unless given",
   "--redirect-uri is the https App Link the app signs in through",
   "--development also allows loopback and custom-scheme redirects, such as http://127.0.0.1/callback; any app on a phone can receive those, so never on production",
   "--signing-digest is the SHA-256 of a certificate the app is signed with, in hex, with or without colons; repeat it for every key",
@@ -35,10 +37,10 @@ function readArguments() {
     },
   });
   const clientId = values["client-id"];
-  const digests = values["signing-digest"].map((digest) => digest.replaceAll(":", "").toLowerCase());
+  const digests = unique(values["signing-digest"].map((digest) => digest.replaceAll(":", "").toLowerCase()));
   const redirectUris = values["redirect-uri"];
   if (!clientId || !values.package || redirectUris.length === 0 || digests.length === 0) throw new Error(USAGE);
-  if (!collectorClientIds().has(clientId)) throw usageError(`${clientId} is not listed in COLLECTOR_OAUTH_CLIENT_IDS.`);
+  if (!appClientIds().has(clientId)) throw usageError(`${clientId} is not listed in APP_OAUTH_CLIENT_IDS.`);
   if (!digests.every((digest) => SHA256_HEX.test(digest))) throw usageError("Every --signing-digest must be a SHA-256 in hex.");
   if (!redirectUris.every((uri) => URL.canParse(uri))) throw usageError("Every --redirect-uri must be an absolute URI.");
   const isEveryRedirectHttps = redirectUris.every((uri) => new URL(uri).protocol === "https:");
@@ -82,12 +84,10 @@ async function main() {
     } else {
       await tx.insert(oauthClients).values(client);
     }
-    for (const digest of digests) {
-      await tx
-        .insert(appSigningKeys)
-        .values({ digest: Buffer.from(digest, "hex"), package: packageName })
-        .onConflictDoUpdate({ target: appSigningKeys.digest, set: { package: packageName } });
-    }
+    await tx
+      .insert(appSigningKeys)
+      .values(digests.map((digest) => ({ digest: Buffer.from(digest, "hex"), package: packageName })))
+      .onConflictDoUpdate({ target: appSigningKeys.digest, set: { package: packageName } });
   });
   console.log("written");
 }

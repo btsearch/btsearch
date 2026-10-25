@@ -1,21 +1,21 @@
 import { InformationCircleIcon, Tick02Icon, Undo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { OfficialSite, Operator, StationStatus } from "@openbts/shared/contract";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { OfficialSite, StationStatus } from "@openbts/shared/contract";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, type SyntheticEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { EDITOR_STATION_SEARCH } from "../editorStationSearch";
+import { useSaveFeedback } from "../hooks/useSaveFeedback";
 import { useCreateStationMutation, useSaveStationMutation } from "../mutations";
 import { DeleteStationDialog } from "./deleteStationDialog";
+import { EditorCells } from "./editorCells";
 import { EditorTopBar, type RevealField } from "./editorTopBar";
 import { StationCommentsSection } from "./stationCommentsSection";
 import { StationPhotoSelector } from "./StationPhotoSelector";
 import { Button } from "@/components/ui/button";
-import { InlineError } from "@/components/ui/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { moderatedStationCommentsQueryOptions } from "@/features/admin/comments/queries";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
@@ -25,7 +25,6 @@ import { HostedStationBadge } from "@/features/station-details/station/component
 import type { StationRecord } from "@/features/station-details/station/types";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { findHostStation, getStationCountryCode, getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
-import { CellsPanel } from "@/features/station-editing/components/cells/cellsPanel";
 import { EditPage, type EditPageCard } from "@/features/station-editing/components/frame/editPage";
 import {
   EditPageHead,
@@ -34,6 +33,7 @@ import {
   EditPageHeadSeparator,
   EditPageHeadStationLinks,
   EditPageHeadTimestamp,
+  findHeadOperator,
 } from "@/features/station-editing/components/frame/editPageHead";
 import { HistoryCard } from "@/features/station-editing/components/frame/historyCard";
 import { StatusStrip } from "@/features/station-editing/components/frame/statusStrip";
@@ -41,16 +41,14 @@ import { LocationCard } from "@/features/station-editing/components/location/loc
 import { AzimuthsCard } from "@/features/station-editing/components/sectors/azimuthsCard";
 import { AzimuthSummary } from "@/features/station-editing/components/sectors/azimuthSummary";
 import { StationCard } from "@/features/station-editing/components/station/stationCard";
-import { type EditLookups, retryEditLookups } from "@/features/station-editing/data/lookups";
-import { type StationDraftApi, useBlockedSaves, useEditText, useStationDraft } from "@/features/station-editing/hooks/useStationDraft";
+import type { EditLookups } from "@/features/station-editing/data/lookups";
+import { useStationDraft } from "@/features/station-editing/hooks/useStationDraft";
 import { buildStationCreate, buildStationUpdate } from "@/features/station-editing/model/bodies";
 import { type SiteIdRemoval, buildPhotoChanges, countDraftCells, findSiteIdRemoval } from "@/features/station-editing/model/changes";
 import type { SessionInput } from "@/features/station-editing/model/draftReducer";
-import { RAT_FIELDS } from "@/features/station-editing/model/ratFields";
 import { REGISTER_PREFILL_RULES, listRegisterStationActions } from "@/features/station-editing/model/registerPrefill";
-import { type BuiltKeys, isServerRefusal, toEditErrors } from "@/features/station-editing/model/serverRefusals";
 import { toStationSnapshot } from "@/features/station-editing/model/snapshots";
-import type { EditError, EditSession, Rat, StationSnapshot } from "@/features/station-editing/model/types";
+import type { StationSnapshot } from "@/features/station-editing/model/types";
 import { findDraftOwner } from "@/features/station-editing/model/validate";
 import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
@@ -85,17 +83,11 @@ type RestoreButtonProps = {
   onRestore: () => void;
 };
 
-type EditorCellsProps = {
-  edit: StationDraftApi;
-};
-
 type RemovalAsk = {
   reveal: RevealField;
   removal: SiteIdRemoval;
 };
 
-const ADMIN_ROLE = "admin";
-const CELL_CARD_SKELETONS = [0, 1];
 const PAGE_HOLDER_CLASS = "flex min-h-0 flex-1 flex-col";
 
 function createSavedStationInput(record: StationRecord): SessionInput {
@@ -106,73 +98,6 @@ function createNewStationInput(prefill: StationSnapshot | undefined): SessionInp
   const input: SessionInput = { kind: "editor", action: "create", countryCode: null, live: null, proposed: null };
   if (prefill !== undefined) input.initialDraft = prefill;
   return input;
-}
-
-function findHeadOperator(operatorId: number | null, lookups: EditLookups, savedOperator: Operator | null) {
-  if (operatorId === null) return null;
-
-  const operator = lookups.operatorsById.get(operatorId) ?? (savedOperator?.id === operatorId ? savedOperator : null);
-  return operator === null ? null : { name: operator.name, brand: getOperatorBrand(operator, lookups.brands) };
-}
-
-function findOnlyTable(errors: readonly EditError[]): Rat | null {
-  const firstRat = errors.at(0)?.target.rat ?? null;
-  return errors.every((refusal) => (refusal.target.rat ?? null) === firstRat) ? firstRat : null;
-}
-
-function useSaveFeedback(edit: StationDraftApi) {
-  const { t } = useTranslation("stations");
-  const text = useEditText();
-  const { blockedSaves, countBlockedSave, reportBlockedSave } = useBlockedSaves(edit.dispatch);
-
-  function reportFailedSave(error: unknown, built: BuiltKeys, session: EditSession, reveal: RevealField) {
-    if (!isServerRefusal(error)) {
-      showApiError(error);
-      return;
-    }
-
-    const errors = toEditErrors(error, built, session);
-    const placedErrors = errors.filter((refusal) => refusal.target.scope !== "general");
-    const [firstError] = errors;
-    const [firstPlacedError] = placedErrors;
-    const title = t("edit.editor.saveRefused.title");
-
-    edit.setServerErrors(errors);
-    countBlockedSave();
-    if (firstPlacedError === undefined) {
-      toast.error(title, { description: firstError === undefined ? undefined : text.formatError(firstError) });
-      return;
-    }
-
-    const table = findOnlyTable(placedErrors);
-    toast.error(title, {
-      description:
-        table === null
-          ? t("edit.editor.saveRefused.fields", { count: placedErrors.length })
-          : t("edit.editor.saveRefused.fieldsInTable", { count: placedErrors.length, table: RAT_FIELDS[table].name }),
-      action: { label: t("edit.editor.saveRefused.show"), onClick: () => reveal(firstPlacedError.target) },
-    });
-  }
-
-  return { blockedSaves, reportBlockedSave, reportFailedSave };
-}
-
-function EditorCells({ edit }: EditorCellsProps) {
-  const queryClient = useQueryClient();
-  const { data: authSession } = authClient.useSession();
-  const { lookups } = edit;
-
-  if (lookups.hasFailed) return <InlineError onRetry={() => retryEditLookups(queryClient, lookups.countryCode, lookups)} />;
-  if (!lookups.isReady) {
-    return (
-      <div className="flex flex-col gap-2" aria-busy="true">
-        {CELL_CARD_SKELETONS.map((card) => (
-          <Skeleton key={card} className="h-40 w-full rounded-xl" />
-        ))}
-      </div>
-    );
-  }
-  return <CellsPanel edit={edit} canConfirm isNewCellConfirmed={authSession?.user?.role === ADMIN_ROLE} />;
 }
 
 function RestoreButton({ isDisabled, hasUnsavedChanges, onRestore }: RestoreButtonProps) {

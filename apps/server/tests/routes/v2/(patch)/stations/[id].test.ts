@@ -244,7 +244,7 @@ describe("PATCH /stations/:id", () => {
             {
               field: "station/siteId",
               validationMessage:
-                "A station needs a station number unless it has a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC",
+                "A station needs a station number unless it has a cell that names it: an LTE cell with an eNBID, an NR cell with a gNBID, a UMTS cell with an RNC or a GSM cell with a LAC",
             },
           ],
         },

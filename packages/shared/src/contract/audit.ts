@@ -67,7 +67,7 @@ const storedMetadataSchema = z.record(z.string(), z.unknown()).nullable().descri
 
 const REVERTED_BY_NOTE = "`null` if this operation has not been reverted, or only in part";
 const RECORD_ID_NOTE =
-  "The id of the changed row, a number or a UUID depending on the table. " +
+  "The id of the changed row, a number or a UUID depending on the table, or a key such as a country code or an OAuth `client_id`. " +
   "`null` for entries that cover a set of rows, such as a station's sectors or photo selection, and for the settings";
 const STORED_KEYS_NOTE =
   "Its keys are the server's field names for the table. Most are the database column names, " +

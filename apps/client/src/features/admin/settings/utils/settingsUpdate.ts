@@ -28,5 +28,6 @@ export function applySettingsUpdate(settings: Settings, update: SettingsUpdate):
     features: { ...settings.features, ...update.features },
     announcement: update.announcement ? { ...readAnnouncement(settings), ...update.announcement } : settings.announcement,
     access: settings.access && update.access ? { ...settings.access, ...update.access } : settings.access,
+    measurements: settings.measurements && update.measurements ? { ...settings.measurements, ...update.measurements } : settings.measurements,
   };
 }

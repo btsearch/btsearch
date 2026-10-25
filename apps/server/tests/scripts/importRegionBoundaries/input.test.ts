@@ -1,4 +1,6 @@
-import { fileURLToPath } from "node:url";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { readBoundaryInput } from "../../../src/scripts/importRegionBoundaries/input.js";
@@ -24,12 +26,10 @@ function fetchTargetUrl(target: Parameters<typeof fetch>[0] | undefined): string
 
 describe("readBoundaryInput", () => {
   it("reads a local GeoJSON file and preserves its basename as the source", async () => {
-    const file = fileURLToPath(new URL("../../../src/scripts/importRegionBoundaries/poland.voivodeships.max.json", import.meta.url));
-    const { data, source } = await readBoundaryInput(file, undefined);
+    const file = join(mkdtempSync(join(tmpdir(), "boundaries-")), "poland.voivodeships.json");
+    writeFileSync(file, JSON.stringify(geojson));
 
-    expect(source).toBe("poland.voivodeships.max.json");
-    expect(data).toHaveProperty("type", "FeatureCollection");
-    expect(data).toHaveProperty("features.length", 16);
+    await expect(readBoundaryInput(file, undefined)).resolves.toEqual({ data: geojson, source: "poland.voivodeships.json" });
   });
 
   it("downloads JSON and preserves the complete query while sanitizing the source", async () => {

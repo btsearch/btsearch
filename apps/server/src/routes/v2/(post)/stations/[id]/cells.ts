@@ -41,7 +41,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const { id } = req.params;
   await findVisibleStation(req, id);
   const cells = req.body.map((cell) => ({ action: "create" as const, ...cell }));
-  const applied = await applyStationChange(req, { action: "update", stationId: id, cells }, "cells.create", ([_cells, ...path]) => path);
+  const applied = await applyStationChange(req, { action: "update", stationId: id, cells }, "cells.create", {
+    bodyPath: ([_cells, ...path]) => path,
+  });
 
   return res.status(201).send({ data: await serializeCells(await findListedCells(applied.cellChanges.added), req.query.include) });
 }

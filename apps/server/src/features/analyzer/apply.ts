@@ -8,10 +8,13 @@ import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import { itemRefusal, pointRefusalsAtItem } from "../../lib/itemRefusals.js";
+import { actorIdFromRequest } from "../access/access.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { type AuditRecorder, type CellSnapshot, loadCellSnapshots, runAuditedOperation, standaloneAuditContext } from "../audit/index.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateKey } from "../cells/identityDuplicateSpecs.js";
-import { assertAnalyzerEnabled } from "../countries/tools.js";
+import { assertAnalyzerEnabled, assertMeasurementsEnabled } from "../countries/tools.js";
+import { assertModeratesObservations } from "../observed/access.js";
+import { type FlagClaim, closeAppliedFlags, lockClaimedFlags } from "../observed/flags/applied.js";
 import { prepareStationChange } from "../stations/edit.js";
 import { findVisibleStationWithCountry } from "../stations/read.js";
 import { type AppliedChange, applyDirectChange, finishDirectChange } from "../submissions/actions.js";
@@ -30,7 +33,7 @@ type StationChange = {
 type AppliedStation = { stationId: number; applied: AppliedChange };
 type AppliedOperation = { operationId: number; appliedStations: AppliedStation[] };
 type SpreadCell = { id: number; old: CellSnapshot };
-type WrittenCells = { stationId: number; cellIds: number[] };
+type WrittenCells = { stationId: number; cellIds: number[]; closedFlagIds: number[] };
 type WrittenOperation = { operationId: number; stations: WrittenCells[] };
 
 function toConfirmedEdit(item: CellApply): StationEdit {
@@ -39,7 +42,8 @@ function toConfirmedEdit(item: CellApply): StationEdit {
 
 async function prepareItem(req: FastifyRequest, item: CellApply, index: number): Promise<StationChange> {
   const { station, countryCode } = await findVisibleStationWithCountry(req, item.stationId);
-  await assertAnalyzerEnabled(countryCode);
+  if (item.observationFlagIds === undefined) await assertAnalyzerEnabled(countryCode);
+  else await assertMeasurementsEnabled(countryCode);
   const { change, cellNetworks } = await prepareStationChange(req, toConfirmedEdit(item), (path) => [index, ...path]);
   return {
     stationId: item.stationId,
@@ -153,26 +157,46 @@ async function applyStationChanges(audit: AuditRecorder, stationChanges: readonl
   return { operationId: audit.operationId, appliedStations };
 }
 
+function flagClaimsOf(items: readonly CellApply[]): FlagClaim[] {
+  return items.flatMap(({ stationId, observationFlagIds }, index) =>
+    observationFlagIds === undefined ? [] : [{ flagIds: observationFlagIds, stationId, path: [index, "observationFlagIds"] }],
+  );
+}
+
 export async function applyCells(req: FastifyRequest, items: readonly CellApply[]): Promise<WrittenOperation> {
   if (!(await hasStaffPermission(req, { cells: ["create", "update"] }))) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
+  const claims = flagClaimsOf(items);
+  if (claims.length > 0) await assertModeratesObservations(req);
 
   const prepared = await Promise.all(items.map((item, index) => pointRefusalsAtItem(index, () => prepareItem(req, item, index))));
   assertIdentitiesAppearOnce(prepared);
   const storedTacs = await loadStoredTacs(prepared.filter(({ hoistedTac }) => hoistedTac));
   const stationChanges = prepared.map((stationChange, index) => withStationTac(stationChange, storedTacs, index));
 
+  const flagIds = unique(claims.flatMap((claim) => claim.flagIds));
+  const metadata = {
+    station_ids: stationChanges.map(({ stationId }) => stationId),
+    ...(flagIds.length > 0 ? { observation_flag_ids: flagIds } : {}),
+  };
   const { operationId, appliedStations } = await runAuditedOperation(
     standaloneAuditContext(req),
-    { kind: "analyzer.apply", metadata: { station_ids: stationChanges.map(({ stationId }) => stationId) } },
-    (_tx, audit) => applyStationChanges(audit, stationChanges),
+    { kind: "analyzer.apply", metadata },
+    async (tx, audit) => {
+      const flags = await lockClaimedFlags(tx, claims);
+      const applied = await applyStationChanges(audit, stationChanges);
+      await closeAppliedFlags(tx, flags, actorIdFromRequest(req));
+      return applied;
+    },
   );
 
   await Promise.all(appliedStations.map(({ applied }) => finishDirectChange(applied)));
+  const closedFlagIds = new Map(claims.map((claim) => [claim.stationId, unique(claim.flagIds)]));
   return {
     operationId,
     stations: appliedStations.map(({ stationId, applied: { cellChanges } }) => ({
       stationId,
       cellIds: [...cellChanges.added, ...cellChanges.updated.map(({ id }) => id)],
+      closedFlagIds: closedFlagIds.get(stationId) ?? [],
     })),
   };
 }

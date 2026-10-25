@@ -25,6 +25,8 @@
     },
     "area": "Twój obszar: {{area}}",
     "noArea": "Nie masz przydzielonego obszaru",
+    "openFlag": "Otwórz flagę: {{label}}",
+    "allFlags": "Wszystkie flagi",
     "commentQueueOff": "Kolejka komentarzy jest wyłączona",
     "openSubmission": "Otwórz zgłoszenie: {{label}}",
     "openOperation": "Otwórz operację: {{label}}",
@@ -101,6 +103,7 @@
       "maintenance": "Przerwa techniczna",
       "access": "Dostęp",
       "features": "Funkcje",
+      "measurements": "Pomiary",
       "cleanup": "Porządki"
     },
     "errors": {
@@ -183,6 +186,15 @@
         "title": "Przesyłanie pomiarów",
         "description": "Aplikacja BTSearch może rejestrować telefony i przesyłać odczyty radiowe i GPS. Pomiary można też wyłączyć osobno dla każdego kraju"
       },
+      "observations": {
+        "title": "Dane z pomiarów",
+        "description": "Zaobserwowane komórki, szacowane stacje, zasięg i ślady. Po wyłączeniu widzą je tylko administratorzy, a pomiary dalej się zbierają",
+        "confirm": {
+          "title": "Wyłączyć dane z pomiarów?",
+          "description": "Zaobserwowane komórki, szacowane stacje, zasięg i ślady zobaczą tylko administratorzy. Aplikacja dalej przesyła pomiary, a silnik je liczy",
+          "action": "Wyłącz"
+        }
+      },
       "comments": {
         "description": "Czytanie i pisanie komentarzy",
         "note": "Moderowanie i usuwanie komentarzy działa także wtedy, gdy komentarze są wyłączone"
@@ -201,9 +213,7 @@
       "linksHint": "Adresy stron stają się linkami",
       "show": "Pokaż ogłoszenie",
       "showHint": "Pasek zobaczy każdy odwiedzający",
-      "unsaved": "Niezapisane zmiany",
-      "messageRequired": "Wpisz wiadomość, aby pokazać ogłoszenie",
-      "revert": "Cofnij"
+      "messageRequired": "Wpisz wiadomość, aby pokazać ogłoszenie"
     },
     "photoCleanup": {
       "title": "Zdjęcia odrzuconych zgłoszeń",
@@ -226,6 +236,75 @@
       "resultDone": "Usunięto {{photos}} z {{submissions}}. Nic więcej nie zostało",
       "resultMore": "Usunięto {{photos}} z {{submissions}}. Zostały kolejne do usunięcia",
       "nothing": "Nie było nic do usunięcia"
+    },
+    "measurements": {
+      "countriesNote_one": "Narzędzie Pomiary jest włączone w {{count, number}} kraju, publiczne pomiary w {{public, number}}. Zmienisz to na stronie kraju",
+      "countriesNote_few": "Narzędzie Pomiary jest włączone w {{count, number}} krajach, publiczne pomiary w {{public, number}}. Zmienisz to na stronie kraju",
+      "countriesNote_many": "Narzędzie Pomiary jest włączone w {{count, number}} krajach, publiczne pomiary w {{public, number}}. Zmienisz to na stronie kraju",
+      "countriesNote_other": "Narzędzie Pomiary jest włączone w {{count, number}} krajach, publiczne pomiary w {{public, number}}. Zmienisz to na stronie kraju",
+      "range": "Podaj liczbę od {{min, number}} do {{max, number}}",
+      "app": {
+        "title": "Aplikacja BTSearch",
+        "description": "Obsługiwane wersje aplikacji i warunki, które akceptują współtwórcy",
+        "minVersion": {
+          "label": "Najstarsza obsługiwana wersja",
+          "unit": "versionCode",
+          "hint": "Starsze wersje nie zarejestrują telefonu ani nie prześlą pliku"
+        },
+        "terms": {
+          "label": "Wersja warunków",
+          "hint": "Po podniesieniu każdy współtwórca musi ponownie zaakceptować warunki, zanim prześle kolejny plik"
+        },
+        "confirm": {
+          "bothTitle": "Zapisać ustawienia aplikacji?",
+          "versionTitle": "Odciąć starsze wersje aplikacji?",
+          "termsTitle": "Poprosić o ponowną akceptację warunków?",
+          "version": "Aplikacja w wersji niższej niż {{version}} nie zarejestruje telefonu ani nie prześle pliku, dopóki ktoś jej nie zaktualizuje",
+          "terms": "Każdy współtwórca będzie musiał zaakceptować warunki w wersji {{version}}, zanim prześle kolejny plik"
+        }
+      },
+      "files": {
+        "title": "Pliki z pomiarami",
+        "description": "Surowe pliki z aplikacji. Silnik może z nich ponownie przeliczyć odczyty",
+        "retention": {
+          "label": "Przechowywanie plików",
+          "unit": "dni",
+          "hint": "Po tym czasie plik jest usuwany, a jego odczyty zostają w bazie"
+        },
+        "budget": {
+          "label": "Limit miejsca",
+          "unit": "GB",
+          "hint": "Po jego osiągnięciu serwer nie przyjmuje plików, a aplikacja wyśle je później",
+          "belowStored": "Pliki zajmują już {{size}}, więc serwer od razu przestanie przyjmować nowe"
+        },
+        "stored": "Przechowywane pliki",
+        "confirm": {
+          "title": "Skrócić przechowywanie plików?",
+          "description_one": "Pliki starsze niż {{count, number}} dzień zostaną usunięte przy najbliższym czyszczeniu, w ciągu godziny. Ich odczyty zostają w bazie, ale tych plików nie da się już przeliczyć",
+          "description_few": "Pliki starsze niż {{count, number}} dni zostaną usunięte przy najbliższym czyszczeniu, w ciągu godziny. Ich odczyty zostają w bazie, ale tych plików nie da się już przeliczyć",
+          "description_many": "Pliki starsze niż {{count, number}} dni zostaną usunięte przy najbliższym czyszczeniu, w ciągu godziny. Ich odczyty zostają w bazie, ale tych plików nie da się już przeliczyć",
+          "description_other": "Pliki starsze niż {{count, number}} dnia zostaną usunięte przy najbliższym czyszczeniu, w ciągu godziny. Ich odczyty zostają w bazie, ale tych plików nie da się już przeliczyć",
+          "action": "Skróć"
+        }
+      },
+      "sites": {
+        "title": "Szacowane stacje",
+        "description": "Kiedy szacowana stacja jest publiczna i która wersja estymatora ją liczy",
+        "radius": {
+          "label": "Największy promień publicznej stacji",
+          "unit": "m",
+          "hint": "Stacja, której nie przypięto do znanej lokalizacji, jest publiczna tylko wtedy, gdy jej promień 95% nie przekracza tej wartości"
+        },
+        "published": {
+          "label": "Opublikowana wersja estymatora",
+          "value": "Wersja {{version}}",
+          "hint": "Wersje porównasz i opublikujesz w ocenie szacunków. Tam też sprawdzisz, jak dobrać promień"
+        }
+      }
+    },
+    "form": {
+      "unsaved": "Niezapisane zmiany",
+      "revert": "Cofnij"
     }
   },
   "users": {
@@ -316,7 +395,7 @@
           "avatar": {
             "uploaded": "Przesłane przez użytkownika",
             "external": "Z konta zewnętrznego",
-            "none": "Brak zdjęcia - widoczne są inicjały",
+            "none": "Brak zdjęcia",
             "remove": "Usuń zdjęcie",
             "removeConfirmDescription": "Zamiast zdjęcia konta {{name}} będą widoczne inicjały"
           },
@@ -845,6 +924,10 @@
       "spectrum_holding": "Widmo operatorów",
       "grant": "Uprawnienia redaktorów",
       "user": "Użytkownicy",
+      "api_key": "Klucze API",
+      "passkey": "Klucze dostępu",
+      "oauth_client": "Aplikacje OAuth",
+      "oauth_consent": "Autoryzowane aplikacje",
       "list": "Listy użytkowników",
       "settings": "Ustawienia",
       "official": "Import rejestru",
@@ -891,7 +974,17 @@
         "device_revoke": "Unieważnienie urządzenia",
         "device_restore": "Przywrócenie urządzenia",
         "upload_download": "Pobranie przesłanych pomiarów",
-        "upload_exclude": "Wykluczenie przesłanych pomiarów"
+        "upload_exclude": "Wykluczenie przesłanych pomiarów",
+        "upload_restore": "Przywrócenie przesłanych pomiarów",
+        "reading_block_create": "Dodanie blokady odczytów",
+        "reading_block_update": "Zmiana blokady odczytów",
+        "device_weight": "Zmiana wagi urządzenia",
+        "contributor_vouch": "Zmiana poręczenia za współtwórcę",
+        "contributor_block": "Zmiana blokady współtwórcy",
+        "quirk_rule_block": "Zmiana blokady reguły korekty",
+        "flag_update": "Rozpatrzenie flagi z pomiarów",
+        "site_ignore": "Pominięcie lub przywrócenie stacji z pomiarów",
+        "site_link": "Powiązanie lub odłączenie stacji z pomiarów"
       },
       "comment": {
         "create": "Utworzenie komentarza",
@@ -940,7 +1033,37 @@
         "unban": "Odblokowanie użytkownika",
         "delete": "Usunięcie użytkownika",
         "email": "Zmiana adresu e-mail użytkownika",
-        "password": "Zmiana hasła użytkownika"
+        "password": "Zmiana hasła użytkownika",
+        "update": "Zmiana danych użytkownika",
+        "two_factor_enable": "Włączenie weryfikacji dwuetapowej",
+        "two_factor_disable": "Wyłączenie weryfikacji dwuetapowej",
+        "backup_codes": "Wygenerowanie nowych kodów zapasowych",
+        "account_link": "Połączenie konta zewnętrznego",
+        "account_unlink": "Odłączenie konta zewnętrznego",
+        "sessions_revoke": "Unieważnienie sesji",
+        "impersonate": "Zalogowanie na konto użytkownika",
+        "impersonate_stop": "Wylogowanie z konta użytkownika"
+      },
+      "api_key": {
+        "create": "Utworzenie klucza API",
+        "update": "Aktualizacja klucza API",
+        "delete": "Unieważnienie klucza API"
+      },
+      "passkey": {
+        "create": "Dodanie klucza dostępu",
+        "update": "Zmiana nazwy klucza dostępu",
+        "delete": "Usunięcie klucza dostępu"
+      },
+      "oauth_client": {
+        "create": "Rejestracja aplikacji OAuth",
+        "update": "Aktualizacja aplikacji OAuth",
+        "delete": "Usunięcie aplikacji OAuth",
+        "rotate_secret": "Zmiana sekretu klienta"
+      },
+      "oauth_consent": {
+        "create": "Autoryzacja aplikacji",
+        "update": "Zmiana uprawnień aplikacji",
+        "delete": "Odwołanie dostępu aplikacji"
       },
       "list": {
         "create": "Utworzenie listy",
@@ -994,6 +1117,12 @@
       "spectrum_holdings": "Zakresy częstotliwości",
       "role_grants": "Uprawnienia redaktorów",
       "users": "Użytkownicy",
+      "apikeys": "Klucze API",
+      "passkeys": "Klucze dostępu",
+      "sessions": "Sesje",
+      "accounts": "Metody logowania",
+      "oauth_clients": "Aplikacje OAuth",
+      "oauth_consents": "Autoryzowane aplikacje",
       "user_lists": "Listy użytkowników",
       "settings": "Ustawienia",
       "official_sources": "Źródła rejestru",
@@ -1001,6 +1130,15 @@
       "licensees": "Posiadacze pozwoleń",
       "device_revocations": "Unieważnienia urządzeń",
       "uploads": "Przesłane pomiary",
+      "reading_blocks": "Blokady odczytów",
+      "device_weights": "Wagi urządzeń",
+      "vouches": "Poręczenia",
+      "contributor_blocks": "Blokady współtwórców",
+      "blocked_quirk_rules": "Blokady reguł korekty",
+      "crowd_settings": "Ustawienia pomiarów",
+      "observation_flags": "Flagi z pomiarów",
+      "site_ignores": "Pominięte stacje z pomiarów",
+      "site_links": "Powiązania stacji z pomiarów",
       "structure_owners": "Właściciele obiektów"
     },
     "ops": {
@@ -1080,15 +1218,39 @@
       "spectrum_holdings_one": "{{count, number}} zakres częstotliwości",
       "spectrum_holdings_few": "{{count, number}} zakresy częstotliwości",
       "spectrum_holdings_many": "{{count, number}} zakresów częstotliwości",
-      "spectrum_holdings_other": "{{count, number}} zakresu częstotliwości",
+      "spectrum_holdings_other": "{{count, number}} zakresów częstotliwości",
       "role_grants_one": "{{count, number}} zmiana uprawnień redaktora",
       "role_grants_few": "{{count, number}} zmiany uprawnień redaktora",
       "role_grants_many": "{{count, number}} zmian uprawnień redaktora",
       "role_grants_other": "{{count, number}} zmian uprawnień redaktora",
       "users_one": "{{count, number}} użytkownik",
-      "users_few": "{{count, number}} użytkowników",
+      "users_few": "{{count, number}} użytkownicy",
       "users_many": "{{count, number}} użytkowników",
       "users_other": "{{count, number}} użytkowników",
+      "apikeys_one": "{{count, number}} klucz API",
+      "apikeys_few": "{{count, number}} klucze API",
+      "apikeys_many": "{{count, number}} kluczy API",
+      "apikeys_other": "{{count, number}} kluczy API",
+      "passkeys_one": "{{count, number}} klucz dostępu",
+      "passkeys_few": "{{count, number}} klucze dostępu",
+      "passkeys_many": "{{count, number}} kluczy dostępu",
+      "passkeys_other": "{{count, number}} kluczy dostępu",
+      "sessions_one": "{{count, number}} sesja",
+      "sessions_few": "{{count, number}} sesje",
+      "sessions_many": "{{count, number}} sesji",
+      "sessions_other": "{{count, number}} sesji",
+      "accounts_one": "{{count, number}} metoda logowania",
+      "accounts_few": "{{count, number}} metody logowania",
+      "accounts_many": "{{count, number}} metod logowania",
+      "accounts_other": "{{count, number}} metod logowania",
+      "oauth_clients_one": "{{count, number}} aplikacja OAuth",
+      "oauth_clients_few": "{{count, number}} aplikacje OAuth",
+      "oauth_clients_many": "{{count, number}} aplikacji OAuth",
+      "oauth_clients_other": "{{count, number}} aplikacji OAuth",
+      "oauth_consents_one": "{{count, number}} autoryzowana aplikacja",
+      "oauth_consents_few": "{{count, number}} autoryzowane aplikacje",
+      "oauth_consents_many": "{{count, number}} autoryzowanych aplikacji",
+      "oauth_consents_other": "{{count, number}} autoryzowanych aplikacji",
       "user_lists_one": "{{count, number}} lista użytkownika",
       "user_lists_few": "{{count, number}} listy użytkownika",
       "user_lists_many": "{{count, number}} list użytkownika",
@@ -1105,21 +1267,57 @@
       "device_revocations_few": "{{count, number}} unieważnienia urządzeń",
       "device_revocations_many": "{{count, number}} unieważnień urządzeń",
       "device_revocations_other": "{{count, number}} unieważnień urządzeń",
-      "uploads_one": "{{count, number}} przesłanie pomiarów",
-      "uploads_few": "{{count, number}} przesłania pomiarów",
-      "uploads_many": "{{count, number}} przesłań pomiarów",
-      "uploads_other": "{{count, number}} przesłań pomiarów",
+      "uploads_one": "{{count, number}} plik z pomiarami",
+      "uploads_few": "{{count, number}} pliki z pomiarami",
+      "uploads_many": "{{count, number}} plików z pomiarami",
+      "uploads_other": "{{count, number}} pliku z pomiarami",
+      "reading_blocks_one": "{{count, number}} blokada odczytów",
+      "reading_blocks_few": "{{count, number}} blokady odczytów",
+      "reading_blocks_many": "{{count, number}} blokad odczytów",
+      "reading_blocks_other": "{{count, number}} blokad odczytów",
+      "device_weights_one": "{{count, number}} waga urządzenia",
+      "device_weights_few": "{{count, number}} wagi urządzeń",
+      "device_weights_many": "{{count, number}} wag urządzeń",
+      "device_weights_other": "{{count, number}} wag urządzeń",
+      "vouches_one": "{{count, number}} poręczenie",
+      "vouches_few": "{{count, number}} poręczenia",
+      "vouches_many": "{{count, number}} poręczeń",
+      "vouches_other": "{{count, number}} poręczeń",
+      "contributor_blocks_one": "{{count, number}} blokada współtwórcy",
+      "contributor_blocks_few": "{{count, number}} blokady współtwórców",
+      "contributor_blocks_many": "{{count, number}} blokad współtwórców",
+      "contributor_blocks_other": "{{count, number}} blokad współtwórców",
+      "blocked_quirk_rules_one": "{{count, number}} blokada reguły korekty",
+      "blocked_quirk_rules_few": "{{count, number}} blokady reguł korekty",
+      "blocked_quirk_rules_many": "{{count, number}} blokad reguł korekty",
+      "blocked_quirk_rules_other": "{{count, number}} blokad reguł korekty",
+      "crowd_settings_one": "{{count, number}} zmiana ustawień pomiarów",
+      "crowd_settings_few": "{{count, number}} zmiany ustawień pomiarów",
+      "crowd_settings_many": "{{count, number}} zmian ustawień pomiarów",
+      "crowd_settings_other": "{{count, number}} zmian ustawień pomiarów",
+      "observation_flags_one": "{{count, number}} flaga z pomiarów",
+      "observation_flags_few": "{{count, number}} flagi z pomiarów",
+      "observation_flags_many": "{{count, number}} flag z pomiarów",
+      "observation_flags_other": "{{count, number}} flag z pomiarów",
+      "site_ignores_one": "{{count, number}} pominięta stacja z pomiarów",
+      "site_ignores_few": "{{count, number}} pominięte stacje z pomiarów",
+      "site_ignores_many": "{{count, number}} pominiętych stacji z pomiarów",
+      "site_ignores_other": "{{count, number}} pominiętych stacji z pomiarów",
+      "site_links_one": "{{count, number}} powiązanie stacji z pomiarów",
+      "site_links_few": "{{count, number}} powiązania stacji z pomiarów",
+      "site_links_many": "{{count, number}} powiązań stacji z pomiarów",
+      "site_links_other": "{{count, number}} powiązań stacji z pomiarów",
       "official_datasets_one": "{{count, number}} zbiór danych rejestru",
       "official_datasets_few": "{{count, number}} zbiory danych rejestru",
       "official_datasets_many": "{{count, number}} zbiorów danych rejestru",
       "official_datasets_other": "{{count, number}} zbiorów danych rejestru",
       "licensees_one": "{{count, number}} posiadacz pozwolenia",
-      "licensees_few": "{{count, number}} posiadaczy pozwoleń",
+      "licensees_few": "{{count, number}} posiadacze pozwoleń",
       "licensees_many": "{{count, number}} posiadaczy pozwoleń",
       "licensees_other": "{{count, number}} posiadaczy pozwoleń",
       "other": "{{count, number}} x {{entity}}",
       "structure_owners_one": "{{count, number}} właściciel obiektów",
-      "structure_owners_few": "{{count, number}} właścicieli obiektów",
+      "structure_owners_few": "{{count, number}} właściciele obiektów",
       "structure_owners_many": "{{count, number}} właścicieli obiektów",
       "structure_owners_other": "{{count, number}} właścicieli obiektów"
     },
@@ -1161,6 +1359,1526 @@
         "missingNewValues": "Nowe wartości nie zostały zapisane",
         "missingDetails": "Wymagane szczegóły rekordu nie zostały zapisane"
       }
+    }
+  },
+  "measurements": {
+    "description": "Pomiary przesłane z aplikacji BTSearch i ich przetwarzanie",
+    "tabs": {
+      "label": "Sekcje pomiarów",
+      "engine": "Silnik",
+      "uploads": "Przesłane pomiary",
+      "contributors": "Współtwórcy",
+      "blocks": "Blokady odczytów",
+      "evaluation": "Ocena szacunków"
+    },
+    "deletedAccount": "Konto usunięte",
+    "pickers": {
+      "model": {
+        "placeholder": "Wybierz model",
+        "searchLabel": "Szukaj modelu telefonu",
+        "typeHint": "Wpisz producenta albo model",
+        "noMatches": "Nie znaleziono takiego modelu",
+        "loadFailed": "Nie udało się wyszukać modeli"
+      }
+    },
+    "contributor": "Współtwórca",
+    "weight": "Waga",
+    "reason": "Powód",
+    "block": "Zablokuj",
+    "unblock": "Odblokuj",
+    "meters": "{{value, number}} m",
+    "engine": {
+      "loadFailed": "Nie udało się wczytać stanu silnika",
+      "status": {
+        "title": "Silnik",
+        "running": "Działa",
+        "silent": "Nie odpowiada",
+        "lastSeen": "Ostatnia aktywność",
+        "startedAt": "Działa od",
+        "instance": "Instancja",
+        "silentNote": "Ostrzeżenie, gdy silnik milczy ponad 2 min",
+        "noInstance": "Silnik jeszcze się nie zgłosił"
+      },
+      "queue": {
+        "title": "Kolejka",
+        "late": "Zaległości",
+        "waiting": "Pliki do przetworzenia",
+        "oldestWaiting": "Najdłuższe oczekiwanie",
+        "subtractions": "Pliki do wycofania",
+        "sites": "Stacje do oszacowania",
+        "lateNote": "Ostrzeżenie, gdy plik czeka ponad 30 min"
+      },
+      "lastDay": {
+        "title": "Ostatnie 24 godziny",
+        "rejectedShare": "({{share}})",
+        "note": "Ostrzeżenie przy 10% odrzuconych",
+        "showRejected": "Pokaż odrzucone"
+      },
+      "storage": {
+        "title": "Miejsce na dane",
+        "full": "Odrzuca pliki",
+        "stored": "Przechowywane pliki",
+        "disk": "Dysk na pliki",
+        "database": "Tabele pomiarów w bazie",
+        "note": "Ostrzeżenie przy 90% limitu i 85% dysku",
+        "fullNote": "Limit osiągnięty. Aplikacja wyśle pliki później"
+      },
+      "nightly": {
+        "title": "Nocne zadania",
+        "median": "Mediana błędu wersji {{version}}",
+        "previousNight": "(poprzedniej nocy {{value, number}} m)",
+        "note": "Ostrzeżenie, gdy mediana wzrośnie o 10%",
+        "empty": "Nocne zadania jeszcze się nie odbyły"
+      },
+      "errors": {
+        "title": "Ostatnie błędy",
+        "attempt": "próba {{number, number}}",
+        "attempts_one": "{{count, number}} próba",
+        "attempts_few": "{{count, number}} próby",
+        "attempts_many": "{{count, number}} prób",
+        "attempts_other": "{{count, number}} próby",
+        "empty": "Brak błędów przetwarzania"
+      },
+      "runs": {
+        "title": "Zadania silnika",
+        "new": "Nowe zadanie",
+        "columns": {
+          "kind": "Zadanie",
+          "scope": "Zakres",
+          "requestedBy": "Zlecone przez",
+          "createdAt": "Dodano",
+          "state": "Stan",
+          "duration": "Czas"
+        },
+        "server": "Serwer",
+        "empty": "Silnik nie ma jeszcze zadań",
+        "progress": "{{done, number}} z {{total, number}}",
+        "progressDone": "Gotowe: {{done, number}}"
+      },
+      "runKinds": {
+        "subtract": "Wycofanie plików",
+        "restore": "Przywrócenie plików",
+        "refold": "Przeliczenie plików",
+        "rebuild": "Wykluczenie usuniętego pliku",
+        "reestimate": "Ponowne szacowanie stacji",
+        "recalibrate": "Kalibracja",
+        "evaluate": "Ocena",
+        "rebuildTrails": "Odbudowa śladów",
+        "rebuildReadModels": "Odświeżenie zestawień"
+      },
+      "runStates": {
+        "queued": "W kolejce",
+        "running": "W toku",
+        "done": "Gotowe",
+        "failed": "Nieudane",
+        "cancelled": "Anulowane"
+      },
+      "scope": {
+        "allFiles": "Wszystkie przechowywane pliki",
+        "person": "Pliki osoby:",
+        "someone": "Pliki jednej osoby",
+        "model": "Pliki modelu: {{name}}",
+        "someModel": "Pliki jednego modelu",
+        "block": "Blokada odczytów nr {{id}}",
+        "quirkRule": "Reguła korekty {{id}}",
+        "upload": "Plik {{id}}",
+        "area": "{{longitudes}}, {{latitudes}}",
+        "hemispheres": {
+          "north": "N",
+          "south": "S",
+          "east": "E",
+          "west": "W"
+        },
+        "allStations": "Wszystkie stacje",
+        "allReadModels": "Wszystkie zestawienia",
+        "queuedFiles": "Pliki w kolejce"
+      },
+      "duration": {
+        "underMinute": "<1 min",
+        "minutes": "{{minutes, number}} min",
+        "hours": "{{hours, number}} h",
+        "hoursMinutes": "{{hours, number}} h {{minutes, number}} min"
+      },
+      "span": "{{start}}-{{end}}",
+      "runDialog": {
+        "title": "Nowe zadanie silnika",
+        "description": "Silnik wykonuje zadania po kolei. Postęp zobaczysz na liście zadań",
+        "kindLabel": "Rodzaj zadania",
+        "kinds": {
+          "refold": {
+            "title": "Przelicz pliki",
+            "description": "Przechowywane pliki jeszcze raz, z obecnymi blokadami i wagami"
+          },
+          "reestimate": {
+            "title": "Oszacuj stacje ponownie",
+            "description": "Każda szacowana stacja dostanie nowe położenie"
+          },
+          "recalibrate": {
+            "title": "Skalibruj",
+            "description": "Ta sama kalibracja co w nocy, uruchomiona teraz"
+          },
+          "evaluate": {
+            "title": "Oceń szacunki",
+            "description": "Porównanie z potwierdzonymi stacjami, takie samo jak co noc"
+          },
+          "rebuildTrails": {
+            "title": "Odbuduj ślady",
+            "description": "Kafelki śladów na wybranym obszarze, przy każdym przybliżeniu"
+          },
+          "rebuildReadModels": {
+            "title": "Odśwież zestawienia",
+            "description": "Gotowe dane, z których korzystają mapa i API"
+          }
+        },
+        "scopeLabel": "Pliki do przeliczenia",
+        "scopes": {
+          "person": "Osoba",
+          "model": "Model",
+          "block": "Blokada"
+        },
+        "choosePerson": "Wybierz osobę",
+        "chooseBlock": "Wybierz blokadę",
+        "blockOption": "{{phones}} (nr {{id}})",
+        "noBlocks": "Nie ma jeszcze blokad odczytów",
+        "gnbLengths": "Sprawdź też długość gNBID, jak w niedziele",
+        "areaLabel": "Obszar",
+        "eastBelowWest": "Wschód musi być większy niż zachód",
+        "start": "Uruchom",
+        "started": "Zadanie dodane do kolejki"
+      }
+    },
+    "uploads": {
+      "person": "Pliki osoby: {{name}}",
+      "columns": {
+        "receivedAt": "Przesłano",
+        "device": "Urządzenie",
+        "samples": "Odczyty",
+        "discoveries": "Nowe w pliku",
+        "size": "Rozmiar",
+        "fileExpiresAt": "Usunięcie",
+        "actions": "Działania"
+      },
+      "noSoc": "{{manufacturer}}, bez danych o SoC",
+      "dropped_one": "Pominięto {{count, number}}",
+      "dropped_few": "Pominięto {{count, number}}",
+      "dropped_many": "Pominięto {{count, number}}",
+      "dropped_other": "Pominięto {{count, number}}",
+      "noSquares": "Brak",
+      "emptyFiltered": {
+        "title": "Żaden plik nie pasuje do filtrów",
+        "description": "Zmień albo wyczyść filtry"
+      },
+      "exclude": {
+        "action": "Wyklucz",
+        "title": "Wyklucz plik",
+        "description": "Plik przesłany {{date}} z telefonu {{device}}. Jego odczyty przestaną się liczyć w ciągu kilku minut. Sam plik zostanie zachowany jako dowód do końca okresu przechowywania",
+        "reasonHint": "Zobaczy go osoba, która przesłała plik",
+        "success": "Plik wykluczony"
+      },
+      "restore": {
+        "title": "Przywrócić plik?",
+        "description": "Jego odczyty znów będą się liczyć. Silnik przeliczy plik w ciągu kilku minut",
+        "success": "Plik przywrócony"
+      }
+    },
+    "contributors": {
+      "lowWeight": "Poniżej {{weight}}",
+      "vouchBadge": "Poręczenie {{weight}}",
+      "blocked": "Zablokowane",
+      "effective": "obowiązuje {{weight}}",
+      "effectiveFromVouch": "obowiązuje {{weight}} z poręczenia",
+      "terms": "warunki w wersji {{version}}",
+      "termsOutdated": "warunki w wersji {{version}}, obecna to {{current}}",
+      "termsNone": "bez zaakceptowanych warunków",
+      "noUploads": "bez przesłanych plików",
+      "firstUploadOn": "pierwszy plik {{date}}",
+      "confirmsAlone": "{{until}}, potwierdza bez drugiej osoby",
+      "columns": {
+        "timingAdvance": "Zgodność TA",
+        "dropped": "Odrzucone",
+        "mock": "Fałszywa lokalizacja",
+        "phantom": "Fikcyjne komórki",
+        "trust": "Poręczenie i blokada",
+        "firstUpload": "Pierwszy plik"
+      },
+      "empty": {
+        "title": "Nikt jeszcze nie przesłał pomiarów",
+        "description": "Osoby pojawią się tu, gdy prześlą pierwszy plik z aplikacji BTSearch"
+      },
+      "mobile": {
+        "noTimingAdvance": "brak TA przy potwierdzonych stacjach",
+        "timingAdvance": "zgodność TA {{share}}",
+        "phantom": "fikcyjne komórki {{cells, number}}",
+        "dropped": "odrzucone {{share}}",
+        "detail": "{{first}}, {{second}}"
+      }
+    },
+    "person": {
+      "title": "Współtwórca",
+      "userAccount": "Konto użytkownika",
+      "notFound": {
+        "title": "Nie znaleziono współtwórcy",
+        "description": "Ta osoba nie przesłała jeszcze pomiarów albo jej konto zostało usunięte"
+      },
+      "trust": "Zaufanie",
+      "weightValue": "Waga {{weight}}",
+      "weightInvalid": "Podaj liczbę od 0 do 2",
+      "auditReasonHint": "Administratorzy zobaczą go w dzienniku zdarzeń",
+      "change": "Zmień",
+      "confirmsAlone": "Potwierdza bez drugiej osoby",
+      "excludeHint": "Ich odczyty przestaną się liczyć w ciągu kilku minut. Pliki zostaną zachowane jako dowód do końca okresu przechowywania",
+      "hero": {
+        "activeDevices_one": "{{count, number}} aktywne urządzenie",
+        "activeDevices_few": "{{count, number}} aktywne urządzenia",
+        "activeDevices_many": "{{count, number}} aktywnych urządzeń",
+        "activeDevices_other": "{{count, number}} aktywnego urządzenia",
+        "devicesAndRevoked_one": "{{devices}}, {{count, number}} unieważnione",
+        "devicesAndRevoked_few": "{{devices}}, {{count, number}} unieważnione",
+        "devicesAndRevoked_many": "{{devices}}, {{count, number}} unieważnionych",
+        "devicesAndRevoked_other": "{{devices}}, {{count, number}} unieważnionego",
+        "uploads_one": "{{count, number}} przesłany plik",
+        "uploads_few": "{{count, number}} przesłane pliki",
+        "uploads_many": "{{count, number}} przesłanych plików",
+        "uploads_other": "{{count, number}} przesłanego pliku"
+      },
+      "weight": {
+        "description": "Z taką wagą liczą się kolejne pliki tej osoby",
+        "computed": "Wyliczona",
+        "effective": "Obowiązuje",
+        "basis": {
+          "computed": "taka jak wyliczona",
+          "vouch": "z poręczenia",
+          "device": "z własnej wagi urządzenia",
+          "vouchAndDevice": "z poręczenia i własnych wag urządzeń"
+        },
+        "timingAdvance": "Zgodność TA na potwierdzonych stacjach",
+        "dropped": "Odrzucone jako nieprawdopodobne",
+        "note": "Liczona co noc dla każdego urządzenia. Waga osoby to średnia wag jej urządzeń, ważona liczbą odczytów"
+      },
+      "vouch": {
+        "title": "Poręczenie",
+        "description": "Zastępuje wyliczoną wagę na urządzeniach bez własnej wagi. Może też pozwolić potwierdzać stacje bez drugiej osoby",
+        "needsSecond": "Potrzebuje drugiej osoby",
+        "action": "Poręcz",
+        "withdraw": "Wycofaj",
+        "saved": "Poręczenie zapisane",
+        "withdrawn": "Poręczenie wycofane",
+        "withdrawTitle": "Wycofać poręczenie?",
+        "withdrawDescription": "Urządzenia tej osoby wrócą do wyliczonej wagi ({{weight}}) w kolejnych plikach"
+      },
+      "vouchDialog": {
+        "title": "Poręcz za współtwórcę",
+        "changeTitle": "Zmień poręczenie",
+        "description": "Poręczenie zastąpi wyliczoną wagę ({{weight}}) na urządzeniach tej osoby, które nie mają własnej wagi",
+        "weightHint": "Od 0 do 2. Powyżej 1 odczyty tej osoby ważą więcej niż odczyty ze zweryfikowanego telefonu",
+        "confirmsAloneHint": "To, co zmierzy tylko ta osoba, liczy się jako potwierdzone i może trafić na publiczną mapę",
+        "quarter": "90 dni",
+        "year": "1 rok",
+        "expiresAt": "Poręczenie wygaśnie {{date}}",
+        "noExpiry": "Poręczenie obowiązuje do wycofania",
+        "refold": "Przelicz też wcześniejsze pliki",
+        "refoldHint": "Przechowywane pliki tej osoby zostaną przeliczone z nową wagą"
+      },
+      "block": {
+        "title": "Blokada przesyłania",
+        "blockedTitle": "Przesyłanie zablokowane",
+        "description": "Aplikacja nie prześle nowych plików tej osoby. Przesłane już pliki liczą się dalej, dopóki ich nie wykluczysz",
+        "blockedBy": "Zablokowane przez <user>{{name}}</user>",
+        "changed": "Blokada zmieniona",
+        "unblocked": "Przesyłanie odblokowane",
+        "unblockTitle": "Odblokować przesyłanie?",
+        "unblockDescription": "Aplikacja znów prześle nowe pliki tej osoby"
+      },
+      "blockDialog": {
+        "title": "Zablokuj przesyłanie",
+        "changeTitle": "Zmień blokadę",
+        "description": "Ta osoba nie prześle nowych plików do końca blokady. Przesłane już pliki liczą się dalej, dopóki ich nie wykluczysz",
+        "reasonHintWithExclusion": "Administratorzy zobaczą go w dzienniku zdarzeń, a ta osoba przy wykluczonych plikach",
+        "expiresAt": "Blokada wygaśnie {{date}}",
+        "noExpiry": "Blokada obowiązuje do odblokowania",
+        "excludeUploads": "Wyklucz też wszystkie przesłane pliki"
+      },
+      "devices": {
+        "cardTitle": "Telefony tej osoby",
+        "description": "Waga każdego telefonu i wynik weryfikacji jego klucza",
+        "setWeight": "Ustaw wagę",
+        "lastUpload": "ostatni plik {{time}}",
+        "revokedNoReason": "unieważnione {{date}}, bez powodu",
+        "revokedWithReason": "unieważnione {{date}}, powód: {{reason}}",
+        "securityLevels": {
+          "strongBox": "Klucz w StrongBox",
+          "trustedEnvironment": "Klucz w TEE",
+          "software": "Klucz programowy"
+        },
+        "bootStates": {
+          "verified": "rozruch zweryfikowany",
+          "selfSigned": "rozruch z własnym kluczem systemu",
+          "unverified": "rozruch niezweryfikowany",
+          "failed": "weryfikacja rozruchu nieudana"
+        },
+        "bootloaderLocked": "bootloader zablokowany",
+        "bootloaderUnlocked": "bootloader odblokowany",
+        "android": "Android {{version}}",
+        "androidApi": "Android API {{level}}",
+        "securityPatch": "poprawki z {{date}}",
+        "radioVersion": "modem {{version}}",
+        "app": "aplikacja {{name}} ({{code}})",
+        "basis": {
+          "computed": "wyliczona",
+          "vouch": "z poręczenia, wyliczona {{weight}}",
+          "device": "własna waga, wyliczona {{weight}}"
+        }
+      },
+      "deviceWeightDialog": {
+        "title": "Waga urządzenia",
+        "description": "{{name}}. Własna waga zastępuje poręczenie i wyliczoną wagę ({{weight}}) w kolejnych plikach z tego telefonu",
+        "weightHint": "Od 0 do 2",
+        "refold": "Przelicz pliki tej osoby",
+        "refoldHint": "Przechowywane pliki ze wszystkich jej urządzeń zostaną przeliczone",
+        "remove": "Usuń wagę",
+        "saved": "Waga urządzenia zapisana",
+        "removed": "Waga urządzenia usunięta"
+      },
+      "revokeDialog": {
+        "title": "Unieważnij urządzenie",
+        "description": "Aplikacja na urządzeniu {{name}} przestanie przesyłać pomiary. Przesłane pliki zostają. Urządzenie możesz później przywrócić",
+        "reasonHint": "Właściciel zobaczy powód w ustawieniach"
+      },
+      "restoreDialog": {
+        "title": "Przywrócić urządzenie?",
+        "description": "{{name}} znów będzie mogło przesyłać pomiary",
+        "success": "Urządzenie przywrócone"
+      },
+      "uploads": {
+        "cardTitle": "Pliki z pomiarami",
+        "description": "Najnowsze pliki ze wszystkich urządzeń tej osoby",
+        "dropped": "Pominięto {{dropped, number}}: {{reasons}}",
+        "all": "Wszystkie pliki tej osoby"
+      },
+      "excludeAll": {
+        "action": "Wyklucz wszystkie",
+        "title": "Wyklucz wszystkie pliki",
+        "description": "Odczyty ze wszystkich plików tej osoby przestaną się liczyć w ciągu kilku minut. Pliki zostaną zachowane jako dowód do końca okresu przechowywania",
+        "reasonHint": "Zobaczy go osoba, która przesłała pliki",
+        "success_one": "Wykluczono {{count, number}} plik",
+        "success_few": "Wykluczono {{count, number}} pliki",
+        "success_many": "Wykluczono {{count, number}} plików",
+        "success_other": "Wykluczono {{count, number}} pliku"
+      }
+    },
+    "blocks": {
+      "blocked": "Zablokowana",
+      "modes": {
+        "corroborate": "Potwierdzanie",
+        "drop": "Odrzucanie"
+      },
+      "flags": {
+        "title": "Telefony z powtarzalnym błędem",
+        "source": "Wykryte w kolejce flag",
+        "createBlock": "Utwórz blokadę",
+        "titles": {
+          "bytesSwapped": "{{subject}} podaje {{field}} z zamienionymi bajtami",
+          "multiplied": "{{subject}} podaje {{field}} pomnożony przez {{parameter}}",
+          "divided": "{{subject}} podaje {{field}} podzielony przez {{parameter}}",
+          "offset": "{{subject}} podaje {{field}} przesunięty o {{parameter}}",
+          "constant": "{{subject}} podaje zawsze {{field}} {{parameter}}"
+        },
+        "meta": "{{values}} w {{cells}}, {{uploads}}, flaga nr {{id}}",
+        "values_one": "{{count, number}} wartość",
+        "values_few": "{{count, number}} wartości",
+        "values_many": "{{count, number}} wartości",
+        "values_other": "{{count, number}} wartości",
+        "cells_one": "{{count, number}} komórce",
+        "cells_few": "{{count, number}} komórkach",
+        "cells_many": "{{count, number}} komórkach",
+        "cells_other": "{{count, number}} komórki",
+        "uploads_one": "{{count, number}} plik",
+        "uploads_few": "{{count, number}} pliki",
+        "uploads_many": "{{count, number}} plików",
+        "uploads_other": "{{count, number}} pliku"
+      },
+      "list": {
+        "title": "Blokady odczytów",
+        "description": "Wartości z wybranych telefonów są pomijane albo czekają na potwierdzenie z innych telefonów. Zakresu blokady nie zmienisz, ale możesz ją wyłączyć i dodać nową",
+        "add": "Dodaj blokadę",
+        "empty": "Nie ma jeszcze żadnej blokady",
+        "loadFailed": "Nie udało się wczytać blokad odczytów",
+        "disabled": "Wyłączona",
+        "addedOn": "Dodana {{date}}",
+        "addedBy": "Dodana {{date}} przez <user>{{name}}</user>",
+        "disabledOn": "wyłączona {{date}}",
+        "refold": "Przelicz pliki, których dotyczy",
+        "refoldQueued": "Przeliczenie w kolejce",
+        "editReason": "Zmień powód",
+        "switchOff": "Wyłącz blokadę",
+        "switchOn": "Włącz blokadę",
+        "switchedOff": "Blokada wyłączona",
+        "switchedOn": "Blokada włączona",
+        "reasonSaved": "Powód zapisany",
+        "reasonDialog": {
+          "title": "Zmień powód blokady",
+          "description": "Zakres blokady zostaje bez zmian"
+        }
+      },
+      "phones": {
+        "modemFamily": "Modemy {{family}}",
+        "otherModemFamily": "Modemy innych producentów",
+        "soc": "SoC {{name}}",
+        "unknownSoc": "SoC nr {{id}}",
+        "unknownModel": "Model nr {{id}}",
+        "readerVersion": "{{reader}} {{version}}, {{source}}",
+        "unknownReaderVersion": "Wersja czytnika nr {{id}}"
+      },
+      "modemFamilies": {
+        "qualcomm": "Qualcomm",
+        "samsung": "Samsung",
+        "mediatek": "MediaTek",
+        "unisoc": "Unisoc",
+        "hisilicon": "HiSilicon",
+        "other": "Inny producent"
+      },
+      "sources": {
+        "api": "API Androida",
+        "modemLog": "Log modemu",
+        "modemPoll": "Odpytywanie modemu"
+      },
+      "scope": {
+        "wholeReadings": "Całe odczyty",
+        "allTechnologiesAndRoles": "wszystkie technologie i role",
+        "allTechnologies": "wszystkie technologie",
+        "allRoles": "wszystkie role",
+        "sdkRange": "API Androida od {{min}} do {{max}}",
+        "sdkFrom": "API Androida od {{min}}",
+        "sdkTo": "API Androida do {{max}}",
+        "radioVersion": "oprogramowanie modemu zaczynające się od {{prefix}}"
+      },
+      "fieldNames": {
+        "pci": "PCI",
+        "channel": "kanał",
+        "areaCode": "kod obszaru",
+        "bandwidth": "szerokość pasma",
+        "timingAdvance": "TA",
+        "signal": "sygnał"
+      },
+      "roleNames": {
+        "serving": "komórka obsługująca",
+        "neighbour": "komórka sąsiednia",
+        "nsa": "NSA"
+      },
+      "readers": {
+        "title": "Wersje czytników",
+        "description": "Wersje podane w przesłanych plikach",
+        "since": "{{source}}, od {{date}}",
+        "blockNumber": "blokada nr {{id}}",
+        "empty": "Nie ma jeszcze żadnej wersji czytnika"
+      },
+      "rules": {
+        "title": "Reguły korekty",
+        "description": "Poprawki, które czytnik wprowadza do odczytów",
+        "since": "{{reader}}, od {{date}}",
+        "blockedBy": "Zablokowana {{date}} przez <user>{{name}}</user>: {{reason}}",
+        "blockedOn": "Zablokowana {{date}}: {{reason}}",
+        "empty": "Nie ma jeszcze żadnej reguły korekty",
+        "blockedToast": "Reguła zablokowana",
+        "unblockedToast": "Reguła odblokowana",
+        "blockDialog": {
+          "title": "Zablokuj regułę korekty",
+          "description": "Wartości poprawione przez regułę {{id}} zostaną pominięte we wszystkich plikach przetwarzanych od teraz",
+          "refoldDescription": "Przechowywane pliki, w których reguła poprawiła wartości, zostaną przeliczone bez nich"
+        }
+      },
+      "dialog": {
+        "title": "Nowa blokada odczytów",
+        "description": "Obejmie pliki przetwarzane od teraz. Po dodaniu zakresu nie zmienisz",
+        "fromFlag": "Na podstawie flagi nr {{id}}. Dopisz powód i sprawdź zakres. Po dodaniu blokady flaga zamknie się sama",
+        "fromReader": "Blokada całych odczytów wyłącza tę wersję czytnika we wszystkich nowych plikach",
+        "phones": "Telefony",
+        "phoneKinds": {
+          "modemFamily": "Rodzina modemów",
+          "soc": "SoC",
+          "deviceModel": "Model",
+          "readerVersion": "Wersja czytnika"
+        },
+        "chooseModemFamily": "Wybierz rodzinę modemów",
+        "chooseSoc": "Wybierz SoC",
+        "chooseReaderVersion": "Wybierz wersję czytnika",
+        "searchSoc": "Szukaj SoC",
+        "noSocMatches": "Nie znaleziono takiego SoC",
+        "socsLoadFailed": "Nie udało się wczytać listy SoC",
+        "values": "Wartości",
+        "fieldLabels": {
+          "whole": "Całe odczyty",
+          "pci": "PCI",
+          "channel": "Kanał",
+          "areaCode": "Kod obszaru",
+          "bandwidth": "Szerokość pasma",
+          "timingAdvance": "TA",
+          "signal": "Sygnał"
+        },
+        "wholeNote": "Pominięty zostanie cały odczyt, z każdą komórką i wartością",
+        "fieldsNote": "Tylko wybrane wartości. Komórka sąsiednia albo NSA bez pewnego kanału i PCI zostanie pominięta w całości",
+        "mode": "Tryb",
+        "corroborateNote": "Wartość liczy się dopiero wtedy, gdy potwierdzi ją telefon spoza blokady albo komórka w bazie. Dotyczy PCI, kanału, kodu obszaru i szerokości pasma",
+        "dropNote": "Wybrane wartości z tych telefonów są pomijane",
+        "technologies": "Technologie",
+        "roles": "Role komórek",
+        "roleLabels": {
+          "serving": "Obsługująca",
+          "neighbour": "Sąsiednia",
+          "nsa": "NSA"
+        },
+        "scopeNote": "Bez wyboru blokada obejmuje wszystkie. Wersję Androida i oprogramowanie modemu zawęzisz w dodatkowych warunkach",
+        "moreConditions": "Dodatkowe warunki",
+        "sdkMin": "API Androida od",
+        "sdkMax": "API Androida do",
+        "sdkRangeError": "Podaj liczbę od 1 do 1000",
+        "sdkOrderError": "Nie może być niższe od dolnej granicy",
+        "radioVersionPrefix": "Oprogramowanie modemu",
+        "radioVersionHint": "Początek wersji, na przykład MOLY.LR13",
+        "refoldDescription": "Przechowywane pliki tych telefonów zostaną przeliczone bez zablokowanych wartości",
+        "created": "Blokada dodana"
+      }
+    },
+    "evaluation": {
+      "versionName": "Wersja {{version}}",
+      "baseline": "Odniesienie",
+      "noData": "Brak danych z tej nocy",
+      "empty": {
+        "title": "Nie ma jeszcze żadnej oceny",
+        "description": "Pierwsza ocena pojawi się po najbliższej nocy. Potrzebne są stacje z bazy, które ktoś już zmierzył"
+      },
+      "nights": {
+        "title": "Noce",
+        "headEnd": "mediana błędu",
+        "half": {
+          "odd": "nieparzyste ID",
+          "even": "parzyste ID"
+        },
+        "stations_one": "{{count, number}} stacja",
+        "stations_few": "{{count, number}} stacje",
+        "stations_many": "{{count, number}} stacji",
+        "stations_other": "{{count, number}} stacji",
+        "versions_one": "{{count, number}} wersja",
+        "versions_few": "{{count, number}} wersje",
+        "versions_many": "{{count, number}} wersji",
+        "versions_other": "{{count, number}} wersji",
+        "note": "Mediana błędu opublikowanej wersji i zmiana od poprzedniej nocy. Wzrost o 10% to ostrzeżenie"
+      },
+      "report": {
+        "title": "Noc {{date}}",
+        "runAt": "oceniono {{date}}",
+        "meta_one": "Oceniono {{count, number}} stację o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji",
+        "meta_few": "Oceniono {{count, number}} stacje o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji",
+        "meta_many": "Oceniono {{count, number}} stacji o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji",
+        "meta_other": "Oceniono {{count, number}} stacji o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji",
+        "metaWithGnbTest_one": "Oceniono {{count, number}} stację o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji. W niedzielę dochodzi test długości gNBID",
+        "metaWithGnbTest_few": "Oceniono {{count, number}} stacje o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji. W niedzielę dochodzi test długości gNBID",
+        "metaWithGnbTest_many": "Oceniono {{count, number}} stacji o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji. W niedzielę dochodzi test długości gNBID",
+        "metaWithGnbTest_other": "Oceniono {{count, number}} stacji o {{half}} ID, z czego szacunek z pomiarów ma {{sites, number}}. Kalibracja tej nocy korzystała z drugiej połowy stacji. W niedzielę dochodzi test długości gNBID",
+        "half": {
+          "odd": "nieparzystych",
+          "even": "parzystych"
+        },
+        "published": "opublikowana",
+        "background": "w tle",
+        "baselineNote": "środek miejsc, w których stacja obsługiwała telefony"
+      },
+      "columns": {
+        "version": "Wersja",
+        "sites": "Stacje",
+        "median": "Mediana",
+        "p80": "80. percentyl",
+        "p95": "95. percentyl",
+        "insideRadius": "W promieniu 95%",
+        "ambiguous": "Niejednoznaczne"
+      },
+      "checks": {
+        "title": "Wersja {{candidate}} w porównaniu z opublikowaną wersją {{published}}",
+        "met": "Warunek spełniony",
+        "notMet": "Warunek niespełniony",
+        "median": "Mediana nie gorsza",
+        "p80": "80. percentyl nie gorszy",
+        "radius": "Promień 95% obejmuje od 93% do 97% stacji",
+        "countries": "W żadnym kraju mediana nie wzrosła o ponad 10%",
+        "compared": "{{candidate}} wobec {{published}}",
+        "worstCountry": "największa zmiana: {{country}}, {{change}}",
+        "noCountries": "żaden kraj nie ma wyników obu wersji"
+      },
+      "footer": {
+        "allMet": "Wersja {{version}} spełnia tej nocy wszystkie warunki publikacji",
+        "notAllMet": "Wersja {{version}} nie spełnia tej nocy wszystkich warunków. Możesz ją mimo to opublikować",
+        "publishedMissing": "Tej nocy silnik nie liczył opublikowanej wersji {{version}}, więc nie ma porównania",
+        "onlyVersion": "Tej nocy silnik liczył tylko wersję {{version}}, więc nie ma porównania"
+      },
+      "publish": {
+        "action": "Opublikuj wersję {{version}}",
+        "confirmTitle": "Opublikować wersję {{version}}?",
+        "confirmDescription": "Mapa, dopasowania do stacji i flagi zaczną używać szacunków wersji {{version}}. Do wersji {{published}} wrócisz, dopóki silnik ją liczy",
+        "confirmAction": "Opublikuj",
+        "failedTitle": "Nie udało się opublikować wersji {{version}}",
+        "noEstimate": "Żadna stacja nie ma jeszcze szacunku w tej wersji. Spróbuj ponownie po najbliższym szacowaniu stacji",
+        "done": "Opublikowano wersję {{version}}"
+      },
+      "rats": {
+        "title": "Błąd według technologii",
+        "headEnd": "mediana / 80. / 95. percentyl, m",
+        "technology": "Technologia",
+        "unknown": "Nieznana",
+        "note": "Odległość od szacunku, jeszcze przed przypięciem do znanej lokalizacji, do prawdziwej lokalizacji stacji. Odniesienie to środek miejsc, w których stacja obsługiwała telefony"
+      },
+      "coverage": {
+        "title": "Promień 95%",
+        "headEnd": "stacje w promieniu, cel 93-97%",
+        "evidence": "Dane",
+        "note": "Zgrubne TA pochodzi z GSM. Wynik poza zakresem znaczy, że promień jest za mały albo za duży",
+        "classes": {
+          "littleTaOnePerson": "Mało TA, jedna osoba",
+          "littleTaPeople": "Mało TA, kilka osób",
+          "coarseTaOnePerson": "Zgrubne TA, jedna osoba",
+          "coarseTaPeople": "Zgrubne TA, kilka osób",
+          "muchTaOnePerson": "Dużo TA, jedna osoba",
+          "muchTaPeople": "Dużo TA, kilka osób"
+        }
+      },
+      "grouping": {
+        "title": "Kilka stacji bazowych na jednym maszcie",
+        "groups": "Grupy",
+        "right": "Trafne",
+        "wrong": "Błędne",
+        "missed": "Rozbite stacje",
+        "note": "Błędna grupa łączy stacje z różnych lokalizacji i ukrywa maszt, więc jest gorsza niż stacja rozbita na dwie grupy"
+      },
+      "snapping": {
+        "title": "Przypinanie do znanych lokalizacji",
+        "versionName": "wersja {{version}}",
+        "source": "Źródło",
+        "possible": "Możliwe",
+        "right": "Trafne",
+        "wrong": "Błędne",
+        "missed": "Pominięte",
+        "kinds": {
+          "location": "Nasze lokalizacje",
+          "officialSite": "Stacje z rejestru",
+          "officialSiteByIdentity": "Rejestr po identyfikatorze",
+          "observedSite": "Inne szacowane stacje",
+          "candidate": "Maszty z innych źródeł"
+        }
+      },
+      "gnb": {
+        "title": "Test długości gNBID",
+        "headEnd": "co niedzielę",
+        "network": "Sieć",
+        "length": "Długość",
+        "cells": "Komórki",
+        "together": "Pary blisko siebie",
+        "apart": "Pary daleko od siebie",
+        "sites": "Liczba gNBID",
+        "bits_one": "{{count, number}} bit",
+        "bits_few": "{{count, number}} bity",
+        "bits_many": "{{count, number}} bitów",
+        "bits_other": "{{count, number}} bita",
+        "used": "{{length}}, używana",
+        "suggested": "{{length}}, proponowana"
+      }
+    }
+  },
+  "observationFlags": {
+    "description": "Różnice między pomiarami z telefonów a bazą",
+    "people_one": "{{count, number}} osoba",
+    "people_few": "{{count, number}} osoby",
+    "people_many": "{{count, number}} osób",
+    "people_other": "{{count, number}} osoby",
+    "estimated": "Szacowana",
+    "statuses": {
+      "label": "Status flag",
+      "open": "Otwarte",
+      "resolved": "Rozwiązane",
+      "dismissed": "Odrzucone"
+    },
+    "status": {
+      "open": "Otwarta",
+      "resolved": "Rozwiązana",
+      "dismissed": "Odrzucona"
+    },
+    "groups": {
+      "cells": "Komórki",
+      "networks": "Sieci",
+      "sites": "Stacje i szacowane stacje",
+      "admin": "Tylko dla administratorów"
+    },
+    "kinds": {
+      "valueDiffers": {
+        "label": "Inna wartość",
+        "title": "Inny {{field}} niż w bazie"
+      },
+      "valueMissing": {
+        "label": "Brak wartości w bazie",
+        "title": "Brak {{field}} w bazie"
+      },
+      "cellMissing": {
+        "label": "Brakująca komórka",
+        "title": "Brakująca komórka"
+      },
+      "possiblyDecommissioned": {
+        "label": "Możliwe wyłączenie",
+        "title": "Komórka mogła zostać wyłączona"
+      },
+      "bearingDiffers": {
+        "label": "Inny azymut",
+        "title": "Inny azymut niż w bazie"
+      },
+      "networkMissing": {
+        "label": "Brak sieci w bazie",
+        "title": "Komórka nadaje też dla innej sieci",
+        "titleOperator": "Komórka nadaje też dla {{operator}}"
+      },
+      "networkNotSeen": {
+        "label": "Sieć niewidziana od 90 dni",
+        "title": "Komórka może już nie nadawać dla tej sieci"
+      },
+      "unmatchedSite": {
+        "label": "Stacja spoza bazy",
+        "title": "Szacowana stacja spoza bazy"
+      },
+      "positionShifts": {
+        "label": "Niepewne położenie",
+        "title": "Niepewne położenie szacowanej stacji"
+      },
+      "suggestedSite": {
+        "label": "Pasuje do stacji z bazy",
+        "title": "Szacowana stacja pasuje do stacji z bazy"
+      },
+      "positionDiffers": {
+        "label": "Inne położenie",
+        "title": "Stacja stoi gdzie indziej niż w bazie"
+      },
+      "renumbered": {
+        "label": "Nowy eNBID",
+        "title": "Stacja ma nowy eNBID"
+      },
+      "siteIdKnown": {
+        "label": "ID stacji z rejestru",
+        "title": "Rejestr podaje ID stacji"
+      },
+      "bandNotInPlan": {
+        "label": "Pasmo spoza planu",
+        "title": "Pasmo spoza planu kraju"
+      },
+      "readerQuirk": {
+        "label": "Czytnik przekłamuje wartości",
+        "title": "Czytnik przekłamuje wartości"
+      },
+      "deviceRevoked": {
+        "label": "Unieważnione urządzenie",
+        "title": "Unieważnione urządzenie"
+      },
+      "untrustedContributor": {
+        "label": "Niska zgodność pomiarów",
+        "title": "Niska zgodność pomiarów"
+      },
+      "nodeSpansPlaces": {
+        "label": "Komórki jednego eNBID daleko od siebie",
+        "title": "Komórki jednego eNBID daleko od siebie"
+      },
+      "gnbLengthSuggestion": {
+        "label": "Inna długość gNBID",
+        "title": "Inna długość gNBID"
+      }
+    },
+    "subjects": {
+      "reader": "Czytnik",
+      "contributor": "Osoba przesyłająca pomiary",
+      "device": "Urządzenie"
+    },
+    "patterns": {
+      "bytesSwapped": "{{field}} z odwróconymi bajtami",
+      "factor": "{{field}} pomnożony przez {{parameter}}",
+      "offset": "{{field}} przesunięty o {{parameter}}",
+      "constant": "{{field}} zawsze równy {{parameter}}"
+    },
+    "summary": {
+      "measuredValue": "{{field}} z pomiarów: {{value}}",
+      "snapped": "przy znanej lokalizacji",
+      "withinRadius": "w promieniu {{distance}}",
+      "values_one": "{{count, number}} wartość",
+      "values_few": "{{count, number}} wartości",
+      "values_many": "{{count, number}} wartości",
+      "values_other": "{{count, number}} wartości",
+      "uploads_one": "{{count, number}} plik",
+      "uploads_few": "{{count, number}} pliki",
+      "uploads_many": "{{count, number}} plików",
+      "uploads_other": "{{count, number}} pliku",
+      "alsoBroadcasts": "nadaje też {{network}}",
+      "notListed": "{{network}} poza listą sieci",
+      "shifts": "szacunek przesuwa się o {{distance}}",
+      "radius": "promień {{distance}}",
+      "fromStation": "{{distance}} od stacji {{station}}",
+      "estimateFromStation": "Szacunek {{distance}} od stacji",
+      "azimuth": "Azymut {{degrees}}°",
+      "measuredBearing": "z pomiarów {{degrees}}°",
+      "neverSeen": "telefony nigdy jej nie widziały",
+      "notSeenSince": "niewidziana od {{date}}",
+      "registerSiteId": "Rejestr podaje {{siteId}}",
+      "channels": "kanały {{channels}}",
+      "certificate": {
+        "revoked": "certyfikat {{serial}} unieważniony",
+        "suspended": "certyfikat {{serial}} zawieszony"
+      },
+      "agreement": "{{share}} zgodnych odległości z TA",
+      "readings_one": "{{count, number}} odczyt",
+      "readings_few": "{{count, number}} odczyty",
+      "readings_many": "{{count, number}} odczytów",
+      "readings_other": "{{count, number}} odczytu",
+      "places_one": "komórki w {{count, number}} punkcie",
+      "places_few": "komórki w {{count, number}} punktach",
+      "places_many": "komórki w {{count, number}} punktach",
+      "places_other": "komórki w {{count, number}} punktu",
+      "gnbLength": "długość {{length}} → {{suggested}} bitów",
+      "nodeCount_one": "{{count, number}} {{node}}",
+      "nodeCount_few": "{{count, number}} {{node}}",
+      "nodeCount_many": "{{count, number}} {{node}}",
+      "nodeCount_other": "{{count, number}} {{node}}"
+    },
+    "dismissReasons": {
+      "notAnIssue": {
+        "label": "Baza jest poprawna",
+        "hint": "Telefony się mylą albo widzą inną stację"
+      },
+      "cannotVerify": {
+        "label": "Nie da się sprawdzić",
+        "hint": "Nie wiadomo, która wartość jest prawdziwa"
+      },
+      "needsSurvey": {
+        "label": "Trzeba sprawdzić w terenie",
+        "hint": "Ktoś musi tam pojechać i to sprawdzić"
+      }
+    },
+    "closed": {
+      "appliedSummary": "Zastosowana: {{summary}}",
+      "stationCreated": "utworzono stację {{station}}",
+      "fixedElsewhere": {
+        "title": "Baza zgadza się już z pomiarami"
+      },
+      "evidenceGone": {
+        "title": "Pomiary już tego nie potwierdzają"
+      },
+      "applied": {
+        "title": "Zastosowana"
+      },
+      "dismissed": {
+        "notAnIssue": "Odrzucona: baza jest poprawna",
+        "cannotVerify": "Odrzucona: nie da się sprawdzić",
+        "needsSurvey": "Odrzucona: trzeba sprawdzić w terenie"
+      },
+      "note": "Notatka: \"{{note}}\""
+    },
+    "actions": {
+      "dismiss": "Odrzuć",
+      "ignore": "Pomiń stację",
+      "link": "Powiąż ze stacją",
+      "editStation": "Edytuj stację",
+      "fixInEditor": "Popraw w edytorze",
+      "openInEditor": "Otwórz w edytorze",
+      "openContributor": "Otwórz stronę współtwórcy",
+      "reopen": "Otwórz ponownie",
+      "undo": "Cofnij",
+      "evidenceOnMap": "Dowody na mapie"
+    },
+    "dismiss": {
+      "title": "Odrzucić flagę?",
+      "description": "Flaga wróci, gdy pomiary pokażą coś nowego: inną wartość, kolejną osobę albo inne położenie stacji",
+      "reasonLabel": "Powód odrzucenia",
+      "noteLabel": "Notatka dla innych redaktorów",
+      "confirm": "Odrzuć flagę"
+    },
+    "ignore": {
+      "title": "Pominąć szacowaną stację?",
+      "description": "Stacja zniknie z kolejki i nie trafi do bazy. Wróci, gdy pojawią się nowe komórki albo szacunek przesunie się o więcej niż swój promień",
+      "reasonLabel": "Powód",
+      "reasonPlaceholder": "Np. femtokomórka w galerii handlowej albo maszt na czas imprezy",
+      "hint": "Powód zobaczą inni redaktorzy przy tej szacowanej stacji",
+      "groupHint": "Pominięcie obejmuje cały maszt"
+    },
+    "link": {
+      "title": "Powiązać ze stacją z bazy?",
+      "description": "Automatyczne dopasowanie nie zmieni tego powiązania. Komórki z pomiarów, których ta stacja nie ma, trafią do kolejki jako brakujące",
+      "searchPlaceholder": "ID stacji, eNBID albo adres",
+      "nearest": "Najbliższa stacja {{operator}}",
+      "suggested": "Proponowana stacja",
+      "results": "Wyniki",
+      "noStations": "Nie znaleziono stacji",
+      "stationLabel": "Stacja do powiązania",
+      "rule": "Możesz wybrać stację {{operator}}, stację partnera {{operator}} albo stację, której komórki nadają dla {{operator}}",
+      "wrongOperator": "Stacja {{station}} należy do {{stationOperator}}, a jej komórki nie nadają dla {{operator}}. Wybierz stację {{operator}}, stację partnera {{operator}} albo stację, której komórki nadają dla {{operator}}",
+      "stationGone": "Stacji {{station}} już nie ma w bazie. Wybierz inną",
+      "confirm": "Powiąż"
+    },
+    "conflicts": {
+      "refresh": "Odśwież",
+      "showFlag": "Pokaż flagę",
+      "showFlagId": "Pokaż flagę #{{id}}",
+      "openStation": "Otwórz stację",
+      "flagClosed": {
+        "title": "Ta flaga jest już zamknięta",
+        "applied": "ktoś przed chwilą ją zastosował. Twoje zmiany nie zostały zapisane",
+        "dismissed": "ktoś przed chwilą ją odrzucił. Twoje zmiany nie zostały zapisane",
+        "fixedElsewhere": "baza zgadza się już z pomiarami. Twoje zmiany nie zostały zapisane",
+        "evidenceGone": "pomiary już tego nie potwierdzają. Twoje zmiany nie zostały zapisane"
+      },
+      "resolved": {
+        "title": "Flaga jest już rozwiązana",
+        "text": "zmiana trafiła już do bazy albo pomiary przestały ją potwierdzać, więc nie trzeba jej odrzucać"
+      },
+      "openFlag": {
+        "title": "Jest już otwarta flaga tego samego rodzaju",
+        "text": "zamiast otwierać tę ponownie, zajmij się flagą #{{id}}"
+      },
+      "madeFromSite": {
+        "title": "Stacja z tego szacunku już istnieje",
+        "text": "ktoś utworzył ją wcześniej, więc druga nie powstała"
+      },
+      "matched": {
+        "title": "Szacunek pasuje już do stacji z bazy",
+        "text": "w międzyczasie jego komórki trafiły do istniejącej stacji, więc nowa nie jest potrzebna"
+      },
+      "copy": {
+        "title": "To ta sama stacja widziana w innej sieci",
+        "text": "pomiń ją albo powiąż przez jej główny szacunek",
+        "station": "utwórz stację z jej głównego szacunku",
+        "action": "Przejdź do głównego szacunku"
+      },
+      "replaced": {
+        "title": "Tego szacunku już nie ma",
+        "text_one": "po przeliczeniu zastąpiła go {{count, number}} nowa szacowana stacja",
+        "text_few": "po przeliczeniu zastąpiły go {{count, number}} nowe szacowane stacje",
+        "text_many": "po przeliczeniu zastąpiło go {{count, number}} nowych szacowanych stacji",
+        "text_other": "po przeliczeniu zastąpiło go {{count, number}} nowej szacowanej stacji",
+        "action": "Pokaż nowe szacunki"
+      },
+      "stationSite": {
+        "title": "Te komórki należą do stacji z bazy",
+        "text": "to jej komórki GSM lub UMTS w tej sieci, więc szacunku nie da się osobno pominąć ani powiązać",
+        "station": "to jej komórki GSM lub UMTS w tej sieci. Popraw tamtą stację zamiast tworzyć nową"
+      },
+      "linkForbidden": {
+        "title": "Nie masz dostępu do tego województwa",
+        "text": "stacja, z którą chcesz powiązać szacunek, leży poza Twoim obszarem",
+        "action": "Wybierz inną"
+      }
+    },
+    "access": {
+      "noArea": "Flagi widzisz tylko w przydzielonych województwach. O dostęp poproś opiekuna kraju",
+      "offTitle": "Dane z pomiarów są wyłączone",
+      "off": "Administrator wyłączył dane z pomiarów. Flagi wrócą, gdy je włączy",
+      "offAdmin": "Redaktorzy nie widzą flag, dopóki nie włączysz danych z pomiarów w ustawieniach systemowych"
+    },
+    "facts": {
+      "title": "Co widzą telefony",
+      "titleSite": "Na czym opiera się szacunek",
+      "people": "Osoby",
+      "devices": "Urządzenia",
+      "readings": "Odczyty",
+      "days": "Dni z pomiarami",
+      "radius": "Promień (95%)",
+      "snapped": "znana lokalizacja ({{share}})",
+      "taShare": "Odczyty z TA",
+      "arc": "Łuk pomiarów",
+      "farthest": "Najdalej",
+      "lastSeen": "Ostatni odczyt",
+      "firstSeen": "Widziana od",
+      "network": "Sieć",
+      "source": "Źródło",
+      "seenAs": {
+        "list": "lista sieci",
+        "missingCode": "kod sieci komórki"
+      },
+      "listReadings": "Odczyty listy sieci",
+      "lastListed": "Ostatnio na liście",
+      "never": "nigdy",
+      "shift": "Przesunięcie",
+      "distanceFromStation": "Odległość od stacji",
+      "places": "Punkty",
+      "distance": "Odległość",
+      "estimateRadius": "Promień szacunku",
+      "difference": "Różnica",
+      "spread": "Łuk 80% odczytów",
+      "networkMeasured": "Ostatni pomiar pasma",
+      "measuredSquares": "Miejsca z pomiarami",
+      "registerSite": "Stacja w rejestrze",
+      "technology": "Technologia",
+      "channels": "Kanały",
+      "field": "Pole",
+      "error": "Błąd",
+      "patterns": {
+        "bytesSwapped": "odwrócone bajty",
+        "factor": "razy {{parameter}}",
+        "offset": "przesunięcie o {{parameter}}",
+        "constant": "zawsze {{parameter}}"
+      },
+      "values": "Wartości",
+      "cells": "Komórki",
+      "uploads": "Pliki",
+      "agreement": "Zgodność TA",
+      "everyoneAgreement": "Zgodność u wszystkich",
+      "readingsOnConfirmed": "Odczyty na potwierdzonych stacjach",
+      "certificate": "Certyfikat",
+      "certificateStatus": "Stan certyfikatu",
+      "revocation": {
+        "revoked": "unieważniony",
+        "suspended": "zawieszony"
+      },
+      "length": "Długość",
+      "suggestedLength": "Proponowana długość",
+      "bits_one": "{{count, number}} bit",
+      "bits_few": "{{count, number}} bity",
+      "bits_many": "{{count, number}} bitów",
+      "bits_other": "{{count, number}} bitu",
+      "gnbCount": "Liczba gNBID",
+      "previousNode": "Poprzedni {{node}}",
+      "newNode": "Nowy {{node}}",
+      "alikeCells": "Pasujące komórki",
+      "ofCells": "{{alike}} z {{total}}"
+    },
+    "compare": {
+      "none": "brak",
+      "azimuth": "Azymut",
+      "stored": "{{label}} w bazie",
+      "observed": "{{label}} z pomiarów"
+    },
+    "places": {
+      "allPhones": "Wszystkie telefony",
+      "allReaders": "Wszystkie wersje czytnika",
+      "device": "Urządzenie przesyłające pomiary",
+      "bandPlan": "Plan pasm kraju",
+      "network": "Sieć komórkowa",
+      "fromStation": "{{distance}} od stacji {{station}}",
+      "group": "razem z {{names}} na jednym maszcie"
+    },
+    "cellLine": {
+      "sector": "sektor {{azimuth}}"
+    },
+    "leads": {
+      "valueDiffers_one": "{{count, number}} osoba widzi tę komórkę z {{field}} {{observed}}. W bazie jest {{stored}}",
+      "valueDiffers_few": "{{count, number}} osoby widzą tę komórkę z {{field}} {{observed}}. W bazie jest {{stored}}",
+      "valueDiffers_many": "{{count, number}} osób widzi tę komórkę z {{field}} {{observed}}. W bazie jest {{stored}}",
+      "valueDiffers_other": "{{count, number}} osoby widzi tę komórkę z {{field}} {{observed}}. W bazie jest {{stored}}",
+      "valueMissing_one": "{{count, number}} osoba widzi tę komórkę z {{field}} {{observed}}. W bazie nie ma tej wartości",
+      "valueMissing_few": "{{count, number}} osoby widzą tę komórkę z {{field}} {{observed}}. W bazie nie ma tej wartości",
+      "valueMissing_many": "{{count, number}} osób widzi tę komórkę z {{field}} {{observed}}. W bazie nie ma tej wartości",
+      "valueMissing_other": "{{count, number}} osoby widzi tę komórkę z {{field}} {{observed}}. W bazie nie ma tej wartości",
+      "cellMissing_one": "{{count, number}} osoba widzi na tej stacji komórkę {{cell}}, której nie ma w bazie",
+      "cellMissing_few": "{{count, number}} osoby widzą na tej stacji komórkę {{cell}}, której nie ma w bazie",
+      "cellMissing_many": "{{count, number}} osób widzi na tej stacji komórkę {{cell}}, której nie ma w bazie",
+      "cellMissing_other": "{{count, number}} osoby widzi na tej stacji komórkę {{cell}}, której nie ma w bazie",
+      "networkMissing": {
+        "list_one": "{{count, number}} osoba odczytała z tej komórki listę sieci z kodem {{network}}. W bazie komórka nie nadaje dla tej sieci",
+        "list_few": "{{count, number}} osoby odczytały z tej komórki listę sieci z kodem {{network}}. W bazie komórka nie nadaje dla tej sieci",
+        "list_many": "{{count, number}} osób odczytało z tej komórki listę sieci z kodem {{network}}. W bazie komórka nie nadaje dla tej sieci",
+        "list_other": "{{count, number}} osoby odczytało z tej komórki listę sieci z kodem {{network}}. W bazie komórka nie nadaje dla tej sieci",
+        "missingCode_one": "{{count, number}} osoba widziała tę komórkę w sieci {{network}}. W bazie komórka nie nadaje dla tej sieci",
+        "missingCode_few": "{{count, number}} osoby widziały tę komórkę w sieci {{network}}. W bazie komórka nie nadaje dla tej sieci",
+        "missingCode_many": "{{count, number}} osób widziało tę komórkę w sieci {{network}}. W bazie komórka nie nadaje dla tej sieci",
+        "missingCode_other": "{{count, number}} osoby widziało tę komórkę w sieci {{network}}. W bazie komórka nie nadaje dla tej sieci"
+      },
+      "networkNotSeen_one": "W bazie komórka nadaje też dla {{network}}, ale tej sieci nie ma na liście sieci odczytanej z komórki",
+      "networkNotSeen_few": "W bazie komórka nadaje też dla {{network}}, ale tej sieci nie ma na żadnej z {{count, number}} list sieci odczytanych z komórki",
+      "networkNotSeen_many": "W bazie komórka nadaje też dla {{network}}, ale tej sieci nie ma na żadnej z {{count, number}} list sieci odczytanych z komórki",
+      "networkNotSeen_other": "W bazie komórka nadaje też dla {{network}}, ale tej sieci nie ma na żadnej z {{count, number}} list sieci odczytanych z komórki",
+      "unmatchedSite": {
+        "group_one": "{{count, number}} osoba widzi na jednym maszcie komórki {{operator}} z {{nodes}} różnymi {{node}}. Żadna stacja w bazie do nich nie pasuje",
+        "group_few": "{{count, number}} osoby widzą na jednym maszcie komórki {{operator}} z {{nodes}} różnymi {{node}}. Żadna stacja w bazie do nich nie pasuje",
+        "group_many": "{{count, number}} osób widzi na jednym maszcie komórki {{operator}} z {{nodes}} różnymi {{node}}. Żadna stacja w bazie do nich nie pasuje",
+        "group_other": "{{count, number}} osoby widzi na jednym maszcie komórki {{operator}} z {{nodes}} różnymi {{node}}. Żadna stacja w bazie do nich nie pasuje",
+        "single_one": "{{count, number}} osoba widzi komórki {{operator}} ze wspólnym {{node}}. Żadna stacja w bazie do nich nie pasuje",
+        "single_few": "{{count, number}} osoby widzą komórki {{operator}} ze wspólnym {{node}}. Żadna stacja w bazie do nich nie pasuje",
+        "single_many": "{{count, number}} osób widzi komórki {{operator}} ze wspólnym {{node}}. Żadna stacja w bazie do nich nie pasuje",
+        "single_other": "{{count, number}} osoby widzi komórki {{operator}} ze wspólnym {{node}}. Żadna stacja w bazie do nich nie pasuje"
+      },
+      "positionShifts": "Bez odczytów z jednej strony szacunek przesuwa się o {{distance}}, czyli o więcej niż jego promień. Przydadzą się pomiary z innych stron",
+      "suggestedSite": "Komórek tej szacowanej stacji nie ma w bazie, ale {{distance}} od niej stoi stacja {{station}}. To pewnie ta sama stacja z niewpisanym jeszcze {{node}}",
+      "positionDiffers": "Szacunek z pomiarów leży {{distance}} od lokalizacji stacji, a jego promień to {{radius}}. Lokalizacja w bazie może być błędna albo stację przeniesiono",
+      "renumbered": {
+        "known_one": "{{node}} {{previous}} zniknął. Zamiast niego pojawił się {{node}} {{next}} z tym samym kanałem i PCI w {{count, number}} komórce",
+        "known_few": "{{node}} {{previous}} zniknął. Zamiast niego pojawił się {{node}} {{next}} z tymi samymi kanałami i PCI w {{count, number}} komórkach",
+        "known_many": "{{node}} {{previous}} zniknął. Zamiast niego pojawił się {{node}} {{next}} z tymi samymi kanałami i PCI w {{count, number}} komórkach",
+        "known_other": "{{node}} {{previous}} zniknął. Zamiast niego pojawił się {{node}} {{next}} z tymi samymi kanałami i PCI w {{count, number}} komórki",
+        "unknown_one": "{{count, number}} komórka tej stacji pojawiła się pod nowym numerem, z tym samym kanałem i PCI",
+        "unknown_few": "{{count, number}} komórki tej stacji pojawiły się pod nowym numerem, z tymi samymi kanałami i PCI",
+        "unknown_many": "{{count, number}} komórek tej stacji pojawiło się pod nowym numerem, z tymi samymi kanałami i PCI",
+        "unknown_other": "{{count, number}} komórki tej stacji pojawiło się pod nowym numerem, z tymi samymi kanałami i PCI"
+      },
+      "bearingDiffers": "Komórka obsługuje telefony głównie w kierunku {{bearing}}, a jej sektor ma w bazie azymut {{azimuth}}",
+      "possiblyDecommissioned": {
+        "since": "Nikt nie widział tej komórki od {{lastSeenOn}}, choć {{measuredOn}} ktoś mierzył {{network}} w jej zasięgu",
+        "never": "Nikt nigdy nie widział tej komórki, choć {{measuredOn}} ktoś mierzył {{network}} w jej zasięgu"
+      },
+      "siteIdKnown": "Stacja ma tymczasowe ID, więc jest widoczna jako {{name}}. W rejestrze ten eNBID należy do stacji {{siteId}}",
+      "bandNotInPlan_one": "{{count, number}} osoba widzi {{rat}} na kanałach {{channels}}, których nie ma w planie pasm kraju. Pasują do {{band}}",
+      "bandNotInPlan_few": "{{count, number}} osoby widzą {{rat}} na kanałach {{channels}}, których nie ma w planie pasm kraju. Pasują do {{band}}",
+      "bandNotInPlan_many": "{{count, number}} osób widzi {{rat}} na kanałach {{channels}}, których nie ma w planie pasm kraju. Pasują do {{band}}",
+      "bandNotInPlan_other": "{{count, number}} osoby widzi {{rat}} na kanałach {{channels}}, których nie ma w planie pasm kraju. Pasują do {{band}}",
+      "readerQuirk": {
+        "device": "Telefony {{device}} podają {{pattern}}: {{values}} z {{cells}} w {{uploads}}",
+        "reader": "Czytnik {{reader}} podaje {{pattern}}: {{values}} z {{cells}} w {{uploads}}",
+        "cells_one": "{{count, number}} komórki",
+        "cells_few": "{{count, number}} komórek",
+        "cells_many": "{{count, number}} komórek",
+        "cells_other": "{{count, number}} komórki",
+        "uploads_one": "{{count, number}} pliku",
+        "uploads_few": "{{count, number}} plikach",
+        "uploads_many": "{{count, number}} plikach",
+        "uploads_other": "{{count, number}} pliku"
+      },
+      "untrustedContributor": "Tylko {{share}} odległości z TA tej osoby zgadza się z potwierdzonymi stacjami. U wszystkich jest to {{everyone}}",
+      "deviceRevoked": {
+        "revoked": "Certyfikat {{serial}} tego urządzenia został unieważniony",
+        "suspended": "Certyfikat {{serial}} tego urządzenia został zawieszony"
+      },
+      "nodeSpansPlaces_one": "Odległości z TA komórek tej szacowanej stacji nie zgadzają się z jej położeniem",
+      "nodeSpansPlaces_few": "Komórki tej szacowanej stacji obsługują telefony w {{count, number}} punktach daleko od siebie. To pewnie kilka różnych stacji",
+      "nodeSpansPlaces_many": "Komórki tej szacowanej stacji obsługują telefony w {{count, number}} punktach daleko od siebie. To pewnie kilka różnych stacji",
+      "nodeSpansPlaces_other": "Komórki tej szacowanej stacji obsługują telefony w {{count, number}} punktu daleko od siebie. To pewnie kilka różnych stacji",
+      "gnbLengthSuggestion": "Przy gNBID o długości {{length}} bitów komórki sieci {{network}} dzielą się na {{sites}} gNBID. Lepiej pasuje długość {{suggested}} bitów"
+    },
+    "evidence": {
+      "title": "Dowody szacunku",
+      "mapLabel": "Mapa dowodów",
+      "panelLabel": "Szacunek i decyzja",
+      "flagChip": "Flaga #{{id}}",
+      "seen": "Pierwszy pomiar: {{first}} · ostatni: {{last}}",
+      "withGroup": "razem z {{names}}",
+      "status": {
+        "unmatched": "Bez stacji w bazie",
+        "suggested": "Pasuje do stacji z bazy",
+        "matched": "Powiązana ze stacją",
+        "ignored": "Pominięta",
+        "replaced": "Zastąpiona",
+        "ambiguous": "Dwa możliwe położenia"
+      },
+      "place": {
+        "title": "Położenie",
+        "withinRadius": "W promieniu {{distance}}",
+        "fitSub": "Pewność {{share}} · {{coordinates}}",
+        "fitNote": "Żadna znana lokalizacja nie pasuje na tyle, żeby przyciągnąć do niej stację",
+        "nearest": "Najbliżej jest lokalizacja {{id}}",
+        "nearestWithStations": "Najbliżej jest lokalizacja {{id}}, w której stoją już stacje {{operators}}",
+        "snappedLocation": "W lokalizacji {{id}}",
+        "snappedSub": "Prawdopodobieństwo {{share}} · {{distance}} od szacunku",
+        "snappedNote": {
+          "location": "Pomiary pasują do tej lokalizacji prawie tak dobrze jak do samego szacunku, więc stacja jest pokazana tutaj",
+          "officialSite": "Pomiary pasują do tego miejsca z rejestru prawie tak dobrze jak do samego szacunku, więc stacja jest pokazana tutaj",
+          "observedSite": "Pomiary pasują do tej szacowanej stacji prawie tak dobrze jak do samego szacunku, więc stacja jest pokazana tutaj"
+        },
+        "stationsThere": "Stoją w niej już stacje {{operators}}",
+        "ambiguousSub": "{{distance}} od siebie · promień {{radius}}",
+        "ambiguousNote": "Telefony mierzyły tę stację tylko z jednej drogi, więc pomiary pasują tak samo po obu jej stronach. Sprawdź na zdjęciu satelitarnym, po której stronie stoi maszt",
+        "noEstimate": "Jeszcze bez szacunku",
+        "noEstimateNote": "Pomiarów jest jeszcze za mało, żeby wskazać, gdzie stoi stacja",
+        "notPublic": "Niepubliczna",
+        "notPublicAmbiguous": "dopóki szacunek ma dwa możliwe położenia, stacji nie widać na publicznej mapie"
+      },
+      "choices": {
+        "title": "Gdzie postawić stację",
+        "hint": "Wybrane położenie trafi do formularza nowej stacji",
+        "fit": "Szacunek z pomiarów",
+        "first": "Pierwsze możliwe położenie",
+        "second": "Drugie możliwe położenie",
+        "secondLine": "{{coordinates}} · {{distance}} dalej",
+        "location": "Lokalizacja {{id}}",
+        "officialSite": "Rejestr: {{name}}",
+        "officialSiteHidden": "Miejsce z rejestru",
+        "observedSite": "Szacowana stacja {{name}}",
+        "observedSiteHidden": "Szacowana stacja poza Twoim obszarem",
+        "otherEstimate": "Inna szacowana stacja",
+        "otherEstimateUnmatched": "Inna szacowana stacja, też spoza bazy",
+        "fromEstimate": "{{distance}} od szacunku",
+        "snapped": "Przyciągnięta"
+      },
+      "create": {
+        "point": "Utwórz stację w wybranym punkcie",
+        "location": "Utwórz stację w lokalizacji {{id}}",
+        "officialSite": "Utwórz stację z rejestru {{siteId}}",
+        "officialSitePlace": "Utwórz stację w miejscu z rejestru",
+        "observedSite": "Utwórz stację przy szacowanej stacji {{operator}}",
+        "observedSitePlace": "Utwórz stację przy innej szacowanej stacji"
+      },
+      "layers": {
+        "title": "Warstwy",
+        "grid": "Gdzie może stać",
+        "ta": "Odległości z TA",
+        "readings": "Odczyty",
+        "places": "Sprawdzone lokalizacje",
+        "squares_one": "{{count, number}} miejsce",
+        "squares_few": "{{count, number}} miejsca",
+        "squares_many": "{{count, number}} miejsc",
+        "squares_other": "{{count, number}} miejsca"
+      },
+      "legend": {
+        "title": "Legenda",
+        "estimate": "Szacunek",
+        "pointArea": "Punkt i obszar 95%",
+        "radius": "Promień 95%",
+        "more": "bardziej",
+        "less": "mniej",
+        "ta": "Odległość z TA",
+        "taUpTo": "do {{distance}}",
+        "taBetween": "{{from}}-{{to}}",
+        "taOver": "ponad {{distance}}",
+        "taPublicOnly": "Pokazane są tylko miejsca, które mogą być publiczne",
+        "taTruncated": "Pokazane są miejsca z największą liczbą odczytów",
+        "readings": "Sygnał (90% odczytów)",
+        "readingsCaption": "W każdym miejscu widać najsilniejszą z komórek szacunku",
+        "readingsZoomIn": "Przybliż mapę, aby zobaczyć odczyty",
+        "readingsEmpty": "W tym widoku nie ma odczytów",
+        "readingsError": "Nie udało się wczytać odczytów"
+      },
+      "marks": {
+        "fit": "Szacunek",
+        "fitUnsnapped": "Szacunek bez przyciągania",
+        "here": "Tutaj",
+        "label": "{{place}}, {{share}}",
+        "snappedLabel": "{{place}}, {{share}}, stacja jest tu pokazana"
+      },
+      "ta": {
+        "popupLabel": "Odległość z TA w tym miejscu",
+        "distance": "{{distance}} z TA",
+        "note": "Okrąg pokazuje, jak daleko od tego miejsca stoi maszt"
+      },
+      "missing": {
+        "title": "Tej szacowanej stacji już nie ma",
+        "description": "Usunięto ją albo stoi poza Twoim obszarem"
+      },
+      "strips": {
+        "ignored": "Stacja jest pominięta",
+        "restore": "Przywróć",
+        "handLinked": "Powiązana ręcznie ze stacją {{station}}",
+        "matched": "Pasuje do stacji {{station}} z bazy",
+        "unlink": "Cofnij powiązanie"
+      },
+      "toasts": {
+        "ignored": "Pominięto {{name}}",
+        "linked": "Powiązano {{name}} ze stacją {{station}}",
+        "restored": "Przywrócono {{name}}",
+        "unlinked": "Cofnięto powiązanie {{name}}"
+      }
+    },
+    "createStation": {
+      "title": "Nowa stacja",
+      "fromSite": "Z szacowanej stacji {{name}}",
+      "closesFlagAndLinksSites_one": "Po zapisaniu flaga #{{id}} się zamknie, a szacowana stacja {{names}} zostanie powiązana z tą stacją",
+      "closesFlagAndLinksSites_few": "Po zapisaniu flaga #{{id}} się zamknie, a szacowane stacje {{names}} zostaną powiązane z tą stacją",
+      "closesFlagAndLinksSites_many": "Po zapisaniu flaga #{{id}} się zamknie, a szacowane stacje {{names}} zostaną powiązane z tą stacją",
+      "closesFlagAndLinksSites_other": "Po zapisaniu flaga #{{id}} się zamknie, a szacowane stacje {{names}} zostaną powiązane z tą stacją",
+      "linksSites_one": "Po zapisaniu szacowana stacja {{names}} zostanie powiązana z tą stacją",
+      "linksSites_few": "Po zapisaniu szacowane stacje {{names}} zostaną powiązane z tą stacją",
+      "linksSites_many": "Po zapisaniu szacowane stacje {{names}} zostaną powiązane z tą stacją",
+      "linksSites_other": "Po zapisaniu szacowane stacje {{names}} zostaną powiązane z tą stacją",
+      "siteIdHint": {
+        "withId": "ID z rejestru albo od operatora",
+        "withoutId": "Bez ID stacja będzie widoczna jako {{name}}, dopóki ktoś go nie wpisze"
+      },
+      "estimateLabel": "Szacunek z pomiarów · {{radius}}",
+      "mapHint": "Przeciągnij pinezkę na maszt. Kółka to lokalizacje z bazy",
+      "cellsSource_one": "Komórki pochodzą z pomiarów szacowanej stacji {{names}}",
+      "cellsSource_few": "Komórki pochodzą z pomiarów szacowanych stacji na tym maszcie: {{names}}",
+      "cellsSource_many": "Komórki pochodzą z pomiarów szacowanych stacji na tym maszcie: {{names}}",
+      "cellsSource_other": "Komórki pochodzą z pomiarów szacowanych stacji na tym maszcie: {{names}}",
+      "azimuthsMeasured": "Azymuty pochodzą ze zmierzonych kierunków komórek, tam gdzie pomiary je pokazują. Brakujące dodasz, a resztę poprawisz w karcie Azymuty",
+      "azimuthsNone": "Pomiary nie pokazują kierunków tych komórek, więc azymuty dodasz w karcie Azymuty",
+      "created": "Utworzono stację i zamknięto flagę #{{id}}",
+      "missing": {
+        "title": "Tego szacunku już nie ma",
+        "description": "Mógł zostać przeliczony na nowo albo leży poza Twoim obszarem"
+      }
+    },
+    "filters": {
+      "kind": "Rodzaj",
+      "allKinds": "Wszystkie rodzaje",
+      "kindsMore_one": "{{kind}} +{{count, number}}",
+      "kindsMore_few": "{{kind}} +{{count, number}}",
+      "kindsMore_many": "{{kind}} +{{count, number}}",
+      "kindsMore_other": "{{kind}} +{{count, number}}",
+      "stationPlaceholder": "ID stacji lub eNBID"
+    },
+    "sort": {
+      "label": "Kolejność",
+      "newest": "Najnowsze",
+      "oldest": "Najstarsze",
+      "updated": "Ostatnio zmienione",
+      "station": "Według stacji"
+    },
+    "list": {
+      "label": "Lista flag",
+      "filteredEmpty": "Brak flag pasujących do filtrów",
+      "emptyArea": "W Twoim obszarze nie ma otwartych flag z pomiarów",
+      "emptyEverywhere": "Nie ma otwartych flag z pomiarów",
+      "empty": {
+        "resolved": "Brak rozwiązanych flag",
+        "dismissed": "Brak odrzuconych flag"
+      }
+    },
+    "detail": {
+      "pickTitle": "Wybierz flagę z listy",
+      "pickDescription": "Tu zobaczysz dowody z pomiarów i proponowaną zmianę",
+      "flagTitle": "Flaga #{{id}}",
+      "goneTitle": "Tej flagi już nie ma",
+      "goneDescription": "Jej komórkę usunięto razem z flagami albo flaga jest poza Twoim obszarem",
+      "backToList": "Wróć do listy"
+    },
+    "meta": {
+      "created": "Utworzona",
+      "updated": "zmieniona",
+      "resolved": "zamknięta",
+      "dismissed": "odrzucona"
+    },
+    "change": {
+      "title": "Proponowana zmiana",
+      "station": "Proponowana stacja",
+      "readingBlock": "Proponowana blokada odczytów"
+    },
+    "map": {
+      "radius": "W promieniu {{radius}} (95%)",
+      "snapped": "Przy znanej lokalizacji",
+      "station": "stacja {{station}}",
+      "estimateAndStation": "Szacunek (95%) i lokalizacja stacji {{station}}"
+    },
+    "table": {
+      "station": "stacja {{station}}",
+      "band": "Pasmo",
+      "azimuth": "Azymut",
+      "networks": "Sieci",
+      "cellType": "Rodzaj",
+      "confirmed": "Komórka zostanie oznaczona jako potwierdzona",
+      "confirmedShort": "Potwierdzona",
+      "fieldLabel": "{{field}}, wiersz {{row}}",
+      "rowLabel": "Komórka {{row}}: {{rat}}",
+      "newCells_one": "{{count, number}} nowa",
+      "newCells_few": "{{count, number}} nowe",
+      "newCells_many": "{{count, number}} nowych",
+      "newCells_other": "{{count, number}} nowej",
+      "changedCells_one": "{{count, number}} zmieniona",
+      "changedCells_few": "{{count, number}} zmienione",
+      "changedCells_many": "{{count, number}} zmienionych",
+      "changedCells_other": "{{count, number}} zmienionej"
+    },
+    "notes": {
+      "newCell": "Nowa komórka - na stacji nie ma jeszcze komórki o tym {{code}}",
+      "siteCells_one": "{{count, number}} nowa komórka na stacji {{station}}",
+      "siteCells_few": "{{count, number}} nowe komórki na stacji {{station}}",
+      "siteCells_many": "{{count, number}} nowych komórek na stacji {{station}}",
+      "siteCells_other": "{{count, number}} nowej komórki na stacji {{station}}",
+      "addNetwork": "Dodaj {{network}}. Główny kod sieci właściciela zostaje pierwszy",
+      "removeNetwork": "Usuń {{network}} z listy sieci komórki",
+      "sector": "Azymut wybierzesz w edytorze stacji"
+    },
+    "box": {
+      "newStation": "Nowa stacja",
+      "newStationSubtitle": "propozycja z pomiarów",
+      "siteId": "ID stacji",
+      "noSiteIdHint": "Nie ma go w propozycji. Stacja będzie widoczna jako {{name}}",
+      "fromRegister": "z rejestru",
+      "position": "Położenie",
+      "positionHint": "punkt z szacunku",
+      "cells": "Komórki",
+      "azimuths": "Azymuty",
+      "azimuthsHint": "z kierunków zmierzonych przez telefony",
+      "noAzimuthsHint": "pomiary nie pokazują kierunków komórek",
+      "yes": "Tak",
+      "confirmedHint": "stacja i komórki, jak przy zwykłym tworzeniu stacji",
+      "now": "Teraz",
+      "after": "Po zmianie",
+      "temporary": "tymczasowe",
+      "shownAs": "stacja widoczna jako {{name}}",
+      "readingBlock": "Blokada odczytów",
+      "phones": "Telefony",
+      "reader": "Czytnik",
+      "blockMode": {
+        "drop": "odrzucane",
+        "corroborate": "liczone tylko z potwierdzeniem"
+      },
+      "reasonHint": "powód podasz przy dodawaniu blokady",
+      "bandPlan": "Plan pasm: {{country}}",
+      "addBand": "Dodaj pasmo",
+      "fromNodes": "z {{nodes}}"
+    },
+    "none": {
+      "resolved": "Zamknięta flaga nie ma już proponowanej zmiany",
+      "dismissed": "Odrzucona flaga nie ma już proponowanej zmiany. Wróci sama, gdy pomiary pokażą coś nowego",
+      "noSuggestion": "Ta flaga nie ma gotowej zmiany. Popraw stację w edytorze albo odrzuć flagę",
+      "positionDiffers": "Ta flaga nie ma gotowej zmiany. Popraw lokalizację w edytorze stacji albo odrzuć flagę",
+      "bearingDiffers": "Ta flaga nie ma gotowej zmiany. Popraw sektor w edytorze stacji albo odrzuć flagę",
+      "possiblyDecommissioned": "Ta flaga nie ma gotowej zmiany. Sprawdź komórkę w edytorze stacji albo odrzuć flagę",
+      "positionShifts": "Ta flaga nie ma gotowej zmiany. Jeśli znasz maszt, utwórz stację i wskaż go na mapie",
+      "untrustedContributor": "Ta flaga nie ma gotowej zmiany. Zablokuj osobę albo zmień jej wagę na stronie pomiarów",
+      "deviceRevoked": "Ta flaga nie ma gotowej zmiany. Odrzuć ją, gdy sprawdzisz urządzenie",
+      "nodeSpansPlaces": "Ta flaga nie ma gotowej zmiany. Pomiń szacowaną stację, jeśli jej komórki należą do różnych masztów",
+      "gnbLengthSuggestion": "Ta flaga nie ma gotowej zmiany. Długość gNBID sieci ustala się w danych kraju"
+    },
+    "others": {
+      "title_one": "Na tej stacji jest jeszcze {{count, number}} flaga tego rodzaju",
+      "title_few": "Na tej stacji są jeszcze {{count, number}} flagi tego rodzaju",
+      "title_many": "Na tej stacji jest jeszcze {{count, number}} flag tego rodzaju",
+      "title_other": "Na tej stacji jest jeszcze {{count, number}} flagi tego rodzaju",
+      "applyAll_one": "Zastosuj {{count, number}}",
+      "applyAll_few": "Zastosuj wszystkie {{count, number}}",
+      "applyAll_many": "Zastosuj wszystkie {{count, number}}",
+      "applyAll_other": "Zastosuj wszystkie {{count, number}}"
+    },
+    "apply": {
+      "label": {
+        "change_one": "Zastosuj zmianę",
+        "change_few": "Zastosuj zmiany",
+        "change_many": "Zastosuj zmiany",
+        "change_other": "Zastosuj zmiany",
+        "addCell": "Dodaj komórkę",
+        "addCells": "Dodaj komórki do {{station}}",
+        "addBand": "Dodaj pasmo do planu"
+      },
+      "cells": {
+        "title": "Zastosować zmiany?",
+        "changes_one": "{{count, number}} zmiana na stacji {{station}} zostanie zapisana w bazie od razu, bez zgłoszenia",
+        "changes_few": "{{count, number}} zmiany na stacji {{station}} zostaną zapisane w bazie od razu, bez zgłoszenia",
+        "changes_many": "{{count, number}} zmian na stacji {{station}} zostanie zapisanych w bazie od razu, bez zgłoszenia",
+        "changes_other": "{{count, number}} zmiany na stacji {{station}} zostanie zapisanej w bazie od razu, bez zgłoszenia",
+        "closesOne": "Ta komórka będzie oznaczona jako potwierdzona, a flaga się zamknie",
+        "closesCells": "Te komórki będą oznaczone jako potwierdzone, a flaga się zamknie",
+        "closesFlags": "Te komórki będą oznaczone jako potwierdzone, a flagi się zamkną",
+        "confirm": "Zastosuj zmiany"
+      },
+      "siteId": {
+        "title": "Ustawić ID stacji?",
+        "description": "ID stacji {{siteId}} zostanie zapisane od razu, bez zgłoszenia. Flaga zamknie się w ciągu minuty",
+        "confirm": "Ustaw ID stacji"
+      },
+      "band": {
+        "title": "Dodać pasmo do planu?",
+        "description": "Pasmo {{band}} od razu trafi do planu pasm tego kraju. Flaga zamknie się najpóźniej za godzinę",
+        "confirm": "Dodaj pasmo"
+      },
+      "readingBlock": {
+        "title": "Dodać blokadę odczytów?",
+        "drop": "Wartości {{fields}} z {{phones}} przestaną się liczyć w pomiarach. Blokadę zdejmiesz na stronie pomiarów",
+        "corroborate": "Wartości {{fields}} z {{phones}} będą się liczyć tylko wtedy, gdy potwierdzą je inne telefony. Blokadę zdejmiesz na stronie pomiarów",
+        "phones": "telefonów {{device}}",
+        "reader": "czytnika {{reader}}",
+        "reasonPlaceholder": "Np. czytnik odwraca bajty TAC na tym modelu",
+        "hint": "Powód zobaczysz przy blokadzie i w dzienniku zdarzeń",
+        "confirm": "Dodaj blokadę"
+      }
+    },
+    "toasts": {
+      "applied": "Zapisano i zamknięto flagę",
+      "appliedMany_one": "Zapisano i zamknięto {{count, number}} flagę",
+      "appliedMany_few": "Zapisano i zamknięto {{count, number}} flagi",
+      "appliedMany_many": "Zapisano i zamknięto {{count, number}} flag",
+      "appliedMany_other": "Zapisano i zamknięto {{count, number}} flagi",
+      "siteIdSaved": "Zapisano ID stacji",
+      "bandAdded": "Dodano pasmo {{band}} do planu",
+      "blockAdded": "Dodano blokadę odczytów",
+      "dismissed": "Flaga odrzucona",
+      "ignored": "Szacowana stacja pominięta",
+      "linked": "Powiązano ze stacją {{station}}",
+      "reopened": "Flaga otwarta ponownie"
     }
   },
   "reference": {
@@ -1262,7 +2980,7 @@
         "description": "Jednostki podziału kraju. Każda lokalizacja należy do jednego regionu",
         "add": "Dodaj region",
         "loadFailed": "Nie udało się wczytać regionów",
-        "outlineNote": "Lokalizacja trafia do regionu, w którego obrysie leży. Obrysy wgrywa skrypt importu na podstawie kodu ISO, nie ten panel",
+        "outlineNote": "Lokalizacja trafia do regionu, w którego obrysie leży",
         "columns": {
           "code": "Kod",
           "isoCode": "Kod ISO",
@@ -1497,6 +3215,10 @@
             "title": "GSM BSIC",
             "description": "Zbieraj i wyświetlaj kody BSIC komórek GSM"
           },
+          "observationsPublic": {
+            "title": "Publiczne pomiary",
+            "description": "Zaobserwowane komórki, szacowane stacje, zasięg i ślady z tego kraju są widoczne dla wszystkich. Po wyłączeniu komórki i stacje zobaczą tylko administratorzy i redaktorzy z uprawnieniami w tym kraju, a zasięg i ślady tylko administratorzy"
+          },
           "note": "Każde ustawienie jest niezależne i zapisuje się od razu. Wyłączenie PSC lub BSIC ukrywa istniejące wartości bez ich usuwania",
           "savedToast": "Ustawienia danych kraju zapisane",
           "saveFailed": "Nie udało się zapisać ustawień danych kraju"
@@ -1510,7 +3232,12 @@
           },
           "measurements": {
             "title": "Pomiary",
-            "description": "Aplikacja BTSearch zapisuje odczyty radiowe i GPS. Po wyłączeniu niczego w tym kraju nie zapisuje, a zebrane w nim odczyty są odrzucane"
+            "description": "Aplikacja BTSearch zbiera tu odczyty radiowe i GPS. Po wyłączeniu przestaje je zbierać, a odczyty z tego kraju są odrzucane",
+            "offConfirm": {
+              "title": "Wyłączyć pomiary?",
+              "description": "Aplikacja BTSearch przestanie zbierać odczyty w kraju {{name}}. Odczyty z tego kraju, które dotrą, zanim znów włączysz pomiary, zostaną odrzucone i nie da się ich odzyskać",
+              "confirm": "Wyłącz pomiary"
+            }
           },
           "note": "Zmiany zapisują się od razu. Pomiary wymagają też włączonego przesyłania pomiarów w ustawieniach systemowych",
           "savedToast": "Narzędzia kraju zapisane",

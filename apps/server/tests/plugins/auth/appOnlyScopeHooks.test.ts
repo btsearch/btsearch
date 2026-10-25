@@ -8,7 +8,7 @@ function run(input: { path: string; method: string; query?: Record<string, strin
   return beforeAuthHook({ headers: new Headers(), ...input } as unknown as HookInput);
 }
 
-beforeEach(() => vi.stubEnv("COLLECTOR_OAUTH_CLIENT_IDS", "btsearch-app"));
+beforeEach(() => vi.stubEnv("APP_OAUTH_CLIENT_IDS", "btsearch-app"));
 afterEach(() => vi.unstubAllEnvs());
 
 describe("the app-only scope at /oauth2/authorize", () => {

@@ -7,6 +7,8 @@ import { ARGON2_OPTIONS } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { redis } from "../../../../database/redis.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { SECRET_CHANGED, ownPasswordChanged } from "../../../../features/audit/auth/events.js";
+import { runAuditedOperation, standaloneAuditContext } from "../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../interfaces/routes.interface.js";
 import { passkeyVerifiedKey } from "../../../../plugins/auth/hooks.js";
@@ -34,11 +36,15 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<EmptyResp
   if (existingAccount) throw new ErrorResponse("BAD_REQUEST", { message: "Account already has a password. Use the change password flow instead." });
 
   const hashedPassword = await hash(req.body.newPassword, ARGON2_OPTIONS);
-  await db.insert(schema.accounts).values({
-    userId: session.user.id,
-    accountId: session.user.id,
-    providerId: "credential",
-    password: hashedPassword,
+  const passwordSet = ownPasswordChanged(session.user, SECRET_CHANGED);
+  await runAuditedOperation(standaloneAuditContext(req), { kind: passwordSet.kind }, async (tx, audit) => {
+    await tx.insert(schema.accounts).values({
+      userId: session.user.id,
+      accountId: session.user.id,
+      providerId: "credential",
+      password: hashedPassword,
+    });
+    await audit.logMany(passwordSet.entries);
   });
 
   await redis.del(verifiedKey);

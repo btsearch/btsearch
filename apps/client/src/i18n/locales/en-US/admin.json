@@ -25,6 +25,8 @@
     },
     "area": "Your area: {{area}}",
     "noArea": "You have no area assigned",
+    "openFlag": "Open flag: {{label}}",
+    "allFlags": "All flags",
     "commentQueueOff": "The comment queue is disabled",
     "openSubmission": "Open submission: {{label}}",
     "openOperation": "Open operation: {{label}}",
@@ -99,6 +101,7 @@
       "maintenance": "Maintenance",
       "access": "Access",
       "features": "Features",
+      "measurements": "Measurements",
       "cleanup": "Cleanup"
     },
     "errors": {
@@ -181,6 +184,15 @@
         "title": "Measurement uploads",
         "description": "The BTSearch app can register phones and upload radio and GPS readings. Measurements can also be turned off for each country"
       },
+      "observations": {
+        "title": "Measurement data",
+        "description": "Observed cells, estimated sites, coverage and trails. While off, only administrators see them, and measurements are still collected",
+        "confirm": {
+          "title": "Turn off measurement data?",
+          "description": "Only administrators will see observed cells, estimated sites, coverage and trails. The app keeps uploading measurements and the engine keeps processing them",
+          "action": "Turn off"
+        }
+      },
       "comments": {
         "description": "Reading and writing comments",
         "note": "Moderating and deleting comments works even while comments are disabled"
@@ -199,9 +211,7 @@
       "linksHint": "Web addresses become links",
       "show": "Show the announcement",
       "showHint": "Every visitor will see the bar",
-      "unsaved": "Unsaved changes",
-      "messageRequired": "Enter a message to show the announcement",
-      "revert": "Revert"
+      "messageRequired": "Enter a message to show the announcement"
     },
     "photoCleanup": {
       "title": "Photos of rejected submissions",
@@ -220,6 +230,71 @@
       "resultDone": "Deleted {{photos}} from {{submissions}}. Nothing else is left",
       "resultMore": "Deleted {{photos}} from {{submissions}}. More are left to delete",
       "nothing": "There was nothing to delete"
+    },
+    "measurements": {
+      "countriesNote_one": "The Measurements tool is on in {{count, number}} country, with public measurements in {{public, number}}. You can change this on the country page",
+      "countriesNote_other": "The Measurements tool is on in {{count, number}} countries, with public measurements in {{public, number}}. You can change this on the country page",
+      "range": "Enter a number from {{min, number}} to {{max, number}}",
+      "app": {
+        "title": "BTSearch app",
+        "description": "Supported app versions and the terms that contributors accept",
+        "minVersion": {
+          "label": "Oldest supported version",
+          "unit": "versionCode",
+          "hint": "Older versions can't register a phone or upload a file"
+        },
+        "terms": {
+          "label": "Terms version",
+          "hint": "Once you raise it, every contributor has to accept the terms again before their next upload"
+        },
+        "confirm": {
+          "bothTitle": "Save the app settings?",
+          "versionTitle": "Cut off older app versions?",
+          "termsTitle": "Ask contributors to accept the terms again?",
+          "version": "An app older than version {{version}} can't register a phone or upload a file until someone updates it",
+          "terms": "Every contributor will have to accept version {{version}} of the terms before their next upload"
+        }
+      },
+      "files": {
+        "title": "Measurement files",
+        "description": "The raw files from the app. The engine can read them again to recompute the readings",
+        "retention": {
+          "label": "File retention",
+          "unit": "days",
+          "hint": "After this time a file is deleted, and its readings stay in the database"
+        },
+        "budget": {
+          "label": "Storage limit",
+          "unit": "GB",
+          "hint": "Once it is reached, the server refuses files and the app sends them later",
+          "belowStored": "The files already take {{size}}, so the server will stop accepting new ones right away"
+        },
+        "stored": "Kept files",
+        "confirm": {
+          "title": "Shorten file retention?",
+          "description_one": "Files older than {{count, number}} day will be deleted at the next cleanup, within an hour. Their readings stay in the database, but they can no longer be recomputed from those files",
+          "description_other": "Files older than {{count, number}} days will be deleted at the next cleanup, within an hour. Their readings stay in the database, but they can no longer be recomputed from those files",
+          "action": "Shorten"
+        }
+      },
+      "sites": {
+        "title": "Estimated sites",
+        "description": "When an estimated site is public and which estimator version computes it",
+        "radius": {
+          "label": "Largest radius of a public site",
+          "unit": "m",
+          "hint": "A site that did not snap to a known location is public only when its 95% radius is at most this value"
+        },
+        "published": {
+          "label": "Published estimator version",
+          "value": "Version {{version}}",
+          "hint": "You compare and publish versions in the estimate evaluation. That is also where you can see how to set the radius"
+        }
+      }
+    },
+    "form": {
+      "unsaved": "Unsaved changes",
+      "revert": "Revert"
     }
   },
   "users": {
@@ -304,7 +379,7 @@
           "avatar": {
             "uploaded": "Uploaded by the user",
             "external": "From a connected account",
-            "none": "No photo - initials are shown",
+            "none": "No photo",
             "remove": "Remove photo",
             "removeConfirmDescription": "The account {{name}} will show initials instead of the photo"
           },
@@ -807,6 +882,10 @@
       "spectrum_holding": "Spectrum holdings",
       "grant": "Editor access",
       "user": "Users",
+      "api_key": "API keys",
+      "passkey": "Passkeys",
+      "oauth_client": "OAuth applications",
+      "oauth_consent": "Authorized applications",
       "list": "User lists",
       "settings": "Settings",
       "official": "Register import",
@@ -853,7 +932,17 @@
         "device_revoke": "Device revoked",
         "device_restore": "Device restored",
         "upload_download": "Upload downloaded",
-        "upload_exclude": "Upload excluded"
+        "upload_exclude": "Upload excluded",
+        "upload_restore": "Upload restored",
+        "reading_block_create": "Reading block added",
+        "reading_block_update": "Reading block changed",
+        "device_weight": "Device weight changed",
+        "contributor_vouch": "Contributor vouch changed",
+        "contributor_block": "Contributor block changed",
+        "quirk_rule_block": "Quirk rule block changed",
+        "flag_update": "Measurement flag reviewed",
+        "site_ignore": "Estimated site ignored or restored",
+        "site_link": "Estimated site linked or unlinked"
       },
       "comment": {
         "create": "Comment created",
@@ -902,7 +991,37 @@
         "unban": "User unbanned",
         "delete": "User deleted",
         "email": "User email changed",
-        "password": "User password changed"
+        "password": "User password changed",
+        "update": "User details changed",
+        "two_factor_enable": "Two-factor authentication turned on",
+        "two_factor_disable": "Two-factor authentication turned off",
+        "backup_codes": "New backup codes generated",
+        "account_link": "External account connected",
+        "account_unlink": "External account disconnected",
+        "sessions_revoke": "Sessions revoked",
+        "impersonate": "Signed in as user",
+        "impersonate_stop": "Signed out of user account"
+      },
+      "api_key": {
+        "create": "API key created",
+        "update": "API key updated",
+        "delete": "API key revoked"
+      },
+      "passkey": {
+        "create": "Passkey added",
+        "update": "Passkey renamed",
+        "delete": "Passkey deleted"
+      },
+      "oauth_client": {
+        "create": "OAuth application registered",
+        "update": "OAuth application updated",
+        "delete": "OAuth application deleted",
+        "rotate_secret": "Client secret rotated"
+      },
+      "oauth_consent": {
+        "create": "Application authorized",
+        "update": "Application permissions changed",
+        "delete": "Application access revoked"
       },
       "list": {
         "create": "List created",
@@ -956,6 +1075,12 @@
       "spectrum_holdings": "Spectrum holdings",
       "role_grants": "Editor access",
       "users": "Users",
+      "apikeys": "API keys",
+      "passkeys": "Passkeys",
+      "sessions": "Sessions",
+      "accounts": "Sign-in methods",
+      "oauth_clients": "OAuth applications",
+      "oauth_consents": "Authorized applications",
       "user_lists": "User lists",
       "settings": "Settings",
       "official_sources": "Register sources",
@@ -963,6 +1088,15 @@
       "licensees": "Licensees",
       "device_revocations": "Device revocations",
       "uploads": "Measurement uploads",
+      "reading_blocks": "Reading blocks",
+      "device_weights": "Device weights",
+      "vouches": "Vouches",
+      "contributor_blocks": "Contributor blocks",
+      "blocked_quirk_rules": "Quirk rule blocks",
+      "crowd_settings": "Measurement settings",
+      "observation_flags": "Measurement flags",
+      "site_ignores": "Ignored estimated sites",
+      "site_links": "Estimated site links",
       "structure_owners": "Structure owners"
     },
     "ops": {
@@ -1011,6 +1145,18 @@
       "role_grants_other": "{{count, number}} editor access changes",
       "users_one": "{{count, number}} user",
       "users_other": "{{count, number}} users",
+      "apikeys_one": "{{count, number}} API key",
+      "apikeys_other": "{{count, number}} API keys",
+      "passkeys_one": "{{count, number}} passkey",
+      "passkeys_other": "{{count, number}} passkeys",
+      "sessions_one": "{{count, number}} session",
+      "sessions_other": "{{count, number}} sessions",
+      "accounts_one": "{{count, number}} sign-in method",
+      "accounts_other": "{{count, number}} sign-in methods",
+      "oauth_clients_one": "{{count, number}} OAuth application",
+      "oauth_clients_other": "{{count, number}} OAuth applications",
+      "oauth_consents_one": "{{count, number}} authorized application",
+      "oauth_consents_other": "{{count, number}} authorized applications",
       "user_lists_one": "{{count, number}} user list",
       "user_lists_other": "{{count, number}} user lists",
       "settings_one": "{{count, number}} setting",
@@ -1021,6 +1167,24 @@
       "device_revocations_other": "{{count, number}} device revocations",
       "uploads_one": "{{count, number}} measurement upload",
       "uploads_other": "{{count, number}} measurement uploads",
+      "reading_blocks_one": "{{count, number}} reading block",
+      "reading_blocks_other": "{{count, number}} reading blocks",
+      "device_weights_one": "{{count, number}} device weight",
+      "device_weights_other": "{{count, number}} device weights",
+      "vouches_one": "{{count, number}} vouch",
+      "vouches_other": "{{count, number}} vouches",
+      "contributor_blocks_one": "{{count, number}} contributor block",
+      "contributor_blocks_other": "{{count, number}} contributor blocks",
+      "blocked_quirk_rules_one": "{{count, number}} quirk rule block",
+      "blocked_quirk_rules_other": "{{count, number}} quirk rule blocks",
+      "crowd_settings_one": "{{count, number}} measurement settings change",
+      "crowd_settings_other": "{{count, number}} measurement settings changes",
+      "observation_flags_one": "{{count, number}} measurement flag",
+      "observation_flags_other": "{{count, number}} measurement flags",
+      "site_ignores_one": "{{count, number}} ignored estimated site",
+      "site_ignores_other": "{{count, number}} ignored estimated sites",
+      "site_links_one": "{{count, number}} estimated site link",
+      "site_links_other": "{{count, number}} estimated site links",
       "official_datasets_one": "{{count, number}} register dataset",
       "official_datasets_other": "{{count, number}} register datasets",
       "licensees_one": "{{count, number}} licensee",
@@ -1059,6 +1223,1428 @@
         "missingNewValues": "The new values were not recorded",
         "missingDetails": "Required record details were not recorded"
       }
+    }
+  },
+  "measurements": {
+    "description": "Measurements uploaded from the BTSearch app and how they are processed",
+    "tabs": {
+      "label": "Measurement sections",
+      "engine": "Engine",
+      "uploads": "Uploads",
+      "contributors": "Contributors",
+      "blocks": "Reading blocks",
+      "evaluation": "Estimate evaluation"
+    },
+    "deletedAccount": "Deleted account",
+    "pickers": {
+      "model": {
+        "placeholder": "Choose a model",
+        "searchLabel": "Search phone models",
+        "typeHint": "Type a manufacturer or model",
+        "noMatches": "No model matches",
+        "loadFailed": "Couldn't search the models"
+      }
+    },
+    "contributor": "Contributor",
+    "weight": "Weight",
+    "reason": "Reason",
+    "block": "Block",
+    "unblock": "Unblock",
+    "meters": "{{value, number}} m",
+    "engine": {
+      "loadFailed": "Couldn't load the engine status",
+      "status": {
+        "title": "Engine",
+        "running": "Running",
+        "silent": "Not responding",
+        "lastSeen": "Last active",
+        "startedAt": "Running since",
+        "instance": "Instance",
+        "silentNote": "Warns when the engine is silent for over 2 min",
+        "noInstance": "The engine hasn't reported in yet"
+      },
+      "queue": {
+        "title": "Queue",
+        "late": "Backlog",
+        "waiting": "Files to process",
+        "oldestWaiting": "Longest wait",
+        "subtractions": "Files to withdraw",
+        "sites": "Sites to estimate",
+        "lateNote": "Warns when a file waits over 30 min"
+      },
+      "lastDay": {
+        "title": "Last 24 hours",
+        "rejectedShare": "({{share}})",
+        "note": "Warns at 10% rejected",
+        "showRejected": "Show rejected"
+      },
+      "storage": {
+        "title": "Storage",
+        "full": "Refusing files",
+        "stored": "Kept files",
+        "disk": "File disk",
+        "database": "Measurement tables in the database",
+        "note": "Warns at 90% of the limit and 85% of the disk",
+        "fullNote": "Limit reached. The app will send files later"
+      },
+      "nightly": {
+        "title": "Nightly runs",
+        "median": "Median error of version {{version}}",
+        "previousNight": "(night before {{value, number}} m)",
+        "note": "Warns when the median rises by 10%",
+        "empty": "No nightly runs yet"
+      },
+      "errors": {
+        "title": "Latest errors",
+        "attempt": "attempt {{number, number}}",
+        "attempts_one": "{{count, number}} attempt",
+        "attempts_other": "{{count, number}} attempts",
+        "empty": "No processing errors"
+      },
+      "runs": {
+        "title": "Engine runs",
+        "new": "New run",
+        "columns": {
+          "kind": "Run",
+          "scope": "Scope",
+          "requestedBy": "Requested by",
+          "createdAt": "Added",
+          "state": "Status",
+          "duration": "Duration"
+        },
+        "server": "Server",
+        "empty": "No engine runs yet",
+        "progress": "{{done, number}} of {{total, number}}",
+        "progressDone": "Done: {{done, number}}"
+      },
+      "runKinds": {
+        "subtract": "Withdrawing files",
+        "restore": "Restoring files",
+        "refold": "Reprocessing files",
+        "rebuild": "Excluding a deleted file",
+        "reestimate": "Re-estimating sites",
+        "recalibrate": "Calibration",
+        "evaluate": "Evaluation",
+        "rebuildTrails": "Rebuilding trails",
+        "rebuildReadModels": "Refreshing summaries"
+      },
+      "runStates": {
+        "queued": "Queued",
+        "running": "Running",
+        "done": "Done",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "scope": {
+        "allFiles": "All kept files",
+        "person": "Files from",
+        "someone": "Files from one person",
+        "model": "Files from {{name}} phones",
+        "someModel": "Files from one phone model",
+        "block": "Reading block #{{id}}",
+        "quirkRule": "Correction rule {{id}}",
+        "upload": "File {{id}}",
+        "area": "{{longitudes}}, {{latitudes}}",
+        "hemispheres": {
+          "north": "N",
+          "south": "S",
+          "east": "E",
+          "west": "W"
+        },
+        "allStations": "All sites",
+        "allReadModels": "All summaries",
+        "queuedFiles": "Queued files"
+      },
+      "duration": {
+        "underMinute": "<1 min",
+        "minutes": "{{minutes, number}} min",
+        "hours": "{{hours, number}} h",
+        "hoursMinutes": "{{hours, number}} h {{minutes, number}} min"
+      },
+      "span": "{{start}}-{{end}}",
+      "runDialog": {
+        "title": "New engine run",
+        "description": "The engine runs one task at a time. You'll see the progress in the list of runs",
+        "kindLabel": "Kind of run",
+        "kinds": {
+          "refold": {
+            "title": "Reprocess files",
+            "description": "Runs the kept files again with the current blocks and weights"
+          },
+          "reestimate": {
+            "title": "Re-estimate sites",
+            "description": "Every estimated site gets a new location"
+          },
+          "recalibrate": {
+            "title": "Calibrate",
+            "description": "The nightly calibration, run now"
+          },
+          "evaluate": {
+            "title": "Evaluate estimates",
+            "description": "The nightly comparison with confirmed stations, run now"
+          },
+          "rebuildTrails": {
+            "title": "Rebuild trails",
+            "description": "Trail tiles in the chosen area, at every zoom level"
+          },
+          "rebuildReadModels": {
+            "title": "Refresh summaries",
+            "description": "The prepared data the map and the API read"
+          }
+        },
+        "scopeLabel": "Files to reprocess",
+        "scopes": {
+          "person": "Person",
+          "model": "Model",
+          "block": "Block"
+        },
+        "choosePerson": "Choose a person",
+        "chooseBlock": "Choose a reading block",
+        "blockOption": "{{phones}} (#{{id}})",
+        "noBlocks": "There are no reading blocks yet",
+        "gnbLengths": "Also test the gNBID length, as on Sundays",
+        "areaLabel": "Area",
+        "eastBelowWest": "East must be greater than west",
+        "start": "Start",
+        "started": "Run added to the queue"
+      }
+    },
+    "uploads": {
+      "person": "Uploads by {{name}}",
+      "columns": {
+        "receivedAt": "Uploaded",
+        "device": "Device",
+        "samples": "Readings",
+        "discoveries": "New in file",
+        "size": "Size",
+        "fileExpiresAt": "Deletion",
+        "actions": "Actions"
+      },
+      "noSoc": "{{manufacturer}}, no SoC data",
+      "dropped_one": "{{count, number}} skipped",
+      "dropped_other": "{{count, number}} skipped",
+      "noSquares": "None",
+      "emptyFiltered": {
+        "title": "No files match the filters",
+        "description": "Change or clear the filters"
+      },
+      "exclude": {
+        "action": "Exclude",
+        "title": "Exclude file",
+        "description": "Uploaded {{date}} from {{device}}. Its readings stop counting within a few minutes. The file itself is kept as evidence until the end of the retention period",
+        "reasonHint": "The person who uploaded the file will see it",
+        "success": "File excluded"
+      },
+      "restore": {
+        "title": "Restore file?",
+        "description": "Its readings will count again. The engine reprocesses the file within a few minutes",
+        "success": "File restored"
+      }
+    },
+    "contributors": {
+      "lowWeight": "Below {{weight}}",
+      "vouchBadge": "Vouched {{weight}}",
+      "blocked": "Blocked",
+      "effective": "counts as {{weight}}",
+      "effectiveFromVouch": "counts as {{weight}} from the vouch",
+      "terms": "terms version {{version}}",
+      "termsOutdated": "terms version {{version}}, current is {{current}}",
+      "termsNone": "no terms accepted",
+      "noUploads": "no uploads yet",
+      "firstUploadOn": "first upload {{date}}",
+      "confirmsAlone": "{{until}}, confirms without a second person",
+      "columns": {
+        "timingAdvance": "TA agreement",
+        "dropped": "Dropped",
+        "mock": "Mock location",
+        "phantom": "Phantom cells",
+        "trust": "Vouch and block",
+        "firstUpload": "First upload"
+      },
+      "empty": {
+        "title": "Nobody has sent measurements yet",
+        "description": "People appear here once they send their first file from the BTSearch app"
+      },
+      "mobile": {
+        "noTimingAdvance": "no TA on confirmed stations",
+        "timingAdvance": "TA agreement {{share}}",
+        "phantom": "phantom cells {{cells, number}}",
+        "dropped": "dropped {{share}}",
+        "detail": "{{first}}, {{second}}"
+      }
+    },
+    "person": {
+      "title": "Contributor",
+      "userAccount": "User account",
+      "notFound": {
+        "title": "Contributor not found",
+        "description": "This person has not sent any measurements yet, or their account was deleted"
+      },
+      "trust": "Trust",
+      "weightValue": "Weight {{weight}}",
+      "weightInvalid": "Enter a number from 0 to 2",
+      "auditReasonHint": "Administrators see it in the audit log",
+      "change": "Change",
+      "confirmsAlone": "Confirms without a second person",
+      "excludeHint": "Their readings stop counting within a few minutes. The files are kept as evidence until the end of the retention period",
+      "hero": {
+        "activeDevices_one": "{{count, number}} active device",
+        "activeDevices_other": "{{count, number}} active devices",
+        "devicesAndRevoked_one": "{{devices}}, {{count, number}} revoked",
+        "devicesAndRevoked_other": "{{devices}}, {{count, number}} revoked",
+        "uploads_one": "{{count, number}} uploaded file",
+        "uploads_other": "{{count, number}} uploaded files"
+      },
+      "weight": {
+        "description": "The weight this person's next files count with",
+        "computed": "Computed",
+        "effective": "In effect",
+        "basis": {
+          "computed": "as computed",
+          "vouch": "from the vouch",
+          "device": "from a device's own weight",
+          "vouchAndDevice": "from the vouch and the devices' own weights"
+        },
+        "timingAdvance": "TA agreement on confirmed stations",
+        "dropped": "Dropped as implausible",
+        "note": "Computed every night for each device. The person's weight is the average of their devices' weights, weighted by the number of readings"
+      },
+      "vouch": {
+        "title": "Vouch",
+        "description": "Replaces the computed weight on devices without a weight of their own. It can also let the person confirm stations without a second person",
+        "needsSecond": "Needs a second person",
+        "action": "Vouch",
+        "withdraw": "Withdraw",
+        "saved": "Vouch saved",
+        "withdrawn": "Vouch withdrawn",
+        "withdrawTitle": "Withdraw the vouch?",
+        "withdrawDescription": "This person's devices go back to the computed weight ({{weight}}) for their next files"
+      },
+      "vouchDialog": {
+        "title": "Vouch for this contributor",
+        "changeTitle": "Change the vouch",
+        "description": "The vouch replaces the computed weight ({{weight}}) on this person's devices that have no weight of their own",
+        "weightHint": "From 0 to 2. Above 1, this person's readings count for more than readings from a verified phone",
+        "confirmsAloneHint": "What only this person measures counts as confirmed and can reach the public map",
+        "quarter": "90 days",
+        "year": "1 year",
+        "expiresAt": "The vouch ends on {{date}}",
+        "noExpiry": "The vouch stays until you withdraw it",
+        "refold": "Also reprocess earlier files",
+        "refoldHint": "This person's kept files are reprocessed with the new weight"
+      },
+      "block": {
+        "title": "Upload block",
+        "blockedTitle": "Uploads blocked",
+        "description": "The app will not send new files from this person. Files already sent keep counting until you exclude them",
+        "blockedBy": "Blocked by <user>{{name}}</user>",
+        "changed": "Block updated",
+        "unblocked": "Uploads unblocked",
+        "unblockTitle": "Unblock uploads?",
+        "unblockDescription": "The app will send this person's new files again"
+      },
+      "blockDialog": {
+        "title": "Block uploads",
+        "changeTitle": "Change the block",
+        "description": "This person cannot send new files until the block ends. Files already sent keep counting until you exclude them",
+        "reasonHintWithExclusion": "Administrators see it in the audit log, and this person sees it on the excluded files",
+        "expiresAt": "The block ends on {{date}}",
+        "noExpiry": "The block stays until you lift it",
+        "excludeUploads": "Also exclude every file sent so far"
+      },
+      "devices": {
+        "cardTitle": "This person's phones",
+        "description": "Each phone's weight and the result of its key verification",
+        "setWeight": "Set weight",
+        "lastUpload": "last file {{time}}",
+        "revokedNoReason": "revoked {{date}}, no reason given",
+        "revokedWithReason": "revoked {{date}}, reason: {{reason}}",
+        "securityLevels": {
+          "strongBox": "Key in StrongBox",
+          "trustedEnvironment": "Key in the TEE",
+          "software": "Software key"
+        },
+        "bootStates": {
+          "verified": "verified boot",
+          "selfSigned": "self-signed boot",
+          "unverified": "unverified boot",
+          "failed": "boot verification failed"
+        },
+        "bootloaderLocked": "bootloader locked",
+        "bootloaderUnlocked": "bootloader unlocked",
+        "android": "Android {{version}}",
+        "androidApi": "Android API {{level}}",
+        "securityPatch": "patches from {{date}}",
+        "radioVersion": "modem {{version}}",
+        "app": "app {{name}} ({{code}})",
+        "basis": {
+          "computed": "computed",
+          "vouch": "from the vouch, computed {{weight}}",
+          "device": "own weight, computed {{weight}}"
+        }
+      },
+      "deviceWeightDialog": {
+        "title": "Device weight",
+        "description": "{{name}}. Its own weight replaces the vouch and the computed weight ({{weight}}) for the next files from this phone",
+        "weightHint": "From 0 to 2",
+        "refold": "Reprocess this person's files",
+        "refoldHint": "Kept files from all of their devices are reprocessed",
+        "remove": "Remove weight",
+        "saved": "Device weight saved",
+        "removed": "Device weight removed"
+      },
+      "revokeDialog": {
+        "title": "Revoke device",
+        "description": "The app on {{name}} stops sending measurements. Files already sent stay. You can restore the device later",
+        "reasonHint": "The owner sees the reason in their settings"
+      },
+      "restoreDialog": {
+        "title": "Restore the device?",
+        "description": "{{name}} can send measurements again",
+        "success": "Device restored"
+      },
+      "uploads": {
+        "cardTitle": "Measurement files",
+        "description": "The newest files from all of this person's devices",
+        "dropped": "Dropped {{dropped, number}}: {{reasons}}",
+        "all": "All of this person's files"
+      },
+      "excludeAll": {
+        "action": "Exclude all",
+        "title": "Exclude all files",
+        "description": "Readings from all of this person's files stop counting within a few minutes. The files are kept as evidence until the end of the retention period",
+        "reasonHint": "The person who sent the files will see it",
+        "success_one": "Excluded {{count, number}} file",
+        "success_other": "Excluded {{count, number}} files"
+      }
+    },
+    "blocks": {
+      "blocked": "Blocked",
+      "modes": {
+        "corroborate": "Confirm",
+        "drop": "Drop"
+      },
+      "flags": {
+        "title": "Phones with a recurring error",
+        "source": "Found in the flag queue",
+        "createBlock": "Create block",
+        "titles": {
+          "bytesSwapped": "{{subject}} reports the {{field}} with its bytes swapped",
+          "multiplied": "{{subject}} reports the {{field}} multiplied by {{parameter}}",
+          "divided": "{{subject}} reports the {{field}} divided by {{parameter}}",
+          "offset": "{{subject}} reports the {{field}} shifted by {{parameter}}",
+          "constant": "{{subject}} always reports {{field}} {{parameter}}"
+        },
+        "meta": "{{values}} in {{cells}}, {{uploads}}, flag {{id}}",
+        "values_one": "{{count, number}} value",
+        "values_other": "{{count, number}} values",
+        "cells_one": "{{count, number}} cell",
+        "cells_other": "{{count, number}} cells",
+        "uploads_one": "{{count, number}} file",
+        "uploads_other": "{{count, number}} files"
+      },
+      "list": {
+        "title": "Reading blocks",
+        "description": "Values from the chosen phones are dropped or wait for other phones to confirm them. You can't change a block's scope, but you can turn it off and add a new one",
+        "add": "Add block",
+        "empty": "No blocks yet",
+        "loadFailed": "Couldn't load reading blocks",
+        "disabled": "Off",
+        "addedOn": "Added {{date}}",
+        "addedBy": "Added {{date}} by <user>{{name}}</user>",
+        "disabledOn": "turned off {{date}}",
+        "refold": "Reprocess the files it applies to",
+        "refoldQueued": "Reprocessing queued",
+        "editReason": "Change reason",
+        "switchOff": "Turn off block",
+        "switchOn": "Turn on block",
+        "switchedOff": "Block turned off",
+        "switchedOn": "Block turned on",
+        "reasonSaved": "Reason saved",
+        "reasonDialog": {
+          "title": "Change the block's reason",
+          "description": "The block's scope stays the same"
+        }
+      },
+      "phones": {
+        "modemFamily": "{{family}} modems",
+        "otherModemFamily": "Modems from other makers",
+        "soc": "SoC {{name}}",
+        "unknownSoc": "SoC {{id}}",
+        "unknownModel": "Model {{id}}",
+        "readerVersion": "{{reader}} {{version}}, {{source}}",
+        "unknownReaderVersion": "Reader version {{id}}"
+      },
+      "modemFamilies": {
+        "qualcomm": "Qualcomm",
+        "samsung": "Samsung",
+        "mediatek": "MediaTek",
+        "unisoc": "Unisoc",
+        "hisilicon": "HiSilicon",
+        "other": "Other maker"
+      },
+      "sources": {
+        "api": "Android API",
+        "modemLog": "Modem log",
+        "modemPoll": "Modem polling"
+      },
+      "scope": {
+        "wholeReadings": "Whole readings",
+        "allTechnologiesAndRoles": "all technologies and roles",
+        "allTechnologies": "all technologies",
+        "allRoles": "all roles",
+        "sdkRange": "Android API {{min}} to {{max}}",
+        "sdkFrom": "Android API {{min}} and up",
+        "sdkTo": "Android API up to {{max}}",
+        "radioVersion": "modem firmware starting with {{prefix}}"
+      },
+      "fieldNames": {
+        "pci": "PCI",
+        "channel": "channel",
+        "areaCode": "area code",
+        "bandwidth": "bandwidth",
+        "timingAdvance": "TA",
+        "signal": "signal"
+      },
+      "roleNames": {
+        "serving": "serving cell",
+        "neighbour": "neighbor cell",
+        "nsa": "NSA"
+      },
+      "readers": {
+        "title": "Reader versions",
+        "description": "Versions named in uploaded files",
+        "since": "{{source}}, since {{date}}",
+        "blockNumber": "block {{id}}",
+        "empty": "No reader versions yet"
+      },
+      "rules": {
+        "title": "Correction rules",
+        "description": "Fixes a reader makes to its readings",
+        "since": "{{reader}}, since {{date}}",
+        "blockedBy": "Blocked {{date}} by <user>{{name}}</user>: {{reason}}",
+        "blockedOn": "Blocked {{date}}: {{reason}}",
+        "empty": "No correction rules yet",
+        "blockedToast": "Rule blocked",
+        "unblockedToast": "Rule unblocked",
+        "blockDialog": {
+          "title": "Block a correction rule",
+          "description": "Values that rule {{id}} corrected are left out of every file processed from now on",
+          "refoldDescription": "Kept files where the rule corrected values are processed again without them"
+        }
+      },
+      "dialog": {
+        "title": "New reading block",
+        "description": "Applies to files processed from now on. You can't change its scope once it's added",
+        "fromFlag": "Based on flag {{id}}. Add a reason and check the scope. The flag closes on its own once the block is added",
+        "fromReader": "A block of whole readings turns this reader version off in every new file",
+        "phones": "Phones",
+        "phoneKinds": {
+          "modemFamily": "Modem family",
+          "soc": "SoC",
+          "deviceModel": "Model",
+          "readerVersion": "Reader version"
+        },
+        "chooseModemFamily": "Choose a modem family",
+        "chooseSoc": "Choose a SoC",
+        "chooseReaderVersion": "Choose a reader version",
+        "searchSoc": "Search SoCs",
+        "noSocMatches": "No such SoC",
+        "socsLoadFailed": "Couldn't load the SoC list",
+        "values": "Values",
+        "fieldLabels": {
+          "whole": "Whole readings",
+          "pci": "PCI",
+          "channel": "Channel",
+          "areaCode": "Area code",
+          "bandwidth": "Bandwidth",
+          "timingAdvance": "TA",
+          "signal": "Signal"
+        },
+        "wholeNote": "The whole reading is dropped, with every cell and value in it",
+        "fieldsNote": "Only the chosen values. A neighbor or NSA cell without a sure channel and PCI is dropped whole",
+        "mode": "Mode",
+        "corroborateNote": "A value counts only once a phone outside the block or a cell in the database confirms it. Applies to PCI, channel, area code and bandwidth",
+        "dropNote": "The chosen values from these phones are dropped",
+        "technologies": "Technologies",
+        "roles": "Cell roles",
+        "roleLabels": {
+          "serving": "Serving",
+          "neighbour": "Neighbor",
+          "nsa": "NSA"
+        },
+        "scopeNote": "With none chosen, the block covers them all. Narrow it to Android versions and modem firmware under more conditions",
+        "moreConditions": "More conditions",
+        "sdkMin": "Android API from",
+        "sdkMax": "Android API up to",
+        "sdkRangeError": "Enter a number from 1 to 1000",
+        "sdkOrderError": "Can't be lower than the lower limit",
+        "radioVersionPrefix": "Modem firmware",
+        "radioVersionHint": "The start of the version, for example MOLY.LR13",
+        "refoldDescription": "Kept files from these phones are processed again without the blocked values",
+        "created": "Block added"
+      }
+    },
+    "evaluation": {
+      "versionName": "Version {{version}}",
+      "baseline": "Baseline",
+      "noData": "No data for this night",
+      "empty": {
+        "title": "No evaluations yet",
+        "description": "The first one appears after the next night. It needs stations from the database that someone has already measured"
+      },
+      "nights": {
+        "title": "Nights",
+        "headEnd": "median error",
+        "half": {
+          "odd": "odd IDs",
+          "even": "even IDs"
+        },
+        "stations_one": "{{count, number}} station",
+        "stations_other": "{{count, number}} stations",
+        "versions_one": "{{count, number}} version",
+        "versions_other": "{{count, number}} versions",
+        "note": "Median error of the published version and the change since the night before. A rise of 10% is a warning"
+      },
+      "report": {
+        "title": "Night of {{date}}",
+        "runAt": "evaluated {{date}}",
+        "meta_one": "Scored {{count, number}} station with an {{half}} ID, and {{sites, number}} of the scored stations have an estimate from measurements. That night's calibration learned from the other half of the stations",
+        "meta_other": "Scored {{count, number}} stations with {{half}} IDs, {{sites, number}} of which have an estimate from measurements. That night's calibration learned from the other half of the stations",
+        "metaWithGnbTest_one": "Scored {{count, number}} station with an {{half}} ID, and {{sites, number}} of the scored stations have an estimate from measurements. That night's calibration learned from the other half of the stations. On Sundays the gNBID length test runs too",
+        "metaWithGnbTest_other": "Scored {{count, number}} stations with {{half}} IDs, {{sites, number}} of which have an estimate from measurements. That night's calibration learned from the other half of the stations. On Sundays the gNBID length test runs too",
+        "half": {
+          "odd": "odd",
+          "even": "even"
+        },
+        "published": "published",
+        "background": "in the background",
+        "baselineNote": "center of the places where the station served phones"
+      },
+      "columns": {
+        "version": "Version",
+        "sites": "Stations",
+        "median": "Median",
+        "p80": "80th percentile",
+        "p95": "95th percentile",
+        "insideRadius": "Within 95% radius",
+        "ambiguous": "Ambiguous"
+      },
+      "checks": {
+        "title": "Version {{candidate}} compared with the published version {{published}}",
+        "met": "Condition met",
+        "notMet": "Condition not met",
+        "median": "Median no worse",
+        "p80": "80th percentile no worse",
+        "radius": "The 95% radius covers 93% to 97% of stations",
+        "countries": "In no country did the median rise by more than 10%",
+        "compared": "{{candidate}} against {{published}}",
+        "worstCountry": "largest change: {{country}}, {{change}}",
+        "noCountries": "no country has results for both versions"
+      },
+      "footer": {
+        "allMet": "Version {{version}} meets every publishing condition this night",
+        "notAllMet": "Version {{version}} misses some conditions this night. You can still publish it",
+        "publishedMissing": "The engine did not run the published version {{version}} this night, so there is nothing to compare",
+        "onlyVersion": "The engine only ran version {{version}} this night, so there is nothing to compare"
+      },
+      "publish": {
+        "action": "Publish version {{version}}",
+        "confirmTitle": "Publish version {{version}}?",
+        "confirmDescription": "The map, station matching and flags will use the estimates of version {{version}}. You can go back to version {{published}} as long as the engine still runs it",
+        "confirmAction": "Publish",
+        "failedTitle": "Could not publish version {{version}}",
+        "noEstimate": "No station has an estimate in this version yet. Try again after the next station estimation",
+        "done": "Version {{version}} published"
+      },
+      "rats": {
+        "title": "Error by technology",
+        "headEnd": "median / 80th / 95th percentile, m",
+        "technology": "Technology",
+        "unknown": "Unknown",
+        "note": "Distance from the estimate, before it snaps to a known location, to the station's true location. The baseline is the center of the places where the station served phones"
+      },
+      "coverage": {
+        "title": "95% radius",
+        "headEnd": "stations within the radius, target 93-97%",
+        "evidence": "Data",
+        "note": "Coarse TA comes from GSM. A result outside the range means the radius is too small or too large",
+        "classes": {
+          "littleTaOnePerson": "Few TA readings, one person",
+          "littleTaPeople": "Few TA readings, several people",
+          "coarseTaOnePerson": "Coarse TA, one person",
+          "coarseTaPeople": "Coarse TA, several people",
+          "muchTaOnePerson": "Many TA readings, one person",
+          "muchTaPeople": "Many TA readings, several people"
+        }
+      },
+      "grouping": {
+        "title": "Several base stations on one mast",
+        "groups": "Groups",
+        "right": "Right",
+        "wrong": "Wrong",
+        "missed": "Split stations",
+        "note": "A wrong group joins stations from different locations and hides a mast, so it is worse than a station split into two groups"
+      },
+      "snapping": {
+        "title": "Snapping to known locations",
+        "versionName": "version {{version}}",
+        "source": "Source",
+        "possible": "Possible",
+        "right": "Right",
+        "wrong": "Wrong",
+        "missed": "Missed",
+        "kinds": {
+          "location": "Our locations",
+          "officialSite": "Register stations",
+          "officialSiteByIdentity": "Register by identifier",
+          "observedSite": "Other estimated stations",
+          "candidate": "Masts from other sources"
+        }
+      },
+      "gnb": {
+        "title": "gNBID length test",
+        "headEnd": "every Sunday",
+        "network": "Network",
+        "length": "Length",
+        "cells": "Cells",
+        "together": "Pairs close together",
+        "apart": "Pairs far apart",
+        "sites": "gNBIDs",
+        "bits_one": "{{count, number}} bit",
+        "bits_other": "{{count, number}} bits",
+        "used": "{{length}}, in use",
+        "suggested": "{{length}}, suggested"
+      }
+    }
+  },
+  "observationFlags": {
+    "description": "Where phone measurements disagree with the database",
+    "people_one": "{{count, number}} person",
+    "people_other": "{{count, number}} people",
+    "estimated": "Estimated",
+    "statuses": {
+      "label": "Flag status",
+      "open": "Open",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed"
+    },
+    "status": {
+      "open": "Open",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed"
+    },
+    "groups": {
+      "cells": "Cells",
+      "networks": "Networks",
+      "sites": "Stations and estimated sites",
+      "admin": "Administrators only"
+    },
+    "kinds": {
+      "valueDiffers": {
+        "label": "Different value",
+        "title": "{{field}} differs from the database"
+      },
+      "valueMissing": {
+        "label": "Value missing",
+        "title": "{{field}} missing from the database"
+      },
+      "cellMissing": {
+        "label": "Missing cell",
+        "title": "Missing cell"
+      },
+      "possiblyDecommissioned": {
+        "label": "Possibly switched off",
+        "title": "The cell may have been switched off"
+      },
+      "bearingDiffers": {
+        "label": "Different azimuth",
+        "title": "Azimuth differs from the database"
+      },
+      "networkMissing": {
+        "label": "Network missing",
+        "title": "The cell also broadcasts another network",
+        "titleOperator": "The cell also broadcasts for {{operator}}"
+      },
+      "networkNotSeen": {
+        "label": "Network not seen for 90 days",
+        "title": "The cell may no longer broadcast this network"
+      },
+      "unmatchedSite": {
+        "label": "Station not in the database",
+        "title": "Estimated site not in the database"
+      },
+      "positionShifts": {
+        "label": "Uncertain position",
+        "title": "Uncertain position of an estimated site"
+      },
+      "suggestedSite": {
+        "label": "Matches a database station",
+        "title": "Estimated site matches a database station"
+      },
+      "positionDiffers": {
+        "label": "Different position",
+        "title": "The station stands somewhere else"
+      },
+      "renumbered": {
+        "label": "New eNBID",
+        "title": "The station has a new eNBID"
+      },
+      "siteIdKnown": {
+        "label": "Station ID from the register",
+        "title": "The register names the station ID"
+      },
+      "bandNotInPlan": {
+        "label": "Band outside the plan",
+        "title": "Band outside the country's plan"
+      },
+      "readerQuirk": {
+        "label": "Reader misreports values",
+        "title": "Reader misreports values"
+      },
+      "deviceRevoked": {
+        "label": "Revoked device",
+        "title": "Revoked device"
+      },
+      "untrustedContributor": {
+        "label": "Low measurement agreement",
+        "title": "Low measurement agreement"
+      },
+      "nodeSpansPlaces": {
+        "label": "Cells of one eNBID far apart",
+        "title": "Cells of one eNBID far apart"
+      },
+      "gnbLengthSuggestion": {
+        "label": "Different gNBID length",
+        "title": "Different gNBID length"
+      }
+    },
+    "subjects": {
+      "reader": "Reader",
+      "contributor": "Person who uploads measurements",
+      "device": "Device"
+    },
+    "patterns": {
+      "bytesSwapped": "{{field}} with swapped bytes",
+      "factor": "{{field}} multiplied by {{parameter}}",
+      "offset": "{{field}} offset by {{parameter}}",
+      "constant": "{{field}} always {{parameter}}"
+    },
+    "summary": {
+      "measuredValue": "measured {{field}} {{value}}",
+      "snapped": "at a known location",
+      "withinRadius": "within {{distance}}",
+      "values_one": "{{count, number}} value",
+      "values_other": "{{count, number}} values",
+      "uploads_one": "{{count, number}} file",
+      "uploads_other": "{{count, number}} files",
+      "alsoBroadcasts": "also broadcasts {{network}}",
+      "notListed": "{{network}} missing from the network list",
+      "shifts": "estimate shifts by {{distance}}",
+      "radius": "radius {{distance}}",
+      "fromStation": "{{distance}} from station {{station}}",
+      "estimateFromStation": "Estimate {{distance}} from the station",
+      "azimuth": "Azimuth {{degrees}}°",
+      "measuredBearing": "measured {{degrees}}°",
+      "neverSeen": "never seen by phones",
+      "notSeenSince": "not seen since {{date}}",
+      "registerSiteId": "The register gives {{siteId}}",
+      "channels": "channels {{channels}}",
+      "certificate": {
+        "revoked": "certificate {{serial}} revoked",
+        "suspended": "certificate {{serial}} suspended"
+      },
+      "agreement": "{{share}} of TA distances agree",
+      "readings_one": "{{count, number}} reading",
+      "readings_other": "{{count, number}} readings",
+      "places_one": "cells at {{count, number}} point",
+      "places_other": "cells at {{count, number}} points",
+      "gnbLength": "length {{length}} → {{suggested}} bits",
+      "nodeCount_one": "{{count, number}} {{node}}",
+      "nodeCount_other": "{{count, number}} {{node}}s"
+    },
+    "dismissReasons": {
+      "notAnIssue": {
+        "label": "The database is right",
+        "hint": "Phones are wrong or see another station"
+      },
+      "cannotVerify": {
+        "label": "Can't be checked",
+        "hint": "Nobody can tell which value is right"
+      },
+      "needsSurvey": {
+        "label": "Needs a visit",
+        "hint": "Someone has to go there and check"
+      }
+    },
+    "closed": {
+      "appliedSummary": "Applied: {{summary}}",
+      "stationCreated": "station {{station}} created",
+      "fixedElsewhere": {
+        "title": "The database now agrees with the measurements"
+      },
+      "evidenceGone": {
+        "title": "Measurements no longer show it"
+      },
+      "applied": {
+        "title": "Applied"
+      },
+      "dismissed": {
+        "notAnIssue": "Dismissed: the database is right",
+        "cannotVerify": "Dismissed: can't be checked",
+        "needsSurvey": "Dismissed: needs a check on site"
+      },
+      "note": "Note: \"{{note}}\""
+    },
+    "actions": {
+      "dismiss": "Dismiss",
+      "ignore": "Skip site",
+      "link": "Link to a station",
+      "editStation": "Edit station",
+      "fixInEditor": "Fix in the editor",
+      "openInEditor": "Open in the editor",
+      "openContributor": "Open contributor page",
+      "reopen": "Reopen",
+      "undo": "Undo",
+      "evidenceOnMap": "Evidence on the map"
+    },
+    "dismiss": {
+      "title": "Dismiss this flag?",
+      "description": "It comes back when the measurements show something new: another value, another person or a different position",
+      "reasonLabel": "Dismissal reason",
+      "noteLabel": "Note for other editors",
+      "confirm": "Dismiss flag"
+    },
+    "ignore": {
+      "title": "Skip this estimated site?",
+      "description": "It leaves the queue and won't be added to the database. It comes back when new cells appear or the estimate moves further than its radius",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "E.g. a femtocell in a shopping mall or a mast put up for an event",
+      "hint": "Other editors will see the reason on this estimated site",
+      "groupHint": "This skips the whole mast"
+    },
+    "link": {
+      "title": "Link to a database station?",
+      "description": "Automatic matching won't change this link. Measured cells the station doesn't have will join the queue as missing cells",
+      "searchPlaceholder": "Station ID, eNBID or address",
+      "nearest": "Nearest {{operator}} station",
+      "suggested": "Suggested station",
+      "results": "Results",
+      "noStations": "No stations found",
+      "stationLabel": "Station to link",
+      "rule": "You can pick a {{operator}} station, a station of a {{operator}} partner, or a station whose cells broadcast for {{operator}}",
+      "wrongOperator": "Station {{station}} belongs to {{stationOperator}} and its cells don't broadcast for {{operator}}. Pick a {{operator}} station, a station of a {{operator}} partner, or a station whose cells broadcast for {{operator}}",
+      "stationGone": "Station {{station}} no longer exists. Pick another one",
+      "confirm": "Link"
+    },
+    "conflicts": {
+      "refresh": "Refresh",
+      "showFlag": "Show flag",
+      "showFlagId": "Show flag #{{id}}",
+      "openStation": "Open station",
+      "flagClosed": {
+        "title": "This flag is already closed",
+        "applied": "someone just applied it. Your changes weren't saved",
+        "dismissed": "someone just dismissed it. Your changes weren't saved",
+        "fixedElsewhere": "the database already agrees with the measurements. Your changes weren't saved",
+        "evidenceGone": "the measurements no longer show it. Your changes weren't saved"
+      },
+      "resolved": {
+        "title": "The flag is already resolved",
+        "text": "the change is already in the database or the measurements stopped showing it, so there's nothing to dismiss"
+      },
+      "openFlag": {
+        "title": "A flag of the same kind is already open",
+        "text": "work on flag #{{id}} instead of reopening this one"
+      },
+      "madeFromSite": {
+        "title": "A station from this estimate already exists",
+        "text": "someone created it earlier, so no second one was made"
+      },
+      "matched": {
+        "title": "The estimate already matches a database station",
+        "text": "its cells joined an existing station in the meantime, so a new one isn't needed"
+      },
+      "copy": {
+        "title": "This is the same site seen on another network",
+        "text": "skip or link it through its main estimate",
+        "station": "create the station from its main estimate",
+        "action": "Go to the main estimate"
+      },
+      "replaced": {
+        "title": "This estimate no longer exists",
+        "text_one": "after a new estimate, {{count, number}} new site replaced it",
+        "text_other": "after a new estimate, {{count, number}} new sites replaced it",
+        "action": "Show the new estimates"
+      },
+      "stationSite": {
+        "title": "These cells belong to a database station",
+        "text": "they are its GSM or UMTS cells on this network, so the estimate can't be skipped or linked on its own",
+        "station": "they are its GSM or UMTS cells on this network. Fix that station instead of creating a new one"
+      },
+      "linkForbidden": {
+        "title": "You don't have access to this region",
+        "text": "the station you want to link lies outside your area",
+        "action": "Pick another"
+      }
+    },
+    "access": {
+      "noArea": "You only see flags in the regions granted to you. Ask the country maintainer for access",
+      "offTitle": "Measurement data is turned off",
+      "off": "An administrator turned measurement data off. Flags come back when it is turned on",
+      "offAdmin": "Editors don't see flags until you turn measurement data on in the system settings"
+    },
+    "facts": {
+      "title": "What phones see",
+      "titleSite": "What the estimate rests on",
+      "people": "People",
+      "devices": "Devices",
+      "readings": "Readings",
+      "days": "Days with measurements",
+      "radius": "Radius (95%)",
+      "snapped": "known location ({{share}})",
+      "taShare": "Readings with TA",
+      "arc": "Measured arc",
+      "farthest": "Farthest",
+      "lastSeen": "Last seen",
+      "firstSeen": "Seen since",
+      "network": "Network",
+      "source": "Source",
+      "seenAs": {
+        "list": "list of networks",
+        "missingCode": "the cell's network code"
+      },
+      "listReadings": "Network list readings",
+      "lastListed": "Last listed",
+      "never": "never",
+      "shift": "Shift",
+      "distanceFromStation": "Distance from the station",
+      "places": "Places",
+      "distance": "Distance",
+      "estimateRadius": "Estimate radius",
+      "difference": "Difference",
+      "spread": "Arc of 80% of readings",
+      "networkMeasured": "Band last measured",
+      "measuredSquares": "Measured places",
+      "registerSite": "Register station",
+      "technology": "Technology",
+      "channels": "Channels",
+      "field": "Field",
+      "error": "Error",
+      "patterns": {
+        "bytesSwapped": "bytes reversed",
+        "factor": "times {{parameter}}",
+        "offset": "offset by {{parameter}}",
+        "constant": "always {{parameter}}"
+      },
+      "values": "Values",
+      "cells": "Cells",
+      "uploads": "Files",
+      "agreement": "TA agreement",
+      "everyoneAgreement": "Agreement for everyone",
+      "readingsOnConfirmed": "Readings on confirmed stations",
+      "certificate": "Certificate",
+      "certificateStatus": "Certificate status",
+      "revocation": {
+        "revoked": "revoked",
+        "suspended": "suspended"
+      },
+      "length": "Length",
+      "suggestedLength": "Suggested length",
+      "bits_one": "{{count, number}} bit",
+      "bits_other": "{{count, number}} bits",
+      "gnbCount": "gNBIDs",
+      "previousNode": "Previous {{node}}",
+      "newNode": "New {{node}}",
+      "alikeCells": "Matching cells",
+      "ofCells": "{{alike}} of {{total}}"
+    },
+    "compare": {
+      "none": "none",
+      "azimuth": "Azimuth",
+      "stored": "{{label}} in the database",
+      "observed": "{{label}} from measurements"
+    },
+    "places": {
+      "allPhones": "All phones",
+      "allReaders": "All reader versions",
+      "device": "Device that uploads measurements",
+      "bandPlan": "Country band plan",
+      "network": "Mobile network",
+      "fromStation": "{{distance}} from station {{station}}",
+      "group": "with {{names}} on one mast"
+    },
+    "cellLine": {
+      "sector": "sector {{azimuth}}"
+    },
+    "leads": {
+      "valueDiffers_one": "{{count, number}} person sees this cell with {{field}} {{observed}}. The database has {{stored}}",
+      "valueDiffers_other": "{{count, number}} people see this cell with {{field}} {{observed}}. The database has {{stored}}",
+      "valueMissing_one": "{{count, number}} person sees this cell with {{field}} {{observed}}. The database has no value",
+      "valueMissing_other": "{{count, number}} people see this cell with {{field}} {{observed}}. The database has no value",
+      "cellMissing_one": "{{count, number}} person sees a {{cell}} cell on this station that isn't in the database",
+      "cellMissing_other": "{{count, number}} people see a {{cell}} cell on this station that isn't in the database",
+      "networkMissing": {
+        "list_one": "{{count, number}} person read network code {{network}} in this cell's list of networks. In the database the cell doesn't broadcast for it",
+        "list_other": "{{count, number}} people read network code {{network}} in this cell's list of networks. In the database the cell doesn't broadcast for it",
+        "missingCode_one": "{{count, number}} person saw this cell on network {{network}}. In the database the cell doesn't broadcast for it",
+        "missingCode_other": "{{count, number}} people saw this cell on network {{network}}. In the database the cell doesn't broadcast for it"
+      },
+      "networkNotSeen_one": "In the database the cell also broadcasts for {{network}}, but that network isn't in the list of networks read from the cell",
+      "networkNotSeen_other": "In the database the cell also broadcasts for {{network}}, but that network isn't in any of the {{count, number}} lists of networks read from the cell",
+      "unmatchedSite": {
+        "group_one": "{{count, number}} person sees {{operator}} cells with {{nodes}} different {{node}}s on one mast. No database station matches them",
+        "group_other": "{{count, number}} people see {{operator}} cells with {{nodes}} different {{node}}s on one mast. No database station matches them",
+        "single_one": "{{count, number}} person sees {{operator}} cells sharing one {{node}}. No database station matches them",
+        "single_other": "{{count, number}} people see {{operator}} cells sharing one {{node}}. No database station matches them"
+      },
+      "positionShifts": "Without the readings from one side, the estimate moves by {{distance}}, more than its radius. Measurements from other sides would help",
+      "suggestedSite": "This estimated site's cells aren't in the database, but station {{station}} stands {{distance}} away. It's likely the same station with its {{node}} not entered yet",
+      "positionDiffers": "The estimate from measurements lies {{distance}} from the station's location, and its radius is {{radius}}. The database location may be wrong, or the station has moved",
+      "renumbered": {
+        "known_one": "{{node}} {{previous}} disappeared. {{node}} {{next}} appeared instead, with the same channel and PCI on {{count, number}} cell",
+        "known_other": "{{node}} {{previous}} disappeared. {{node}} {{next}} appeared instead, with the same channels and PCIs on {{count, number}} cells",
+        "unknown_one": "{{count, number}} cell of this station appeared under a new number, with the same channel and PCI",
+        "unknown_other": "{{count, number}} cells of this station appeared under a new number, with the same channels and PCIs"
+      },
+      "bearingDiffers": "The cell serves phones mostly towards {{bearing}}, while its sector has azimuth {{azimuth}} in the database",
+      "possiblyDecommissioned": {
+        "since": "Nobody has seen this cell since {{lastSeenOn}}, although someone measured {{network}} in its area on {{measuredOn}}",
+        "never": "Nobody has ever seen this cell, although someone measured {{network}} in its area on {{measuredOn}}"
+      },
+      "siteIdKnown": "The station has a temporary ID, so it shows as {{name}}. The register lists this eNBID under station {{siteId}}",
+      "bandNotInPlan_one": "{{count, number}} person sees {{rat}} on channels {{channels}}, which aren't in the country's band plan. They fit {{band}}",
+      "bandNotInPlan_other": "{{count, number}} people see {{rat}} on channels {{channels}}, which aren't in the country's band plan. They fit {{band}}",
+      "readerQuirk": {
+        "device": "{{device}} phones report {{pattern}}: {{values}} from {{cells}} in {{uploads}}",
+        "reader": "Reader {{reader}} reports {{pattern}}: {{values}} from {{cells}} in {{uploads}}",
+        "cells_one": "{{count, number}} cell",
+        "cells_other": "{{count, number}} cells",
+        "uploads_one": "{{count, number}} file",
+        "uploads_other": "{{count, number}} files"
+      },
+      "untrustedContributor": "Only {{share}} of this person's TA distances agree with confirmed stations. For everyone it's {{everyone}}",
+      "deviceRevoked": {
+        "revoked": "Certificate {{serial}} of this device has been revoked",
+        "suspended": "Certificate {{serial}} of this device has been suspended"
+      },
+      "nodeSpansPlaces_one": "The TA distances of this estimated site's cells don't agree with its position",
+      "nodeSpansPlaces_other": "This estimated site's cells serve phones in {{count, number}} places far apart. It's likely several different stations",
+      "gnbLengthSuggestion": "With a {{length}}-bit gNBID, cells of network {{network}} split into {{sites}} gNBIDs. A length of {{suggested}} bits fits better"
+    },
+    "evidence": {
+      "title": "Estimate evidence",
+      "mapLabel": "Evidence map",
+      "panelLabel": "Estimate and decision",
+      "flagChip": "Flag #{{id}}",
+      "seen": "First measured: {{first}} · last: {{last}}",
+      "withGroup": "together with {{names}}",
+      "status": {
+        "unmatched": "Not in the database",
+        "suggested": "Matches a database station",
+        "matched": "Linked to a station",
+        "ignored": "Skipped",
+        "replaced": "Replaced",
+        "ambiguous": "Two possible places"
+      },
+      "place": {
+        "title": "Position",
+        "withinRadius": "Within {{distance}}",
+        "fitSub": "{{share}} confidence · {{coordinates}}",
+        "fitNote": "No known location fits well enough to snap the station to it",
+        "nearest": "The nearest is location {{id}}",
+        "nearestWithStations": "The nearest is location {{id}}, which already holds {{operators}} stations",
+        "snappedLocation": "At location {{id}}",
+        "snappedSub": "{{share}} probability · {{distance}} from the estimate",
+        "snappedNote": {
+          "location": "The measurements fit this location almost as well as the estimate itself, so the station is shown here",
+          "officialSite": "The measurements fit this register site almost as well as the estimate itself, so the station is shown here",
+          "observedSite": "The measurements fit this estimated site almost as well as the estimate itself, so the station is shown here"
+        },
+        "stationsThere": "It already holds {{operators}} stations",
+        "ambiguousSub": "{{distance}} apart · {{radius}} radius",
+        "ambiguousNote": "Phones measured this site from one road only, so the measurements fit both sides of it equally well. Check the satellite image to see which side the mast stands on",
+        "noEstimate": "No estimate yet",
+        "noEstimateNote": "There aren't enough measurements yet to tell where the station stands",
+        "notPublic": "Not public",
+        "notPublicAmbiguous": "while the estimate has two possible places, the station doesn't show on the public map"
+      },
+      "choices": {
+        "title": "Where to put the station",
+        "hint": "The chosen place goes into the new station form",
+        "fit": "Estimate from measurements",
+        "first": "First possible place",
+        "second": "Second possible place",
+        "secondLine": "{{coordinates}} · {{distance}} away",
+        "location": "Location {{id}}",
+        "officialSite": "Register: {{name}}",
+        "officialSiteHidden": "Register site",
+        "observedSite": "Estimated site {{name}}",
+        "observedSiteHidden": "Estimated site outside your area",
+        "otherEstimate": "Another estimated site",
+        "otherEstimateUnmatched": "Another estimated site, also not in the database",
+        "fromEstimate": "{{distance}} from the estimate",
+        "snapped": "Snapped"
+      },
+      "create": {
+        "point": "Create station at the chosen point",
+        "location": "Create station at location {{id}}",
+        "officialSite": "Create station from register site {{siteId}}",
+        "officialSitePlace": "Create station at the register site",
+        "observedSite": "Create station at the estimated {{operator}} site",
+        "observedSitePlace": "Create station at the other estimated site"
+      },
+      "layers": {
+        "title": "Layers",
+        "grid": "Where it may stand",
+        "ta": "TA distances",
+        "readings": "Readings",
+        "places": "Places checked",
+        "squares_one": "{{count, number}} place",
+        "squares_other": "{{count, number}} places"
+      },
+      "legend": {
+        "title": "Legend",
+        "estimate": "Estimate",
+        "pointArea": "Point and 95% area",
+        "radius": "95% radius",
+        "more": "more",
+        "less": "less",
+        "ta": "Distance from TA",
+        "taUpTo": "up to {{distance}}",
+        "taBetween": "{{from}}-{{to}}",
+        "taOver": "over {{distance}}",
+        "taPublicOnly": "Only places that may be public are shown",
+        "taTruncated": "Only the places with the most readings are shown",
+        "readings": "Signal (90% of readings)",
+        "readingsCaption": "Each place shows the strongest of the estimate's cells",
+        "readingsZoomIn": "Zoom in to see the readings",
+        "readingsEmpty": "No readings in this view",
+        "readingsError": "Couldn't load the readings"
+      },
+      "marks": {
+        "fit": "Estimate",
+        "fitUnsnapped": "Estimate before snapping",
+        "here": "Here",
+        "label": "{{place}}, {{share}}",
+        "snappedLabel": "{{place}}, {{share}}, the station is shown here"
+      },
+      "ta": {
+        "popupLabel": "TA distance at this place",
+        "distance": "{{distance}} from TA",
+        "note": "The circle shows how far from this place the mast stands"
+      },
+      "missing": {
+        "title": "This estimated site is gone",
+        "description": "It was removed or lies outside your area"
+      },
+      "strips": {
+        "ignored": "This site is skipped",
+        "restore": "Restore",
+        "handLinked": "Linked by hand to station {{station}}",
+        "matched": "Matches database station {{station}}",
+        "unlink": "Undo link"
+      },
+      "toasts": {
+        "ignored": "Skipped {{name}}",
+        "linked": "Linked {{name}} to station {{station}}",
+        "restored": "Restored {{name}}",
+        "unlinked": "Unlinked {{name}}"
+      }
+    },
+    "createStation": {
+      "title": "New station",
+      "fromSite": "From estimated site {{name}}",
+      "closesFlagAndLinksSites_one": "Saving closes flag #{{id}} and links the estimated site {{names}} to this station",
+      "closesFlagAndLinksSites_other": "Saving closes flag #{{id}} and links the estimated sites {{names}} to this station",
+      "linksSites_one": "Saving links the estimated site {{names}} to this station",
+      "linksSites_other": "Saving links the estimated sites {{names}} to this station",
+      "siteIdHint": {
+        "withId": "The ID from the register or the operator",
+        "withoutId": "Without an ID the station shows as {{name}} until someone enters one"
+      },
+      "estimateLabel": "Estimate from measurements · {{radius}}",
+      "mapHint": "Drag the pin onto the mast. Circles are database locations",
+      "cellsSource_one": "The cells come from the measurements of the estimated site {{names}}",
+      "cellsSource_other": "The cells come from the measurements of the estimated sites on this mast: {{names}}",
+      "azimuthsMeasured": "The azimuths come from the measured bearings of the cells, where the measurements show them. Add the missing ones or change the rest in the Azimuths card",
+      "azimuthsNone": "The measurements show no bearings for these cells, so add the azimuths in the Azimuths card",
+      "created": "Station created and flag #{{id}} closed",
+      "missing": {
+        "title": "This estimate no longer exists",
+        "description": "It may have been estimated again, or it lies outside your area"
+      }
+    },
+    "filters": {
+      "kind": "Kind",
+      "allKinds": "All kinds",
+      "kindsMore_one": "{{kind}} +{{count, number}}",
+      "kindsMore_other": "{{kind}} +{{count, number}}",
+      "stationPlaceholder": "Station ID or eNBID"
+    },
+    "sort": {
+      "label": "Order",
+      "newest": "Newest",
+      "oldest": "Oldest",
+      "updated": "Recently changed",
+      "station": "By station"
+    },
+    "list": {
+      "label": "Flags",
+      "filteredEmpty": "No flags match the filters",
+      "emptyArea": "There are no open measurement flags in your area",
+      "emptyEverywhere": "There are no open measurement flags",
+      "empty": {
+        "resolved": "No resolved flags",
+        "dismissed": "No dismissed flags"
+      }
+    },
+    "detail": {
+      "pickTitle": "Pick a flag from the list",
+      "pickDescription": "You'll see the evidence from measurements and the suggested change here",
+      "flagTitle": "Flag #{{id}}",
+      "goneTitle": "This flag no longer exists",
+      "goneDescription": "Its cell was deleted together with its flags, or the flag is outside your area",
+      "backToList": "Back to the list"
+    },
+    "meta": {
+      "created": "Created",
+      "updated": "changed",
+      "resolved": "closed",
+      "dismissed": "dismissed"
+    },
+    "change": {
+      "title": "Suggested change",
+      "station": "Suggested station",
+      "readingBlock": "Suggested reading block"
+    },
+    "map": {
+      "radius": "Within {{radius}} (95%)",
+      "snapped": "At a known location",
+      "station": "station {{station}}",
+      "estimateAndStation": "Estimate (95%) and the location of station {{station}}"
+    },
+    "table": {
+      "station": "station {{station}}",
+      "band": "Band",
+      "azimuth": "Azimuth",
+      "networks": "Networks",
+      "cellType": "Type",
+      "confirmed": "The cell will be marked as confirmed",
+      "confirmedShort": "Confirmed",
+      "fieldLabel": "{{field}}, row {{row}}",
+      "rowLabel": "Cell {{row}}: {{rat}}",
+      "newCells_one": "{{count, number}} new",
+      "newCells_other": "{{count, number}} new",
+      "changedCells_one": "{{count, number}} changed",
+      "changedCells_other": "{{count, number}} changed"
+    },
+    "notes": {
+      "newCell": "New cell - the station has no cell with this {{code}} yet",
+      "siteCells_one": "{{count, number}} new cell on station {{station}}",
+      "siteCells_other": "{{count, number}} new cells on station {{station}}",
+      "addNetwork": "Add {{network}}. The owner's main network code stays first",
+      "removeNetwork": "Remove {{network}} from the cell's list of networks",
+      "sector": "You'll pick the azimuth in the station editor"
+    },
+    "box": {
+      "newStation": "New station",
+      "newStationSubtitle": "suggested from measurements",
+      "siteId": "Station ID",
+      "noSiteIdHint": "The suggestion has none. The station will show as {{name}}",
+      "fromRegister": "from the register",
+      "position": "Position",
+      "positionHint": "point from the estimate",
+      "cells": "Cells",
+      "azimuths": "Azimuths",
+      "azimuthsHint": "from the directions phones measured",
+      "noAzimuthsHint": "the measurements show no cell directions",
+      "yes": "Yes",
+      "confirmedHint": "the station and its cells, as when creating a station normally",
+      "now": "Now",
+      "after": "After the change",
+      "temporary": "temporary",
+      "shownAs": "the station shows as {{name}}",
+      "readingBlock": "Reading block",
+      "phones": "Phones",
+      "reader": "Reader",
+      "blockMode": {
+        "drop": "dropped",
+        "corroborate": "counted only when confirmed"
+      },
+      "reasonHint": "you'll give the reason when adding the block",
+      "bandPlan": "Band plan: {{country}}",
+      "addBand": "Add band",
+      "fromNodes": "from {{nodes}}"
+    },
+    "none": {
+      "resolved": "A closed flag no longer has a suggested change",
+      "dismissed": "A dismissed flag no longer has a suggested change. It comes back by itself when measurements show something new",
+      "noSuggestion": "This flag has no ready change. Fix the station in the editor or dismiss the flag",
+      "positionDiffers": "This flag has no ready change. Fix the location in the station editor or dismiss the flag",
+      "bearingDiffers": "This flag has no ready change. Fix the sector in the station editor or dismiss the flag",
+      "possiblyDecommissioned": "This flag has no ready change. Check the cell in the station editor or dismiss the flag",
+      "positionShifts": "This flag has no ready change. If you know the mast, create the station and point to it on the map",
+      "untrustedContributor": "This flag has no ready change. Block the person or change their weight on the measurements page",
+      "deviceRevoked": "This flag has no ready change. Dismiss it once you've checked the device",
+      "nodeSpansPlaces": "This flag has no ready change. Skip the estimated site if its cells belong to different masts",
+      "gnbLengthSuggestion": "This flag has no ready change. The network's gNBID length is set in the country data"
+    },
+    "others": {
+      "title_one": "This station has {{count, number}} more flag of this kind",
+      "title_other": "This station has {{count, number}} more flags of this kind",
+      "applyAll_one": "Apply {{count, number}}",
+      "applyAll_other": "Apply all {{count, number}}"
+    },
+    "apply": {
+      "label": {
+        "change_one": "Apply change",
+        "change_other": "Apply changes",
+        "addCell": "Add cell",
+        "addCells": "Add cells to {{station}}",
+        "addBand": "Add band to the plan"
+      },
+      "cells": {
+        "title": "Apply the changes?",
+        "changes_one": "{{count, number}} change on station {{station}} is saved to the database right away, without a submission",
+        "changes_other": "{{count, number}} changes on station {{station}} are saved to the database right away, without a submission",
+        "closesOne": "The cell will be marked as confirmed, and the flag closes",
+        "closesCells": "The cells will be marked as confirmed, and the flag closes",
+        "closesFlags": "The cells will be marked as confirmed, and the flags close",
+        "confirm": "Apply changes"
+      },
+      "siteId": {
+        "title": "Set the station ID?",
+        "description": "Station ID {{siteId}} is saved right away, without a submission. The flag closes within a minute",
+        "confirm": "Set station ID"
+      },
+      "band": {
+        "title": "Add the band to the plan?",
+        "description": "Band {{band}} goes into this country's band plan right away. The flag closes within an hour",
+        "confirm": "Add band"
+      },
+      "readingBlock": {
+        "title": "Add a reading block?",
+        "drop": "{{fields}} values from {{phones}} stop counting in measurements. You can lift the block on the measurements page",
+        "corroborate": "{{fields}} values from {{phones}} count only when other phones confirm them. You can lift the block on the measurements page",
+        "phones": "{{device}} phones",
+        "reader": "reader {{reader}}",
+        "reasonPlaceholder": "E.g. the reader reverses TAC bytes on this model",
+        "hint": "You'll see the reason on the block and in the event log",
+        "confirm": "Add block"
+      }
+    },
+    "toasts": {
+      "applied": "Saved and closed the flag",
+      "appliedMany_one": "Saved and closed {{count, number}} flag",
+      "appliedMany_other": "Saved and closed {{count, number}} flags",
+      "siteIdSaved": "Station ID saved",
+      "bandAdded": "Added band {{band}} to the plan",
+      "blockAdded": "Reading block added",
+      "dismissed": "Flag dismissed",
+      "ignored": "Estimated site skipped",
+      "linked": "Linked to station {{station}}",
+      "reopened": "Flag reopened"
     }
   },
   "reference": {
@@ -1160,7 +2746,7 @@
         "description": "The country's subdivisions. Every location belongs to one region",
         "add": "Add region",
         "loadFailed": "Couldn't load regions",
-        "outlineNote": "A location goes to the region whose outline it lies in. Outlines are loaded by the import script based on the ISO code, not in this panel",
+        "outlineNote": "A location goes to the region whose outline it lies in",
         "columns": {
           "code": "Code",
           "isoCode": "ISO code",
@@ -1377,6 +2963,10 @@
             "title": "GSM BSIC",
             "description": "Collect and display base station identity codes for GSM cells"
           },
+          "observationsPublic": {
+            "title": "Public measurements",
+            "description": "Observed cells, estimated sites, coverage and trails from this country are shown to everyone. When off, only administrators and editors with a grant here see the cells and sites, and only administrators see coverage and trails"
+          },
           "note": "Each setting is independent and saved right away. Disabling PSC or BSIC hides existing values without deleting them",
           "savedToast": "Country data settings saved",
           "saveFailed": "Couldn't save the country's data settings"
@@ -1390,7 +2980,12 @@
           },
           "measurements": {
             "title": "Measurements",
-            "description": "The BTSearch app records radio and GPS readings. While off, it records nothing in this country and readings taken there are dropped"
+            "description": "The BTSearch app collects radio and GPS readings here. While off, it stops collecting them and readings from this country are dropped",
+            "offConfirm": {
+              "title": "Turn off measurements?",
+              "description": "The BTSearch app will stop recording in {{name}}. Readings from there that arrive before you turn measurements back on are dropped and can't be recovered",
+              "confirm": "Turn off measurements"
+            }
           },
           "note": "Changes are saved right away. Measurements also need measurement uploads turned on in the system settings",
           "savedToast": "Country tools saved",

@@ -19,6 +19,7 @@ import { ErrorState, InlineError, StaleDataNotice } from "@/components/ui/error-
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,7 @@ function getEntryActionClass(action: AuditEntry["action"]): string {
 
 const OperationEntryBlock = memo(function OperationEntryBlock({ entry, onRevert }: { entry: AuditEntry; onRevert: (entry: AuditEntry) => void }) {
   const { t } = useTranslation("admin");
+  const accountUsername = entry.metadata?.username;
   const revertButton = (
     <Button
       variant="ghost"
@@ -85,6 +87,14 @@ const OperationEntryBlock = memo(function OperationEntryBlock({ entry, onRevert 
           )}
         </div>
       </div>
+      {typeof accountUsername === "string" ? (
+        <p className="mb-2 flex gap-1.5 text-xs">
+          <span className="text-muted-foreground">{t("common:labels.account")}</span>
+          <UserLink user={{ username: accountUsername }} className="font-medium">
+            @{accountUsername}
+          </UserLink>
+        </p>
+      ) : null}
       <ChangesTable oldValues={entry.oldValues} newValues={entry.newValues} />
     </article>
   );

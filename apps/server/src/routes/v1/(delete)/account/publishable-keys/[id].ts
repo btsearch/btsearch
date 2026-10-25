@@ -1,3 +1,4 @@
+import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -34,7 +35,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 
   if (meta.type !== "publishable") throw new ErrorResponse("NOT_FOUND");
 
-  await auth.api.deleteApiKey({ body: { keyId: key.id } });
+  await auth.api.deleteApiKey({ body: { keyId: key.id }, headers: fromNodeHeaders(req.headers) });
   await redis.del(`ratelimit:pk:${key.id}`);
 
   return res.status(204).send();

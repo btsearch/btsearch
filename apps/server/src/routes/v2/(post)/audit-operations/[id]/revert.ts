@@ -84,7 +84,6 @@ const revertAuditOperation: Route<RequestData, AuditRevertResult> = {
   method: "POST",
   config: {
     permissionsCheckedByHandler: ["revert:audit_operations"],
-    retainIdempotencyKey: true,
     errorBodies,
     errorReasons,
   },

@@ -38,6 +38,7 @@ import { flagCondition } from "../../lib/conditions.js";
 import { actorIdFromRequest } from "../access/access.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
 import { cellNetworkCodes, extraCodesByCell, guestOperatorIdsByStation, loadCellExtras, loadOwnerCodes } from "../cells/networks.js";
+import { loadStationCellSightings, loadStationSightings } from "../cells/sightings.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
 import { assertListsEnabled, findListForViewer, getUserListMembership } from "../lists/visibility.js";
 import type { LocationRow } from "../locations/write.js";
@@ -78,8 +79,10 @@ const LOCATION_STATION_INCLUDES: Partial<Record<LocationInclude, StationInclude>
   "stations.operator": "operator",
   "stations.cells": "cells",
   "stations.cells.band": "cells.band",
+  "stations.cells.sightings": "cells.sightings",
   "stations.sectors": "sectors",
   "stations.backhaul": "backhaul",
+  "stations.sightings": "sightings",
 };
 
 export const locationColumns = {
@@ -330,7 +333,7 @@ export async function serializeStations(
 
   const wants = (name: StationInclude) => include.includes(name);
   const wantsLocation = wants("location") || wants("location.region");
-  const wantsCells = wants("cells") || wants("cells.band");
+  const wantsCells = wants("cells") || wants("cells.band") || wants("cells.sightings");
 
   const stationIds = rows.map((row) => row.id);
   const locationIds = unique(rows.map((row) => row.location_id));
@@ -349,6 +352,8 @@ export async function serializeStations(
     cellExtras,
     ownerCodes,
     nodeNames,
+    stationSightings,
+    cellSightings,
   ] = await Promise.all([
     db.select().from(extraIdentificators).where(inArray(extraIdentificators.station_id, stationIds)).orderBy(asc(extraIdentificators.id)),
     findHostStationIds(locationIds),
@@ -385,6 +390,8 @@ export async function serializeStations(
     loadCellExtras(stationIds),
     loadOwnerCodes(wantsCells ? stationIds : []),
     loadNodeNames(rows.filter((row) => isPlaceholderSiteId(row.station_id)).map((row) => row.id)),
+    wants("sightings") ? loadStationSightings(stationIds) : null,
+    wants("cells.sightings") ? loadStationCellSightings(stationIds) : null,
   ]);
 
   const identifiersByStation = Map.groupBy(identifierRows, (row) => row.station_id);
@@ -395,14 +402,18 @@ export async function serializeStations(
   const extraCodes = extraCodesByCell(cellExtras);
   const guestOperatorIds = guestOperatorIdsByStation(cellExtras, new Map(rows.map((row) => [row.id, row.operator_id])));
   const cellRowsByStation = Map.groupBy(cellRows, (row) => row.cell.station_id);
-  const toNestedCell = (row: (typeof cellRows)[number]) =>
-    toStationCell(
+  const toNestedCell = (row: (typeof cellRows)[number]) => {
+    const cell = toStationCell(
       row,
       bandsById.get(row.cell.band_id),
       wants("cells.band"),
       featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures,
       cellNetworkCodes(ownerCodes.get(row.cell.station_id), extraCodes.get(row.cell.id)),
-    ) ?? [];
+    );
+    if (cell === null) return [];
+    if (cellSightings) cell.sightings = cellSightings.get(row.cell.id) ?? null;
+    return [cell];
+  };
 
   return rows.map((row) => {
     const station = toStation(
@@ -421,6 +432,7 @@ export async function serializeStations(
     if (wantsCells) station.cells = cellRowsByStation.get(row.id)?.flatMap(toNestedCell) ?? [];
     if (wants("sectors")) station.sectors = (sectorsByStation.get(row.id) ?? []).map(toSector);
     if (wants("backhaul")) station.backhaul = backhaul ? toBackhaul(backhaul) : null;
+    if (stationSightings) station.sightings = stationSightings.get(row.id) ?? null;
     return station;
   });
 }

@@ -1,0 +1,295 @@
+{
+  "deltas": {
+    "cell_bins": [
+      [
+        {
+          "bin": 422786001316,
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          }
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsq": 82777920000,
+          "level_wsum": -8997600,
+          "offset_x_wsum": -696336,
+          "offset_y_wsum": -1094382,
+          "quality_weight_milli": 978,
+          "quality_wsum": -1075800,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "serving_weight_milli": 978,
+          "sinr_weight_milli": 978,
+          "sinr_wsq": 792180000,
+          "sinr_wsum": 880200,
+          "stationary_count": 0,
+          "weight_milli": 978
+        }
+      ]
+    ],
+    "cell_contributors": [
+      [
+        {
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          },
+          "device_id": "01a0bdd4-4400-7d2e-8f30-415263748596"
+        },
+        {
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "trip_count": 0
+        }
+      ]
+    ],
+    "cell_networks": [],
+    "cell_readers": [
+      [
+        {
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          },
+          "reader": {
+            "name": "btsearch",
+            "version": "0.4.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ]
+    ],
+    "cell_ta_bins": [
+      [
+        {
+          "bin": 422786001316,
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          },
+          "ta_group_id": 1,
+          "timing_advance": 4
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 1,
+          "weight_milli": 978
+        }
+      ]
+    ],
+    "cell_transitions": [],
+    "cell_values": [
+      [
+        {
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          },
+          "field": "AreaCode",
+          "held": false,
+          "value": 30210
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          },
+          "field": "Pci",
+          "held": true,
+          "value": 412
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          },
+          "field": "Channel",
+          "held": true,
+          "value": 643334
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 5056786433,
+            "plmn": "26002",
+            "rat": "Nr"
+          },
+          "field": "ReportedBand",
+          "held": false,
+          "value": 78
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ]
+    ],
+    "contributor_months": [],
+    "handover_bins": [],
+    "neighbour_bins": [
+      [
+        {
+          "bin": 26424125082,
+          "channel": 643334,
+          "held": true,
+          "pci": 413,
+          "plmn": "26002",
+          "rat": "Nr"
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsum": -10171200,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "weight_milli": 978
+        }
+      ]
+    ],
+    "nsa_links": [],
+    "person_trail_bins": [
+      [
+        {
+          "bin": 26424125082,
+          "plmn": "26002",
+          "rat": "Nr",
+          "user_id": "11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 1
+        }
+      ]
+    ],
+    "same_reading_pairs": [],
+    "trail_levels": [
+      [
+        {
+          "level_bucket": 3,
+          "square": {
+            "bin": 422786001316,
+            "channel": 643334,
+            "held": true,
+            "plmn": "26002",
+            "rat": "Nr",
+            "zoom": 20
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ]
+    ],
+    "trail_squares": [
+      [
+        {
+          "bin": 422786001316,
+          "channel": 643334,
+          "held": true,
+          "plmn": "26002",
+          "rat": "Nr",
+          "zoom": 20
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "last_seen_on": 20735
+        }
+      ]
+    ]
+  },
+  "report": {
+    "blocked_values": {
+      "1": {
+        "dropped": 0,
+        "held": 4
+      }
+    },
+    "bounding_box": {
+      "east": 16.92519181949891,
+      "north": 52.40640260531183,
+      "south": 52.40640260531183,
+      "west": 16.92519181949891
+    },
+    "closed_countries": [],
+    "corrections": {},
+    "distance_only_count": 0,
+    "drops": {},
+    "first_reading_millis": 1791547201000,
+    "last_reading_millis": 1791547201000,
+    "readers": [
+      [
+        {
+          "name": "btsearch",
+          "version": "0.4.0"
+        },
+        {
+          "derived_values": 0,
+          "rules_version": 12,
+          "snapshot_count": 1,
+          "source": "api",
+          "ta_on_confirmed": 0,
+          "ta_within_tolerance": 0
+        }
+      ]
+    ],
+    "sample_count": 2,
+    "skipped_rules": [],
+    "snapshot_count": 1,
+    "ta_residuals": [],
+    "trail_square_origins": [],
+    "value_checks": [],
+    "value_patterns": [],
+    "wall_clock_error_millis": 0
+  }
+}

@@ -23,6 +23,9 @@ const LABEL_MIN_GAP = 24;
 const LABEL_SPREAD_PASSES = 48;
 const MARK_SIZE = 18;
 const MARK_WEDGE_PATH = "M9 9L5.95 2.15A7.5 7.5 0 0 1 12.05 2.15Z";
+const MEASURED_LINE_START_RADIUS = 8;
+const MAX_MEASURED_HALF_ANGLE = 179.5;
+const NO_MEASURED_DIRECTIONS: readonly MeasuredCompassDirection[] = [];
 
 const SHAPE_LOOKS = {
   plain: { fillOpacity: 0.3, strokeOpacity: 1 },
@@ -70,8 +73,15 @@ type AzimuthCompassDirection = {
   isIndoor?: boolean;
 };
 
+export type MeasuredCompassDirection = {
+  id: number;
+  bearing: number;
+  spread: number;
+};
+
 type AzimuthCompassProps = {
   directions: readonly AzimuthCompassDirection[];
+  measuredDirections?: readonly MeasuredCompassDirection[];
   color?: string | null;
   hideLabels?: boolean;
   selectedAzimuth?: number | null;
@@ -122,10 +132,15 @@ function getCompassPoint(azimuth: number, radius: number): CompassPoint {
   return { x: CENTER + Math.sin(radians) * radius, y: CENTER - Math.cos(radians) * radius };
 }
 
+function getArcWedgePath(azimuth: number, halfAngle: number): string {
+  const from = getCompassPoint(azimuth - halfAngle, RIM_RADIUS);
+  const to = getCompassPoint(azimuth + halfAngle, RIM_RADIUS);
+  const largeArc = halfAngle * 2 > FULL_TURN / 2 ? 1 : 0;
+  return `M ${CENTER} ${CENTER} L ${from.x} ${from.y} A ${RIM_RADIUS} ${RIM_RADIUS} 0 ${largeArc} 1 ${to.x} ${to.y} Z`;
+}
+
 function getWedgePath(azimuth: number): string {
-  const from = getCompassPoint(azimuth - WEDGE_HALF_ANGLE, RIM_RADIUS);
-  const to = getCompassPoint(azimuth + WEDGE_HALF_ANGLE, RIM_RADIUS);
-  return `M ${CENTER} ${CENTER} L ${from.x} ${from.y} A ${RIM_RADIUS} ${RIM_RADIUS} 0 0 1 ${to.x} ${to.y} Z`;
+  return getArcWedgePath(azimuth, WEDGE_HALF_ANGLE);
 }
 
 function normalizeAzimuth(azimuth: number): number {
@@ -184,6 +199,7 @@ function listDistinctDirections(directions: readonly AzimuthCompassDirection[]):
 
 export function AzimuthCompass({
   directions,
+  measuredDirections = NO_MEASURED_DIRECTIONS,
   color,
   hideLabels = false,
   selectedAzimuth,
@@ -220,6 +236,15 @@ export function AzimuthCompass({
         >
           N
         </text>
+        {measuredDirections.map((measured) => (
+          <path
+            key={measured.id}
+            d={getArcWedgePath(measured.bearing, Math.min(measured.spread / 2, MAX_MEASURED_HALF_ANGLE))}
+            strokeDasharray="2 2"
+            strokeLinejoin="round"
+            className="fill-foreground/7 stroke-foreground/45"
+          />
+        ))}
         {entries.map((entry) => (
           <CompassShape
             key={entry.key}
@@ -229,6 +254,22 @@ export function AzimuthCompass({
             isIndoor={entry.direction.isIndoor === true}
           />
         ))}
+        {measuredDirections.map((measured) => {
+          const from = getCompassPoint(measured.bearing, MEASURED_LINE_START_RADIUS);
+          const to = getCompassPoint(measured.bearing, RIM_RADIUS);
+          return (
+            <line
+              key={measured.id}
+              x1={from.x}
+              y1={from.y}
+              x2={to.x}
+              y2={to.y}
+              strokeWidth="1.25"
+              strokeLinecap="round"
+              className="stroke-foreground/60"
+            />
+          );
+        })}
         {drawsSelection
           ? entries.map((entry) => <CompassSelectionOutline key={entry.key} azimuth={entry.direction.azimuth} isShown={entry.look === "selected"} />)
           : null}

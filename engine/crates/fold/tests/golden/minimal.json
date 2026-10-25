@@ -1,0 +1,38 @@
+{
+  "deltas": {
+    "cell_bins": [],
+    "cell_contributors": [],
+    "cell_networks": [],
+    "cell_readers": [],
+    "cell_ta_bins": [],
+    "cell_transitions": [],
+    "cell_values": [],
+    "contributor_months": [],
+    "handover_bins": [],
+    "neighbour_bins": [],
+    "nsa_links": [],
+    "person_trail_bins": [],
+    "same_reading_pairs": [],
+    "trail_levels": [],
+    "trail_squares": []
+  },
+  "report": {
+    "blocked_values": {},
+    "bounding_box": null,
+    "closed_countries": [],
+    "corrections": {},
+    "distance_only_count": 0,
+    "drops": {},
+    "first_reading_millis": null,
+    "last_reading_millis": null,
+    "readers": [],
+    "sample_count": 0,
+    "skipped_rules": [],
+    "snapshot_count": 0,
+    "ta_residuals": [],
+    "trail_square_origins": [],
+    "value_checks": [],
+    "value_patterns": [],
+    "wall_clock_error_millis": null
+  }
+}

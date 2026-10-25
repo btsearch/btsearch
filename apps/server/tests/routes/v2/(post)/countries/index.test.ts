@@ -12,6 +12,7 @@ const row = {
   structureOwnerProposals: true,
   psc: false,
   bsic: false,
+  observationsPublic: true,
   viewWest: null,
   viewSouth: null,
   viewEast: null,
@@ -44,13 +45,13 @@ describe("POST /countries", () => {
     expect(mutation).toBeDefined();
     expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "audit_logs")).toBe(true);
     expect(response.json()).toMatchObject({ data: { code: "PL" } });
-    expect(response.json().data.features).toEqual({ structureOwnerProposals: true, psc: false, bsic: false });
+    expect(response.json().data.features).toEqual({ structureOwnerProposals: true, psc: false, bsic: false, observationsPublic: true });
     expect(redisMock.del).toHaveBeenCalledWith("countries:v2:visibility");
     expect(redisMock.del.mock.invocationCallOrder[0]).toBeGreaterThan(Math.max(...dbMock.insert.mock.invocationCallOrder));
   });
 
   it("accepts country-specific feature values during creation", async () => {
-    const features = { structureOwnerProposals: false, psc: true, bsic: false };
+    const features = { structureOwnerProposals: false, psc: true, bsic: false, observationsPublic: false };
     scriptAudit();
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("insert", "countries", [{ ...row, ...features }]);

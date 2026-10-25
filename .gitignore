@@ -8,6 +8,7 @@
 
 # Output folder(s)
 dist/
+engine/target/
 
 # Node
 node_modules

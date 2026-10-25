@@ -1,4 +1,4 @@
-import type { Country, OfficialLayer, Operator } from "@openbts/shared/contract";
+import type { Country, ObservedSiteStatus, OfficialLayer, Operator } from "@openbts/shared/contract";
 import { type BackhaulMedium, OFFICIAL_RAT_FILTERS, type OfficialRatFilter } from "@openbts/shared/contract/constants";
 
 import { RAT_OPTIONS } from "../constants";
@@ -11,6 +11,8 @@ import type { StationSource, StationStatus } from "@/types/station";
 export type MapRecentDateField = "createdAt" | "updatedAt";
 
 export type MapCountryCapability = "official" | "microwaveLinks" | "emf";
+
+export type EstimatedSiteStatus = Exclude<ObservedSiteStatus, "replaced">;
 
 export type CapableCountries = readonly Pick<Country, "code" | "capabilities">[] | undefined;
 
@@ -28,6 +30,9 @@ export type MapFilters = {
   radiolineOperators: number[];
   showHeatmap: boolean;
   showPlannedMeasurements: boolean;
+  showEstimatedSites: boolean;
+  showTrails: boolean;
+  estimatedSiteStatuses: EstimatedSiteStatus[];
   uplinkTypes: BackhaulMedium[];
 };
 
@@ -45,6 +50,9 @@ const DEFAULT_RECENT_DATE_FIELD: MapRecentDateField = "createdAt";
 const LEGACY_OFFICIAL_SOURCE = "uke";
 const MAP_STATUSES: ReadonlySet<string> = new Set<StationStatus>(["published", "pending", "inactive"]);
 const RECENT_DATE_FIELDS: ReadonlySet<string> = new Set<MapRecentDateField>(["createdAt", "updatedAt"]);
+export const ESTIMATED_SITE_STATUSES: readonly EstimatedSiteStatus[] = ["unmatched", "suggested", "matched", "ignored"];
+export const DEFAULT_ESTIMATED_SITE_STATUSES: readonly EstimatedSiteStatus[] = ["unmatched", "suggested"];
+const ESTIMATED_SITE_STATUS_SET: ReadonlySet<string> = new Set(ESTIMATED_SITE_STATUSES);
 const INTERNAL_MAP_RATS: ReadonlySet<string> = new Set<string>(RAT_OPTIONS.map((rat) => rat.value));
 const STORED_REGISTER_RATS: Readonly<Record<OfficialRatFilter, string>> = {
   nr: "NR",
@@ -73,6 +81,9 @@ export const DEFAULT_MAP_FILTERS: MapFilters = {
   radiolineOperators: [],
   showHeatmap: false,
   showPlannedMeasurements: false,
+  showEstimatedSites: true,
+  showTrails: false,
+  estimatedSiteStatuses: [...DEFAULT_ESTIMATED_SITE_STATUSES],
   uplinkTypes: [],
 };
 
@@ -102,6 +113,10 @@ function isMapRecentDateField(value: string): value is MapRecentDateField {
   return RECENT_DATE_FIELDS.has(value);
 }
 
+function isEstimatedSiteStatus(value: string): value is EstimatedSiteStatus {
+  return ESTIMATED_SITE_STATUS_SET.has(value);
+}
+
 export function isDefaultMapStatus(status: readonly StationStatus[]): boolean {
   return status.length === 1 && status[0] === DEFAULT_MAP_STATUS;
 }
@@ -124,6 +139,7 @@ export function sanitizeMapFilters(filters: MapFilters, registerRats?: readonly 
   const knownRats = listKnownMapRats(filters.source, registerRats);
   const status = unique(filters.status);
   const recentDateFields = unique(filters.recentDateFields);
+  const estimatedSiteStatuses = unique(filters.estimatedSiteStatuses);
 
   return {
     ...filters,
@@ -135,6 +151,7 @@ export function sanitizeMapFilters(filters: MapFilters, registerRats?: readonly 
     recentDays: filters.recentDays === null ? null : clampRecentDays(filters.recentDays),
     recentDateFields: recentDateFields.length > 0 ? recentDateFields : [DEFAULT_RECENT_DATE_FIELD],
     radiolineOperators: unique(filters.radiolineOperators.filter(isRecordId)),
+    estimatedSiteStatuses: estimatedSiteStatuses.length > 0 ? estimatedSiteStatuses : [...DEFAULT_ESTIMATED_SITE_STATUSES],
     uplinkTypes: unique(filters.uplinkTypes),
   };
 }
@@ -154,6 +171,9 @@ export function readStoredMapFilters(stored: Record<string, unknown>): MapFilter
     radiolineOperators: readNumbers(stored.radiolineOperators),
     showHeatmap: stored.showHeatmap === true,
     showPlannedMeasurements: stored.showPlannedMeasurements === true,
+    showEstimatedSites: stored.showEstimatedSites !== false,
+    showTrails: stored.showTrails === true,
+    estimatedSiteStatuses: readStrings(stored.estimatedSiteStatuses).filter(isEstimatedSiteStatus),
     uplinkTypes: readStrings(stored.uplinkTypes).filter(isBackhaulMedium),
   });
 }
@@ -243,6 +263,9 @@ export function clearMapFilters(filters: MapFilters): MapFilters {
     radiolineOperators: [],
     showHeatmap: filters.showHeatmap,
     showPlannedMeasurements: filters.showPlannedMeasurements,
+    showEstimatedSites: filters.showEstimatedSites,
+    showTrails: filters.showTrails,
+    estimatedSiteStatuses: [...DEFAULT_ESTIMATED_SITE_STATUSES],
     uplinkTypes: [],
   };
 }

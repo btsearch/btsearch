@@ -75,6 +75,7 @@ type LocationPickerProps = {
   titleExtras?: ReactNode;
   afterCoordinates?: LocationPickerSlot;
   regionHint?: ReactNode;
+  mapOverlay?: ReactNode;
   children?: LocationPickerSlot;
 };
 
@@ -207,6 +208,7 @@ export function LocationPicker({
   titleExtras,
   afterCoordinates,
   regionHint,
+  mapOverlay,
   children,
 }: LocationPickerProps) {
   const { t, i18n } = useTranslation(["submissions", "common"]);
@@ -328,6 +330,7 @@ export function LocationPicker({
           onPlaceDetect={(location) => onPlaceDetect?.(location)}
           onMatchChange={setMatchedLocation}
           onRegisterStationPick={(site) => onRegisterStationPick?.(site)}
+          overlay={mapOverlay}
         />
       </div>
 

@@ -5,8 +5,9 @@ import { jsonSchemaTransform } from "fastify-type-provider-zod";
 import { z } from "zod/v4";
 
 import { baseUrl } from "../../config.js";
-import { APP_NAME } from "../../constants.js";
+import { APP_NAME, IDEMPOTENCY_REPLAY_MAX_BYTES, IDEMPOTENCY_REPLAY_SECONDS } from "../../constants.js";
 import { toDocumentedSchema } from "../../lib/documentedSchema.js";
+import { withDiscriminators } from "./discriminators.js";
 import { API_ERROR_SCHEMA, buildSharedErrorResponses, isErrorPlan, planErrorResponses, withErrorResponses } from "./errorResponses.js";
 import { type Json, type JsonObject, isJsonObject } from "./json.js";
 import { type OpenApiDocument, nameModels, toJsonModel } from "./models.js";
@@ -21,6 +22,8 @@ const PLUGIN_PLACEHOLDER_DESCRIPTION = "Default Response";
 const SUCCESS_DESCRIPTIONS: Record<string, string> = { 200: "OK", 201: "Created", 204: "No content" };
 const METHOD_ORDER = ["get", "post", "put", "patch", "delete"];
 const STANDALONE_MODELS = { MeasurementBatch: measurementBatchSchema };
+const SECONDS_PER_HOUR = 3600;
+const BYTES_PER_KB = 1024;
 
 const API_DESCRIPTION = [
   `Welcome to the ${APP_NAME} API! Everything you see on the site is available here: base stations, the locations they stand on, ` +
@@ -42,6 +45,9 @@ const API_DESCRIPTION = [
     "A cursor only works with the `sort` it came from, and a leading `-` in `sort` means descending order. " +
     "Most lists also take `includeTotal=true`, which adds `paging.total`.",
   "Hidden countries and everything in them are left out unless you have access to them, " + "and asking for something in one by id gives 404.",
+  "## Following changes",
+  "Lists with `updatedAfter` return what changed at or after that time. A change can be recorded with a time slightly earlier than when you can see it, " +
+    "so ask again from a minute before the latest `updatedAt` you have, and drop the rows you already hold.",
   "## Errors",
   "Errors always have the same shape: an `errors` array whose entries have a stable `code`, a human-readable `message` and " +
     "sometimes `details`. Rely on the status and the `code` in your code, not on the message.",
@@ -49,19 +55,42 @@ const API_DESCRIPTION = [
     "still apply and are not repeated there: a 400 can always be a field that did not pass validation, and a 403 a missing permission, " +
     "an invalid API key, editor access that does not cover the country or region, two-factor authentication that still has to be set up, " +
     "or an endpoint that has been disabled.",
+  "Every response has an `X-Request-Id` header, except the public tiles and site lists the cache answers. " +
+    "Quote it when you report an error, so the request can be found in the logs.",
+  "## Tiles",
+  "Tile endpoints answer Mapbox vector tiles (`application/vnd.mapbox-vector-tile`) with an extent of 256, addressed by `{z}/{x}/{y}` as web maps address them. " +
+    "An empty tile is a 200 with an empty body. " +
+    "Each tile endpoint has a TileJSON document that map libraries read as it is, so it is not wrapped in `data`.",
+  "Public tiles come from a cache shared by everyone and can be up to an hour old, and your browser may show a copy up to a day old " +
+    "while it fetches a new one. Requests with an API key always reach the server, so the key's quota and scope apply to them.",
   "## Rate limits",
   "Requests are rate limited. Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. " +
     "API keys also have a weekly quota, reported in `X-Quota-Limit`, `X-Quota-Remaining` and " +
     "`X-Quota-Reset`. When you go over a limit you get a 429, and `X-Retry-After` tells you how many seconds to wait.",
   "## Idempotency",
-  "If you send an `X-Idempotency-Key` header with a POST, a second POST with the same key is rejected with 409 `DUPLICATE_REQUEST` " +
-    "while the first one is still being processed. That protects you from double clicks and from retries that arrive too early.",
+  "Send an `X-Idempotency-Key` header with a POST, a new random value such as a UUID for each request, and you can safely retry it " +
+    "when its response gets lost. A retry with the same key and the same request does not run again. " +
+    "You get the first response back instead, with an `Idempotent-Replayed: true` header.",
+  `Responses are kept for ${IDEMPOTENCY_REPLAY_SECONDS / SECONDS_PER_HOUR} hours. Server errors, 429s and responses larger than ` +
+    `${IDEMPOTENCY_REPLAY_MAX_BYTES / BYTES_PER_KB} KB are not kept, so a retry after one of them runs again. ` +
+    "`POST /cells/match`, `POST /terrain-profiles` and `POST /measurements/device-challenges` never keep their responses, " +
+    "because running them again is safe. " +
+    "While the first request is still being processed, a retry gets 409 `DUPLICATE_REQUEST`. " +
+    "Reusing a key for a different request gets 422 `IDEMPOTENCY_KEY_REUSED`.",
+  "A key is tied to you and to the path you sent it to. It needs a session, an API key or an OAuth token, and it is ignored on requests without one. " +
+    "The same request means the same query and the same JSON body. The file of an upload is not compared.",
   "## Grouping requests in the audit log",
   "Every change is recorded in the audit log as an operation. When one action takes several requests, for example a new station " +
     "followed by its photos, send the same UUID in an `X-Audit-Operation-Id` header with each of them and they are recorded as one operation.",
-  "Requests are grouped when the same signed-in user sends them within an hour and they belong together: " +
-    "changes to stations, locations, cells and their photos; a submission with its photos and its review; analyzer results applied in parts; " +
-    "a brand with its logo; a band with its band plan entries. Anything else is recorded as an operation of its own, as it is without the header. " +
+  "Requests are grouped when the same signed-in user sends them within an hour and they belong together:",
+  [
+    "- changes to stations, locations, cells and their photos",
+    "- a submission with its photos and its review",
+    "- analyzer results applied in parts",
+    "- a brand with its logo",
+    "- a band with its band plan entries",
+  ].join("\n"),
+  "Anything else is recorded as an operation of its own, as it is without the header. " +
     "The header is optional and never makes a request fail. It is ignored on requests authenticated with an API key.",
 ].join("\n\n");
 
@@ -170,6 +199,7 @@ export function buildSwaggerOptions(prefix: string): FastifyDynamicSwaggerOption
         .map((path) => [path, completeOperationsInMethodOrder(generatedPaths[path])]),
     );
     const { paths, models } = nameModels(sortedPaths, openapiObject);
+    const schemas = { ApiError: API_ERROR_SCHEMA, ...models, ...toStandaloneModels(openapiObject) };
 
     const document = {
       openapi: openapiObject.openapi,
@@ -177,11 +207,11 @@ export function buildSwaggerOptions(prefix: string): FastifyDynamicSwaggerOption
       servers: openapiObject.servers,
       tags: openapiObject.tags,
       "x-tagGroups": TAG_GROUPS,
-      paths,
+      paths: withDiscriminators(paths, schemas),
       components: {
         securitySchemes: openapiObject.components?.securitySchemes,
         responses: buildSharedErrorResponses(),
-        schemas: { ApiError: API_ERROR_SCHEMA, ...models, ...toStandaloneModels(openapiObject) },
+        schemas: withDiscriminators(schemas, schemas),
       },
     };
     return document as unknown as OpenApiDocument;

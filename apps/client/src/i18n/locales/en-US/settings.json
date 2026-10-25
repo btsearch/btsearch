@@ -335,6 +335,24 @@
   "measurements": {
     "uploadsOff": "Measurement uploads are switched off right now. You can still download and withdraw your measurements",
     "reason": "Reason: {{reason}}",
+    "summary": {
+      "title": "Your contribution",
+      "description": "Only uploads whose readings are in use now count",
+      "uploads": "Uploads",
+      "uploadsSince": "since {{date}}",
+      "samples": "Readings",
+      "samplesHint": "used from these uploads",
+      "squares": "New squares",
+      "squaresHint": "nobody measured there before you",
+      "cells": "New cells",
+      "sites": "New stations",
+      "discoveriesHint": "nobody measured them before you",
+      "country": "Country",
+      "newNote": "A new cell or station is one nobody measured before you - it may already be in the database",
+      "empty": "No contribution yet",
+      "emptyDescription": "The numbers show up once one of your uploads is processed",
+      "loadFailed": "Couldn't load your totals"
+    },
     "devices": {
       "title": "Devices",
       "description": "Phones the BTSearch app uploads measurements from",
@@ -353,7 +371,34 @@
       "loadFailed": "Couldn't load devices",
       "revokeConfirmTitle": "Revoke this device?",
       "revokeConfirmDescription": "The app on \"{{name}}\" will stop uploading measurements. Measurements it already uploaded stay until you withdraw them. Only an administrator can restore the device",
-      "revokeSuccess": "Device revoked"
+      "revokeSuccess": "Device revoked",
+      "calibration": {
+        "show": "Show calibration",
+        "hide": "Hide calibration",
+        "summary": "Calibration: {{rats}}",
+        "none": "Not calibrated",
+        "title": "Distance to the station",
+        "description": "The app estimates your distance to the station from TA, the number of steps the network reports. We measure how long a step is on phones with a similar modem",
+        "calibrated": "Calibrated",
+        "sources": {
+          "api": "through Android",
+          "modemLog": "from the modem log",
+          "modemPoll": "from the modem"
+        },
+        "standardStep": "The app uses the standard step of {{step}} m and marks the distance as unchecked",
+        "androidNr": "Android gives no unit for 5G, so the app shows this distance only after calibration",
+        "step": "A step is {{step}} m instead of the standard {{standard}} m",
+        "stepSubtract": "A step is {{step}} m instead of the standard {{standard}} m, and we subtract {{offset}} m from the result",
+        "stepAdd": "A step is {{step}} m instead of the standard {{standard}} m, and we add {{offset}} m to the result",
+        "ownStep": "A step is {{step}} m",
+        "ownStepSubtract": "A step is {{step}} m, and we subtract {{offset}} m from the result",
+        "ownStepAdd": "A step is {{step}} m, and we add {{offset}} m to the result",
+        "example_one": "At {{count, number}} step: {{distance}} m instead of {{standard}} m",
+        "example_other": "At {{count, number}} steps: {{distance}} m instead of {{standard}} m",
+        "ownExample_one": "At {{count, number}} step: {{distance}} m",
+        "ownExample_other": "At {{count, number}} steps: {{distance}} m",
+        "pending": "Calibration shows up once phones with a similar modem have collected enough measurements near stations with a known position"
+      }
     },
     "limit": {
       "title": "Upload limit",
@@ -399,7 +444,107 @@
       "withdrawAllConfirmTitle": "Withdraw all measurements?",
       "withdrawAllConfirmDescription": "You'll withdraw every upload from all your devices. The files will be deleted within the hour, but your devices will stay registered. This can't be undone",
       "withdrawAllSuccess_one": "{{count, number}} upload withdrawn",
-      "withdrawAllSuccess_other": "{{count, number}} uploads withdrawn"
+      "withdrawAllSuccess_other": "{{count, number}} uploads withdrawn",
+      "waiting": "The result shows up once the upload is processed",
+      "keptOfTotal_one": "{{kept, number}} of {{count, number}} reading used",
+      "keptOfTotal_other": "{{kept, number}} of {{count, number}} readings used",
+      "newCells_one": "{{count, number}} new cell",
+      "newCells_other": "{{count, number}} new cells",
+      "newSites_one": "{{count, number}} new station",
+      "newSites_other": "{{count, number}} new stations",
+      "showDetails": "Show details",
+      "hideDetails": "Hide details",
+      "errors": {
+        "excluded": "An administrator excluded this upload, so you can't withdraw it",
+        "withdrawn": "This upload has already been withdrawn",
+        "notExcluded": "This upload is no longer excluded",
+        "fileDeleted": "The file has already been deleted"
+      },
+      "rejections": {
+        "fileMissing": "the server couldn't find the file",
+        "sealFailed": "the server couldn't decrypt the file",
+        "bodyMismatch": "the file's contents don't match what was uploaded",
+        "invalidDocument": "the file's format is invalid",
+        "formatVersion": "the file's format version isn't supported",
+        "idMismatch": "the ID in the file doesn't match the uploaded one",
+        "limitExceeded": "the file is too large or covers too much time",
+        "noSamples": "none of the file's readings could be used",
+        "processingFailed_one": "processing the file failed",
+        "processingFailed_other": "processing the file failed {{count, number}} times"
+      },
+      "dropReasons": {
+        "mockLocation": {
+          "label": "Mock location",
+          "hint": "An app that fakes the location gave the position"
+        },
+        "poorAccuracy": {
+          "label": "Poor GPS accuracy",
+          "hint": "The position was more than 50 m off"
+        },
+        "implausibleFix": {
+          "label": "Impossible position",
+          "hint": "Speed or altitude too high"
+        },
+        "noPosition": {
+          "label": "No position",
+          "hint": "The phone had no GPS position at that moment"
+        },
+        "badTime": {
+          "label": "Wrong time",
+          "hint": "Outside the file's time range or in the future"
+        },
+        "tooOld": {
+          "label": "Reading too old",
+          "hint": "Over 90 days old when it was uploaded"
+        },
+        "duplicate": {
+          "label": "Repeated reading",
+          "hint": "The same moment was recorded twice"
+        },
+        "implausible": {
+          "label": "Network from another country",
+          "hint": "A network from a country more than 30 km away"
+        },
+        "closedCountry": {
+          "label": "Country without measurements",
+          "hint": "Measurements are switched off in this country"
+        },
+        "readingBlock": {
+          "label": "Blocked reading",
+          "hint": "Readings like these from this model are often wrong"
+        },
+        "noLevel": {
+          "label": "No signal level",
+          "hint": "There was neither a signal level nor TA"
+        },
+        "noIdentity": {
+          "label": "Incomplete cell data",
+          "hint": "No channel, PCI or network"
+        }
+      },
+      "details": {
+        "kept": "Readings used",
+        "keptValue": "{{kept, number}} of {{total, number}}",
+        "distanceOnly": "including {{readings, number}} used only for distance",
+        "distanceOnlyHint": "no signal level, but with TA",
+        "dropped": "Skipped",
+        "noDrops": "Nothing was skipped",
+        "closedCountries_one": "Measurements are switched off in {{countries}}",
+        "closedCountries_other": "Measurements are switched off in {{countries}}",
+        "new": "New in this upload",
+        "squares_one": "square",
+        "squares_other": "squares",
+        "cells_one": "cell",
+        "cells_other": "cells",
+        "sites_one": "station",
+        "sites_other": "stations",
+        "newSquaresHint": "Nobody measured there before this upload",
+        "newCellsHint": "Nobody measured them before this upload. The cells and stations may already be in the database",
+        "nothingNew": "No new squares, cells or stations",
+        "span": "Measured",
+        "spanValue": "{{start}} - {{end}}",
+        "processedAt": "Processed"
+      }
     }
   },
   "profile": {

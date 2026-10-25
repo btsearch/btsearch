@@ -14,7 +14,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { AzimuthCompass } from "@/components/cellular/azimuthCompass";
 import { CollapsibleSection } from "@/components/content/collapsibleSection";
 import { EntityNotFound, EntityRouteError, entityPageChipClassName } from "@/components/content/entityPage";
 import { PhotoStrip } from "@/components/photos/photoStrip";
@@ -44,10 +43,11 @@ import { StationOverviewGrid } from "@/features/station-details/station/componen
 import { HostStationLink } from "@/features/station-details/station/components/panel/hostStationLink";
 import { StationPanelHeading } from "@/features/station-details/station/components/panel/stationPanelHeading";
 import { listShownPhotos } from "@/features/station-details/station/components/photos/stationPhotos";
-import type { Sector, StationRecord } from "@/features/station-details/station/types";
+import { StationSectorsSummary } from "@/features/station-details/station/components/sectors/stationSectorsSummary";
+import { MeasuredCoveragePanel } from "@/features/station-details/station/measurements/measuredCoveragePanel";
+import type { StationRecord } from "@/features/station-details/station/types";
 import { getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
-import { formatSectorAzimuth } from "@/features/station-details/station/utils/sectors";
 import { findHostStation, getStationCountryCode, getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { usePreferences } from "@/hooks/usePreferences";
 import { settingsQueryOptions, useSettings } from "@/hooks/useSettings";
@@ -57,11 +57,6 @@ import { authClient } from "@/lib/auth/client";
 import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { queryClient } from "@/lib/queryClient";
 import { buildPageHead, getBrowserOrigin } from "@/lib/seo";
-
-type StationSectorsCompassProps = {
-  sectors: readonly Sector[];
-  color: string;
-};
 
 function stationHead(station: StationRecord, sources: readonly OfficialSource[]) {
   return buildPageHead(
@@ -91,13 +86,6 @@ function StationNotFound() {
 
 function StationRouteError() {
   return <EntityRouteError titleKey="page.stationUnavailableTitle" descriptionKey="common:error.tryLater" />;
-}
-
-function StationSectorsCompass({ sectors, color }: StationSectorsCompassProps) {
-  const { t } = useTranslation("stationDetails");
-  const directions = sectors.map((sector) => ({ azimuth: sector.azimuth, name: formatSectorAzimuth(sector.azimuth, t) }));
-
-  return <AzimuthCompass directions={directions} color={color} className="size-56 sm:size-60" />;
 }
 
 function StationPage() {
@@ -296,16 +284,7 @@ function StationPage() {
 
           {station.sectors.length > 0 ? (
             <CollapsibleSection title={t("tabs.sectors")}>
-              <div className="flex flex-col items-center gap-4 py-2">
-                <StationSectorsCompass sectors={station.sectors} color={operatorColor} />
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {station.sectors.map((sector, index) => (
-                    <span key={sector.id} className="text-xs font-medium text-muted-foreground tabular-nums">
-                      A{index + 1}: {formatSectorAzimuth(sector.azimuth, t)}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <StationSectorsSummary station={station} color={operatorColor} />
             </CollapsibleSection>
           ) : null}
         </aside>
@@ -319,6 +298,8 @@ function StationPage() {
             ) : null}
             <StationCellTables station={station} showHeading={false} />
           </CollapsibleSection>
+
+          <MeasuredCoveragePanel station={station} sectionTitle={t("main:crowd.coverage.title")} />
 
           {isOfficialCountry ? (
             <CollapsibleSection title={permitsSourceName === null ? t("tabs.registerPermits") : t("tabs.permits", { source: permitsSourceName })}>

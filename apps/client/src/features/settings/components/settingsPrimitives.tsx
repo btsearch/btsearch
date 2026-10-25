@@ -1,6 +1,6 @@
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
-import { InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ComponentProps, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -166,6 +167,31 @@ export function SettingsRow({
   );
 }
 
+export function SettingsRowToggle({ label, isOpen }: { label: string; isOpen: boolean }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex max-sm:ml-auto" />}>
+        <CollapsibleTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label={label} className="text-muted-foreground" />}>
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            aria-hidden="true"
+            className={cn("transition-transform duration-150 ease-out motion-reduce:transition-none", isOpen && "rotate-180")}
+          />
+        </CollapsibleTrigger>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function SettingsRowPanel({ children }: { children: ReactNode }) {
+  return (
+    <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
+      <div className="px-4 pb-4 sm:pr-5 sm:pl-[4.125rem]">{children}</div>
+    </CollapsibleContent>
+  );
+}
+
 export function SettingsMeta({ children }: { children: ReactNode }) {
   return (
     <span className="block overflow-x-clip">
@@ -236,6 +262,7 @@ const STATUS_BADGE_TONES = {
   warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   primary: "bg-primary/10 text-primary",
   muted: "bg-muted text-muted-foreground",
+  destructive: "bg-destructive/10 text-destructive",
 } as const;
 
 export function StatusBadge({
@@ -261,13 +288,15 @@ export function UsageMeter({
   label,
   usage,
   format,
+  warnAbove = 0.6,
 }: {
   label: string;
   usage: { used: number; max: number | null };
   format: (value: number) => string;
+  warnAbove?: number;
 }) {
   const { t } = useTranslation("settings");
-  const percent = usage.max !== null && usage.max > 0 ? Math.min((usage.used / usage.max) * 100, 100) : 0;
+  const share = usage.max !== null && usage.max > 0 ? Math.min(usage.used / usage.max, 1) : 0;
 
   return (
     <div className="min-w-0 flex-1">
@@ -278,7 +307,10 @@ export function UsageMeter({
         </span>
       </div>
       <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full", percent > 60 ? "bg-destructive" : "bg-muted-foreground/40")} style={{ width: `${percent}%` }} />
+        <div
+          className={cn("h-full rounded-full", share > warnAbove ? "bg-destructive" : "bg-muted-foreground/40")}
+          style={{ width: `${share * 100}%` }}
+        />
       </div>
     </div>
   );

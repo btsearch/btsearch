@@ -1,0 +1,225 @@
+{
+  "deltas": {
+    "cell_bins": [
+      [
+        {
+          "bin": 422828011994,
+          "cell": {
+            "cell_key": 7895554,
+            "plmn": "26006",
+            "rat": "Umts"
+          }
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsq": 77440000000,
+          "level_wsum": -8800000,
+          "offset_x_wsum": -389000,
+          "offset_y_wsum": -621000,
+          "quality_weight_milli": 1000,
+          "quality_wsum": -900000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "serving_weight_milli": 1000,
+          "sinr_weight_milli": 0,
+          "sinr_wsq": 0,
+          "sinr_wsum": 0,
+          "stationary_count": 0,
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "cell_contributors": [
+      [
+        {
+          "cell": {
+            "cell_key": 7895554,
+            "plmn": "26006",
+            "rat": "Umts"
+          },
+          "device_id": "01a0bdd4-4400-7d2e-8f30-415263748596"
+        },
+        {
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "trip_count": 1
+        }
+      ]
+    ],
+    "cell_networks": [],
+    "cell_readers": [
+      [
+        {
+          "cell": {
+            "cell_key": 7895554,
+            "plmn": "26006",
+            "rat": "Umts"
+          },
+          "reader": {
+            "name": "btsearch",
+            "version": "0.4.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ]
+    ],
+    "cell_ta_bins": [],
+    "cell_transitions": [],
+    "cell_values": [
+      [
+        {
+          "cell": {
+            "cell_key": 7895554,
+            "plmn": "26006",
+            "rat": "Umts"
+          },
+          "field": "AreaCode",
+          "held": false,
+          "value": 1100
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 7895554,
+            "plmn": "26006",
+            "rat": "Umts"
+          },
+          "field": "Pci",
+          "held": true,
+          "value": 211
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 7895554,
+            "plmn": "26006",
+            "rat": "Umts"
+          },
+          "field": "Channel",
+          "held": true,
+          "value": 10563
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ]
+    ],
+    "contributor_months": [],
+    "handover_bins": [],
+    "neighbour_bins": [
+      [
+        {
+          "bin": 26426750749,
+          "channel": 10563,
+          "held": true,
+          "pci": 87,
+          "plmn": "26006",
+          "rat": "Umts"
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsum": -10100000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "nsa_links": [],
+    "person_trail_bins": [
+      [
+        {
+          "bin": 26426750749,
+          "plmn": "26006",
+          "rat": "Umts",
+          "user_id": "11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 1
+        }
+      ]
+    ],
+    "same_reading_pairs": [],
+    "trail_levels": [],
+    "trail_squares": []
+  },
+  "report": {
+    "blocked_values": {
+      "1": {
+        "dropped": 0,
+        "held": 4
+      }
+    },
+    "bounding_box": {
+      "east": 17.0385376,
+      "north": 51.1078852,
+      "south": 51.1078852,
+      "west": 17.0385376
+    },
+    "closed_countries": [],
+    "corrections": {},
+    "distance_only_count": 0,
+    "drops": {},
+    "first_reading_millis": 1791547201100,
+    "last_reading_millis": 1791547201100,
+    "readers": [
+      [
+        {
+          "name": "btsearch",
+          "version": "0.4.0"
+        },
+        {
+          "derived_values": 0,
+          "rules_version": 12,
+          "snapshot_count": 1,
+          "source": "api",
+          "ta_on_confirmed": 0,
+          "ta_within_tolerance": 0
+        }
+      ]
+    ],
+    "sample_count": 2,
+    "skipped_rules": [],
+    "snapshot_count": 1,
+    "ta_residuals": [],
+    "trail_square_origins": [],
+    "value_checks": [],
+    "value_patterns": [],
+    "wall_clock_error_millis": 0
+  }
+}

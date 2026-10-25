@@ -4,10 +4,12 @@ import { type SQL, getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
+import { raiseRenumberedFlag } from "../../../../../src/features/observed/flags/sites/renumbered.js";
 import route from "../../../../../src/routes/v2/(post)/cells/apply.js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
 import { cellBands, cellInputs, prepareCellChange, radioTables, storedCell, writeCreatedCells } from "../../../../helpers/cellWriteFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
+import { BIALYSTOK, siteRecord } from "../../../../helpers/siteRecordFixtures.js";
 import { stationRow } from "../../../../helpers/stationFixtures.js";
 
 const lteTable = getTableName(lteCells);
@@ -30,12 +32,12 @@ function snapshot(row: ReturnType<typeof storedCell>) {
   return { ...cell, gsm, umts, lte, nr };
 }
 
-function prepareLteUpdate(options: { oldTac?: number | null; operatorId?: number | null; countryCode?: string } = {}) {
+function prepareLteUpdate(options: { oldTac?: number | null; operatorId?: number | null; countryCode?: string; tools?: string[] } = {}) {
   const old = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: options.oldTac ?? null }, 11);
   const station = stationRow({ operator_id: options.operatorId ?? null, location: null, sectors: [] });
   const countryCode = options.countryCode ?? "PL";
   dbMock.enqueueFor("select", "stations", [{ station, countryCode }], [{ locationCountry: null, operatorCountry: null }], []);
-  dbMock.enqueueFor("select", "countries", [], [{ tools: ["analyzer"] }]);
+  dbMock.enqueueFor("select", "countries", [], [{ tools: options.tools ?? ["analyzer"] }]);
   dbMock.enqueueFor("select", "cells", [old]);
   dbMock.enqueueFor("select", "bands", cellBands);
   dbMock.query.stations.findFirst.mockResolvedValue(station);
@@ -326,7 +328,7 @@ describe("POST /cells/apply", () => {
     writeCreatedCells([{ ...cellInputs.lte, isConfirmed: true }], { missingListed: true });
     const { response, errors } = await request([{ stationId: 1, cells: [{ action: "create", ...cellInputs.lte }] }]);
     expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(200);
-    expect(response.json()).toEqual({ data: [{ stationId: 1, cells: [] }], operationId: 9 });
+    expect(response.json()).toEqual({ data: [{ stationId: 1, cells: [], closedObservationFlagIds: [] }], operationId: 9 });
   });
 
   it("writes stations in request order within one audited operation", async () => {
@@ -410,6 +412,133 @@ describe("POST /cells/apply", () => {
     const lteInserts = dbMock.calls.filter((call) => call.operation === "insert" && call.table === lteTable);
     expect(lteInserts.map((call) => call.values)).toMatchObject([{ tac: 10 }, { tac: 20 }]);
     expect(dbMock.calls.some((call) => call.operation === "update" && call.table === lteTable)).toBe(false);
+  });
+
+  describe("with observationFlagIds", () => {
+    const flag = { id: 4101, kind: "valueDiffers", stationId: 1, closedReason: null, observedCellId: 50411, observedSiteId: 9205 };
+    const secondFlag = { ...flag, id: 4102, observedCellId: 50412 };
+    const fix = [{ stationId: 1, observationFlagIds: [4101, 4102], cells: [{ action: "update", id: 11, pci: 301 }] }];
+
+    function flagWrites() {
+      return dbMock.calls.filter((call) => call.operation !== "select" && (call.table === "observation_flags" || call.table === "match_queue"));
+    }
+
+    function cellWrites() {
+      return dbMock.calls.filter((call) => call.operation !== "select" && (call.table === "cells" || call.table === lteTable));
+    }
+
+    it("closes the station's flags in its operation, names them there and in the answer, and queues their observed cells, where only measurements are on", async () => {
+      const old = prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: 20, pci: 301, isConfirmed: true }, 11);
+      dbMock.query.cells.findMany
+        .mockResolvedValueOnce([snapshot(old)])
+        .mockResolvedValueOnce([snapshot(old)])
+        .mockResolvedValueOnce([snapshot(next)]);
+      dbMock.enqueueFor("select", lteTable, [], []);
+      dbMock.enqueueFor("select", "observation_flags", [flag, secondFlag]);
+      dbMock.enqueueFor("update", "observation_flags", []);
+      dbMock.enqueueFor("insert", "match_queue", []);
+      writeLteUpdate(next);
+
+      const { response, errors } = await request(fix);
+
+      expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(200);
+      expect(response.json().data).toMatchObject([{ stationId: 1, closedObservationFlagIds: [4101, 4102] }]);
+      expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_operations")?.values).toMatchObject({
+        kind: "analyzer.apply",
+        metadata: { station_ids: [1], observation_flag_ids: [4101, 4102] },
+      });
+      expect(flagWrites().map((call) => [call.operation, call.table, call.values])).toMatchObject([
+        ["update", "observation_flags", { closedReason: "applied", resolvedById: userSession().user.id, suggestion: null }],
+        ["insert", "match_queue", [{ observedCellId: 50411 }, { observedCellId: 50412 }]],
+      ]);
+    });
+
+    it("applies a renumbered flag's suggestion as the flag holds it, and queues the cells of its site", async () => {
+      const previous = siteRecord({ id: 6120, nodeId: 100, status: "matched", matchedStationId: 1, lastSeenOn: "2026-10-01" });
+      const renumbered = raiseRenumberedFlag(
+        siteRecord({ id: 7310, nodeId: 24494, firstSeenOn: "2026-10-03" }),
+        [{ observedCellId: 51001, cellKey: 24494 * 256 + 2, channel: 1850, pci: 101 }],
+        [{ previous, stationId: 1, station: BIALYSTOK, cells: [{ cellId: 11, clid: 1, channel: 1850, pci: 101 }] }],
+        { quietBefore: "2026-10-11" },
+      );
+      const old = prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 24494, clid: 2, tac: 20, isConfirmed: true }, 11);
+      dbMock.query.cells.findMany
+        .mockResolvedValueOnce([snapshot(old)])
+        .mockResolvedValueOnce([snapshot(old)])
+        .mockResolvedValueOnce([snapshot(next)]);
+      dbMock.enqueueFor("select", lteTable, [], []);
+      dbMock.enqueueFor("select", "observation_flags", [{ ...flag, id: 4120, kind: "renumbered", observedCellId: null, observedSiteId: 7310 }]);
+      dbMock.enqueueFor("update", "observation_flags", []);
+      dbMock.enqueueFor("select", "observed_cells", [{ id: 51001 }]);
+      dbMock.enqueueFor("insert", "match_queue", []);
+      writeLteUpdate(next);
+
+      const { response, errors } = await request([{ stationId: 1, cells: renumbered?.suggestion.cells, observationFlagIds: [4120] }]);
+
+      expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(200);
+      expect(renumbered?.suggestion.cells).toEqual([{ action: "update", id: 11, enbid: 24494, clid: 2 }]);
+      expect(flagWrites().map((call) => [call.operation, call.table, call.values])).toMatchObject([
+        ["update", "observation_flags", { closedReason: "applied" }],
+        ["insert", "match_queue", [{ observedCellId: 51001 }]],
+      ]);
+    });
+
+    it.each([
+      ["a flag of another station", [flag, { ...secondFlag, stationId: 2 }], 400, "BAD_REQUEST", "Flag 4102 is about another station"],
+      ["a flag that does not exist", [flag], 404, "NOT_FOUND", "Flag 4102 does not exist"],
+      [
+        "a flag of a kind this request does not apply",
+        [flag, { ...secondFlag, kind: "bandNotInPlan" }],
+        400,
+        "BAD_REQUEST",
+        "A bandNotInPlan flag is not applied with this request",
+      ],
+    ])("refuses %s and writes nothing", async (_title, stored, statusCode, code, message) => {
+      prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      dbMock.enqueueFor("select", lteTable, []);
+      dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
+      dbMock.enqueueFor("select", "observation_flags", stored);
+
+      const { response } = await request(fix);
+
+      expect(response.statusCode).toBe(statusCode);
+      expect(response.json().errors[0]).toMatchObject({ code, message, details: [{ field: "0/observationFlagIds/1" }] });
+      expect(flagWrites()).toEqual([]);
+      expect(cellWrites()).toEqual([]);
+    });
+
+    it("fails the whole request when flags closed meanwhile, and names each of them with why it closed", async () => {
+      prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      dbMock.enqueueFor("select", lteTable, []);
+      dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
+      dbMock.enqueueFor("select", "observation_flags", [
+        { ...flag, closedReason: "fixedElsewhere" },
+        { ...secondFlag, closedReason: "dismissed" },
+      ]);
+
+      const { response } = await request(fix);
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().errors[0]).toMatchObject({ code: "CONFLICT", message: "Flags 4101, 4102 are no longer open" });
+      expect(response.json().errors[0].details).toEqual([
+        { kind: "flagClosed", field: "0/observationFlagIds/0", observationFlagId: 4101, closedReason: "fixedElsewhere" },
+        { kind: "flagClosed", field: "0/observationFlagIds/1", observationFlagId: 4102, closedReason: "dismissed" },
+      ]);
+      expect(flagWrites()).toEqual([]);
+      expect(cellWrites()).toEqual([]);
+    });
+
+    it("refuses flags from someone without moderate:observations before loading anything", async () => {
+      authBoundary.auth.api.userHasPermission.mockImplementation(async (input) => ({ success: !JSON.stringify(input).includes("moderate") }));
+
+      const { response } = await request(fix);
+
+      expect(response.statusCode).toBe(403);
+      expect(response.json().errors[0]).toMatchObject({ code: "INSUFFICIENT_PERMISSIONS" });
+      expect(dbMock.calls).toEqual([]);
+    });
   });
 
   it("returns an error envelope when a later station fails instead of partial station results", async () => {

@@ -1,0 +1,129 @@
+{
+  "formatVersion": 2,
+  "uploadId": "01a12096-8da0-7c1d-9b2e-5f6a7b8c9d0e",
+  "deviceId": "01a0bdd4-4400-7d2e-8f30-415263748596",
+  "app": {
+    "versionCode": 140,
+    "versionName": "1.4.0"
+  },
+  "os": {
+    "sdkInt": 35,
+    "securityPatch": "2026-09-05"
+  },
+  "clock": {
+    "elapsedRealtimeMillis": 812345000,
+    "epochMillis": 1791547200000
+  },
+  "sessions": [
+    {
+      "id": "01a12086-fd40-7aaa-8bbb-ccccdddd0001",
+      "mode": "passive"
+    }
+  ],
+  "sims": [
+    {
+      "slot": 0,
+      "simPlmn": "26006",
+      "registeredPlmn": "26006",
+      "isRoaming": false,
+      "isDataSim": true
+    }
+  ],
+  "readers": [
+    {
+      "name": "btsearch",
+      "version": "0.4.0",
+      "source": "api",
+      "rules": 12
+    }
+  ],
+  "cells": [
+    {
+      "rat": "lte",
+      "plmn": "26006",
+      "eci": 31604747,
+      "tac": 58140,
+      "pci": 301,
+      "earfcn": 1300,
+      "bands": [3],
+      "bandwidthKhz": 20000,
+      "corrected": {
+        "tac": "tacByteOrder"
+      }
+    },
+    {
+      "rat": "lte",
+      "plmn": "26006",
+      "earfcn": 1300,
+      "pci": 77,
+      "derived": ["plmn"]
+    },
+    {
+      "rat": "nr",
+      "arfcn": 636666,
+      "pci": 512,
+      "bands": [78]
+    }
+  ],
+  "fixes": [
+    {
+      "t": 812345900,
+      "gnssTimeMillis": 1791547200900,
+      "latitude": 52.2297123,
+      "longitude": 21.0122456,
+      "accuracyMeters": 4.2,
+      "speedMetersPerSecond": 13.4,
+      "bearingDegrees": 271.5,
+      "provider": "gps",
+      "isMock": false
+    },
+    {
+      "t": 812346900,
+      "gnssTimeMillis": 1791547201900,
+      "latitude": 52.2297181,
+      "longitude": 21.0120491,
+      "accuracyMeters": 4.0,
+      "speedMetersPerSecond": 13.2,
+      "bearingDegrees": 271.0,
+      "provider": "gps",
+      "isMock": false
+    }
+  ],
+  "snapshots": [
+    {
+      "t": 812346400,
+      "simSlot": 0,
+      "reader": 0,
+      "dataNetworkType": "lte",
+      "displayOverride": "nrNsa",
+      "dataActivity": "inOut",
+      "measurements": [
+        {
+          "cell": 0,
+          "role": "serving",
+          "t": 812346350,
+          "rsrpDbm": -95,
+          "rsrqDb": -11,
+          "rssnrDb": 7,
+          "timingAdvance": 12
+        },
+        {
+          "cell": 1,
+          "role": "neighbour",
+          "t": 812346350,
+          "rsrpDbm": -104,
+          "rsrqDb": -15
+        },
+        {
+          "cell": 2,
+          "role": "nrSecondary",
+          "t": 812346350,
+          "ssRsrpDbm": -99,
+          "ssRsrqDb": -12,
+          "ssSinrDb": 4
+        }
+      ]
+    }
+  ],
+  "events": []
+}

@@ -75,7 +75,7 @@ import {
   socs,
   termsAcceptances,
   uploads,
-} from "./observations.ts";
+} from "./measurements.ts";
 import {
   proposedCells,
   proposedGSMCells,

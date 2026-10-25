@@ -1,20 +1,15 @@
 import { Alert02Icon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import type { SettingsAnnouncement } from "@openbts/shared/contract";
-import { type FormEvent, type RefObject, useId, useRef, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSettingsSave } from "../../hooks/useSettingsSave";
 import { type AnnouncementEdits, dropSavedEdits, hasAnnouncementMessage, readAnnouncementDraft } from "../../utils/announcementDraft";
-import { AnnouncementFooter } from "./announcementFooter";
+import { SettingsFormFooter } from "../settingsFormFooter";
 import { AnnouncementMessageField } from "./announcementMessageField";
 import { AnnouncementOptions } from "./announcementOptions";
 import { AnnouncementPreview } from "./announcementPreview";
 import { SettingsCard, SettingsCardHeader, StatusBadge } from "@/features/settings/components/settingsPrimitives";
-
-type AnnouncementCardProps = {
-  announcement: SettingsAnnouncement;
-  formRef: RefObject<HTMLFormElement | null>;
-};
 
 function AnnouncementStateBadge({ isVisible }: { isVisible: boolean }) {
   const { t } = useTranslation("admin");
@@ -34,7 +29,7 @@ function AnnouncementStateBadge({ isVisible }: { isVisible: boolean }) {
   );
 }
 
-export function AnnouncementCard({ announcement, formRef }: AnnouncementCardProps) {
+export function AnnouncementCard({ announcement }: { announcement: SettingsAnnouncement }) {
   const { t } = useTranslation("admin");
   const formId = useId();
   const messageRef = useRef<HTMLTextAreaElement>(null);
@@ -66,7 +61,7 @@ export function AnnouncementCard({ announcement, formRef }: AnnouncementCardProp
         description={t("settings.announcementForm.description")}
         badge={<AnnouncementStateBadge isVisible={announcement.isEnabled && hasAnnouncementMessage(announcement)} />}
       />
-      <form ref={formRef} id={formId} noValidate onSubmit={handleSubmit} className="flex flex-col gap-4 border-t px-4 pt-4 pb-5 sm:px-5">
+      <form id={formId} noValidate data-save-shortcut onSubmit={handleSubmit} className="flex flex-col gap-4 border-t px-4 pt-4 pb-5 sm:px-5">
         <AnnouncementPreview announcement={draft} />
         <div className="flex flex-col gap-4 @4xl:flex-row @4xl:items-start @4xl:gap-6">
           <AnnouncementMessageField
@@ -83,12 +78,12 @@ export function AnnouncementCard({ announcement, formRef }: AnnouncementCardProp
           />
         </div>
       </form>
-      <AnnouncementFooter
+      <SettingsFormFooter
         formId={formId}
         isDirty={isDirty}
-        isMessageMissing={isMessageMissing}
         isSaving={isSaving}
         canSave={canSave}
+        error={isMessageMissing ? t("settings.announcementForm.messageRequired") : null}
         onRevert={() => setEdits({})}
       />
     </SettingsCard>

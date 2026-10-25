@@ -46,7 +46,9 @@
     "brands": "Brands",
     "bands": "Bands",
     "structureOwners": "Structure owners",
-    "systemSettings": "System settings"
+    "systemSettings": "System settings",
+    "measurements": "Measurements",
+    "observationFlags": "Measurement flags"
   },
   "floating": {
     "label": "Floating navigation",

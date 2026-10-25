@@ -1,9 +1,19 @@
-import { AirportTowerIcon, Fire02Icon, Navigation03Icon, Radar01Icon, Route02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import {
+  AirportTowerIcon,
+  Fire02Icon,
+  FootprintsIcon,
+  Gps01Icon,
+  Navigation03Icon,
+  Radar01Icon,
+  Route02Icon,
+  Tick02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Trans, useTranslation } from "react-i18next";
 
+import type { MapCrowdState } from "../../crowd/useMapCrowd";
 import type { MapCountries } from "../../data/mapCountries";
-import type { CapableCountries, MapCountryCapability, MapFilters, MapFiltersChange } from "../../data/mapFilters";
+import type { CapableCountries, MapFilters, MapFiltersChange } from "../../data/mapFilters";
 import { Reveal } from "./mapFilterMotion";
 import { FilterNote } from "./mapFilterNote";
 import { type LayersNote, getLayersNote } from "./mapFilterPanelRules";
@@ -16,14 +26,14 @@ type LayerTile = {
   label: string;
   icon: IconSvgElement;
   isActive: boolean;
-  requiredCapability: MapCountryCapability | null;
+  canBeUnavailable: boolean;
+  unavailableNote: string | null;
   keybind: string;
   onToggle: () => void;
 };
 
 type LayerTileButtonProps = {
   layer: LayerTile;
-  isUnavailable: boolean;
 };
 
 type FilterLayerStripProps = {
@@ -31,6 +41,7 @@ type FilterLayerStripProps = {
   filters: MapFilters;
   mapCountries: MapCountries;
   countries: CapableCountries;
+  crowd?: MapCrowdState;
   onFiltersChange: (update: MapFiltersChange) => void;
   onToggleHeatmap?: () => void;
   onTogglePlannedMeasurements?: () => void;
@@ -44,15 +55,25 @@ const LAYER_TILE_IDLE_CLASS =
 const LAYER_TILE_UNAVAILABLE_CLASS =
   "cursor-not-allowed border-border bg-background text-muted-foreground opacity-50 dark:border-input dark:bg-input/30";
 const KEY_HINT_CLASS = "rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground";
+const SINGLE_ROW_TILE_LIMIT = 5;
+const FIRST_ROW_TILE_COUNT = 4;
+const GRID_COLUMNS = 12;
+const COLUMN_SPAN_CLASSES: Record<number, string> = { 3: "col-span-3", 4: "col-span-4", 6: "col-span-6", 12: "col-span-12" };
+
+function getTileSpanClass(index: number, tileCount: number): string | undefined {
+  if (tileCount <= SINGLE_ROW_TILE_LIMIT) return undefined;
+  const rowTileCount = index < FIRST_ROW_TILE_COUNT ? FIRST_ROW_TILE_COUNT : tileCount - FIRST_ROW_TILE_COUNT;
+  return COLUMN_SPAN_CLASSES[GRID_COLUMNS / rowTileCount];
+}
 
 function getLayerTileStateClass(isActive: boolean, isUnavailable: boolean): string {
   if (isUnavailable) return LAYER_TILE_UNAVAILABLE_CLASS;
   return isActive ? LAYER_TILE_ACTIVE_CLASS : LAYER_TILE_IDLE_CLASS;
 }
 
-function LayerTileButton({ layer, isUnavailable }: LayerTileButtonProps) {
-  const { t } = useTranslation("main");
+function LayerTileButton({ layer }: LayerTileButtonProps) {
   const { isActive } = layer;
+  const isUnavailable = layer.unavailableNote !== null;
 
   const tile = (
     <button
@@ -70,12 +91,12 @@ function LayerTileButton({ layer, isUnavailable }: LayerTileButtonProps) {
     </button>
   );
 
-  if (layer.requiredCapability === null) return tile;
+  if (!layer.canBeUnavailable) return tile;
 
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="block min-w-0" />}>{tile}</TooltipTrigger>
-      {isUnavailable ? <TooltipContent>{t("filters.registerLayerOnly")}</TooltipContent> : null}
+      {isUnavailable ? <TooltipContent>{layer.unavailableNote}</TooltipContent> : null}
     </Tooltip>
   );
 }
@@ -85,6 +106,7 @@ export function FilterLayerStrip({
   filters,
   mapCountries,
   countries,
+  crowd,
   onFiltersChange,
   onToggleHeatmap,
   onTogglePlannedMeasurements,
@@ -99,6 +121,10 @@ export function FilterLayerStrip({
     linksUnavailable: t("main:filters.radiolinesLayerUnavailable"),
     emfUnavailable: t("main:filters.plannedPemLayerUnavailable"),
   };
+  const registerOnlyNote = t("main:filters.registerLayerOnly");
+  const crowdSwitchedOffNote = crowd?.isSwitchedOff ? t("main:crowd.layers.switchedOff") : null;
+  let crowdNote: string | null = crowdSwitchedOffNote;
+  if (crowdNote === null && crowd?.hidesPrivateCountries) crowdNote = t("main:crowd.layers.privateCountries");
 
   const possibleLayers: (LayerTile | null)[] = [
     {
@@ -106,30 +132,33 @@ export function FilterLayerStrip({
       label: t("common:labels.stations"),
       icon: AirportTowerIcon,
       isActive: filters.showStations,
-      requiredCapability: null,
+      canBeUnavailable: false,
+      unavailableNote: null,
       keybind: "S",
       onToggle: () => onFiltersChange((current) => ({ ...current, showStations: !current.showStations })),
     },
+    crowd === undefined
+      ? null
+      : {
+          key: "estimated",
+          label: t("main:crowd.layers.estimated"),
+          icon: Gps01Icon,
+          isActive: filters.showEstimatedSites && crowd.isAvailable,
+          canBeUnavailable: true,
+          unavailableNote: crowdSwitchedOffNote,
+          keybind: "E",
+          onToggle: () => onFiltersChange((current) => ({ ...current, showEstimatedSites: !current.showEstimatedSites })),
+        },
     {
       key: "radiolines",
       label: t("common:labels.radiolines"),
       icon: Route02Icon,
       isActive: filters.showRadiolines,
-      requiredCapability: "microwaveLinks",
+      canBeUnavailable: true,
+      unavailableNote: mapCountries.capabilities.microwaveLinks ? null : registerOnlyNote,
       keybind: "R",
       onToggle: () => onFiltersChange((current) => ({ ...current, showRadiolines: !current.showRadiolines })),
     },
-    onToggleHeatmap === undefined
-      ? null
-      : {
-          key: "heatmap",
-          label: "Heatmap",
-          icon: Fire02Icon,
-          isActive: filters.showHeatmap,
-          requiredCapability: null,
-          keybind: "H",
-          onToggle: onToggleHeatmap,
-        },
     onTogglePlannedMeasurements === undefined
       ? null
       : {
@@ -137,16 +166,42 @@ export function FilterLayerStrip({
           label: t("main:filters.showPlannedPem"),
           icon: Radar01Icon,
           isActive: filters.showPlannedMeasurements,
-          requiredCapability: "emf",
+          canBeUnavailable: true,
+          unavailableNote: mapCountries.capabilities.emf ? null : registerOnlyNote,
           keybind: "P",
           onToggle: onTogglePlannedMeasurements,
+        },
+    crowd === undefined
+      ? null
+      : {
+          key: "trails",
+          label: t("main:crowd.trails.title"),
+          icon: FootprintsIcon,
+          isActive: filters.showTrails && crowd.isAvailable && !crowd.isTrailsBlocked,
+          canBeUnavailable: true,
+          unavailableNote: crowdSwitchedOffNote ?? (crowd.isTrailsBlocked ? t("main:crowd.layers.trailsPrivate") : null),
+          keybind: "T",
+          onToggle: () => onFiltersChange((current) => ({ ...current, showTrails: !current.showTrails })),
+        },
+    onToggleHeatmap === undefined
+      ? null
+      : {
+          key: "heatmap",
+          label: "Heatmap",
+          icon: Fire02Icon,
+          isActive: filters.showHeatmap,
+          canBeUnavailable: false,
+          unavailableNote: null,
+          keybind: "H",
+          onToggle: onToggleHeatmap,
         },
     {
       key: "azimuths",
       label: t("common:labels.azimuths"),
       icon: Navigation03Icon,
       isActive: preferences.showAzimuths,
-      requiredCapability: null,
+      canBeUnavailable: false,
+      unavailableNote: null,
       keybind: "A",
       onToggle: () => updatePreferences((current) => ({ showAzimuths: !current.showAzimuths })),
     },
@@ -159,18 +214,19 @@ export function FilterLayerStrip({
         role="group"
         aria-label={t("main:filters.layers")}
         className="grid gap-1.5"
-        style={{ gridTemplateColumns: `repeat(${layers.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${layers.length > SINGLE_ROW_TILE_LIMIT ? GRID_COLUMNS : layers.length}, minmax(0, 1fr))` }}
       >
-        {layers.map((layer) => (
-          <LayerTileButton
-            key={layer.key}
-            layer={layer}
-            isUnavailable={layer.requiredCapability !== null && !mapCountries.capabilities[layer.requiredCapability]}
-          />
+        {layers.map((layer, index) => (
+          <div key={layer.key} className={cn("min-w-0", getTileSpanClass(index, layers.length))}>
+            <LayerTileButton layer={layer} />
+          </div>
         ))}
       </div>
       <Reveal shown={layersNote !== null} className="pt-1.5">
         <FilterNote>{layersNote === null ? null : layersNoteTexts[layersNote]}</FilterNote>
+      </Reveal>
+      <Reveal shown={crowdNote !== null} className="pt-1.5">
+        <FilterNote>{crowdNote}</FilterNote>
       </Reveal>
       {isSheet ? null : (
         <p className="pt-1.5 text-[11px] leading-4 text-muted-foreground">

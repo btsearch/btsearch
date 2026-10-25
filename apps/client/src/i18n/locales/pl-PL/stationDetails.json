@@ -38,7 +38,13 @@
     "unlinkedCells_one": "{{count, number}} komórka na tej stacji nie ma przypisanego azymutu",
     "unlinkedCells_few": "{{count, number}} komórki na tej stacji nie mają przypisanego azymutu",
     "unlinkedCells_many": "{{count, number}} komórek na tej stacji nie ma przypisanego azymutu",
-    "unlinkedCells_other": "{{count, number}} komórki na tej stacji nie ma przypisanego azymutu"
+    "unlinkedCells_other": "{{count, number}} komórki na tej stacji nie ma przypisanego azymutu",
+    "measured": "Z pomiarów",
+    "measuredHint": "Kierunek, w którym telefony korzystały z najczęściej mierzonej komórki tego azymutu, i liczba osób, które ją zmierzyły",
+    "enteredAzimuth": "Wpisany azymut",
+    "notEnoughMeasurements": "Za mało pomiarów, żeby wyznaczyć kierunek",
+    "measuredList": "Z pomiarów: {{bearings}}",
+    "measuredDiffers": "{{sectors}}: pomiary wskazują inny kierunek"
   },
   "si2pemAntennaData": {
     "action": "Anteny",
@@ -182,7 +188,12 @@
     "inactiveStationDescription": "Ta stacja nie jest już aktywna i oczekuje na usunięcie z bazy danych",
     "detailsLoadErrorTitle": "Nie udało się wczytać aktualnych danych stacji",
     "detailsLoadErrorDescription": "Część informacji może być niepełna lub nieaktualna",
-    "atThisLocation": "W tej lokalizacji"
+    "atThisLocation": "W tej lokalizacji",
+    "openFlags_one": "{{count, number}} otwarta flaga z pomiarów",
+    "openFlags_few": "{{count, number}} otwarte flagi z pomiarów",
+    "openFlags_many": "{{count, number}} otwartych flag z pomiarów",
+    "openFlags_other": "{{count, number}} otwartej flagi z pomiarów",
+    "openInQueue": "Otwórz w kolejce"
   },
   "comments": {
     "title": "Komentarze społeczności",
@@ -273,6 +284,60 @@
     "sources": {
       "import": "Import",
       "system": "System"
+    }
+  },
+  "measurements": {
+    "notInDatabase": "Brak w bazie",
+    "seen": "Widziana {{days}}",
+    "loading": "Wczytywanie pomiarów",
+    "loadError": "Nie udało się wczytać pomiarów",
+    "people_one": "{{count, number}} osoba",
+    "people_few": "{{count, number}} osoby",
+    "people_many": "{{count, number}} osób",
+    "people_other": "{{count, number}} osoby",
+    "lastSeen": "ostatnio {{date}}",
+    "spread": "rozrzut {{degrees}}°",
+    "bearingDiffers": "Pomiary wskazują inny kierunek",
+    "unseenCellsNote": "Komórki bez ikony telefonu nie mają jeszcze pomiarów",
+    "coverage": {
+      "seenOnce": "Zmierzona {{date}}",
+      "seenRange": "Pierwszy pomiar {{first}}, ostatni {{last}}",
+      "showOnMap": "Pokaż zasięg na mapie"
+    },
+    "popover": {
+      "label": "Pomiary komórki",
+      "open": "Pomiary komórki {{cell}}",
+      "measurements": "Pomiary",
+      "squares_one": "zmierzona w {{count, number}} miejscu",
+      "squares_few": "zmierzona w {{count, number}} miejscach",
+      "squares_many": "zmierzona w {{count, number}} miejscach",
+      "squares_other": "zmierzona w {{count, number}} miejsca",
+      "bandwidth": "Szerokość pasma",
+      "bearing": "Kierunek",
+      "azimuth": "azymut {{degrees}}°",
+      "reach": "Zmierzony zasięg",
+      "reachHint": "W tej odległości od stacji leży 95% miejsc, w których komórka obsługiwała telefony",
+      "reachByTa": "Zasięg z TA",
+      "reachByTaHint": "Jak daleko komórka odpowiadała telefonom, niezależnie od tego, gdzie ludzie mierzyli",
+      "meanRsrq": "Średnie {{metric}}",
+      "meanSinr": "Średni {{metric}}",
+      "onePerson": "PCI, szerokość pasma i inne wartości komórki pojawią się, gdy zmierzy ją druga osoba",
+      "noShape": "Za mało pomiarów, żeby wyznaczyć kierunek i zasięg",
+      "outsideDatabase": "Tej komórki nie ma w bazie",
+      "outsideDatabaseByNode": "Tej komórki nie ma w bazie. Ma {{node}} tej stacji ({{id}})"
+    },
+    "chart": {
+      "level": "Poziom sygnału (dBm) a odległość",
+      "levelSummary": "Poziom sygnału od {{from}} przy stacji do {{to}} w odległości {{distance}}",
+      "sinr": "{{metric}} (dB) a odległość",
+      "sinrSummary": "{{metric}} od {{from}} przy stacji do {{to}} w odległości {{distance}}"
+    },
+    "edges": {
+      "title": "Granice zasięgu",
+      "handedOver": "Dalej obsługuje inna komórka",
+      "faded": "Sygnał zanika",
+      "otherLayer": "Sieć przenosi telefony na inne pasmo",
+      "unmeasured": "Dalej nikt nie mierzył"
     }
   }
 }

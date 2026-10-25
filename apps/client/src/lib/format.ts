@@ -68,6 +68,21 @@ export function formatShortUtcDate(dateString: string | null, locale: string): s
   return dateString === null ? "-" : new Date(dateString).toLocaleDateString(locale, SHORT_UTC_DATE_FORMAT);
 }
 
+const DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
+const TIME_FORMAT: Intl.DateTimeFormatOptions = { timeStyle: "short" };
+
+export function formatDateTime(dateString: string, locale: string): string {
+  return new Date(dateString).toLocaleString(locale, DATE_TIME_FORMAT);
+}
+
+export function formatTime(dateString: string, locale: string): string {
+  return new Date(dateString).toLocaleTimeString(locale, TIME_FORMAT);
+}
+
+export function isSameDay(left: string, right: string): boolean {
+  return new Date(left).toDateString() === new Date(right).toDateString();
+}
+
 export function formatMonthYear(date: string | Date, locale: string, month: "short" | "long"): string {
   return new Date(date).toLocaleDateString(locale, { year: "numeric", month });
 }
@@ -92,6 +107,14 @@ export function formatFileSize(bytes: number): string {
   }
 
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[index]}`;
+}
+
+const METERS_PER_KILOMETER = 1000;
+const KILOMETER_FORMAT: Intl.NumberFormatOptions = { maximumFractionDigits: 1 };
+
+export function formatDistance(meters: number, locale: string): string {
+  if (meters < METERS_PER_KILOMETER) return `${Math.round(meters).toLocaleString(locale)} m`;
+  return `${(meters / METERS_PER_KILOMETER).toLocaleString(locale, KILOMETER_FORMAT)} km`;
 }
 
 const EXPANDED_IPV6 = /^[\da-f]{1,4}(?::[\da-f]{1,4}){7}$/i;

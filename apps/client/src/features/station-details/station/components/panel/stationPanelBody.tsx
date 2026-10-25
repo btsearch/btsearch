@@ -8,6 +8,7 @@ import { StationDetailsError } from "../../../components/stationDetailsError";
 import { TAB_OPTIONS, type TabId } from "../../../tabs";
 import { stationPhotoRecordsQueryOptions } from "../../api";
 import { COMMENTS_OFF, stationCommentsQueryOptions } from "../../comments/api";
+import { MeasuredCoveragePanel } from "../../measurements/measuredCoveragePanel";
 import type { StationRecord } from "../../types";
 import { StationCellTables } from "../cells/stationCellTables";
 import { StationOverviewCard } from "../overview/stationOverviewCard";
@@ -100,6 +101,7 @@ export function StationPanelBody({
         {shownTab === "specs" ? (
           <div className="space-y-8">
             <StationOverviewCard station={station} onClose={onClose} />
+            <MeasuredCoveragePanel station={station} onClose={onClose} />
             <StationCellTables station={station} />
           </div>
         ) : null}

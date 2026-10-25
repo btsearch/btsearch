@@ -11,6 +11,7 @@ import {
   PencilEdit02Icon,
   Tick02Icon,
   Undo02Icon,
+  UserSwitchIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { AuditOperationKind } from "@openbts/shared/audit";
@@ -32,13 +33,15 @@ const SKY_BADGE_CLASS = "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-
 const AMBER_BADGE_CLASS = "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
 const VIOLET_BADGE_CLASS = "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300";
 
+const CREATE_BADGE_STYLE: ActionBadgeStyle = { icon: Add01Icon, className: EMERALD_BADGE_CLASS };
 const CHANGE_BADGE_STYLE: ActionBadgeStyle = { icon: PencilEdit02Icon, className: BLUE_BADGE_CLASS };
 const ALLOW_BADGE_STYLE: ActionBadgeStyle = { icon: Tick02Icon, className: EMERALD_BADGE_CLASS };
 const REFUSE_BADGE_STYLE: ActionBadgeStyle = { icon: Cancel01Icon, className: ROSE_BADGE_CLASS };
 const CLEANUP_BADGE_STYLE: ActionBadgeStyle = { icon: CleanIcon, className: AMBER_BADGE_CLASS };
+const IMPERSONATION_BADGE_STYLE: ActionBadgeStyle = { icon: UserSwitchIcon, className: AMBER_BADGE_CLASS };
 
 const ACTION_BADGE_STYLES: Record<string, ActionBadgeStyle> = {
-  create: { icon: Add01Icon, className: EMERALD_BADGE_CLASS },
+  create: CREATE_BADGE_STYLE,
   edit: CHANGE_BADGE_STYLE,
   update: CHANGE_BADGE_STYLE,
   delete: { icon: Delete02Icon, className: ROSE_BADGE_CLASS },
@@ -51,10 +54,29 @@ const ACTION_BADGE_STYLES: Record<string, ActionBadgeStyle> = {
   password: CHANGE_BADGE_STYLE,
   ban: REFUSE_BADGE_STYLE,
   unban: ALLOW_BADGE_STYLE,
+  two_factor_enable: ALLOW_BADGE_STYLE,
+  two_factor_disable: REFUSE_BADGE_STYLE,
+  backup_codes: CHANGE_BADGE_STYLE,
+  rotate_secret: CHANGE_BADGE_STYLE,
+  account_link: ALLOW_BADGE_STYLE,
+  account_unlink: REFUSE_BADGE_STYLE,
+  sessions_revoke: REFUSE_BADGE_STYLE,
+  impersonate: IMPERSONATION_BADGE_STYLE,
+  impersonate_stop: IMPERSONATION_BADGE_STYLE,
   device_revoke: REFUSE_BADGE_STYLE,
   device_restore: ALLOW_BADGE_STYLE,
   upload_download: { icon: Download04Icon, className: SKY_BADGE_CLASS },
   upload_exclude: REFUSE_BADGE_STYLE,
+  upload_restore: ALLOW_BADGE_STYLE,
+  reading_block_create: CREATE_BADGE_STYLE,
+  reading_block_update: CHANGE_BADGE_STYLE,
+  device_weight: CHANGE_BADGE_STYLE,
+  contributor_vouch: CHANGE_BADGE_STYLE,
+  contributor_block: CHANGE_BADGE_STYLE,
+  quirk_rule_block: CHANGE_BADGE_STYLE,
+  flag_update: CHANGE_BADGE_STYLE,
+  site_ignore: CHANGE_BADGE_STYLE,
+  site_link: CHANGE_BADGE_STYLE,
   cleanup: CLEANUP_BADGE_STYLE,
   inactive_cleanup: CLEANUP_BADGE_STYLE,
   submission_cleanup: CLEANUP_BADGE_STYLE,

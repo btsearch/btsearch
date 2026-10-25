@@ -11,7 +11,7 @@ import type { TokenTier } from "../interfaces/auth.interface.ts";
 import type { ApiToken } from "../interfaces/fastify.interface.js";
 import type { Route } from "../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../lib/runtimeSettings.js";
-import { collectorClientIds, isAppOnlyScope, isCollectorClient } from "../plugins/auth/appClient.js";
+import { appClientIds, isAppClient, isAppOnlyScope } from "../plugins/auth/appClient.js";
 import { hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../plugins/auth/oauthToken.js";
 import { convertToPermissionObject, verifyPermissions } from "../plugins/auth/utils.js";
 import { getCurrentUser, verifyApiKey } from "../plugins/betterauth.plugin.js";
@@ -78,13 +78,14 @@ async function authenticate(req: FastifyRequest, route: Route) {
   if (bearerToken && isOAuthBearerToken(bearerToken)) {
     const verified = await verifyOAuthAccessToken(bearerToken);
     if (!verified) throw new ErrorResponse("UNAUTHORIZED");
-    if (callers && collectorClientIds().size === 0) throw new ErrorResponse("SERVICE_UNAVAILABLE");
-    const isAppToken = isCollectorClient(verified.token.clientId);
+    const isAppRoute = callers?.includes("app") === true;
+    if (isAppRoute && appClientIds().size === 0) throw new ErrorResponse("SERVICE_UNAVAILABLE");
+    const isAppToken = isAppClient(verified.token.clientId);
     if (!isAppToken && verified.token.scopes.some(isAppOnlyScope)) {
       logger.warn("auth.oauth.app_only_scope_elsewhere", { clientId: verified.token.clientId, userId: verified.token.userId });
       throw new ErrorResponse("UNAUTHORIZED");
     }
-    if (callers && !isAppToken) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
+    if (callers && !(isAppRoute && isAppToken)) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
     if (!hasRequiredScopes(verified.token, routePermissions)) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
 
     const tokenUser = verified.userSession.user;

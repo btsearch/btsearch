@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { PLANNED_PEM_LAYER_ID, POINT_LAYER_ID } from "../constants";
+import { requestStationCoverage } from "../crowd/coverage/coverageStore";
 import type { MapFilters } from "../data/mapFilters";
 import { useMapLookups } from "../data/mapLookups";
 import { type MapPlace, type MapPoint, listOfficialSites, toMapPlace } from "../data/mapPoints";
@@ -104,6 +105,7 @@ type CommonStationsLayerProps = {
   stationActions: StationActions;
   popupActions: PopupActions;
   onMicrowaveLinkIdFromUrl?: (id: number) => void;
+  onObservedSiteIdFromUrl?: (id: number) => void;
   activePopupLocations?: MapPopupLocation[];
 };
 
@@ -124,6 +126,7 @@ export function StationsLayer({
   stationActions,
   popupActions,
   onMicrowaveLinkIdFromUrl,
+  onObservedSiteIdFromUrl,
   activePopupLocations,
   urlSyncEnabled = true,
 }: StationsLayerProps) {
@@ -138,7 +141,16 @@ export function StationsLayer({
   const { show: showPopup, followPoints, cleanup: cleanupPopup } = popupActions;
   const { openDetails: onOpenStationDetails, openOfficialSiteDetails: onOpenOfficialSiteDetails } = stationActions;
 
-  function handleUrlInitialize({ filters: urlFilters, center, stationId, officialSiteId, locationId, microwaveLinkId }: UrlInitialization) {
+  function handleUrlInitialize({
+    filters: urlFilters,
+    center,
+    stationId,
+    officialSiteId,
+    locationId,
+    microwaveLinkId,
+    observedSiteId,
+    coverage,
+  }: UrlInitialization) {
     if (urlFilters) onFiltersChange?.(urlFilters);
     const activeFilters = urlFilters ?? savedFilters;
 
@@ -165,6 +177,7 @@ export function StationsLayer({
           : queryClient.query(stationRecordQueryOptions(Number(stationId))).then((station) => {
               if (station.location === null) return;
               flyToSharedTarget(map, station.location.longitude, station.location.latitude);
+              if (coverage?.stationId === station.id) requestStationCoverage(coverage);
               onOpenStationDetails(station.id, "internal");
             });
       stationPromise.catch((error) => {
@@ -176,6 +189,7 @@ export function StationsLayer({
         showApiError(error);
       });
     } else if (microwaveLinkId) onMicrowaveLinkIdFromUrl?.(microwaveLinkId);
+    else if (observedSiteId) onObservedSiteIdFromUrl?.(observedSiteId);
     else if (locationId) setLinkedLocation({ locationId, source: activeFilters.source });
   }
 

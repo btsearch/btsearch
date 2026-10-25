@@ -359,6 +359,11 @@
       set_fact:
         auth_secret: "{{ lookup('ansible.builtin.password', '/root/.ansible/openbts_auth_secret length=64 chars=ascii_letters,digits') }}"
 
+    - name: Generate measurement keys
+      set_fact:
+        observations_seal_key: "{{ lookup('ansible.builtin.password', '/root/.ansible/openbts_observations_seal_key length=32 chars=ascii_letters,digits') | b64encode }}"
+        observations_phone_key: "{{ lookup('ansible.builtin.password', '/root/.ansible/openbts_observations_phone_key length=32 chars=ascii_letters,digits') | b64encode }}"
+
     - name: Clone btsearch repository
       git:
         repo: https://github.com/btsearch/btsearch.git
@@ -372,6 +377,11 @@
         content: |
           DATABASE_URL=postgres://user:{{ db_password }}@pgbouncer:6432/openbts
           IMPORTER_DATABASE_URL=postgres://user:{{ db_password }}@postgres:5432/openbts
+          ENGINE_DATABASE_URL=postgres://user:{{ db_password }}@postgres:5432/openbts
+          # Measurements from the app. Never change a key that has sealed files: add a new one in front instead, as 2027:<key>,2026:<key>
+          OBSERVATIONS_SEAL_KEYS=2026:{{ observations_seal_key }}
+          OBSERVATIONS_PHONE_KEY={{ observations_phone_key }}
+          APP_OAUTH_CLIENT_IDS=btsearch-app
           REDIS_PASSWORD={{ redis_password }}
           BETTER_AUTH_SECRET={{ auth_secret }}
           BASE_URL=https://{{ openbts_domain }}
@@ -421,6 +431,11 @@
         owner: www-data
         group: www-data
         mode: "0750"
+
+    - name: Create the measurements volume
+      shell: docker volume inspect btsearch_observations-volume > /dev/null 2>&1 || (docker volume create btsearch_observations-volume && echo created)
+      register: observations_volume
+      changed_when: "'created' in observations_volume.stdout"
 
     - name: Deploy and validate nginx vhost for openbts
       block:
@@ -523,6 +538,7 @@
           - "================================================="
           - "Edit OAuth and other vars in /opt/openbts/.env"
           - "Then deploy: cd /opt/openbts && ./build.sh swarm"
+          - "Then, for each app in APP_OAUTH_CLIENT_IDS, in a server container: node apps/server/dist/scripts/setupAppClient.js --client-id <id> ... --apply"
 
   handlers:
     - name: Save iptables rules

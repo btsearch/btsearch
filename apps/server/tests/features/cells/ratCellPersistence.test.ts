@@ -6,8 +6,8 @@ import type { DbTx } from "../../../src/types/global.js";
 import { dbMock } from "../../helpers/boundaries.js";
 
 const tx = dbMock as unknown as DbTx;
-const pscCountry: CountryFeatures = { structureOwnerProposals: true, psc: true, bsic: false };
-const bsicCountry: CountryFeatures = { structureOwnerProposals: false, psc: false, bsic: true };
+const pscCountry: CountryFeatures = { structureOwnerProposals: true, psc: true, bsic: false, observationsPublic: true };
+const bsicCountry: CountryFeatures = { structureOwnerProposals: false, psc: false, bsic: true, observationsPublic: true };
 
 describe("updateRATCellDetailsReturning", () => {
   it("preserves stored PSC when its country disables collection", async () => {

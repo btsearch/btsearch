@@ -1,0 +1,138 @@
+{
+  "deltas": {
+    "cell_bins": [],
+    "cell_contributors": [
+      [
+        {
+          "cell": {
+            "cell_key": 3284283449,
+            "plmn": "26001",
+            "rat": "Gsm"
+          },
+          "device_id": "01a0bdd4-4400-7d2e-8f30-415263748596"
+        },
+        {
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "trip_count": 0
+        }
+      ]
+    ],
+    "cell_networks": [],
+    "cell_readers": [
+      [
+        {
+          "cell": {
+            "cell_key": 3284283449,
+            "plmn": "26001",
+            "rat": "Gsm"
+          },
+          "reader": {
+            "name": "netmonsterCore",
+            "version": "1.3.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ]
+    ],
+    "cell_ta_bins": [
+      [
+        {
+          "bin": 422997938609,
+          "cell": {
+            "cell_key": 3284283449,
+            "plmn": "26001",
+            "rat": "Gsm"
+          },
+          "ta_group_id": 1,
+          "timing_advance": 3
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 1,
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "cell_transitions": [],
+    "cell_values": [],
+    "contributor_months": [],
+    "handover_bins": [],
+    "neighbour_bins": [
+      [
+        {
+          "bin": 26437371163,
+          "channel": 70,
+          "held": true,
+          "pci": 41,
+          "plmn": "26001",
+          "rat": "Gsm"
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsum": -9500000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "nsa_links": [],
+    "person_trail_bins": [],
+    "same_reading_pairs": [],
+    "trail_levels": [],
+    "trail_squares": []
+  },
+  "report": {
+    "blocked_values": {
+      "1": {
+        "dropped": 0,
+        "held": 4
+      }
+    },
+    "bounding_box": {
+      "east": 19.9365789,
+      "north": 50.0614201,
+      "south": 50.0614201,
+      "west": 19.9365789
+    },
+    "closed_countries": [],
+    "corrections": {},
+    "distance_only_count": 1,
+    "drops": {},
+    "first_reading_millis": 1791547201200,
+    "last_reading_millis": 1791547201200,
+    "readers": [
+      [
+        {
+          "name": "netmonsterCore",
+          "version": "1.3.0"
+        },
+        {
+          "derived_values": 0,
+          "rules_version": null,
+          "snapshot_count": 1,
+          "source": "api",
+          "ta_on_confirmed": 0,
+          "ta_within_tolerance": 0
+        }
+      ]
+    ],
+    "sample_count": 2,
+    "skipped_rules": [],
+    "snapshot_count": 1,
+    "ta_residuals": [],
+    "trail_square_origins": [],
+    "value_checks": [],
+    "value_patterns": [],
+    "wall_clock_error_millis": 0
+  }
+}

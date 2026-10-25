@@ -147,7 +147,12 @@
     "radiolinesCount_few": "microwave links",
     "radiolinesCount_many": "microwave links",
     "radiolinesCount_other": "microwave links",
-    "moreRadiolines": "Showing {{shown, number}} of {{total, number}} microwave links. Zoom in to see all"
+    "moreRadiolines": "Showing {{shown, number}} of {{total, number}} microwave links. Zoom in to see all",
+    "estimatedSites_one": "estimated",
+    "estimatedSites_few": "estimated",
+    "estimatedSites_many": "estimated",
+    "estimatedSites_other": "estimated",
+    "moreEstimatedSites": "Showing {{shown, number}} of {{total, number}} estimated stations. Zoom in to see all"
   },
   "ads": {
     "dismiss": "Dismiss advertisement"
@@ -209,6 +214,113 @@
     "unconfirmed": "Unconfirmed"
   },
   "unknownOperator": "Unknown operator",
+  "crowd": {
+    "estimated": "Estimated",
+    "estimatedHint": "Position worked out from measurements collected in the {{appName}} app",
+    "unknownBand": "Unknown band",
+    "collapseLegend": "Collapse legend",
+    "expandLegend": "Expand legend",
+    "layers": {
+      "estimated": "Estimated",
+      "switchedOff": "Measurements are switched off for now",
+      "privateCountries": "Trails and estimated stations leave out countries that do not share measurements publicly",
+      "trailsPrivate": "The countries in view do not share measurements publicly"
+    },
+    "filters": {
+      "title": "Estimated stations",
+      "statuses": {
+        "unmatched": "Unmatched",
+        "suggested": "Suggested",
+        "matched": "Matched",
+        "ignored": "Ignored"
+      },
+      "seenByEveryone": "Everyone sees",
+      "seenByStaff": "Only editors and administrators see"
+    },
+    "legend": {
+      "signal": "Signal",
+      "below": "below {{value}} {{unit}}",
+      "between": "{{from}} to {{to}} {{unit}}",
+      "above": "{{value}} {{unit}} and above",
+      "noSinr": "none",
+      "sinrCaption": "SINR at the moments someone measured. It changes with network load"
+    },
+    "trails": {
+      "title": "Trails",
+      "network": "Network",
+      "mine": "My trails",
+      "mineTitle": "Your measurements",
+      "readings": "readings",
+      "mineCaption": "Stops and trip ends included. Only you can see them",
+      "levelCaption": "The color shows the signal level that 9 in 10 measurements reach at a place. Trails leave out stops and the first and last 100 m of each trip",
+      "bandsFromFilters": "Bands from filters:",
+      "empty": "Nobody has measured the {{operator}} network here yet",
+      "mineEmpty": "You have no measurements of the {{operator}} network here",
+      "zoomIn": "Zoom in to see trails",
+      "privateGuest": "This country does not share measurements publicly, so trails are not shown here",
+      "privateAdmin": "This country does not share measurements publicly. You see these trails as an administrator",
+      "loadError": "Could not load trails"
+    },
+    "coverage": {
+      "title": "Measured coverage",
+      "turnOff": "Turn off measured coverage",
+      "band": "Band",
+      "loadError": "Could not load coverage",
+      "noCells": "Nobody has measured this station's cells yet",
+      "notPublic": "This country does not share measurements publicly",
+      "zoomIn": "Zoom in to see the coverage",
+      "cells": "Cells",
+      "showCell": "Show the signal of cell {{cell}}",
+      "outsideDatabase": "not in the database",
+      "outsideDatabaseByNode": "not in the database, matched by {{node}} only",
+      "noShape": "too few measurements to draw its shape",
+      "cellsCaption": "The color shows the cell that served a place most often. The stronger the signal, the fuller the color. Each outline shows how far one cell reaches. Pick one to see that cell alone",
+      "allCells": "All cells",
+      "colorBySinr": "Color by SINR",
+      "oneCellCaption": "The color shows this cell's signal level wherever it was measured, also where another cell served",
+      "edges": "Edges",
+      "edgeKinds": {
+        "handedOver": "Here another cell took over the phones",
+        "faded": "Here the signal faded",
+        "otherLayer": "Here the network moved phones to another band",
+        "unmeasured": "Here nobody measured further"
+      },
+      "edgesCaptionCell": "The outline runs from the station to every place where phones used this cell",
+      "edgesCaptionShort": "The outline runs from the station to where phones used this cell"
+    },
+    "popup": {
+      "share": "Share station",
+      "radius": "Within {{radius}} ({{confidence}}%)",
+      "radiusHint": "There is a {{confidence}}% chance the station stands within this radius",
+      "onLocation": "At location: {{address}} ({{probability}}%)",
+      "onNamedRegisterSite": "At a {{register}} register site: {{address}} ({{probability}}%)",
+      "onRegisterSite": "At a register site: {{address}} ({{probability}}%)",
+      "onEstimatedSite": "At estimated station {{site}} ({{probability}}%)",
+      "snapHint": "How likely it is that the station stands right here",
+      "suggested": "It may be this station, {{distance}} away:",
+      "suggestedHere": "It may be this station:",
+      "matched": "Matched to this station, {{distance}} away:",
+      "matchedHere": "Matched to this station:",
+      "people_one": "{{count}} person",
+      "people_few": "{{count}} people",
+      "people_many": "{{count}} people",
+      "people_other": "{{count}} people",
+      "measuredBy": "Measured by {{people}} · last on {{date}}",
+      "measuredByYou": "Measured only by you · last on {{date}}",
+      "ignored": "Ignored: {{reason}} · {{date}}",
+      "ownNote": "Only you can see it until it is confirmed",
+      "staffNote": "Only editors and administrators can see it",
+      "staffNoteReasons": "Only editors and administrators can see it: {{reasons}}",
+      "approximate": "approximate"
+    },
+    "notPublicReasons": {
+      "notEstimated": "no position yet",
+      "unconfirmed": "not confirmed",
+      "looseFit": "uncertain position",
+      "possibleSmallCell": "may be a small cell",
+      "privateCountry": "the country does not share measurements"
+    }
+  },
   "photos": {
     "loadedCount": "Showing {{count, number}} of {{total, number}} photos",
     "loadingMore": "Loading more photos...",

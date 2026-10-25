@@ -102,7 +102,7 @@ const backhaulChangeSchema = z
 
 const BACKHAUL_INPUT_NOTE = "How the station is connected to the operator's network";
 const SITE_ID_INPUT_NOTE = `${STATION_SITE_ID_NOTE}. It cannot start with \`${RESERVED_SITE_ID_PREFIX}\``;
-const WITHOUT_SITE_ID = "a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC";
+const WITHOUT_SITE_ID = "a cell that names it: an LTE cell with an eNBID, an NR cell with a gNBID, a UMTS cell with an RNC or a GSM cell with a LAC";
 export const SITE_ID_NEEDED_MESSAGE = `A station needs a station number unless it has ${WITHOUT_SITE_ID}`;
 export const RESERVED_SITE_ID_MESSAGE = `A station number cannot start with ${RESERVED_SITE_ID_PREFIX}`;
 

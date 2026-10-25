@@ -4,14 +4,29 @@ import {
   AT_LEAST_ONE_FIELD_ISSUE,
   booleanQuerySchema,
   csvEnumSchema,
+  csvIdsSchema,
   csvUuidsSchema,
   cursorSchema,
   hasAnyField,
+  idParamSchema,
   instantSchema,
   limitSchema,
   pagingSchema,
   userRefSchema,
 } from "./common.ts";
+import {
+  ATTESTATION_SECURITY_LEVELS,
+  CELL_RATS,
+  MEASUREMENT_DROP_REASONS,
+  MEASUREMENT_MODEM_FAMILIES,
+  MEASUREMENT_READER_SOURCES,
+  MEASUREMENT_UPLOAD_STATUSES,
+  READING_BLOCK_FIELDS,
+  READING_BLOCK_MODES,
+  READING_BLOCK_ROLES,
+  TIMING_ADVANCE_RATS,
+  VERIFIED_BOOT_STATES,
+} from "./constants.ts";
 
 export const MEASUREMENT_FORMAT_VERSION = 1;
 export const MEASUREMENT_SIGNATURE_CONTEXT = "btsearch-measurements-v1";
@@ -41,9 +56,6 @@ export const MEASUREMENT_DEVICE_LIMITS = { activeDevices: 5, registrationsPerDay
 
 export const MEASUREMENT_SESSION_MODES = ["passive", "active", "survey"] as const;
 export type MeasurementSessionMode = (typeof MEASUREMENT_SESSION_MODES)[number];
-
-export const MEASUREMENT_READER_SOURCES = ["api", "modemLog", "modemPoll"] as const;
-export type MeasurementReaderSource = (typeof MEASUREMENT_READER_SOURCES)[number];
 
 export const MEASUREMENT_ROLES = ["serving", "aggregated", "nrSecondary", "neighbour"] as const;
 export type MeasurementRole = (typeof MEASUREMENT_ROLES)[number];
@@ -88,27 +100,40 @@ export const ACCESS_BARRING_SERVICES = [
 ] as const;
 export const ACCESS_BARRING_KINDS = ["unconditional", "conditional"] as const;
 
-export const MEASUREMENT_UPLOAD_STATUSES = ["received", "processing", "processed", "rejected", "withdrawn", "excluded"] as const;
-export type MeasurementUploadStatus = (typeof MEASUREMENT_UPLOAD_STATUSES)[number];
+export const MEASUREMENT_REJECTION_REASONS = [
+  "fileMissing",
+  "sealFailed",
+  "bodyMismatch",
+  "invalidDocument",
+  "formatVersion",
+  "idMismatch",
+  "limitExceeded",
+  "noSamples",
+  "processingFailed",
+] as const;
+export type MeasurementRejectionReason = (typeof MEASUREMENT_REJECTION_REASONS)[number];
 
 export const MEASUREMENT_DEVICE_TIERS = ["strong", "hardware", "software", "none"] as const;
 export type MeasurementDeviceTier = (typeof MEASUREMENT_DEVICE_TIERS)[number];
+export const MEASUREMENT_WEIGHT_BASES = ["device", "vouch", "computed"] as const;
 
-export const ATTESTATION_SECURITY_LEVELS = ["strongBox", "trustedEnvironment", "software"] as const;
-export const VERIFIED_BOOT_STATES = ["verified", "selfSigned", "unverified", "failed"] as const;
+export const READING_BLOCK_HELD_FIELDS = ["pci", "channel", "areaCode", "bandwidth"] as const;
 
-export const MEASUREMENT_OWNERS = ["mine", "all"] as const;
+export const MEASUREMENT_LIST_SCOPES = ["mine", "all"] as const;
+export type MeasurementListScope = (typeof MEASUREMENT_LIST_SCOPES)[number];
 export const MEASUREMENT_DEVICE_INCLUDES = ["owner"] as const;
-export const MEASUREMENT_DEVICE_SORTS = ["-createdAt", "createdAt"] as const;
+export const MEASUREMENT_DEVICE_SORTS = ["-createdAt", "createdAt", "weight", "-weight"] as const;
+export const MEASUREMENT_UPLOAD_INCLUDES = ["uploader", "device"] as const;
 export const MEASUREMENT_UPLOAD_SORTS = ["-receivedAt", "receivedAt", "-updatedAt", "updatedAt"] as const;
 
-const plmnSchema = z.string().regex(/^\d{5,6}$/, "Must be the network code as 5 or 6 digits, for example 26006");
+export const plmnCodeSchema = z.string().regex(/^\d{5,6}$/, "Must be the network code as 5 or 6 digits, for example 26006");
 const integerSchema = z.number().int();
 const positionSchema = z.number().int().nonnegative();
 const simSlotSchema = z.number().int().nonnegative();
 const elapsedMillisSchema = z.number().int().nonnegative().describe("Milliseconds of `SystemClock.elapsedRealtime()`");
 const kilohertzSchema = z.number().int().positive();
 const nameSchema = z.string().trim().min(1).max(64);
+const reasonSchema = z.string().trim().min(1).max(500);
 const bandsSchema = z.array(z.number().int().positive()).max(16);
 const appSchema = z.object({ versionCode: z.number().int().positive(), versionName: nameSchema });
 
@@ -122,15 +147,19 @@ const provenanceShape = {
 };
 
 const cellShape = {
-  plmn: plmnSchema.optional().describe("The cell's network. For a shared cell, its primary network"),
+  plmn: plmnCodeSchema.optional().describe("The cell's network. For a shared cell, its primary network"),
   additionalPlmns: z
-    .array(plmnSchema)
+    .array(plmnCodeSchema)
     .max(12)
     .optional()
-    .describe("The other networks a shared cell broadcasts. An empty list means the phone read it and there were none; leave it out when unknown"),
+    .describe("The other networks a shared cell broadcasts. An empty list means the phone read it and there were none. Leave it out when unknown"),
   bands: bandsSchema.optional(),
-  barred: z.boolean().optional().describe("From the modem's system information"),
-  reservedForOperatorUse: z.array(plmnSchema).max(12).optional().describe("The networks for which the cell is reserved. An empty list means none"),
+  isBarred: z.boolean().optional().describe("From the modem's system information"),
+  reservedForOperatorUsePlmns: z
+    .array(plmnCodeSchema)
+    .max(12)
+    .optional()
+    .describe("The networks for which the cell is reserved. An empty list means none"),
   ...provenanceShape,
 };
 
@@ -171,7 +200,7 @@ const lteCellSchema = z.object({
   bandwidthKhz: kilohertzSchema.optional().describe("The downlink bandwidth of this cell. Send it only when the reader ties it to this cell"),
   ulEarfcn: integerSchema.optional(),
   ulBandwidthKhz: kilohertzSchema.optional(),
-  endcAvailable: z.boolean().optional().describe("Whether the cell offers 5G NSA"),
+  supportsEndc: z.boolean().optional().describe("Whether the cell offers 5G NSA"),
   tdd: lteTddSchema.optional(),
   ...cellShape,
 });
@@ -220,7 +249,7 @@ export const measurementSchema = z
     accessBarring: z
       .partialRecord(z.enum(ACCESS_BARRING_SERVICES), z.enum(ACCESS_BARRING_KINDS))
       .optional()
-      .describe("Serving cell only: the services the cell bars. An empty object means nothing is barred; leave it out when it was not read"),
+      .describe("Serving cell only: the services the cell bars. An empty object means nothing is barred. Leave it out when it was not read"),
     rsrpDbm: integerSchema.optional(),
     rsrqDb: integerSchema.optional(),
     rssnrDb: integerSchema.optional(),
@@ -246,10 +275,10 @@ export type Measurement = z.infer<typeof measurementSchema>;
 export const measurementSnapshotSchema = z.object({
   t: elapsedMillisSchema,
   simSlot: simSlotSchema,
-  registeredPlmn: plmnSchema.optional().describe("The network the SIM is registered on, when it differs from `sims`"),
+  registeredPlmn: plmnCodeSchema.optional().describe("The network the SIM is registered on, when it differs from `sims`"),
   isRoaming: z.boolean().optional().describe("Android's roaming flag, when it differs from `sims`"),
-  nrAvailable: z.boolean().optional(),
-  dcNrRestricted: z.boolean().optional(),
+  isNrAvailable: z.boolean().optional(),
+  isDcNrRestricted: z.boolean().optional(),
   reader: positionSchema.describe("A position in `readers`, counted from 0"),
   dataNetworkType: z
     .enum(MEASUREMENT_NETWORK_TYPES)
@@ -286,7 +315,7 @@ export const measurementReaderSchema = z.object({
   name: z.string().trim().min(1).max(32).describe("For example `btsearch`, `netmonsterCore`, `qualcommDiag` or `qualcommQmi`"),
   version: nameSchema,
   source: z.enum(MEASUREMENT_READER_SOURCES),
-  shell: z.boolean().optional().describe("True when the reader read values through Shizuku"),
+  usesShizuku: z.boolean().optional(),
   rules: z.number().int().nonnegative().optional().describe("The version of the quirk rules the reader applied"),
 });
 export type MeasurementReader = z.infer<typeof measurementReaderSchema>;
@@ -320,20 +349,20 @@ export const measurementBatchSchema = z
       .boolean()
       .optional()
       .describe(
-        "`true` when the upload starts during a trip that began at least 300 m earlier along the track. A trip ends at a stop or a five-minute gap. Left out, public trails skip the upload's first 300 m",
+        "`true` when the upload starts during a trip that began at least 100 m earlier along the track. A trip ends at a stop or a five-minute gap. Left out, public trails skip the upload's first 100 m",
       ),
     endsMidTrip: z
       .boolean()
       .optional()
       .describe(
-        "`true` when the trip went on for at least 300 m along the track after the upload ended, so send it once you know. Left out, public trails skip its last 300 m",
+        "`true` when the trip went on for at least 100 m along the track after the upload ended, so send it once you know. Left out, public trails skip its last 100 m",
       ),
     sims: z
       .array(
         z.object({
           slot: simSlotSchema,
-          simPlmn: plmnSchema.optional().describe("The SIM's own network"),
-          registeredPlmn: plmnSchema.optional().describe("The network the SIM is registered on"),
+          simPlmn: plmnCodeSchema.optional().describe("The SIM's own network"),
+          registeredPlmn: plmnCodeSchema.optional().describe("The network the SIM is registered on"),
           isRoaming: z.boolean().optional(),
           isDataSim: z.boolean(),
         }),
@@ -360,9 +389,8 @@ export const measurementBatchSchema = z
     }
   })
   .describe(
-    "The JSON document inside the compressed body of `PUT /measurements/uploads/:id`, format version 1. " +
-      "Fields the server does not know are ignored, so a later app can add optional fields without a new version. " +
-      "Values out of range are dropped one by one when the upload is processed; they do not reject the upload",
+    "The JSON document inside the compressed body of `PUT /measurements/uploads/{id}`. " +
+      "Values out of range are dropped one by one when the upload is processed, without rejecting the upload",
   );
 export type MeasurementBatch = z.infer<typeof measurementBatchSchema>;
 
@@ -403,7 +431,7 @@ export type MeasurementConfig = z.infer<typeof measurementConfigSchema>;
 
 export const measurementTermsSchema = z.object({
   currentVersion: z.number().int().positive(),
-  acceptedVersion: z.number().int().positive().nullable().describe("The latest version you accepted"),
+  acceptedVersion: z.number().int().positive().nullable(),
   acceptedAt: z.iso.datetime().nullable(),
 });
 export type MeasurementTerms = z.infer<typeof measurementTermsSchema>;
@@ -412,6 +440,16 @@ export const measurementTermsAcceptSchema = z
   .object({ version: z.number().int().positive().describe("`currentVersion` from `GET /measurements/terms`") })
   .strict();
 export type MeasurementTermsAccept = z.infer<typeof measurementTermsAcceptSchema>;
+
+export const measurementListingSchema = z.object({
+  isListed: z.boolean().describe("Whether you chose to appear in the leaderboards"),
+  listedAt: z.iso.datetime().nullable().describe("When you agreed, `null` while you are not listed"),
+  hasPublicProfile: z.boolean().describe("The boards show only people with a public profile"),
+});
+export type MeasurementListing = z.infer<typeof measurementListingSchema>;
+
+export const measurementListingUpdateSchema = z.object({ isListed: z.boolean() }).strict();
+export type MeasurementListingUpdate = z.infer<typeof measurementListingUpdateSchema>;
 
 const quotaSchema = z.object({ limit: z.number().int(), remaining: z.number().int() });
 
@@ -466,25 +504,85 @@ export const measurementDeviceSchema = z.object({
     .object({
       tier: z
         .enum(MEASUREMENT_DEVICE_TIERS)
-        .describe("Can drop later, for example when one of the key's certificates is revoked. The other fields are read once, at registration"),
+        .describe(
+          "`strong`: the key is in the phone's secure hardware, the phone is locked and booted verified, and the BTSearch app made the key. " +
+            "`hardware`: the key is in secure hardware, but the bootloader is unlocked or the boot is not verified. " +
+            "`software`: the attestation cannot be trusted, because the key is in software, its chain has an unknown root or a revoked certificate, " +
+            "or another app made the key. `none`: the device was registered without an attestation chain. " +
+            "The tier can drop later, for example when one of the key's certificates is revoked. The other fields are read once, at registration",
+        ),
       securityLevel: z.enum(ATTESTATION_SECURITY_LEVELS).nullable(),
       verifiedBootState: z.enum(VERIFIED_BOOT_STATES).nullable(),
       isBootloaderLocked: z.boolean().nullable(),
     })
     .describe("What the key's attestation says about the phone. `null` fields were not in it"),
-  isRevoked: z.boolean(),
-  revokedAt: z.iso.datetime().nullable(),
-  revocationReason: z.string().nullable().describe("Written by an administrator who revoked the device"),
+  revocation: z
+    .object({
+      reason: z.string().nullable().describe("Written by an administrator who revoked the device"),
+      by: userRefSchema
+        .nullable()
+        .optional()
+        .describe("Administrators only. The device's owner or the administrator who revoked it. `null` once that account is deleted"),
+      at: z.iso.datetime(),
+    })
+    .nullable(),
   createdAt: z.iso.datetime(),
   lastUploadAt: z.iso.datetime().nullable(),
+  software: z
+    .object({
+      sdkInt: z.number().int(),
+      securityPatch: z.iso.date().nullable(),
+      radioVersion: z.string().nullable().describe("The modem firmware version"),
+      appVersionCode: z.number().int(),
+      appVersionName: z.string(),
+    })
+    .nullable()
+    .describe("What the phone ran for its latest processed upload. `null` until one is processed"),
+  timingAdvance: z
+    .array(
+      z.object({
+        source: z.enum(MEASUREMENT_READER_SOURCES),
+        rat: z.enum(TIMING_ADVANCE_RATS),
+        metersPerStep: z.number(),
+        offsetMeters: z.number(),
+      }),
+    )
+    .describe(
+      "How this phone's timing advance turns into meters, as calibrated against the stations in the database over the last 7 nights: " +
+        "a distance is `timingAdvance * metersPerStep + offsetMeters`. A source and technology that is not listed has no calibration yet. " +
+        "Use 3GPP's step for it, with no offset: 553.46 m for GSM, 78.07 m for LTE and 9.76 m for NR read from the modem. " +
+        "NR read through Android's API gives no distance until it is calibrated",
+    ),
+  weight: z
+    .object({
+      computed: z.number().describe("From the device's tier and track record"),
+      effective: z.number().describe("What its next uploads count with"),
+      basis: z.enum(MEASUREMENT_WEIGHT_BASES).describe("Where `effective` comes from: the device's own weight, its owner's vouch, or `computed`"),
+      own: z
+        .object({ value: z.number(), reason: z.string(), by: userRefSchema.nullable(), at: z.iso.datetime() })
+        .nullable()
+        .describe("The weight an administrator set on the device itself. `null` while it has none"),
+    })
+    .optional()
+    .describe("Administrators only"),
   owner: userRefSchema.nullable().optional().describe("Administrators only, with `include=owner`. `null` once the account is deleted"),
 });
 export type MeasurementDevice = z.infer<typeof measurementDeviceSchema>;
+export type MeasurementDeviceTimingAdvance = MeasurementDevice["timingAdvance"][number];
+export type MeasurementDeviceWeight = NonNullable<MeasurementDevice["weight"]>;
 
 export const measurementDeviceListQuerySchema = z
   .object({
-    owners: z.enum(MEASUREMENT_OWNERS).default("mine").describe("`all` is for administrators"),
-    sort: z.enum(MEASUREMENT_DEVICE_SORTS).default("-createdAt"),
+    scope: z
+      .enum(MEASUREMENT_LIST_SCOPES)
+      .optional()
+      .describe("`all` is for administrators. Left out, it is `mine`, or `all` when an administrator sends `ids` or `userIds`"),
+    ids: csvUuidsSchema.optional(),
+    userIds: csvUuidsSchema.optional().describe("Their owners"),
+    sort: z
+      .enum(MEASUREMENT_DEVICE_SORTS)
+      .default("-createdAt")
+      .describe("`weight` sorts by the computed weight, lowest first, and is for administrators"),
     include: csvEnumSchema(MEASUREMENT_DEVICE_INCLUDES).optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
@@ -497,19 +595,43 @@ export type MeasurementDeviceListQuery = z.infer<typeof measurementDeviceListQue
 export const measurementDeviceListSchema = z.object({ data: z.array(measurementDeviceSchema), paging: pagingSchema });
 export type MeasurementDeviceList = z.infer<typeof measurementDeviceListSchema>;
 
+const trustWeightSchema = z.number().min(0).max(2);
+
 export const measurementDeviceUpdateSchema = z
   .object({
     label: nameSchema.nullable().optional().describe("Only the device's owner can change it"),
     isRevoked: z.boolean().optional().describe("You can revoke your own device. Only an administrator can restore one"),
-    reason: z.string().trim().min(1).max(500).optional().describe("Administrators only, with `isRevoked: true`. The device's owner sees it"),
+    revocationReason: reasonSchema.optional().describe("Administrators only, with `isRevoked: true`. The device's owner sees it"),
+    weight: z
+      .object({ value: trustWeightSchema, reason: reasonSchema })
+      .strict()
+      .nullable()
+      .optional()
+      .describe(
+        "Administrators only, in a request of its own. The weight this device's uploads count with, in place of the owner's vouch and the computed weight",
+      ),
+    refold: z
+      .boolean()
+      .optional()
+      .describe(
+        "With `weight`. Fold again the owner's uploads whose file is still kept, from each of their devices, with the weights they have after this change",
+      ),
   })
   .strict()
   .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE)
-  .refine((change) => change.reason === undefined || change.isRevoked === true, { path: ["reason"], error: "Send it with `isRevoked: true`" });
+  .refine((change) => change.revocationReason === undefined || change.isRevoked === true, {
+    path: ["revocationReason"],
+    error: "Send it with `isRevoked: true`",
+  })
+  .refine((change) => change.weight === undefined || (change.label === undefined && change.isRevoked === undefined), {
+    path: ["weight"],
+    error: "Send it in a request of its own",
+  })
+  .refine((change) => change.refold === undefined || change.weight !== undefined, { path: ["refold"], error: "Send it with `weight`" });
 export type MeasurementDeviceUpdate = z.infer<typeof measurementDeviceUpdateSchema>;
 
 export const measurementUploadParamsSchema = z.object({
-  id: z.uuidv7().describe("The app makes it when it closes the batch. Its time must lie between 120 days ago and one day ahead"),
+  id: z.uuidv7().describe("The app makes it when it closes the batch. The time in the UUIDv7 must lie between 120 days ago and one day ahead"),
 });
 
 export const measurementUploadHeadersSchema = z.object({
@@ -522,41 +644,64 @@ export type MeasurementUploadHeaders = z.infer<typeof measurementUploadHeadersSc
 export const measurementUploadSchema = z.object({
   id: z.uuid(),
   deviceId: z.uuid(),
-  status: z
-    .enum(MEASUREMENT_UPLOAD_STATUSES)
-    .describe("Uploads are not processed yet, so for now an upload stays `received` until it is withdrawn or excluded"),
-  statusReason: z.string().nullable().describe("Why the upload was rejected or excluded"),
+  status: z.enum(MEASUREMENT_UPLOAD_STATUSES).describe("Goes from `received` through `processing` to `processed` or `rejected`"),
+  rejectionReason: z.enum(MEASUREMENT_REJECTION_REASONS).nullable(),
+  exclusion: z
+    .object({
+      reason: z.string(),
+      by: userRefSchema.nullable().optional().describe("Administrators only. `null` once that account is deleted"),
+      at: z.iso.datetime(),
+    })
+    .nullable(),
   contentType: z.enum(MEASUREMENT_CONTENT_TYPES),
   sizeBytes: z.number().int().describe("The size of the compressed body"),
   receivedAt: z.iso.datetime(),
   updatedAt: z.iso.datetime().describe("When the status last changed"),
+  attempts: z.number().int().describe("How often processing started. An upload whose processing keeps failing is rejected with `processingFailed`"),
   result: z
     .object({
       processedAt: z.iso.datetime(),
-      startedAt: z.iso.datetime().describe("The time of the first reading"),
-      endedAt: z.iso.datetime().describe("The time of the last reading"),
-      bbox: z.object({ west: z.number(), south: z.number(), east: z.number(), north: z.number() }),
+      startedAt: z.iso.datetime().nullable().describe("The time of the first reading kept"),
+      endedAt: z.iso.datetime().nullable().describe("The time of the last reading kept"),
+      bbox: z.object({ west: z.number(), south: z.number(), east: z.number(), north: z.number() }).nullable().describe("Around the readings kept"),
       samples: z.object({
         total: z.number().int(),
         kept: z.number().int(),
-        dropped: z.record(z.string(), z.number().int()).describe("Counts by reason"),
+        distanceOnly: z
+          .number()
+          .int()
+          .describe("Readings kept without a signal level, whose timing advance still gives a distance. They are counted in `kept`"),
+        dropped: z.partialRecord(z.enum(MEASUREMENT_DROP_REASONS), z.number().int().positive()).describe("Counts by reason"),
+        closedCountryCodes: z.array(z.string()).describe("The countries behind `dropped.closedCountry`, where measuring was switched off"),
       }),
-      discoveries: z.object({ cells: z.number().int(), sites: z.number().int() }).describe("The cells and sites this upload found first"),
+      discoveries: z
+        .object({ cells: z.number().int(), sites: z.number().int(), squares: z.number().int() })
+        .describe("The cells, sites and squares this upload measured before anyone else"),
     })
     .nullable()
-    .describe("`null` until the upload is processed"),
-  fileExpiresAt: z.iso.datetime().nullable().describe("When the raw file is deleted at the latest. `null` once it is gone"),
+    .describe(
+      "`null` until the upload is processed, and again once it is withdrawn or excluded. " +
+        "An upload rejected with `noSamples` has one too, to show why its readings were dropped. Its `startedAt`, `endedAt` and `bbox` are `null`",
+    ),
+  fileExpiresAt: z.iso.datetime().nullable().describe("When the raw file is due to be deleted. `null` once it is gone"),
+  uploader: userRefSchema.nullable().optional().describe("Administrators only, with `include=uploader`. `null` once the account is deleted"),
+  device: measurementDeviceSchema.optional().describe("Only returned with `include=device`"),
 });
 export type MeasurementUpload = z.infer<typeof measurementUploadSchema>;
 
 export const measurementUploadListQuerySchema = z
   .object({
-    uploaders: z.enum(MEASUREMENT_OWNERS).default("mine").describe("`all` is for administrators"),
+    scope: z
+      .enum(MEASUREMENT_LIST_SCOPES)
+      .optional()
+      .describe("`all` is for administrators. Left out, it is `mine`, or `all` when an administrator sends `userIds` or `deviceIds`"),
+    userIds: csvUuidsSchema.optional().describe("The people who sent them"),
     deviceIds: csvUuidsSchema.optional(),
     statuses: csvEnumSchema(MEASUREMENT_UPLOAD_STATUSES).optional(),
     receivedAfter: instantSchema.optional().describe("Only uploads received at or after this time"),
     updatedAfter: instantSchema.optional().describe("Only uploads whose status changed at or after this time"),
     sort: z.enum(MEASUREMENT_UPLOAD_SORTS).default("-receivedAt"),
+    include: csvEnumSchema(MEASUREMENT_UPLOAD_INCLUDES).optional(),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     includeTotal: booleanQuerySchema.optional(),
@@ -568,19 +713,36 @@ export type MeasurementUploadListQuery = z.infer<typeof measurementUploadListQue
 export const measurementUploadListSchema = z.object({ data: z.array(measurementUploadSchema), paging: pagingSchema });
 export type MeasurementUploadList = z.infer<typeof measurementUploadListSchema>;
 
-const exclusionReasonSchema = z.string().trim().min(1).max(500).describe("The person who sent the upload sees it");
+const exclusionReasonSchema = reasonSchema.describe("The person who sent the upload sees it");
 
-export const measurementUploadUpdateSchema = z.discriminatedUnion("status", [
-  z
-    .object({ status: z.literal("withdrawn") })
-    .strict()
-    .describe("Only for your own uploads. The file is deleted within the hour"),
-  z
-    .object({ status: z.literal("excluded"), reason: exclusionReasonSchema })
-    .strict()
-    .describe("Administrators only. The file is kept until it expires, as evidence"),
-]);
+export const measurementUploadUpdateSchema = z
+  .object({
+    status: z
+      .literal("withdrawn")
+      .optional()
+      .describe("Only for your own uploads. Its readings stop counting within minutes, and its file is deleted within the hour after that"),
+    exclusion: z
+      .object({ reason: exclusionReasonSchema })
+      .strict()
+      .nullable()
+      .optional()
+      .describe(
+        "Administrators only. An object excludes the upload and keeps its file until it expires, as evidence. " +
+          "`null` restores an excluded upload while its file is kept: it counts again, and is folded now if it never was",
+      ),
+  })
+  .strict()
+  .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE)
+  .refine((change) => change.status === undefined || change.exclusion === undefined, {
+    path: ["exclusion"],
+    error: "Send either `status` or `exclusion`, not both",
+  });
 export type MeasurementUploadUpdate = z.infer<typeof measurementUploadUpdateSchema>;
+
+export const measurementUploadConflictSchema = z.object({ kind: z.enum(["withdrawn", "excluded", "notExcluded"]) });
+export type MeasurementUploadConflict = z.infer<typeof measurementUploadConflictSchema>;
+
+export const measurementUploadFileGoneSchema = z.object({ kind: z.literal("fileDeleted") });
 
 export const MEASUREMENT_UPLOAD_IDS_LIMIT = 100;
 
@@ -608,3 +770,285 @@ export const measurementExclusionResultSchema = z.object({
   data: z.object({ excludedCount: z.number().int().nonnegative().describe("Uploads that were withdrawn or excluded already are not counted") }),
 });
 export type MeasurementExclusionResult = z.infer<typeof measurementExclusionResultSchema>;
+
+const readingBlockPhonesSchema = z
+  .union([
+    z.object({ modemFamily: z.enum(MEASUREMENT_MODEM_FAMILIES) }).strict(),
+    z.object({ socId: z.number().int().positive() }).strict(),
+    z.object({ deviceModelId: z.number().int().positive() }).strict(),
+    z.object({ readerVersionId: z.number().int().positive() }).strict(),
+  ])
+  .describe("The phones it applies to, by one modem family, SoC, device model or reader version");
+
+const readingBlockModeSchema = z
+  .enum(READING_BLOCK_MODES)
+  .describe(
+    "`drop` discards the fields, or the whole reading. `corroborate` holds them back until a phone outside the block, or the matched cell in the database, shows the same value. " +
+      "`corroborate` takes only `pci`, `channel`, `areaCode` and `bandwidth`",
+  );
+
+const sdkIntSchema = z.number().int().min(1).max(1000);
+
+export const measurementReadingBlockSchema = z.object({
+  id: z.number().int(),
+  phones: readingBlockPhonesSchema,
+  technologies: z.array(z.enum(CELL_RATS)).nullable().describe("`null` for all"),
+  roles: z.array(z.enum(READING_BLOCK_ROLES)).nullable().describe("`null` for all"),
+  sdkIntMin: z.number().int().nullable(),
+  sdkIntMax: z.number().int().nullable(),
+  radioVersionPrefix: z.string().nullable(),
+  fields: z.array(z.enum(READING_BLOCK_FIELDS)).nullable().describe("`null` for the whole reading: every cell and value in it"),
+  mode: readingBlockModeSchema,
+  reason: z.string(),
+  createdBy: userRefSchema.nullable(),
+  createdAt: z.iso.datetime(),
+  isEnabled: z.boolean(),
+  disabledBy: userRefSchema.nullable(),
+  disabledAt: z.iso.datetime().nullable(),
+});
+export type MeasurementReadingBlock = z.infer<typeof measurementReadingBlockSchema>;
+
+export const measurementReadingBlockListSchema = z.object({ data: z.array(measurementReadingBlockSchema) });
+
+export const measurementReadingBlockParamsSchema = z.object({ id: idParamSchema });
+
+export const measurementReadingBlockCreateSchema = z
+  .object({
+    phones: readingBlockPhonesSchema,
+    technologies: z.array(z.enum(CELL_RATS)).min(1).optional(),
+    roles: z
+      .array(z.enum(READING_BLOCK_ROLES))
+      .min(1)
+      .optional()
+      .describe("`serving` also covers aggregated carriers, and `nsa` the NR carrier of an NSA connection (`nrSecondary` readings)"),
+    sdkIntMin: sdkIntSchema.optional(),
+    sdkIntMax: sdkIntSchema.optional(),
+    radioVersionPrefix: z.string().trim().min(1).max(128).optional(),
+    fields: z.array(z.enum(READING_BLOCK_FIELDS)).min(1).optional().describe("Leave it out to drop whole readings"),
+    mode: readingBlockModeSchema,
+    reason: reasonSchema,
+    refold: z.boolean().default(false).describe("Also fold again the uploads it applies to whose file is still kept"),
+  })
+  .strict()
+  .refine((block) => block.fields !== undefined || (block.mode === "drop" && block.technologies === undefined && block.roles === undefined), {
+    path: ["fields"],
+    error: "A block of whole readings takes `drop` and no `technologies` or `roles`",
+  })
+  .refine(
+    (block) =>
+      block.mode === "drop" ||
+      block.fields === undefined ||
+      block.fields.every((field) => (READING_BLOCK_HELD_FIELDS as readonly string[]).includes(field)),
+    { path: ["fields"], error: "`corroborate` takes only `pci`, `channel`, `areaCode` and `bandwidth`" },
+  )
+  .refine((block) => block.sdkIntMin === undefined || block.sdkIntMax === undefined || block.sdkIntMin <= block.sdkIntMax, {
+    path: ["sdkIntMax"],
+    error: "Must not be below `sdkIntMin`",
+  });
+export type MeasurementReadingBlockCreate = z.infer<typeof measurementReadingBlockCreateSchema>;
+
+export const measurementReadingBlockUpdateSchema = z
+  .object({
+    reason: reasonSchema.optional(),
+    isEnabled: z.boolean().optional(),
+    refold: z.boolean().optional().describe("Fold again the uploads it acted on or now applies to, if their file is still kept"),
+  })
+  .strict()
+  .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE);
+export type MeasurementReadingBlockUpdate = z.infer<typeof measurementReadingBlockUpdateSchema>;
+
+export const measurementReaderVersionSchema = z.object({
+  id: z.number().int(),
+  reader: z.string().describe("The reader's `name` in uploads"),
+  source: z.enum(MEASUREMENT_READER_SOURCES),
+  version: z.string(),
+  firstSeenAt: z.iso.datetime(),
+});
+export type MeasurementReaderVersion = z.infer<typeof measurementReaderVersionSchema>;
+
+export const measurementReaderVersionListSchema = z.object({ data: z.array(measurementReaderVersionSchema) });
+
+export const measurementSocSchema = z.object({
+  id: z.number().int(),
+  manufacturer: z.string(),
+  model: z.string(),
+  modemFamily: z.enum(MEASUREMENT_MODEM_FAMILIES),
+});
+export type MeasurementSoc = z.infer<typeof measurementSocSchema>;
+
+export const measurementSocListSchema = z.object({ data: z.array(measurementSocSchema) });
+
+export const measurementDeviceModelSchema = z.object({
+  id: z.number().int(),
+  manufacturer: z.string(),
+  model: z.string(),
+  socId: z.number().int().nullable().describe("The SoC the phone names, or else the one its board is known to have"),
+});
+export type MeasurementDeviceModel = z.infer<typeof measurementDeviceModelSchema>;
+
+export const measurementDeviceModelListQuerySchema = z
+  .object({
+    q: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\u0000"), { message: "Must not contain a null character" })
+      .optional()
+      .describe("Matches part of the manufacturer followed by the model, for example `google pixel`. Letter case is ignored"),
+    ids: csvIdsSchema.optional(),
+    limit: limitSchema,
+    cursor: cursorSchema.optional(),
+  })
+  .strict();
+export type MeasurementDeviceModelListQuery = z.infer<typeof measurementDeviceModelListQuerySchema>;
+
+export const measurementDeviceModelListSchema = z.object({ data: z.array(measurementDeviceModelSchema), paging: pagingSchema });
+export type MeasurementDeviceModelList = z.infer<typeof measurementDeviceModelListSchema>;
+
+export const measurementQuirkRuleSchema = z.object({
+  id: z.string(),
+  reader: z.string(),
+  firstSeenAt: z.iso.datetime(),
+  block: z.object({ reason: z.string(), by: userRefSchema.nullable(), at: z.iso.datetime() }).nullable(),
+});
+export type MeasurementQuirkRule = z.infer<typeof measurementQuirkRuleSchema>;
+
+export const measurementQuirkRuleListSchema = z.object({ data: z.array(measurementQuirkRuleSchema) });
+
+export const measurementQuirkRuleParamsSchema = z.object({ id: z.string().min(1).max(64) });
+
+export const measurementQuirkRuleUpdateSchema = z
+  .object({
+    block: z.object({ reason: reasonSchema }).strict().nullable().optional(),
+    refold: z.boolean().optional().describe("Fold again the uploads the rule corrected or was skipped in, if their file is still kept"),
+  })
+  .strict()
+  .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE);
+export type MeasurementQuirkRuleUpdate = z.infer<typeof measurementQuirkRuleUpdateSchema>;
+
+export const measurementContributorParamsSchema = z.object({ userId: z.uuid() });
+
+export const measurementContributorSchema = z.object({
+  user: userRefSchema,
+  termsVersion: z.number().int().nullable().describe("The latest version of the contributor terms the person accepted"),
+  firstUploadAt: z.iso.datetime().nullable(),
+  deviceCount: z.number().int().describe("Revoked devices included"),
+  revokedDeviceCount: z.number().int(),
+  uploadCount: z.number().int().describe("Every upload received from them, whatever its status"),
+  weight: z
+    .object({
+      computed: z.number().describe("From the tiers and track records of the person's devices"),
+      effective: z
+        .number()
+        .describe(
+          "What their next uploads count with: per device, the weight an administrator set on it, else `vouch.weight` while the vouch lasts, " +
+            "else the computed weight",
+        ),
+    })
+    .describe("Averages over the person's devices, weighted by the samples in their folded uploads"),
+  trackRecord: z
+    .object({
+      timingAdvanceAgreement: z
+        .number()
+        .nullable()
+        .describe("The share of timing-advance readings on confirmed stations that fit their distance. `null` until there are any"),
+      droppedShare: z.number().describe("The share of readings dropped as implausible"),
+      mockShare: z.number().describe("The share of readings taken with a mock location"),
+      phantomCells: z.number().int().describe("Cells only this person reported where others measured the same network"),
+    })
+    .describe("From the latest nightly score of each of the person's devices"),
+  vouch: z
+    .object({
+      weight: z.number().describe("Takes the place of the computed weight on each of their devices that has no weight of its own"),
+      confirmsAlone: z.boolean().describe("Whether what the person alone saw counts as confirmed"),
+      reason: z.string(),
+      by: userRefSchema.nullable(),
+      at: z.iso.datetime(),
+      endsAt: z.iso.datetime().nullable(),
+    })
+    .nullable()
+    .describe("`null` while nobody vouches for the person, also once the vouch's `endsAt` has passed"),
+  block: z
+    .object({
+      reason: z.string(),
+      by: userRefSchema.nullable(),
+      at: z.iso.datetime(),
+      endsAt: z.iso.datetime().nullable(),
+    })
+    .nullable()
+    .describe("`null` while the person is not blocked, also once the block's `endsAt` has passed"),
+});
+export type MeasurementContributor = z.infer<typeof measurementContributorSchema>;
+
+export const MEASUREMENT_CONTRIBUTOR_SORTS = ["weight", "-weight", "firstUploadAt", "-firstUploadAt"] as const;
+
+export const measurementContributorListQuerySchema = z
+  .object({
+    isVouched: booleanQuerySchema.optional(),
+    isBlocked: booleanQuerySchema.optional(),
+    weightBelow: z.coerce.number<number>().min(0).max(2).optional().describe("Only people whose computed weight is below this"),
+    sort: z
+      .enum(MEASUREMENT_CONTRIBUTOR_SORTS)
+      .default("weight")
+      .describe("`weight` sorts by the computed weight, lowest first. People who never uploaded come last by `firstUploadAt`"),
+    limit: limitSchema,
+    cursor: cursorSchema.optional().describe("Weights change each night, so paging across a nightly run can repeat or skip people"),
+    includeTotal: booleanQuerySchema.optional(),
+  })
+  .strict();
+export type MeasurementContributorListQuery = z.infer<typeof measurementContributorListQuerySchema>;
+
+export const measurementContributorListSchema = z.object({ data: z.array(measurementContributorSchema), paging: pagingSchema });
+export type MeasurementContributorList = z.infer<typeof measurementContributorListSchema>;
+
+export const measurementContributorUpdateSchema = z
+  .object({
+    vouch: z
+      .object({
+        weight: trustWeightSchema.describe("Above 1, their readings count for more than an attested phone's"),
+        confirmsAlone: z.boolean().default(false).describe("Lets what the person alone saw count as confirmed"),
+        reason: reasonSchema,
+        endsAt: instantSchema.optional().describe("Without it, the vouch lasts until withdrawn"),
+      })
+      .strict()
+      .nullable()
+      .optional()
+      .describe("Sets the weight of every device of theirs that has none of its own"),
+    block: z
+      .object({ reason: reasonSchema, endsAt: instantSchema.optional().describe("Without it, the block lasts until lifted") })
+      .strict()
+      .nullable()
+      .optional()
+      .describe("Refuses their uploads. Send it without `vouch`"),
+    refold: z.boolean().optional().describe("Fold again their uploads whose file is still kept, with the weight they have after this change"),
+  })
+  .strict()
+  .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE)
+  .refine((change) => change.vouch === undefined || change.block === undefined, { path: ["block"], error: "Send it in a request of its own" });
+export type MeasurementContributorUpdate = z.infer<typeof measurementContributorUpdateSchema>;
+
+export const measurementSummarySchema = z.object({
+  uploads: z.number().int().describe("Your uploads whose readings count now: processed, and neither withdrawn nor excluded"),
+  samples: z.number().int().describe("The samples they kept"),
+  newSquares: z.number().int().describe("Squares nobody had measured before you"),
+  discoveries: z.object({ cells: z.number().int(), sites: z.number().int() }).describe("The cells and sites they found first"),
+  firstUploadAt: z.iso.datetime().nullable().describe("When the first of them was received"),
+  lastUploadAt: z.iso.datetime().nullable().describe("When the latest of them was received"),
+  countries: z
+    .array(z.object({ countryCode: z.string(), samples: z.number().int(), newSquares: z.number().int() }))
+    .describe(
+      "Per country the samples were taken in, most samples first. Samples outside every country are left out. " +
+        "`samples` here is counted as the engine folds, so a withdrawn upload leaves it within minutes",
+    ),
+  ranks: z
+    .array(
+      z.object({
+        countryCode: z.string(),
+        startsOn: z.iso.date().nullable().describe("The first day of this month, or `null` for all time"),
+        rank: z.number().int().positive(),
+      }),
+    )
+    .describe("Your place on the leaderboards, all time and this month, in each country where you are listed. Empty while you are not"),
+});
+export type MeasurementSummary = z.infer<typeof measurementSummarySchema>;

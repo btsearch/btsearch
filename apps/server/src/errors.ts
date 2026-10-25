@@ -59,10 +59,12 @@ export type ErrorCode =
   | "QUOTA_EXCEEDED"
   | "DUPLICATE_ENTRY"
   | "CONFLICT"
+  | "GONE"
   | "SERVICE_UNAVAILABLE"
   | "MAINTENANCE_MODE"
   | "TWO_FACTOR_REQUIRED"
   | "DUPLICATE_REQUEST"
+  | "IDEMPOTENCY_KEY_REUSED"
   | "PHOTO_TOO_SMALL"
   | "PHOTO_TOO_BLURRY"
   | "LIST_LIMIT_REACHED"
@@ -154,6 +156,10 @@ export const errors: Record<ErrorCode, ErrorDefinition> = {
     message: "The resource conflicts with its current state.",
     statusCode: 409,
   },
+  GONE: {
+    message: "The resource is gone for good.",
+    statusCode: 410,
+  },
   SERVICE_UNAVAILABLE: {
     message: "The service is temporarily unavailable.",
     statusCode: 503,
@@ -169,6 +175,10 @@ export const errors: Record<ErrorCode, ErrorDefinition> = {
   DUPLICATE_REQUEST: {
     message: "A request with this idempotency key is already being processed.",
     statusCode: 409,
+  },
+  IDEMPOTENCY_KEY_REUSED: {
+    message: "This idempotency key was already used for a different request.",
+    statusCode: 422,
   },
   PHOTO_TOO_SMALL: {
     message: "Photo resolution is too low. Use an image at least 640 by 480 pixels.",

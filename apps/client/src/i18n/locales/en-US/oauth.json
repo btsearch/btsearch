@@ -10,7 +10,7 @@
     "offlineAccess": "Keeps access until you revoke it",
     "measurements": {
       "collected": "While recording, the app collects cell network readings and GPS positions, along with the phone model and app version. It never collects your phone number, IMEI or IMSI",
-      "license": "Measurements are published as open data under the ODbL. You can withdraw them in settings"
+      "license": "Sites, cells and coverage worked out from your measurements are published as open data under the ODbL. Raw measurements are never published. You can withdraw uploads in settings, but copies others already made stay with them"
     },
     "redirectNotice": "You will be redirected to <strong>{{domain}}</strong>",
     "revokeNotice": "You can revoke this access anytime <settingsLink>here</settingsLink>",
@@ -33,12 +33,14 @@
       "read_submissions": "Your submissions",
       "read_official_permits": "Permit register",
       "read_microwave_links": "Microwave links from the register",
+      "read_observations": "Cells and sites from phone measurements",
       "create_comments": "Post station comments as you",
       "create_user_lists": "Create your station lists",
       "update_user_lists": "Update your station lists",
       "create_submissions": "Submit station data changes as you",
       "update_submissions": "Update your submissions",
       "delete_submissions": "Delete your submissions",
+      "moderate_observations": "Review measurement flags in the editors' queue as you",
       "upload_observations": "Upload measurements from this phone"
     }
   },

@@ -42,7 +42,7 @@ const NUMBER_FIELD_BY_LABEL: Partial<Record<string, CellNumberField>> = {
   eNBID: "enbid",
   CLID: "clid",
   TAC: "tac",
-  "gNB ID": "gnbid",
+  gNBID: "gnbid",
   EARFCN: "earfcn",
   UARFCN: "uarfcn",
   ARFCN: "arfcn",
@@ -266,7 +266,7 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     readValues: () => ({ node: "RNC", cell: "CID" }),
   },
   {
-    pattern: /^eNB ID and CLID are unknown together/,
+    pattern: /^eNBID and CLID are unknown together/,
     messageKey: "stations:edit.refusals.unknownTogether",
     findTargets: atRat("lte"),
     readValues: () => ({ node: "eNBID", cell: "CLID" }),
@@ -287,10 +287,10 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     findTargets: atPlace("structureOwner"),
   },
   {
-    pattern: /^An? (TAC|CLID|gNB ID) must not be set for an NR NSA cell$/,
+    pattern: /^An? (TAC|CLID|gNBID) must not be set for an NR NSA cell$/,
     messageKey: "stations:edit.errors.nsaField",
     findTargets: atRat("nr"),
-    readValues: (match) => ({ field: readGroup(match, 1).replace(" ", "") }),
+    readValues: (match) => ({ field: readGroup(match, 1) }),
   },
   {
     pattern: /^RedCap support must not be set for an NR NSA cell$/,
@@ -300,7 +300,7 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
   },
   {
     pattern:
-      /^A station needs a station number unless it has a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC$/,
+      /^A station needs a station number unless it has a cell that names it: an LTE cell with an eNBID, an NR cell with a gNBID, a UMTS cell with an RNC or a GSM cell with a LAC$/,
     messageKey: "stations:edit.errors.siteIdRequiredWithoutNode",
     findTargets: atStation("siteId"),
   },

@@ -20,8 +20,9 @@ type StationPhotoUpload = PhotoUploadDetails & {
   useFirstUploadedAsMain: boolean;
 };
 
-export const STATION_INCLUDE = "operator,location.region,cells.band,sectors,backhaul";
-const LOCATION_INCLUDE = "region,stations,stations.operator,stations.cells,stations.cells.band,stations.sectors,stations.backhaul";
+export const STATION_INCLUDE = "operator,location.region,cells.band,cells.sightings,sectors,backhaul,sightings";
+const LOCATION_INCLUDE =
+  "region,stations,stations.operator,stations.cells,stations.cells.band,stations.cells.sightings,stations.sectors,stations.backhaul,stations.sightings";
 const RECORD_STALE_TIME = 1000 * 60 * 5;
 const LOCATION_RECORD_STALE_TIME = 1000 * 60 * 2;
 

@@ -9,8 +9,8 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../../errors.js";
-import { receiveUpload } from "../../../../../features/measurements/intake.js";
-import { toMeasurementUpload } from "../../../../../features/measurements/uploads.js";
+import { receiveUpload } from "../../../../../features/measurements/uploads/intake.js";
+import { toMeasurementUpload } from "../../../../../features/measurements/uploads/serialize.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -33,7 +33,7 @@ const errorReasons = {
   400: "The body does not start like its content type.",
   403:
     "Also returned while uploads are switched off, with `APP_UPDATE_REQUIRED`, `TERMS_NOT_ACCEPTED`, `CONTRIBUTOR_BLOCKED` or `DEVICE_REVOKED`, " +
-    "and with `INVALID_SIGNATURE` when `X-Device-Signature` does not verify. With `CONTRIBUTOR_BLOCKED`, `details` holds one `{ until }`: " +
+    "and with `INVALID_SIGNATURE` when `X-Device-Signature` does not verify. With `CONTRIBUTOR_BLOCKED`, `details` holds one `{ endsAt }`: " +
     "when the block ends, or `null` if it has no end.",
   404: "With `DEVICE_NOT_FOUND`, `X-Device-Id` is not one of your devices, so register the phone again with a new key. Otherwise the upload is someone else's.",
   409: "An upload with this id exists from another device or with another body (`UPLOAD_ID_CONFLICT`).",
@@ -45,13 +45,13 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const userId = req.userSession?.user.id;
   if (userId === undefined) throw new ErrorResponse("UNAUTHORIZED");
 
-  const { upload, isNew, retentionDays } = await receiveUpload(res, userId, {
+  const intake = await receiveUpload(res, userId, {
     uploadId: req.params.id,
     headers: req.headers,
     contentTypeHeader: req.headers["content-type"],
     raw: req.raw,
   });
-  return res.status(isNew ? 201 : 200).send({ data: toMeasurementUpload(upload, retentionDays) });
+  return res.status(intake.isNew ? 201 : 200).send({ data: await toMeasurementUpload(req, intake, intake.retentionDays) });
 }
 
 const putMeasurementUpload: Route<RequestData, MeasurementUpload> = {

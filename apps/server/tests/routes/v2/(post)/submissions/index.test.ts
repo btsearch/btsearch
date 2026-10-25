@@ -489,7 +489,7 @@ describe("POST /submissions", () => {
     },
     {
       input: { action: "create", rat: "lte", bandId: 3, enbid: 1, clid: null },
-      message: "eNB ID and CLID are unknown together: a cell with a known eNB ID needs a CLID",
+      message: "eNBID and CLID are unknown together: a cell with a known eNBID needs a CLID",
     },
   ])("rejects a known radio node with an unknown cell identity: $input.rat", async ({ input, message }) => {
     const fixture = draftFixture([draftRadios[0]]);

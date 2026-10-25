@@ -6,7 +6,7 @@ import { ReferenceCard, ReferenceCardHeader, ReferenceCardNote } from "../shared
 import { CountrySwitchRow } from "./countrySwitchRow";
 import { useCountrySwitches } from "./useCountrySwitches";
 
-const FEATURES: (keyof CountryFeatures)[] = ["structureOwnerProposals", "psc", "bsic"];
+const FEATURES: (keyof CountryFeatures)[] = ["structureOwnerProposals", "psc", "bsic", "observationsPublic"];
 
 export function DataAndSubmissionsCard({ country, canEdit }: { country: Country; canEdit: boolean }) {
   const { t } = useTranslation("admin");

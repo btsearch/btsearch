@@ -3,10 +3,10 @@ import Fastify, { type FastifyContextConfig, type FastifyInstance, type FastifyS
 import { type ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 
 import redis from "../../src/database/redis.js";
-import { registerUnreadBodyParsers } from "../../src/features/measurements/uploadBody.js";
+import { registerUnreadBodyParsers } from "../../src/features/measurements/uploads/body.js";
 import type { ApiToken, FastifyZodInstance, Session } from "../../src/interfaces/fastify.interface.js";
 import { authHook } from "../../src/middlewares/auth.middleware.js";
-import { idempotencyHook } from "../../src/middlewares/idempotency.middleware.js";
+import { idempotencyHook, rememberIdempotentAnswer } from "../../src/middlewares/idempotency.middleware.js";
 import type { OAuthTokenContext } from "../../src/plugins/auth/oauthToken.js";
 import { RateLimitService } from "../../src/plugins/ratelimit/rateLimiter.js";
 import { productionErrorHandler } from "./productionErrorHandler.js";
@@ -46,7 +46,13 @@ export async function createRouteHarness(route: RouteDefinition, options: Harnes
     request.oauthToken = options.oauthToken ?? null;
   });
   if (options.runAuth) app.addHook("preHandler", authHook);
-  if (options.runIdempotency) app.addHook("preHandler", idempotencyHook);
+  if (options.runIdempotency) {
+    app.addHook("preHandler", idempotencyHook);
+    app.addHook("onSend", async (request, reply, payload) => {
+      rememberIdempotentAnswer(request, reply, payload);
+      return payload;
+    });
+  }
   const production = await productionErrorHandler();
   const errorHandler: FastifyInstance["errorHandler"] = function (this: FastifyInstance, error, request, reply) {
     if (error instanceof Error) options.onError?.(error);

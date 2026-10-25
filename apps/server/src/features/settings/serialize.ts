@@ -20,6 +20,7 @@ export function toSettings(stored: RuntimeSettings, { isAdministrator }: Setting
       commentReview: stored.commentQueueEnabled,
       lists: stored.enableUserLists,
       measurementUploads: stored.measurementUploadsEnabled,
+      observations: stored.observationsEnabled,
     },
     announcement: isAdministrator || stored.announcement.enabled ? toAnnouncement(stored.announcement) : null,
   };
@@ -49,6 +50,7 @@ export function toRuntimeSettingsPatch({
     commentQueueEnabled: features?.commentReview,
     enableUserLists: features?.lists,
     measurementUploadsEnabled: features?.measurementUploads,
+    observationsEnabled: features?.observations,
     allowedUnauthenticatedRoutes: access?.openRoutes,
     disabledRoutes: access?.disabledRoutes,
   };

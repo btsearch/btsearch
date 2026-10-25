@@ -6,16 +6,16 @@ import { findPlacementCountryFeatures, getCountryFeaturesByCode, getStationCount
 import { dbMock } from "../../helpers/boundaries.js";
 
 describe("getCountryFeaturesByCode", () => {
-  it("keeps owner proposals, PSC and BSIC independent for each country", async () => {
+  it("keeps owner proposals, PSC, BSIC and public observations independent for each country", async () => {
     dbMock.enqueueCountryFeatures("countries", [
-      { code: "PL", structureOwnerProposals: true, psc: true, bsic: false },
-      { code: "DE", structureOwnerProposals: false, psc: false, bsic: true },
+      { code: "PL", structureOwnerProposals: true, psc: true, bsic: false, observationsPublic: true },
+      { code: "DE", structureOwnerProposals: false, psc: false, bsic: true, observationsPublic: false },
     ]);
 
     const features = await getCountryFeaturesByCode(["PL", "DE", "PL", null, undefined]);
 
-    expect(features.get("PL")).toEqual({ structureOwnerProposals: true, psc: true, bsic: false });
-    expect(features.get("DE")).toEqual({ structureOwnerProposals: false, psc: false, bsic: true });
+    expect(features.get("PL")).toEqual({ structureOwnerProposals: true, psc: true, bsic: false, observationsPublic: true });
+    expect(features.get("DE")).toEqual({ structureOwnerProposals: false, psc: false, bsic: true, observationsPublic: false });
     expect(dbMock.select).toHaveBeenCalledTimes(1);
   });
 
@@ -57,30 +57,40 @@ describe("findPlacementCountryCode", () => {
 
 describe("findPlacementCountryFeatures", () => {
   it("disables optional features when no country can be resolved", async () => {
-    expect(await findPlacementCountryFeatures({ stationId: null })).toEqual({ structureOwnerProposals: false, psc: false, bsic: false });
+    expect(await findPlacementCountryFeatures({ stationId: null })).toEqual({
+      structureOwnerProposals: false,
+      psc: false,
+      bsic: false,
+      observationsPublic: false,
+    });
     expect(dbMock.select).not.toHaveBeenCalled();
   });
 
   it("disables optional features when the resolved country does not exist", async () => {
     dbMock.enqueueCountryFeatures("countries", []);
 
-    expect(await findPlacementCountryFeatures({ stationId: null, regionId: 1 })).toEqual({ structureOwnerProposals: false, psc: false, bsic: false });
+    expect(await findPlacementCountryFeatures({ stationId: null, regionId: 1 })).toEqual({
+      structureOwnerProposals: false,
+      psc: false,
+      bsic: false,
+      observationsPublic: false,
+    });
   });
 });
 
 describe("getStationCountryFeatures", () => {
   it("loads several stations in one query without depending on included location data", async () => {
     dbMock.enqueueCountryFeatures("stations", [
-      { stationId: 1, structureOwnerProposals: true, psc: true, bsic: false },
-      { stationId: 2, structureOwnerProposals: false, psc: false, bsic: true },
-      { stationId: 3, structureOwnerProposals: null, psc: null, bsic: null },
+      { stationId: 1, structureOwnerProposals: true, psc: true, bsic: false, observationsPublic: true },
+      { stationId: 2, structureOwnerProposals: false, psc: false, bsic: true, observationsPublic: false },
+      { stationId: 3, structureOwnerProposals: null, psc: null, bsic: null, observationsPublic: null },
     ]);
 
     const features = await getStationCountryFeatures([1, 2, 3, 1]);
 
-    expect(features.get(1)).toEqual({ structureOwnerProposals: true, psc: true, bsic: false });
-    expect(features.get(2)).toEqual({ structureOwnerProposals: false, psc: false, bsic: true });
-    expect(features.get(3)).toEqual({ structureOwnerProposals: false, psc: false, bsic: false });
+    expect(features.get(1)).toEqual({ structureOwnerProposals: true, psc: true, bsic: false, observationsPublic: true });
+    expect(features.get(2)).toEqual({ structureOwnerProposals: false, psc: false, bsic: true, observationsPublic: false });
+    expect(features.get(3)).toEqual({ structureOwnerProposals: false, psc: false, bsic: false, observationsPublic: false });
     expect(dbMock.select).toHaveBeenCalledTimes(1);
   });
 

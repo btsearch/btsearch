@@ -23,7 +23,7 @@ const permissionStatement = {
   official_import: ["read", "run"],
   user_lists: ["create", "read", "update", "delete", "read_all", "manage_all"],
   comments: ["create", "read", "update", "delete", "read_all", "moderate"],
-  observations: ["upload", "manage"],
+  observations: ["read", "upload", "moderate", "manage"],
   user: ["search", "resend-verification", "delete-avatar", ...defaultStatements.user],
 } as const;
 
@@ -47,6 +47,7 @@ export const API_KEY_PERMISSIONS = {
   stats: ["read"],
   official_permits: ["read"],
   microwave_links: ["read"],
+  observations: ["read"],
 } satisfies PermissionObject;
 
 const canonicalTokenPermissions = new Set<string>(
@@ -73,7 +74,7 @@ export const userRole = accessControl.newRole({
   microwave_links: ["read"],
   user_lists: ["create", "read", "update", "delete"],
   comments: ["create", "read", "update", "delete"],
-  observations: ["upload"],
+  observations: ["read", "upload"],
 });
 
 export const editorRole = accessControl.newRole({
@@ -90,7 +91,7 @@ export const editorRole = accessControl.newRole({
   user_lists: ["create", "read", "update", "delete"],
   comments: ["create", "read", "update", "delete", "read_all", "moderate"],
   official_permits: ["read", "read_unassigned"],
-  observations: ["upload"],
+  observations: ["read", "upload", "moderate"],
   user: ["search"],
 });
 
@@ -116,6 +117,6 @@ export const adminRole = accessControl.newRole({
   official_import: ["read", "run"],
   user_lists: ["create", "read", "update", "delete", "read_all", "manage_all"],
   comments: ["create", "read", "update", "delete", "read_all", "moderate"],
-  observations: ["upload", "manage"],
+  observations: ["read", "upload", "moderate", "manage"],
   user: ["search", "resend-verification", "delete-avatar", ...adminAc.statements.user],
 });

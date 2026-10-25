@@ -38,6 +38,8 @@ const SENSITIVE_TEXT_PATTERN = new RegExp(
   "gi",
 );
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const QUERY_PARAMS_PROPERTY = "params";
+const QUERY_PARAMS_LINE_PATTERN = /^params: .*$/gm;
 
 function isSensitiveProperty(key: string): boolean {
   const normalizedKey = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
@@ -47,7 +49,8 @@ function isSensitiveProperty(key: string): boolean {
 function redactSensitiveText(value: string): string {
   return value
     .replace(SENSITIVE_TEXT_PATTERN, (_match, prefix: string) => `${prefix}${REDACTED_SENSITIVE_VALUE}`)
-    .replace(EMAIL_PATTERN, REDACTED_SENSITIVE_VALUE);
+    .replace(EMAIL_PATTERN, REDACTED_SENSITIVE_VALUE)
+    .replace(QUERY_PARAMS_LINE_PATTERN, `${QUERY_PARAMS_PROPERTY}: ${REDACTED_SENSITIVE_VALUE}`);
 }
 
 function redactSensitiveData(value: unknown, seen = new WeakMap<object, unknown>()): unknown {
@@ -60,15 +63,16 @@ function redactSensitiveData(value: unknown, seen = new WeakMap<object, unknown>
     const error = value as Error & { cause?: unknown };
     const redacted: Record<string, unknown> = {
       name: error.name,
-      message: error.message,
-      stack: error.stack,
+      message: redactSensitiveText(error.message),
+      stack: error.stack && redactSensitiveText(error.stack),
     };
     seen.set(value, redacted);
 
     if (error.cause !== undefined) redacted.cause = redactSensitiveData(error.cause, seen);
 
     for (const [key, nestedValue] of Object.entries(error)) {
-      redacted[key] = isSensitiveProperty(key) ? REDACTED_SENSITIVE_VALUE : redactSensitiveData(nestedValue, seen);
+      const isSensitive = isSensitiveProperty(key) || key === QUERY_PARAMS_PROPERTY;
+      redacted[key] = isSensitive ? REDACTED_SENSITIVE_VALUE : redactSensitiveData(nestedValue, seen);
     }
 
     return redacted;

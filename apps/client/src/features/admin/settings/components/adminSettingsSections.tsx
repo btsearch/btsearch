@@ -1,5 +1,4 @@
 import type { Settings } from "@openbts/shared/contract";
-import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { readAnnouncement } from "../utils/settingsUpdate";
@@ -11,16 +10,15 @@ import { RejectedPhotosCard } from "./cleanup/rejectedPhotosCard";
 import { CommentsCard } from "./features/commentsCard";
 import { ContributionsCard } from "./features/contributionsCard";
 import { MaintenanceCard } from "./maintenanceCard";
-import { SettingsSection } from "@/features/settings/components/settingsPrimitives";
+import { AppVersionCard } from "./measurements/appVersionCard";
+import { EstimatedSitesCard } from "./measurements/estimatedSitesCard";
+import { MeasurementSwitchesCard } from "./measurements/measurementSwitchesCard";
+import { UploadFilesCard } from "./measurements/uploadFilesCard";
+import { SettingsSection, SettingsStack } from "@/features/settings/components/settingsPrimitives";
 
-type AdminSettingsSectionsProps = {
-  settings: Settings;
-  announcementFormRef: RefObject<HTMLFormElement | null>;
-};
-
-export function AdminSettingsSections({ settings, announcementFormRef }: AdminSettingsSectionsProps) {
+export function AdminSettingsSections({ settings }: { settings: Settings }) {
   const { t } = useTranslation("admin");
-  const { access, features } = settings;
+  const { access, features, measurements } = settings;
 
   return (
     <>
@@ -43,8 +41,22 @@ export function AdminSettingsSections({ settings, announcementFormRef }: AdminSe
           <CommentsCard features={features} />
         </div>
       </SettingsSection>
+      {measurements === undefined ? null : (
+        <SettingsSection id="admin-settings-measurements" title={t("settings.sections.measurements")}>
+          <SettingsStack>
+            <div className={STRETCHED_TWO_COLUMN_CLASS}>
+              <MeasurementSwitchesCard features={features} />
+              <AppVersionCard measurements={measurements} />
+            </div>
+            <div className={STRETCHED_TWO_COLUMN_CLASS}>
+              <UploadFilesCard measurements={measurements} />
+              <EstimatedSitesCard measurements={measurements} />
+            </div>
+          </SettingsStack>
+        </SettingsSection>
+      )}
       <SettingsSection id="admin-settings-announcement" title={t("settings.announcement")}>
-        <AnnouncementCard announcement={readAnnouncement(settings)} formRef={announcementFormRef} />
+        <AnnouncementCard announcement={readAnnouncement(settings)} />
       </SettingsSection>
       <SettingsSection id="admin-settings-cleanup" title={t("settings.sections.cleanup")}>
         <RejectedPhotosCard />

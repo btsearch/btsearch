@@ -39,6 +39,7 @@ async function handler(req: FastifyRequest, res: FastifyReply) {
 const authRoutes = {
   url: "/auth/*",
   method: ["GET", "POST"],
+  config: { idempotentReplay: false },
   handler,
 };
 

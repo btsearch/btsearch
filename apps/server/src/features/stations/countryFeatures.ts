@@ -9,12 +9,18 @@ import { type findPlacementCountryCode, placementCountryCode, stationCountryCode
 type Reader = Pick<DbTx, "select">;
 type Placement = Parameters<typeof findPlacementCountryCode>[0];
 
-export const disabledCountryFeatures: Readonly<CountryFeatures> = { structureOwnerProposals: false, psc: false, bsic: false };
+export const disabledCountryFeatures: Readonly<CountryFeatures> = {
+  structureOwnerProposals: false,
+  psc: false,
+  bsic: false,
+  observationsPublic: false,
+};
 
 const featureColumns = {
   structureOwnerProposals: countries.structureOwnerProposals,
   psc: countries.psc,
   bsic: countries.bsic,
+  observationsPublic: countries.observationsPublic,
 };
 
 export async function getCountryFeaturesByCode(
@@ -44,9 +50,14 @@ export async function getStationCountryFeatures(stationIds: readonly number[], r
     .leftJoin(countries, eq(countries.code, stationCountryCode))
     .where(inArray(stations.id, ids));
   return new Map(
-    rows.map(({ stationId, structureOwnerProposals, psc, bsic }) => [
+    rows.map(({ stationId, structureOwnerProposals, psc, bsic, observationsPublic }) => [
       stationId,
-      { structureOwnerProposals: structureOwnerProposals ?? false, psc: psc ?? false, bsic: bsic ?? false },
+      {
+        structureOwnerProposals: structureOwnerProposals ?? false,
+        psc: psc ?? false,
+        bsic: bsic ?? false,
+        observationsPublic: observationsPublic ?? false,
+      },
     ]),
   );
 }

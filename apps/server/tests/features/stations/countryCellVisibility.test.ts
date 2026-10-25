@@ -10,10 +10,10 @@ import { readDate, readStation } from "../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../helpers/routeHarness.js";
 
 const featureCases = [
-  { structureOwnerProposals: true, psc: false, bsic: false },
-  { structureOwnerProposals: true, psc: true, bsic: false },
-  { structureOwnerProposals: true, psc: false, bsic: true },
-  { structureOwnerProposals: true, psc: true, bsic: true },
+  { structureOwnerProposals: true, psc: false, bsic: false, observationsPublic: true },
+  { structureOwnerProposals: true, psc: true, bsic: false, observationsPublic: true },
+  { structureOwnerProposals: true, psc: false, bsic: true, observationsPublic: true },
+  { structureOwnerProposals: true, psc: true, bsic: true, observationsPublic: true },
 ] as const satisfies readonly CountryFeatures[];
 
 function cellRows(rat: "GSM" | "UMTS", stationId = 1): CellRows {

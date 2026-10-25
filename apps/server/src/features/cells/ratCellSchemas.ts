@@ -74,7 +74,7 @@ export const nrUpdateSchema = createUpdateSchema(nrCells).omit(UPDATE_OMIT).exte
 const NSA_FIELD_MESSAGES = {
   nrtac: "A TAC must not be set for an NR NSA cell",
   clid: "A CLID must not be set for an NR NSA cell",
-  gnbid: "A gNB ID must not be set for an NR NSA cell",
+  gnbid: "A gNBID must not be set for an NR NSA cell",
   supports_nr_redcap: "RedCap support must not be set for an NR NSA cell",
 } as const;
 

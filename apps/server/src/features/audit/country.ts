@@ -90,6 +90,7 @@ function entryCountries(entry: SnapshotEntry, lookups: CountryLookups, regionIds
     case "station_uplinks":
     case "station_photo_selections":
     case "station_comments":
+    case "site_links":
       return entryStationIds(entry).map(stationCountry);
     case "location_photos": {
       const ofLocations = idsAt(entry.snapshots, "location_id").flatMap((locationId): (string | null)[] => {
@@ -119,6 +120,7 @@ function entryCountries(entry: SnapshotEntry, lookups: CountryLookups, regionIds
     case "structure_owners":
     case "country_bands":
     case "role_grants":
+    case "site_ignores":
       return ownCountryCodes(entry);
     default:
       return [null];

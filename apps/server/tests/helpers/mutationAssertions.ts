@@ -31,6 +31,12 @@ export function scriptAudit() {
   dbMock.enqueueFor("update", "audit_operations", []);
 }
 
+export function auditCalls() {
+  const inserted = (table: string) =>
+    dbMock.calls.filter((call) => call.table === table && call.operation === "insert").flatMap((call) => call.values);
+  return { operations: inserted("audit_operations"), entries: inserted("audit_logs") };
+}
+
 export function whereQuery(table: string, operation: string, position = 0) {
   const call = dbMock.calls.filter((entry) => entry.table === table && entry.operation === operation)[position];
   const condition = call?.clauses.where?.[0];

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-type StatusStripTone = "warning" | "danger" | "success";
+type StatusStripTone = "warning" | "danger" | "success" | "neutral";
 
 type StatusStripProps = {
   tone: StatusStripTone;
@@ -18,6 +18,7 @@ const TONE_CLASSES: Record<StatusStripTone, string> = {
   warning: "border-yellow-600/30 bg-yellow-300/15 text-yellow-800 dark:border-yellow-400/30 dark:bg-yellow-400/12 dark:text-yellow-300",
   danger: "border-red-600/30 bg-red-500/10 text-red-700 dark:border-red-400/35 dark:bg-red-400/12 dark:text-red-300",
   success: "border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300",
+  neutral: "bg-muted/40 text-muted-foreground",
 };
 
 export function StatusStrip({ tone, title, children, action, icon = Alert02Icon }: StatusStripProps) {

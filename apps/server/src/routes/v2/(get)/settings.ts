@@ -4,6 +4,7 @@ import type { RouteGenericInterface } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { loadCrowdSettings, toSettingsMeasurements } from "../../../features/measurements/settings.js";
 import { toSettings } from "../../../features/settings/serialize.js";
 import { canUpdateSettings } from "../../../features/settings/update.js";
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
@@ -30,8 +31,11 @@ const errorReasons = {
 async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<Settings>>) {
   const isAdministrator = await canUpdateSettings(req);
 
+  const settings = toSettings(getRuntimeSettings(), { isAdministrator });
+  if (isAdministrator) settings.measurements = toSettingsMeasurements(await loadCrowdSettings());
+
   res.header("Cache-Control", "private, no-store");
-  return res.send({ data: toSettings(getRuntimeSettings(), { isAdministrator }) });
+  return res.send({ data: settings });
 }
 
 const getSettings: Route<RouteGenericInterface, Settings> = {

@@ -41,7 +41,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const matchCellsRoute: Route<RequestData, CellMatchAnswer> = {
   url: "/cells/match",
   method: "POST",
-  config: { permissions: ["read:cells", "read:stations"], errorReasons },
+  config: { permissions: ["read:cells", "read:stations"], idempotentReplay: false, errorReasons },
   schema: schemaRoute,
   handler,
 };

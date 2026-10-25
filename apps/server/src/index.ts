@@ -8,15 +8,18 @@ import { officialAutoImportEnabled, port } from "./config.js";
 import { systemAuditContext } from "./features/audit/index.js";
 import { refreshBootKeyLists } from "./features/measurements/attestation/bootKeyList.js";
 import { refreshAttestationRevocations } from "./features/measurements/attestation/revocationList.js";
-import { purgeRawFiles, sweepOrphanFiles } from "./features/measurements/purge.js";
+import { purgeRawFiles, sweepOrphanFiles } from "./features/measurements/rawFiles/purge.js";
 import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./features/notifications/service.js";
+import { matchObservedCells } from "./features/observed/cells/matching.js";
+import { runDailyFlagPasses, runHourlyFlagPasses } from "./features/observed/flags/passes.js";
 import { scheduleDueImports } from "./features/official/import/schedule.js";
 import { cleanupExpiredInactiveStations } from "./features/stations/inactiveCleanup.js";
 import { takeContributionSnapshot } from "./features/stats/contributionSnapshot.ts";
+import { refreshLeaderboards } from "./features/stats/leaderboards.js";
 import { cleanupOrphanedSubmissions, removeRejectedSubmissionPhotos } from "./features/submissions/cleanup.js";
 import { withRedisDeadline } from "./lib/redisDeadline.js";
 import { acquireRedisLock, refreshOwnedRedisLock, releaseOwnedRedisLock } from "./lib/redisLock.js";
-import { warnAboutCollectorClients } from "./plugins/auth/appClient.js";
+import { warnAboutAppClients } from "./plugins/auth/appClient.js";
 import { refreshDisposableEmailBlocklist } from "./plugins/auth/disposableEmailBlocklist.js";
 import { installProcessErrorHandlers, logger } from "./utils/logger.js";
 
@@ -129,6 +132,18 @@ function startScheduledTasks(term: SchedulerTerm): void {
   );
   runEvery(term, 20 * MINUTE_MS, DAY_MS, () =>
     sweepOrphanFiles().catch((e) => logger.error("Failed to sweep orphaned raw measurement files", { error: describeError(e) })),
+  );
+  runEvery(term, MINUTE_MS, MINUTE_MS, () =>
+    matchObservedCells().catch((e) => logger.error("Failed to match observed cells", { error: describeError(e) })),
+  );
+  runEvery(term, 6 * MINUTE_MS, HOUR_MS, () =>
+    runHourlyFlagPasses().catch((e) => logger.error("Failed to run the hourly flag passes", { error: describeError(e) })),
+  );
+  runEvery(term, 7 * MINUTE_MS, DAY_MS, () =>
+    runDailyFlagPasses().catch((e) => logger.error("Failed to raise the daily flags", { error: describeError(e) })),
+  );
+  runEvery(term, 8 * MINUTE_MS, DAY_MS, () =>
+    refreshLeaderboards().catch((e) => logger.error("Failed to refresh the leaderboards", { error: describeError(e) })),
   );
 }
 
@@ -244,7 +259,7 @@ if (cluster.isPrimary) {
   process.on("SIGTERM", () => void stop("SIGTERM"));
 
   void tryBecomeScheduler();
-  void warnAboutCollectorClients().catch((e) => logger.error("Failed to check the collector apps' OAuth clients", { error: describeError(e) }));
+  void warnAboutAppClients().catch((e) => logger.error("Failed to check the apps' OAuth clients", { error: describeError(e) }));
 } else {
   installProcessErrorHandlers();
   const workerPort = Number(process.env.WORKER_PORT) || port;

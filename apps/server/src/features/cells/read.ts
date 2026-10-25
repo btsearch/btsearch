@@ -12,6 +12,7 @@ import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, DATABASE_RATS, DATABASE_STATUSES, type StationRow, toCell } from "../stations/serialize.js";
 import { cellNetworkCodes, extraCodesByCell, loadCellExtras, loadOwnerCodes } from "./networks.js";
+import { loadCellSightings } from "./sightings.js";
 
 export type ListedCellRows = CellRows & { station: StationRow };
 
@@ -75,12 +76,13 @@ export async function serializeCells(rows: readonly ListedCellRows[], include: r
 
   const stationRows = include.includes("station") ? [...new Map(rows.map((row) => [row.station.id, row.station])).values()] : [];
   const stationIds = unique(rows.map((row) => row.cell.station_id));
-  const [bandRows, listedStations, featuresByStation, cellExtras, ownerCodes] = await Promise.all([
+  const [bandRows, listedStations, featuresByStation, cellExtras, ownerCodes, sightings] = await Promise.all([
     db.select().from(bands),
     serializeStations(stationRows),
     getStationCountryFeatures(stationIds),
     loadCellExtras(stationIds),
     loadOwnerCodes(stationIds),
+    include.includes("sightings") ? loadCellSightings(rows.map((row) => row.cell.id)) : null,
   ]);
   const bandsById = new Map(bandRows.map((row) => [row.id, row]));
   const extraCodes = extraCodesByCell(cellExtras);
@@ -95,6 +97,7 @@ export async function serializeCells(rows: readonly ListedCellRows[], include: r
       cellNetworkCodes(ownerCodes.get(row.cell.station_id), extraCodes.get(row.cell.id)),
     );
     if (cell === null) return [];
+    if (sightings) cell.sightings = sightings.get(row.cell.id) ?? null;
 
     const station = stationsById.get(row.cell.station_id);
     return [station ? { ...cell, station } : cell];

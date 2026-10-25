@@ -12,6 +12,7 @@ const row = {
   structureOwnerProposals: true,
   psc: false,
   bsic: false,
+  observationsPublic: true,
   viewWest: null,
   viewSouth: null,
   viewEast: null,
@@ -26,19 +27,29 @@ function scriptSourceCapabilities(sources: { id: number; countryCode: string; is
 }
 
 describe("PATCH /countries/PL", () => {
-  it.each([{ structureOwnerProposals: false }, { psc: true }, { bsic: true }])("updates country features independently %j", async (features) => {
-    dbMock.query.countries.findFirst.mockResolvedValue(row);
-    scriptAudit();
-    dbMock.enqueueFor("update", "countries", [{ ...row, ...features }]);
-    scriptSourceCapabilities();
-    const response = await injectMutation(route, { ...request, payload: { features } }, options);
-    expect(response.statusCode).toBe(200);
-    expect(response.json().data.features).toEqual({ structureOwnerProposals: true, psc: false, bsic: false, ...features });
-    const values = dbMock.calls.find((call) => call.operation === "update" && call.table === "countries")?.values;
-    expect(values).toMatchObject(features);
-    for (const name of ["structureOwnerProposals", "psc", "bsic"]) if (!(name in features)) expect(values).not.toHaveProperty(name);
-    expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "audit_logs")).toBe(true);
-  });
+  it.each([{ structureOwnerProposals: false }, { psc: true }, { bsic: true }, { observationsPublic: false }])(
+    "updates country features independently %j",
+    async (features) => {
+      dbMock.query.countries.findFirst.mockResolvedValue(row);
+      scriptAudit();
+      dbMock.enqueueFor("update", "countries", [{ ...row, ...features }]);
+      scriptSourceCapabilities();
+      const response = await injectMutation(route, { ...request, payload: { features } }, options);
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data.features).toEqual({
+        structureOwnerProposals: true,
+        psc: false,
+        bsic: false,
+        observationsPublic: true,
+        ...features,
+      });
+      const values = dbMock.calls.find((call) => call.operation === "update" && call.table === "countries")?.values;
+      expect(values).toMatchObject(features);
+      for (const name of ["structureOwnerProposals", "psc", "bsic", "observationsPublic"])
+        if (!(name in features)) expect(values).not.toHaveProperty(name);
+      expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "audit_logs")).toBe(true);
+    },
+  );
 
   it("replaces the whole list of tools", async () => {
     dbMock.query.countries.findFirst.mockResolvedValue(row);

@@ -1,4 +1,4 @@
-import { stations } from "@openbts/drizzle";
+import { curatedCellSummaries, stations } from "@openbts/drizzle";
 import { type SQL, getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
@@ -7,10 +7,12 @@ import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import getStation from "../../../../../src/routes/v2/(get)/stations/[id].js";
 import getStations from "../../../../../src/routes/v2/(get)/stations/index.js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
-import { readStation, readUserId } from "../../../../helpers/readFixtures.js";
+import { readCell, readStation, readUserId } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const table = getTableName(stations);
+const summaryTable = getTableName(curatedCellSummaries);
+const band = { id: 3, rat: "LTE", code: "B3", name: "1800", value: 1800, duplex: "FDD", variant: "commercial" };
 
 describe("getStations", () => {
   it.each([false, true])("does not load stations when the public list has no internal members with totals=%s", async (includeTotal) => {
@@ -78,6 +80,25 @@ describe("getStations", () => {
     },
   );
 
+  it("adds each station's days from its cells with include=sightings, and none to the cells", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", table, [
+      { station: readStation, key: 1 },
+      { station: { ...readStation, id: 2 }, key: 2 },
+    ]);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    dbMock.enqueueFor("select", "cells", [readCell]);
+    dbMock.enqueueFor("select", "bands", [band]);
+    dbMock.enqueueFor("select", undefined, [{ stationId: 1, firstSeenOn: "2026-10-01", lastSeenOn: "2026-10-30" }]);
+    const app = await createRouteHarness(getStations);
+    const response = await app.inject({ method: "GET", url: "/stations?include=sightings,cells" });
+    expect(response.statusCode).toBe(200);
+    const [seen, unseen] = response.json().data;
+    expect(seen.sightings).toEqual({ firstSeenOn: "2026-10-01", lastSeenOn: "2026-10-30" });
+    expect(seen.cells[0]).not.toHaveProperty("sightings");
+    expect(unseen.sightings).toBeNull();
+  });
+
   it("requires edit permission when editableOnly is requested", async () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     const app = await createRouteHarness(getStations, { session: userSession(readUserId, "user") });
@@ -100,6 +121,22 @@ describe("getStation", () => {
     const response = await app.inject({ method: "GET", url: "/stations/1?include=operator,location.region,cells.band,sectors,backhaul" });
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toMatchObject({ id: 1, operator: null, location: null, cells: [], sectors: [], backhaul: null });
+  });
+
+  it("adds each cell's sightings with include=cells.sightings, and none to the station", async () => {
+    dbMock.enqueueFor("select", table, [{ station: readStation, countryCode: null }]);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    dbMock.enqueueFor("select", "cells", [readCell, { ...readCell, cell: { ...readCell.cell, id: 2 } }]);
+    dbMock.enqueueFor("select", "bands", [band]);
+    dbMock.enqueueFor("select", summaryTable, [{ cellId: 1, rat: "LTE", firstSeenOn: "2026-10-22", lastSeenOn: "2026-10-30", bandwidthKhz: 20000 }]);
+    const app = await createRouteHarness(getStation);
+    const response = await app.inject({ method: "GET", url: "/stations/1?include=cells.sightings" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).not.toHaveProperty("sightings");
+    expect(response.json().data.cells.map((cell: { sightings: unknown }) => cell.sightings)).toEqual([
+      { firstSeenOn: "2026-10-22", lastSeenOn: "2026-10-30", bandwidthKhz: 20000 },
+      null,
+    ]);
   });
 
   it.each(["missing", "hidden"])("hides a %s station", async (kind) => {

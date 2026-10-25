@@ -1,4 +1,4 @@
-export type AttestationRootKey = { name: string; spkiSha256: string };
+type AttestationRootKey = { name: string; spkiSha256: string };
 
 export type BootKeyList = { os: string; listUrl: string; signatureUrl: string; signerKey: string; namespace: string };
 

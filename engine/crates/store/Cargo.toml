@@ -1,0 +1,30 @@
+[package]
+name = "engine-store"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+bytes.workspace = true
+deadpool-postgres.workspace = true
+engine-batch = { path = "../batch" }
+engine-estimate = { path = "../estimate" }
+engine-fold = { path = "../fold" }
+engine-geo = { path = "../geo" }
+futures-util.workspace = true
+object_store.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-postgres.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+aes-gcm.workspace = true
+base64.workspace = true
+engine-corpus = { path = "../corpus" }
+sha2.workspace = true
+zstd.workspace = true
+
+[lints]
+workspace = true

@@ -44,7 +44,8 @@ export const TAGS: readonly DocumentedTag[] = [
     "x-displayName": "Statistics",
     description:
       "Numbers per country: station and cell counts by operator, technology, band and region, permit counts from the official sources, " +
-      "how the totals changed over time, and how complete the data is. One endpoint also reports how much the log analyzer is used.",
+      "how the totals changed over time, and how complete the data is. One endpoint also reports how much the log analyzer is used, " +
+      "and two count what the BTSearch app's measurements found and who found it first.",
   },
   {
     name: "submissions",
@@ -137,7 +138,7 @@ export const TAGS: readonly DocumentedTag[] = [
     description:
       "A line-of-sight check between one of a station's antennas and a point on the map, taking the terrain in between into account. " +
       "Profiles are computed in the background: create one, then poll it until it is ready. " +
-      "A ready profile can still be waiting for the heights of buildings and trees; keep polling while `surfaceVerdict` is `pending`. " +
+      "A ready profile can still be waiting for the heights of buildings and trees. Keep polling while `surfaceVerdict` is `pending`. " +
       "The antenna data comes from SI2PEM, so this only works for stations in countries " +
       "where `capabilities.terrainProfiles` is not `null` in `GET /countries`.",
   },
@@ -193,8 +194,35 @@ export const TAGS: readonly DocumentedTag[] = [
     name: "measurements",
     "x-displayName": "Measurements",
     description:
-      "The radio and GPS readings the BTSearch app collects: its devices, its uploads and the contributor terms. " +
-      "Uploading needs the app's own OAuth client.",
+      "The radio and GPS readings the BTSearch app collects: its devices, its uploads, the contributor terms and your place in the leaderboards. " +
+      "Uploading needs the app's own OAuth client. " +
+      "An upload is folded when its readings are counted into the observed cells, sites and trails. " +
+      "To refold is to count again the uploads whose file is still kept, with the weights and blocks of today.",
+  },
+  {
+    name: "observed",
+    "x-displayName": "Observed data",
+    description:
+      "What the BTSearch app's measurements show: the cells phones observed, their coverage tiles, the sites estimated from them, " +
+      "the trails of where each network served, and the editors' queue of what they disagree with in the database. " +
+      "A square is a zoom-20 map tile, about 25 m across at mid-latitudes.\n\n" +
+      "The public site list and the tiles are the same for every caller, so they can be cached. " +
+      "Your own sites and the editors' view are at `/mine` and `/staff`. Every other read answers what you may see. " +
+      "While observed data is switched off, the public site list, the public tiles and their TileJSON answer 403 `FEATURE_DISABLED`, " +
+      "so check `features.observations` in `GET /settings` before you add a source to your map.",
+  },
+  {
+    name: "observation-engine",
+    "x-displayName": "Observation engine",
+    description:
+      "The engine that turns uploads into observed cells and estimated sites: what waits for it, its runs and its nightly evaluation. Administrators only.",
+  },
+  {
+    name: "measurement-administration",
+    "x-displayName": "Measurement administration",
+    description:
+      "For administrators: the people who upload, with their weights, vouches and blocks, the reading blocks and quirk rules for values phones misreport, " +
+      "the reader versions, SoCs and phone models a reading block can name, and excluding uploads in bulk.",
   },
 ];
 
@@ -204,6 +232,6 @@ export const TAG_GROUPS: readonly TagGroup[] = [
   { name: "Reference data", tags: ["countries", "regions", "operators", "brands", "bands", "spectrum-holdings", "structure-owners"] },
   { name: "Official sources and tools", tags: ["official", "emf", "terrain-profiles", "geocoding"] },
   { name: "Account", tags: ["me", "users", "hunters", "notifications", "push-subscriptions"] },
-  { name: "Measurements", tags: ["measurements"] },
-  { name: "Administration", tags: ["settings", "role-grants", "audit-operations"] },
+  { name: "Measurements", tags: ["measurements", "observed"] },
+  { name: "Administration", tags: ["settings", "role-grants", "audit-operations", "observation-engine", "measurement-administration"] },
 ];

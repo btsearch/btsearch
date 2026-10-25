@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { bandSchema } from "./bands.ts";
-import { INCLUDE_NOTE } from "./common.ts";
+import { INCLUDE_NOTE, daySchema } from "./common.ts";
 
 export const CELL_TYPES = ["macro", "micro", "pico", "femto"] as const;
 export type CellType = (typeof CELL_TYPES)[number];
@@ -35,6 +35,19 @@ export const CELL_FIELD_NOTES = {
 const SWITCHED_OFF_NOTE = "Always `null` while the site has it disabled";
 const identifierSchema = z.number().int().nullable();
 
+export const cellSightingsSchema = z.object({
+  firstSeenOn: daySchema.describe("The first day phones measured it, in UTC"),
+  lastSeenOn: daySchema.describe(
+    "The latest day phones measured it, in UTC. Refreshed daily, while an observed cell's `lastSeenOn` follows each processed upload",
+  ),
+  bandwidthKhz: z
+    .number()
+    .int()
+    .nullable()
+    .describe("The downlink bandwidth phones measured: the latest value two people reported. `null` until then, and always for GSM and UMTS"),
+});
+export type CellSightings = z.infer<typeof cellSightingsSchema>;
+
 const cellShape = {
   id: z.number().int(),
   stationId: z.number().int(),
@@ -47,6 +60,10 @@ const cellShape = {
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   band: bandSchema.optional().describe(INCLUDE_NOTE),
+  sightings: cellSightingsSchema
+    .nullable()
+    .optional()
+    .describe(`${INCLUDE_NOTE}. \`null\` if no phone has measured the cell. The \`observations\` setting does not hide it`),
 };
 
 export const gsmCellSchema = z.object({

@@ -97,7 +97,13 @@ export function PopupShareButton({ url, title, label }: PopupShareButtonProps) {
   );
 }
 
-export function PopupCoordinatesFooter({ latitude, longitude }: { latitude: number; longitude: number }) {
+type PopupCoordinatesFooterProps = {
+  latitude: number;
+  longitude: number;
+  detail?: string;
+};
+
+export function PopupCoordinatesFooter({ latitude, longitude, detail }: PopupCoordinatesFooterProps) {
   const { t } = useTranslation(["main", "common"]);
   const gpsFormat = useGpsFormat();
   const [copied, copy] = useCopyToClipboard();
@@ -107,10 +113,11 @@ export function PopupCoordinatesFooter({ latitude, longitude }: { latitude: numb
   return (
     <div className="flex h-7 items-center gap-1.5 border-t border-border/50 pr-1.5 pl-3">
       <HugeiconsIcon icon={Location01Icon} className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground tabular-nums">
+      <span className={cn("min-w-0 truncate font-mono text-[11px] text-muted-foreground tabular-nums", detail === undefined && "flex-1")}>
         <span className="sr-only">{t("common:labels.coordinates")} </span>
         {formatCoordinates(latitude, longitude, gpsFormat)}
       </span>
+      {detail === undefined ? null : <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">· {detail}</span>}
       <PopupIconButton label={copied ? t("common:actions.copied") : t("main:popup.copyCoordinates")} onClick={handleCopy}>
         <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} className={copied ? "text-emerald-500" : undefined} />
       </PopupIconButton>

@@ -1,6 +1,7 @@
 import { Trans, useTranslation } from "react-i18next";
 
 import { MocnLink } from "../../../components/sharingLinks";
+import type { StationMeasurements } from "../../measurements/useStationMeasurements";
 import type { StationCell } from "../../types";
 import { getCellChannel } from "../../utils/bands";
 import {
@@ -28,6 +29,7 @@ type CellTableRowProps = {
   columns: readonly CellColumn[];
   sector: SectorInfo | null;
   networks: CellNetworks;
+  measurements: StationMeasurements;
 };
 
 type RowCellProps = {
@@ -36,6 +38,7 @@ type RowCellProps = {
   sector: SectorInfo | null;
   freshness: CellFreshness | null;
   networks: CellNetworks;
+  measurements: StationMeasurements;
 };
 
 type NetworksCellProps = {
@@ -51,7 +54,7 @@ type ChannelCellProps = {
   cell: StationCell;
 };
 
-export function CellTableRow({ cell, columns, sector, networks }: CellTableRowProps) {
+export function CellTableRow({ cell, columns, sector, networks, measurements }: CellTableRowProps) {
   const freshness = getCellFreshness(cell);
 
   return (
@@ -63,14 +66,22 @@ export function CellTableRow({ cell, columns, sector, networks }: CellTableRowPr
       )}
     >
       {columns.map((column) => (
-        <RowCell key={getColumnKey(column)} column={column} cell={cell} sector={sector} freshness={freshness} networks={networks} />
+        <RowCell
+          key={getColumnKey(column)}
+          column={column}
+          cell={cell}
+          sector={sector}
+          freshness={freshness}
+          networks={networks}
+          measurements={measurements}
+        />
       ))}
     </tr>
   );
 }
 
-function RowCell({ column, cell, sector, freshness, networks }: RowCellProps) {
-  if (column.kind === "band") return <BandCell cell={cell} />;
+function RowCell({ column, cell, sector, freshness, networks, measurements }: RowCellProps) {
+  if (column.kind === "band") return <BandCell cell={cell} sector={sector} measurements={measurements} />;
   if (column.kind === "networks") return <NetworksCell cell={cell} networks={networks} />;
   if (column.kind === "sector") return <SectorCell sector={sector} />;
   if (column.kind === "channel") return <ChannelCell cell={cell} />;

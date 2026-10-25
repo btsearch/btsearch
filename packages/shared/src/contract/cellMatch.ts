@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 
 import { BSIC_MAX, CELL_FIELD_NOTES, GNBID_MAX, PSC_MAX, cellSchema } from "./cells.ts";
 import { csvEnumSchema } from "./common.ts";
+import { CELL_MATCHES_FOUND, CELL_NETWORK_MATCHES } from "./constants.ts";
 import { stationSchema } from "./stations.ts";
 
 export const CELL_MATCH_LIMIT = 5000;
@@ -9,7 +10,7 @@ export const OFFICIAL_SITES_PER_CELL = 5;
 
 const NCI_BITS = 36;
 
-export const CELL_MATCHES = ["cell", "cellByLac", "station", "none"] as const;
+export const CELL_MATCHES = [...CELL_MATCHES_FOUND, "none"] as const;
 export type CellMatch = (typeof CELL_MATCHES)[number];
 
 export const CELL_MATCH_REASONS = ["cellUnknown", "operatorUnknown", "noIdentifiers", "analyzerDisabled"] as const;
@@ -33,9 +34,6 @@ export const CELL_DIFFERENCE_FIELDS = [
   "gnbidLength",
 ] as const;
 export type CellDifferenceField = (typeof CELL_DIFFERENCE_FIELDS)[number];
-
-export const CELL_NETWORK_MATCHES = ["own", "partner", "extraCode", "missingCode"] as const;
-export type CellNetworkMatch = (typeof CELL_NETWORK_MATCHES)[number];
 
 const MATCH_NOTE =
   "`cell`: a stored cell has these identifiers. " +

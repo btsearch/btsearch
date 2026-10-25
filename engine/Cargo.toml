@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+aes-gcm = "0.11"
+anyhow = "1"
+base64 = "0.23"
+bytes = "1"
+clap = { version = "4", features = ["derive", "env"] }
+criterion = "0.8"
+deadpool-postgres = "0.14"
+flate2 = "1"
+futures-util = "0.3"
+mimalloc = "0.1"
+object_store = "0.14"
+proptest = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-uuid-1"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = "1"
+zstd = "0.14"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

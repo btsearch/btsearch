@@ -1,0 +1,225 @@
+{
+  "deltas": {
+    "cell_bins": [
+      [
+        {
+          "bin": 422860655404,
+          "cell": {
+            "cell_key": 31604747,
+            "plmn": "26006",
+            "rat": "Lte"
+          }
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsq": 90250000000,
+          "level_wsum": -9500000,
+          "offset_x_wsum": 237000,
+          "offset_y_wsum": -944000,
+          "quality_weight_milli": 1000,
+          "quality_wsum": -1100000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "serving_weight_milli": 1000,
+          "sinr_weight_milli": 0,
+          "sinr_wsq": 0,
+          "sinr_wsum": 0,
+          "stationary_count": 0,
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "cell_contributors": [
+      [
+        {
+          "cell": {
+            "cell_key": 31604747,
+            "plmn": "26006",
+            "rat": "Lte"
+          },
+          "device_id": "01a0bdd4-4400-7d2e-8f30-415263748596"
+        },
+        {
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "trip_count": 1
+        }
+      ]
+    ],
+    "cell_networks": [],
+    "cell_readers": [
+      [
+        {
+          "cell": {
+            "cell_key": 31604747,
+            "plmn": "26006",
+            "rat": "Lte"
+          },
+          "reader": {
+            "name": "btsearch",
+            "version": "0.4.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ]
+    ],
+    "cell_ta_bins": [],
+    "cell_transitions": [],
+    "cell_values": [
+      [
+        {
+          "cell": {
+            "cell_key": 31604747,
+            "plmn": "26006",
+            "rat": "Lte"
+          },
+          "field": "AreaCode",
+          "held": false,
+          "value": 58140
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 31604747,
+            "plmn": "26006",
+            "rat": "Lte"
+          },
+          "field": "Pci",
+          "held": true,
+          "value": 301
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 31604747,
+            "plmn": "26006",
+            "rat": "Lte"
+          },
+          "field": "Channel",
+          "held": true,
+          "value": 1300
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ]
+    ],
+    "contributor_months": [],
+    "handover_bins": [],
+    "neighbour_bins": [],
+    "nsa_links": [],
+    "person_trail_bins": [
+      [
+        {
+          "bin": 26428790962,
+          "plmn": "26006",
+          "rat": "Lte",
+          "user_id": "11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 1
+        }
+      ]
+    ],
+    "same_reading_pairs": [],
+    "trail_levels": [],
+    "trail_squares": []
+  },
+  "report": {
+    "blocked_values": {
+      "1": {
+        "dropped": 0,
+        "held": 2
+      }
+    },
+    "bounding_box": {
+      "east": 21.0122456,
+      "north": 52.2297123,
+      "south": 52.2297123,
+      "west": 21.0122456
+    },
+    "closed_countries": [],
+    "corrections": {
+      "tacByteOrder": {
+        "reader_name": "btsearch",
+        "value_count": 1
+      }
+    },
+    "distance_only_count": 0,
+    "drops": {
+      "Duplicate": 1
+    },
+    "first_reading_millis": 1791547201000,
+    "last_reading_millis": 1791547201000,
+    "readers": [
+      [
+        {
+          "name": "btsearch",
+          "version": "0.4.0"
+        },
+        {
+          "derived_values": 1,
+          "rules_version": 12,
+          "snapshot_count": 1,
+          "source": "api",
+          "ta_on_confirmed": 0,
+          "ta_within_tolerance": 0
+        }
+      ],
+      [
+        {
+          "name": "netmonsterCore",
+          "version": "1.2.9"
+        },
+        {
+          "derived_values": 0,
+          "rules_version": null,
+          "snapshot_count": 1,
+          "source": "api",
+          "ta_on_confirmed": 0,
+          "ta_within_tolerance": 0
+        }
+      ]
+    ],
+    "sample_count": 2,
+    "skipped_rules": [],
+    "snapshot_count": 2,
+    "ta_residuals": [],
+    "trail_square_origins": [],
+    "value_checks": [],
+    "value_patterns": [],
+    "wall_clock_error_millis": 0
+  }
+}

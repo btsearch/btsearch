@@ -10,6 +10,7 @@ const APP_CLIENT_ID = "btsearch-app";
 const userId = userSession().user.id;
 const APP_ONLY: FastifyContextConfig = { permissions: ["upload:observations"], callers: ["app"] };
 const APP_OR_SESSION: FastifyContextConfig = { permissions: ["upload:observations"], callers: ["app", "session"] };
+const SESSION_ONLY: FastifyContextConfig = { permissions: ["upload:observations"], callers: ["session"] };
 const BEARER = { authorization: "Bearer oat_secret" };
 
 type TokenRow = { clientId: string; scopes: string[]; sessionId: string | null };
@@ -45,7 +46,7 @@ async function request(config: FastifyContextConfig, headers: Record<string, str
   return app.inject({ method: "GET", url: "/measurements/guarded", headers });
 }
 
-beforeEach(() => vi.stubEnv("COLLECTOR_OAUTH_CLIENT_IDS", APP_CLIENT_ID));
+beforeEach(() => vi.stubEnv("APP_OAUTH_CLIENT_IDS", APP_CLIENT_ID));
 afterEach(() => vi.unstubAllEnvs());
 
 describe("a route only the app may call", () => {
@@ -56,8 +57,8 @@ describe("a route only the app may call", () => {
     expect(response.json().data.actor).toBe(userId);
   });
 
-  it("lets in the token of every collector app the list names", async () => {
-    vi.stubEnv("COLLECTOR_OAUTH_CLIENT_IDS", `${APP_CLIENT_ID}, partner-app`);
+  it("lets in the token of every app the list names", async () => {
+    vi.stubEnv("APP_OAUTH_CLIENT_IDS", `${APP_CLIENT_ID}, partner-app`);
     token({ clientId: "partner-app" });
     expect((await request(APP_ONLY, BEARER)).statusCode).toBe(200);
   });
@@ -103,7 +104,7 @@ describe("a route only the app may call", () => {
   });
 
   it("is unavailable while the app's client id is not configured", async () => {
-    vi.stubEnv("COLLECTOR_OAUTH_CLIENT_IDS", "");
+    vi.stubEnv("APP_OAUTH_CLIENT_IDS", "");
     token();
     expectError(await request(APP_ONLY, BEARER), 503, "SERVICE_UNAVAILABLE");
   });
@@ -116,9 +117,16 @@ describe("a route the app or a browser session may call", () => {
   });
 
   it("lets in a session while the app's client id is not configured", async () => {
-    vi.stubEnv("COLLECTOR_OAUTH_CLIENT_IDS", "");
+    vi.stubEnv("APP_OAUTH_CLIENT_IDS", "");
     authBoundary.getCurrentUser.mockResolvedValue(userSession());
     expect((await request(APP_OR_SESSION)).json().data.actor).toBe(userId);
+  });
+});
+
+describe("a route only a browser session may call", () => {
+  it("refuses the app's token, though it holds the route's scope", async () => {
+    token();
+    expectError(await request(SESSION_ONLY, BEARER), 403, "INSUFFICIENT_PERMISSIONS");
   });
 });
 

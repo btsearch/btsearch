@@ -4,6 +4,7 @@ import { recordRoutePattern } from "../../../../src/features/settings/routeRules
 import { getRuntimeSettings } from "../../../../src/lib/runtimeSettings.js";
 import route from "../../../../src/routes/v2/(patch)/settings.js";
 import { authBoundary, dbMock, redisMock, userSession } from "../../../helpers/boundaries.js";
+import { crowdSettingsRow } from "../../../helpers/measurementFixtures.js";
 import { expectError, injectMutation, scriptAudit } from "../../../helpers/mutationAssertions.js";
 import { createRouteHarness } from "../../../helpers/routeHarness.js";
 
@@ -13,6 +14,7 @@ const options = { session: userSession("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "
 describe("PATCH /settings", () => {
   beforeEach(() => {
     for (const pattern of ["/api/v1/auth/*", "/api/v2/settings", "/api/v2/stations", "/api/v1/submissions/cleanup"]) recordRoutePattern(pattern);
+    dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
   });
   it.each([true, false])("lets administrators set maintenance mode to %s and records the change", async (enabled) => {
     getRuntimeSettings().maintenanceEnabled = !enabled;
@@ -157,6 +159,43 @@ describe("PATCH /settings", () => {
     const response = await injectMutation(route, { ...request, payload: { features: { [feature]: true } } }, options);
     expectError(response, 400, "VALIDATION_ERROR");
     expect(redisMock.multi).not.toHaveBeenCalled();
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it("saves the measurement settings in the same audited operation, and leaves the site settings alone", async () => {
+    scriptAudit();
+    dbMock.enqueueFor("update", "crowd_settings", [{ ...crowdSettingsRow, rawRetentionDays: 180, publicRadiusMaxM: 800 }]);
+    const response = await injectMutation(
+      route,
+      { ...request, payload: { measurements: { rawRetentionDays: 180, termsVersion: 2, publicRadiusMaxMeters: 800 } } },
+      options,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.measurements).toMatchObject({ rawRetentionDays: 180, termsVersion: 2, publicRadiusMaxMeters: 800 });
+    const saved = dbMock.calls.find((call) => call.operation === "update" && call.table === "crowd_settings")?.values;
+    expect(saved).toMatchObject({ rawRetentionDays: 180, publicRadiusMaxM: 800, updatedById: options.session.user.id });
+    expect(saved).not.toHaveProperty("termsVersion");
+    expect(saved).not.toHaveProperty("publicRadiusMaxMeters");
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toEqual(
+      expect.arrayContaining([expect.objectContaining({ entity: "crowd_settings", record_id: "1" })]),
+    );
+    expect(redisMock.multi).not.toHaveBeenCalled();
+  });
+
+  it.each([50, 20_000])("refuses a public radius of %d m", async (meters) => {
+    const response = await injectMutation(route, { ...request, payload: { measurements: { publicRadiusMaxMeters: meters } } }, options);
+
+    expectError(response, 400, "VALIDATION_ERROR");
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses to publish an estimator version no site has an estimate of", async () => {
+    dbMock.enqueueFor("select", "site_estimates", []);
+    const response = await injectMutation(route, { ...request, payload: { measurements: { publishedAlgorithmVersion: 2 } } }, options);
+
+    expectError(response, 409, "CONFLICT", "No site has an estimate of this version yet");
+    expect(response.json().errors[0].details).toEqual([{ kind: "noEstimate" }]);
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 

@@ -1,0 +1,761 @@
+{
+  "deltas": {
+    "cell_bins": [
+      [
+        {
+          "bin": 422860654756,
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          }
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsq": 158420000000,
+          "level_wsum": -17800000,
+          "offset_x_wsum": 98000,
+          "offset_y_wsum": 1294000,
+          "quality_weight_milli": 2000,
+          "quality_wsum": -2000000,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "serving_weight_milli": 2000,
+          "sinr_weight_milli": 1000,
+          "sinr_wsq": 1440000000,
+          "sinr_wsum": 1200000,
+          "stationary_count": 0,
+          "weight_milli": 2000
+        }
+      ],
+      [
+        {
+          "bin": 422860654756,
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          }
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsq": 94090000000,
+          "level_wsum": -9700000,
+          "offset_x_wsum": 49000,
+          "offset_y_wsum": 647000,
+          "quality_weight_milli": 1000,
+          "quality_wsum": -1200000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "serving_weight_milli": 0,
+          "sinr_weight_milli": 0,
+          "sinr_wsq": 0,
+          "sinr_wsum": 0,
+          "stationary_count": 0,
+          "weight_milli": 1000
+        }
+      ],
+      [
+        {
+          "bin": 422860654756,
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          }
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsq": 116640000000,
+          "level_wsum": -10800000,
+          "offset_x_wsum": 49000,
+          "offset_y_wsum": 647000,
+          "quality_weight_milli": 1000,
+          "quality_wsum": -1600000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "serving_weight_milli": 0,
+          "sinr_weight_milli": 0,
+          "sinr_wsq": 0,
+          "sinr_wsum": 0,
+          "stationary_count": 0,
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "cell_contributors": [
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "device_id": "01a0bdd4-4400-7d2e-8f30-415263748596"
+        },
+        {
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "trip_count": 1
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "device_id": "01a0bdd4-4400-7d2e-8f30-415263748596"
+        },
+        {
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "trip_count": 1
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "device_id": "01a0bdd4-4400-7d2e-8f30-415263748596"
+        },
+        {
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "trip_count": 1
+        }
+      ]
+    ],
+    "cell_networks": [],
+    "cell_readers": [
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "reader": {
+            "name": "btsearch",
+            "version": "0.5.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "reader": {
+            "name": "qualcommDiag",
+            "version": "0.2.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "reader": {
+            "name": "btsearch",
+            "version": "0.5.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "reader": {
+            "name": "qualcommDiag",
+            "version": "0.2.0"
+          }
+        },
+        {
+          "sample_count": 1
+        }
+      ]
+    ],
+    "cell_ta_bins": [
+      [
+        {
+          "bin": 422860654756,
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "ta_group_id": 1,
+          "timing_advance": 7
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 1,
+          "weight_milli": 1000
+        }
+      ],
+      [
+        {
+          "bin": 422860654756,
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "ta_group_id": 2,
+          "timing_advance": 7
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 1,
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "cell_transitions": [],
+    "cell_values": [
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "AreaCode",
+          "held": false,
+          "value": 41240
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Pci",
+          "held": true,
+          "value": 128
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Channel",
+          "held": true,
+          "value": 1300
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Bandwidth",
+          "held": false,
+          "value": 20000
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "ReportedBand",
+          "held": false,
+          "value": 3
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "UlChannel",
+          "held": false,
+          "value": 19300
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "UlBandwidth",
+          "held": false,
+          "value": 20000
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "EndcAvailable",
+          "held": false,
+          "value": 1
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 2,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "AccessClosed",
+          "held": false,
+          "value": 0
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "AreaCode",
+          "held": false,
+          "value": 41240
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Pci",
+          "held": true,
+          "value": 130
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Channel",
+          "held": true,
+          "value": 38950
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Bandwidth",
+          "held": false,
+          "value": 20000
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2834947,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "ReportedBand",
+          "held": false,
+          "value": 40
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "AreaCode",
+          "held": false,
+          "value": 41240
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Pci",
+          "held": true,
+          "value": 77
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Channel",
+          "held": true,
+          "value": 6300
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Barred",
+          "held": false,
+          "value": 1
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ],
+      [
+        {
+          "cell": {
+            "cell_key": 2899201,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "field": "Reserved",
+          "held": false,
+          "value": 0
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          }
+        }
+      ]
+    ],
+    "contributor_months": [],
+    "handover_bins": [],
+    "neighbour_bins": [
+      [
+        {
+          "bin": 26428790922,
+          "channel": 636666,
+          "held": true,
+          "pci": 512,
+          "plmn": "26003",
+          "rat": "Nr"
+        },
+        {
+          "contributor_bits": 2199023255552,
+          "level_wsum": -9500000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "nsa_links": [
+      [
+        {
+          "anchor": {
+            "cell_key": 2834945,
+            "plmn": "26003",
+            "rat": "Lte"
+          },
+          "held": true,
+          "nr_arfcn": 636666,
+          "nr_pci": 512
+        },
+        {
+          "contributor_bits": 0,
+          "level_wsum": -9500000,
+          "sample_count": 1,
+          "seen": {
+            "first": 20735,
+            "last": 20735
+          },
+          "weight_milli": 1000
+        }
+      ]
+    ],
+    "person_trail_bins": [
+      [
+        {
+          "bin": 26428790922,
+          "plmn": "26003",
+          "rat": "Lte",
+          "user_id": "11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "last_seen_on": 20735,
+          "sample_count": 2
+        }
+      ]
+    ],
+    "same_reading_pairs": [],
+    "trail_levels": [],
+    "trail_squares": []
+  },
+  "report": {
+    "blocked_values": {
+      "1": {
+        "dropped": 0,
+        "held": 10
+      }
+    },
+    "bounding_box": {
+      "east": 21.0067249,
+      "north": 52.2319581,
+      "south": 52.2319581,
+      "west": 21.0067249
+    },
+    "closed_countries": [],
+    "corrections": {},
+    "distance_only_count": 0,
+    "drops": {},
+    "first_reading_millis": 1791547201000,
+    "last_reading_millis": 1791547201050,
+    "readers": [
+      [
+        {
+          "name": "btsearch",
+          "version": "0.5.0"
+        },
+        {
+          "derived_values": 0,
+          "rules_version": 13,
+          "snapshot_count": 1,
+          "source": "api",
+          "ta_on_confirmed": 0,
+          "ta_within_tolerance": 0
+        }
+      ],
+      [
+        {
+          "name": "qualcommDiag",
+          "version": "0.2.0"
+        },
+        {
+          "derived_values": 0,
+          "rules_version": 3,
+          "snapshot_count": 1,
+          "source": "modemLog",
+          "ta_on_confirmed": 0,
+          "ta_within_tolerance": 0
+        }
+      ]
+    ],
+    "sample_count": 5,
+    "skipped_rules": [],
+    "snapshot_count": 2,
+    "ta_residuals": [],
+    "trail_square_origins": [],
+    "value_checks": [],
+    "value_patterns": [],
+    "wall_clock_error_millis": 0
+  }
+}

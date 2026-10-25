@@ -46,7 +46,9 @@
     "brands": "Marki",
     "bands": "Pasma",
     "structureOwners": "Właściciele obiektów",
-    "systemSettings": "Ustawienia systemowe"
+    "systemSettings": "Ustawienia systemowe",
+    "measurements": "Pomiary",
+    "observationFlags": "Flagi z pomiarów"
   },
   "floating": {
     "label": "Pływająca nawigacja",

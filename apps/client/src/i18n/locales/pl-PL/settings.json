@@ -339,6 +339,24 @@
   "measurements": {
     "uploadsOff": "Przesyłanie pomiarów jest obecnie wyłączone. Swoje pomiary możesz nadal pobrać i wycofać",
     "reason": "Powód: {{reason}}",
+    "summary": {
+      "title": "Twój wkład",
+      "description": "Liczą się pliki, których odczyty są teraz wykorzystywane",
+      "uploads": "Pliki",
+      "uploadsSince": "od {{date}}",
+      "samples": "Odczyty",
+      "samplesHint": "wykorzystane z tych plików",
+      "squares": "Nowe miejsca",
+      "squaresHint": "nikt tam nie mierzył przed Tobą",
+      "cells": "Nowe komórki",
+      "sites": "Nowe stacje",
+      "discoveriesHint": "nikt ich nie zmierzył przed Tobą",
+      "country": "Kraj",
+      "newNote": "Nowa komórka albo stacja to taka, której nikt nie zmierzył przed Tobą - w bazie może już być",
+      "empty": "Na razie brak wkładu",
+      "emptyDescription": "Liczby pojawią się, gdy przetworzymy któryś z Twoich plików",
+      "loadFailed": "Nie udało się wczytać podsumowania"
+    },
     "devices": {
       "title": "Urządzenia",
       "description": "Telefony, z których aplikacja BTSearch przesyła pomiary",
@@ -349,7 +367,7 @@
         "none": "Bez weryfikacji"
       },
       "revoked": "Unieważnione",
-      "lastUpload": "Ostatnie przesłanie {{time}}",
+      "lastUpload": "Ostatnio przesłano {{time}}",
       "noUploads": "Jeszcze nic nie przesłano",
       "revokedOn": "Unieważniono {{date}}",
       "empty": "Brak urządzeń",
@@ -357,14 +375,45 @@
       "loadFailed": "Nie udało się wczytać urządzeń",
       "revokeConfirmTitle": "Unieważnić to urządzenie?",
       "revokeConfirmDescription": "Aplikacja na urządzeniu \"{{name}}\" przestanie przesyłać pomiary. Przesłane już pomiary pozostaną, dopóki ich nie wycofasz. Przywrócić urządzenie może tylko administrator",
-      "revokeSuccess": "Urządzenie unieważnione"
+      "revokeSuccess": "Urządzenie unieważnione",
+      "calibration": {
+        "show": "Pokaż kalibrację",
+        "hide": "Ukryj kalibrację",
+        "summary": "Kalibracja: {{rats}}",
+        "none": "Bez kalibracji",
+        "title": "Odległość od stacji",
+        "description": "Aplikacja szacuje odległość od stacji z TA, czyli liczby kroków podanej przez sieć. Długość kroku mierzymy na telefonach z podobnym modemem",
+        "calibrated": "Skalibrowane",
+        "sources": {
+          "api": "przez Androida",
+          "modemLog": "z logu modemu",
+          "modemPoll": "z modemu"
+        },
+        "standardStep": "Aplikacja liczy standardowy krok {{step}} m i oznacza odległość jako niesprawdzoną",
+        "androidNr": "Android nie podaje jednostki dla 5G, więc aplikacja pokaże tę odległość dopiero po kalibracji",
+        "step": "Krok to {{step}} m zamiast standardowych {{standard}} m",
+        "stepSubtract": "Krok to {{step}} m zamiast standardowych {{standard}} m, a od wyniku odejmujemy {{offset}} m",
+        "stepAdd": "Krok to {{step}} m zamiast standardowych {{standard}} m, a do wyniku dodajemy {{offset}} m",
+        "ownStep": "Krok to {{step}} m",
+        "ownStepSubtract": "Krok to {{step}} m, a od wyniku odejmujemy {{offset}} m",
+        "ownStepAdd": "Krok to {{step}} m, a do wyniku dodajemy {{offset}} m",
+        "example_one": "Przy {{count, number}} kroku: {{distance}} m zamiast {{standard}} m",
+        "example_few": "Przy {{count, number}} krokach: {{distance}} m zamiast {{standard}} m",
+        "example_many": "Przy {{count, number}} krokach: {{distance}} m zamiast {{standard}} m",
+        "example_other": "Przy {{count, number}} kroku: {{distance}} m zamiast {{standard}} m",
+        "ownExample_one": "Przy {{count, number}} kroku: {{distance}} m",
+        "ownExample_few": "Przy {{count, number}} krokach: {{distance}} m",
+        "ownExample_many": "Przy {{count, number}} krokach: {{distance}} m",
+        "ownExample_other": "Przy {{count, number}} kroku: {{distance}} m",
+        "pending": "Kalibracja pojawi się, gdy telefony z podobnym modemem zbiorą dość pomiarów przy stacjach o znanym położeniu"
+      }
     },
     "limit": {
       "title": "Limit przesyłania",
-      "description": "Liczą się przesłania z ostatnich 24 godzin, także wycofane",
-      "uploads": "Przesłania",
+      "description": "Liczą się pliki przesłane w ciągu ostatnich 24 godzin, także wycofane",
+      "uploads": "Pliki",
       "bytes": "Dane",
-      "resetsAt": "Najstarsze przesłanie przestanie się liczyć o {{time}}",
+      "resetsAt": "Najstarszy plik przestanie się liczyć o {{time}}",
       "loadFailed": "Nie udało się wczytać limitu przesyłania"
     },
     "terms": {
@@ -380,7 +429,7 @@
     },
     "uploads": {
       "title": "Przesłane pomiary",
-      "description": "Każde przesłanie to jeden plik z aplikacji. Możesz go pobrać albo wycofać",
+      "description": "Aplikacja przesyła pomiary w plikach. Każdy z nich możesz pobrać albo wycofać",
       "withdrawAll": "Wycofaj wszystkie",
       "statuses": {
         "received": "Odebrane",
@@ -397,15 +446,131 @@
       "empty": "Brak przesłanych pomiarów",
       "emptyDescription": "Pojawią się tu, gdy aplikacja prześle pierwsze pomiary",
       "loadFailed": "Nie udało się wczytać przesłanych pomiarów",
-      "withdrawConfirmTitle": "Wycofać to przesłanie?",
+      "withdrawConfirmTitle": "Wycofać ten plik?",
       "withdrawConfirmDescription": "Plik z {{date}} zostanie usunięty w ciągu godziny, a jego odczyty nie będą już wykorzystywane. Tej operacji nie można cofnąć",
-      "withdrawSuccess": "Przesłanie wycofane",
+      "withdrawSuccess": "Plik wycofany",
       "withdrawAllConfirmTitle": "Wycofać wszystkie pomiary?",
-      "withdrawAllConfirmDescription": "Wycofasz przesłania ze wszystkich swoich urządzeń. Pliki zostaną usunięte w ciągu godziny, a urządzenia pozostaną zarejestrowane. Tej operacji nie można cofnąć",
-      "withdrawAllSuccess_one": "Wycofano {{count, number}} przesłanie",
-      "withdrawAllSuccess_few": "Wycofano {{count, number}} przesłania",
-      "withdrawAllSuccess_many": "Wycofano {{count, number}} przesłań",
-      "withdrawAllSuccess_other": "Wycofano {{count, number}} przesłania"
+      "withdrawAllConfirmDescription": "Wycofasz pliki ze wszystkich swoich urządzeń. Zostaną usunięte w ciągu godziny, a urządzenia pozostaną zarejestrowane. Tej operacji nie można cofnąć",
+      "withdrawAllSuccess_one": "Wycofano {{count, number}} plik",
+      "withdrawAllSuccess_few": "Wycofano {{count, number}} pliki",
+      "withdrawAllSuccess_many": "Wycofano {{count, number}} plików",
+      "withdrawAllSuccess_other": "Wycofano {{count, number}} pliku",
+      "waiting": "Wynik pojawi się po przetworzeniu",
+      "keptOfTotal_one": "{{kept, number}} z {{count, number}} odczytu",
+      "keptOfTotal_few": "{{kept, number}} z {{count, number}} odczytów",
+      "keptOfTotal_many": "{{kept, number}} z {{count, number}} odczytów",
+      "keptOfTotal_other": "{{kept, number}} z {{count, number}} odczytu",
+      "newCells_one": "{{count, number}} nowa komórka",
+      "newCells_few": "{{count, number}} nowe komórki",
+      "newCells_many": "{{count, number}} nowych komórek",
+      "newCells_other": "{{count, number}} nowej komórki",
+      "newSites_one": "{{count, number}} nowa stacja",
+      "newSites_few": "{{count, number}} nowe stacje",
+      "newSites_many": "{{count, number}} nowych stacji",
+      "newSites_other": "{{count, number}} nowej stacji",
+      "showDetails": "Pokaż szczegóły",
+      "hideDetails": "Ukryj szczegóły",
+      "errors": {
+        "excluded": "Administrator wykluczył ten plik, więc nie możesz go wycofać",
+        "withdrawn": "Ten plik został już wycofany",
+        "notExcluded": "Ten plik nie jest już wykluczony",
+        "fileDeleted": "Plik został już usunięty"
+      },
+      "rejections": {
+        "fileMissing": "serwer nie znalazł pliku",
+        "sealFailed": "serwer nie mógł odszyfrować pliku",
+        "bodyMismatch": "zawartość pliku nie zgadza się z przesłaną",
+        "invalidDocument": "plik ma nieprawidłowy format",
+        "formatVersion": "nieobsługiwana wersja formatu pliku",
+        "idMismatch": "identyfikator w pliku nie zgadza się z przesłanym",
+        "limitExceeded": "plik jest za duży albo obejmuje za długi czas",
+        "noSamples": "żaden odczyt z pliku nie nadawał się do wykorzystania",
+        "processingFailed_one": "przetwarzanie pliku się nie powiodło",
+        "processingFailed_few": "przetwarzanie pliku {{count, number}} razy się nie powiodło",
+        "processingFailed_many": "przetwarzanie pliku {{count, number}} razy się nie powiodło",
+        "processingFailed_other": "przetwarzanie pliku {{count, number}} razy się nie powiodło"
+      },
+      "dropReasons": {
+        "mockLocation": {
+          "label": "Fałszywa lokalizacja",
+          "hint": "Pozycję podała aplikacja do zmiany lokalizacji"
+        },
+        "poorAccuracy": {
+          "label": "Słaba dokładność GPS",
+          "hint": "Pozycja niedokładna o ponad 50 m"
+        },
+        "implausibleFix": {
+          "label": "Niemożliwa pozycja",
+          "hint": "Za duża prędkość albo wysokość"
+        },
+        "noPosition": {
+          "label": "Brak pozycji",
+          "hint": "Telefon nie miał wtedy pozycji GPS"
+        },
+        "badTime": {
+          "label": "Błędny czas",
+          "hint": "Czas spoza zakresu pliku albo z przyszłości"
+        },
+        "tooOld": {
+          "label": "Za stary odczyt",
+          "hint": "Starszy niż 90 dni w chwili przesłania"
+        },
+        "duplicate": {
+          "label": "Powtórzony odczyt",
+          "hint": "Ten sam moment zapisany dwa razy"
+        },
+        "implausible": {
+          "label": "Sieć z innego kraju",
+          "hint": "Sieć z kraju oddalonego o ponad 30 km"
+        },
+        "closedCountry": {
+          "label": "Kraj bez pomiarów",
+          "hint": "Pomiary w tym kraju są wyłączone"
+        },
+        "readingBlock": {
+          "label": "Zablokowany odczyt",
+          "hint": "Takie odczyty z tego modelu bywają błędne"
+        },
+        "noLevel": {
+          "label": "Bez poziomu sygnału",
+          "hint": "Nie było ani poziomu sygnału, ani TA"
+        },
+        "noIdentity": {
+          "label": "Niepełne dane komórki",
+          "hint": "Brak kanału, PCI albo sieci"
+        }
+      },
+      "details": {
+        "kept": "Wykorzystane odczyty",
+        "keptValue": "{{kept, number}} z {{total, number}}",
+        "distanceOnly": "w tym {{readings, number}} tylko do liczenia odległości",
+        "distanceOnlyHint": "bez poziomu sygnału, ale z TA",
+        "dropped": "Pominięte",
+        "noDrops": "Nic nie pominięto",
+        "closedCountries_one": "{{countries}} ma wyłączone pomiary",
+        "closedCountries_few": "{{countries}} mają wyłączone pomiary",
+        "closedCountries_many": "{{countries}} mają wyłączone pomiary",
+        "closedCountries_other": "{{countries}} mają wyłączone pomiary",
+        "new": "Nowe w tym pliku",
+        "squares_one": "miejsce",
+        "squares_few": "miejsca",
+        "squares_many": "miejsc",
+        "squares_other": "miejsca",
+        "cells_one": "komórka",
+        "cells_few": "komórki",
+        "cells_many": "komórek",
+        "cells_other": "komórki",
+        "sites_one": "stacja",
+        "sites_few": "stacje",
+        "sites_many": "stacji",
+        "sites_other": "stacji",
+        "newSquaresHint": "Nikt nie mierzył tam przed tym plikiem",
+        "newCellsHint": "Nikt nie zmierzył ich przed tym plikiem. Komórki i stacje mogą już być w bazie",
+        "nothingNew": "Brak nowych miejsc, komórek i stacji",
+        "span": "Czas pomiarów",
+        "spanValue": "{{start}} - {{end}}",
+        "processedAt": "Przetworzono"
+      }
     }
   },
   "profile": {

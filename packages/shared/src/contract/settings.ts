@@ -30,6 +30,12 @@ export const settingsFeaturesSchema = z.object({
     ),
   lists: z.boolean().describe("Users can create and share lists"),
   measurementUploads: z.boolean().describe("The BTSearch app can register devices and upload measurements"),
+  observations: z
+    .boolean()
+    .describe(
+      "Observed cells, estimated sites, coverage and trails. While it is off, the public site list, statistics and tiles answer 403 to everyone, " +
+        "and only administrators keep the other `/observed` reads, their own trails and the staff trails",
+    ),
 });
 export type SettingsFeatures = z.infer<typeof settingsFeaturesSchema>;
 
@@ -48,6 +54,41 @@ export const settingsAccessSchema = z.object({
 });
 export type SettingsAccess = z.infer<typeof settingsAccessSchema>;
 
+export const settingsMeasurementsSchema = z.object({
+  rawRetentionDays: z
+    .number()
+    .int()
+    .min(1)
+    .max(3650)
+    .describe("How long a raw upload file is kept after it arrives. Lowering it deletes the older files at the next hourly purge"),
+  rawStorageBudgetGib: z
+    .number()
+    .int()
+    .min(1)
+    .max(100_000)
+    .describe("Once the kept raw files reach it, uploads are refused with 503 and the app sends them again later"),
+  minAppVersionCode: z
+    .number()
+    .int()
+    .min(1)
+    .max(2_100_000_000)
+    .describe("Builds of the app with a lower `versionCode` can no longer register a device or upload"),
+  termsVersion: z.number().int().min(1).max(32_767).describe("Raising it asks every contributor to accept the terms again before their next upload"),
+  publishedAlgorithmVersion: z
+    .number()
+    .int()
+    .min(1)
+    .max(32_767)
+    .describe("The site estimator version whose estimates are shown and matched to stations"),
+  publicRadiusMaxMeters: z
+    .number()
+    .int()
+    .min(100)
+    .max(10_000)
+    .describe("An estimated site that did not snap to a known place is public only when its 95 % radius is at most this"),
+});
+export type SettingsMeasurements = z.infer<typeof settingsMeasurementsSchema>;
+
 export const settingsSchema = z.object({
   isMaintenanceMode: z
     .boolean()
@@ -56,12 +97,13 @@ export const settingsSchema = z.object({
     .boolean()
     .describe("When `true`, guests are rejected everywhere except the open routes, the sign-in routes and `GET /settings`"),
   features: settingsFeaturesSchema.describe(
-    "While `submissions`, `photoUploads`, `comments`, `lists` or `measurementUploads` is disabled, its routes respond with 403 `FEATURE_DISABLED`. " +
+    "While `submissions`, `photoUploads`, `comments`, `lists`, `measurementUploads` or `observations` is disabled, its routes respond with 403 `FEATURE_DISABLED`. " +
       "Moderating and deleting comments, and deleting the photos of rejected submissions, keep working. " +
       "Without `measurementUploads`, only device challenges, registering a device, uploading and accepting the terms stop",
   ),
   announcement: settingsAnnouncementSchema.nullable().describe("The site banner. `null` while it is disabled, unless you are an administrator"),
   access: settingsAccessSchema.optional().describe("Only returned to administrators"),
+  measurements: settingsMeasurementsSchema.optional().describe("Only returned to administrators"),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 
@@ -96,7 +138,11 @@ export const settingsUpdateSchema = z
       .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE)
       .optional()
       .describe(`Any list you send replaces the stored one. ${ROUTE_RULE_NOTE}`),
+    measurements: settingsMeasurementsSchema.partial().strict().refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE).optional(),
   })
   .strict()
   .refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE);
 export type SettingsUpdate = z.infer<typeof settingsUpdateSchema>;
+
+export const settingsConflictSchema = z.object({ kind: z.enum(["busy", "noEstimate"]) });
+export type SettingsConflict = z.infer<typeof settingsConflictSchema>;

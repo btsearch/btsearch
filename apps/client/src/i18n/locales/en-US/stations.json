@@ -123,7 +123,7 @@
     },
     "siteIdRemoval": "Station ID {{siteId}} will be removed. The station will be shown as {{nodeName}}",
     "errors": {
-      "siteIdRequiredWithoutNode": "Station ID: required unless a cell has its eNB, gNB, RNC or LAC",
+      "siteIdRequiredWithoutNode": "Station ID: required unless a cell has an eNBID, gNBID, RNC or LAC",
       "siteIdReserved": "Station ID: cannot start with {{prefix}}",
       "siteIdTooLong": "Station ID: at most {{max}} characters",
       "operatorRequired": "Operator: required",

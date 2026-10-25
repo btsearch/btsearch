@@ -1,7 +1,6 @@
 import type { FastifyContextConfig, RouteOptions } from "fastify";
 import type { z } from "zod/v4";
 
-import { IDEMPOTENCY_LOCK_SECONDS } from "../../constants.js";
 import { errors } from "../../errors.js";
 import { type Json, type JsonObject, isJsonObject } from "./json.js";
 
@@ -13,12 +12,11 @@ export type ErrorPlan = { [status: string]: string | null };
 type ErrorExample = { code: string; message: string };
 type ResponseHeader = { description: string; schema: { type: "integer" } };
 
-const DOCUMENTED_ERROR_STATUSES = [400, 401, 403, 404, 409, 413, 415, 429, 500, 503] as const;
+const DOCUMENTED_ERROR_STATUSES = [400, 401, 403, 404, 409, 410, 413, 415, 422, 429, 500, 503] as const;
 const API_ERROR_REFERENCE = "#/components/schemas/ApiError";
 const API_ERROR_CONTENT: JsonObject = { "application/json": { schema: { $ref: API_ERROR_REFERENCE } } };
 const METHODS_WITHOUT_BODY: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 const REPEATED_POST_NOTE = "Also returned when a POST is repeated with an `X-Idempotency-Key` that is still being processed.";
-const RETAINED_KEY_NOTE = `Also returned when the same \`X-Idempotency-Key\` was used within the last ${IDEMPOTENCY_LOCK_SECONDS} seconds.`;
 
 const RESPONSE_NAMES: Record<DocumentedErrorStatus, string> = {
   400: "BadRequest",
@@ -26,8 +24,10 @@ const RESPONSE_NAMES: Record<DocumentedErrorStatus, string> = {
   403: "Forbidden",
   404: "NotFound",
   409: "Conflict",
+  410: "Gone",
   413: "PayloadTooLarge",
   415: "UnsupportedMediaType",
+  422: "UnprocessableContent",
   429: "TooManyRequests",
   500: "InternalServerError",
   503: "ServiceUnavailable",
@@ -41,12 +41,16 @@ const RESPONSE_DESCRIPTIONS: Record<DocumentedErrorStatus, string> = {
     "or region, two-factor authentication still has to be set up, or the endpoint is disabled.",
   404: "The resource does not exist, or it belongs to a country you cannot access.",
   409: "A POST with the same `X-Idempotency-Key` is still being processed, or the request conflicts with the current data.",
+  410: "What you asked for existed but has been deleted for good.",
   413: "The request body is too large.",
   415: "The `Content-Type` of the request body is not supported by this endpoint.",
+  422: "The `X-Idempotency-Key` was already used for a different request.",
   429:
     "You are sending too many requests, or the weekly quota of your API key is used up. " +
     "When `X-Retry-After` is present, it tells you how many seconds to wait.",
-  500: "Something went wrong on the server. The details are logged, not returned.",
+  500:
+    "Something went wrong on the server. The details are not returned. " +
+    "When you report the error, quote the `X-Request-Id` header of the response so it can be found in the logs.",
   503: "The site is in maintenance mode, or a service this endpoint depends on is not responding right now. Try again later.",
 };
 
@@ -59,6 +63,7 @@ const GUEST_REASONS: ErrorReasons = {
 
 const APP_ONLY_NOTE = "Only the BTSearch app can call this. A browser session, an API key and other applications are refused.";
 const APP_OR_SESSION_NOTE = "Only the BTSearch app or a browser session can call this. API keys and other applications are refused.";
+const SESSION_ONLY_NOTE = "Only a browser session can call this. API keys and OAuth tokens are refused.";
 
 const PARSER_ERRORS: Partial<Record<DocumentedErrorStatus, ErrorExample[]>> = {
   400: [
@@ -157,22 +162,20 @@ function derivedStatuses(route: RouteOptions, { multipartBody, rawBodyTypes }: F
     403: true,
     404: url.includes(":"),
     409: isPost(route),
+    410: false,
     413: takesJsonBody || rawBodyTypes !== undefined,
     415: takesBody,
+    422: isPost(route),
     429: true,
     500: true,
     503: url !== "/settings" && url !== "/api/v2/settings",
   };
 }
 
-function withIdempotencyNote(reason: string, { retainIdempotencyKey = false }: FastifyContextConfig): string {
-  const note = retainIdempotencyKey ? RETAINED_KEY_NOTE : REPEATED_POST_NOTE;
-  return `${reason} ${note}`;
-}
-
 function callersNote({ callers }: FastifyContextConfig): string | null {
   if (!callers) return null;
-  return callers.includes("session") ? APP_OR_SESSION_NOTE : APP_ONLY_NOTE;
+  if (!callers.includes("session")) return APP_ONLY_NOTE;
+  return callers.includes("app") ? APP_OR_SESSION_NOTE : SESSION_ONLY_NOTE;
 }
 
 function reasonFor(status: DocumentedErrorStatus, route: RouteOptions, config: FastifyContextConfig): string | null {
@@ -183,7 +186,7 @@ function reasonFor(status: DocumentedErrorStatus, route: RouteOptions, config: F
   const reason = callerNote === null || ownReason === null ? (callerNote ?? ownReason) : `${callerNote} ${ownReason}`;
   const isAlsoReturnedForRepeatedKey = status === 409 && isPost(route);
 
-  return reason !== null && isAlsoReturnedForRepeatedKey ? withIdempotencyNote(reason, config) : reason;
+  return reason !== null && isAlsoReturnedForRepeatedKey ? `${reason} ${REPEATED_POST_NOTE}` : reason;
 }
 
 export function planErrorResponses(route: RouteOptions, config: FastifyContextConfig): ErrorPlan {

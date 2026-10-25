@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { BAND_VARIANTS } from "./bands.ts";
-import { countryCodeSchema, csvCountryCodesSchema, csvEnumSchema, daySchema } from "./common.ts";
+import { countryCodeSchema, csvCountryCodesSchema, csvEnumSchema, daySchema, userRefSchema } from "./common.ts";
 import { CELL_RATS } from "./constants.ts";
 import { OFFICIAL_RATS } from "./officialSites.ts";
 
@@ -193,3 +193,50 @@ export const permitHistoryQuerySchema = z
   })
   .strict();
 export type PermitHistoryQuery = z.infer<typeof permitHistoryQuerySchema>;
+
+export const observationStatisticsSchema = z.object({
+  countryCode: countryCodeSchema.describe("The country of the networks"),
+  sites: z
+    .object({ unmatched: countSchema, suggested: countSchema, matched: countSchema })
+    .describe("Public estimated sites by status. A group of base stations on one mast counts once"),
+  observedCells: countSchema.describe("The observed cells everyone may see, copies under other networks not counted"),
+  squares: countSchema.describe("The squares of the public trails"),
+  areaSquareKilometers: z.number().nonnegative().describe("The ground those squares cover, to one decimal"),
+  months: z
+    .array(z.object({ startsOn: daySchema, samples: countSchema.nullable(), people: countSchema.nullable() }))
+    .describe(
+      "The last 12 months, oldest first, this one included. `samples` and `people` are `null` for a month one or two people measured, so that nobody can be singled out",
+    ),
+  lastMeasuredOn: daySchema.nullable().describe("The latest day a cell everyone may see was measured"),
+});
+export type ObservationStatistics = z.infer<typeof observationStatisticsSchema>;
+
+export const contributorLeaderboardQuerySchema = z
+  .object({
+    countryCodes: csvCountryCodesSchema
+      .optional()
+      .describe("Comma-separated two-letter country codes. Every country whose measurements are public when left out"),
+    startsOn: daySchema
+      .refine((value) => value.endsWith("-01"), { message: "Must be the first day of a month" })
+      .optional()
+      .describe("The first day of the month whose board you want. All time when left out"),
+    limit: z.coerce.number<number>().int().min(1).max(100).default(25).describe("People per board"),
+  })
+  .strict();
+export type ContributorLeaderboardQuery = z.infer<typeof contributorLeaderboardQuerySchema>;
+
+export const contributorLeaderboardSchema = z.object({
+  countryCode: countryCodeSchema,
+  startsOn: daySchema.nullable().describe("`null` for all time"),
+  refreshedOn: daySchema.nullable().describe("The UTC day the board was worked out, `null` while nobody is on it"),
+  entries: z.array(
+    z.object({
+      rank: z.number().int().positive().describe("People with the same three numbers share a rank"),
+      user: userRefSchema,
+      newSquares: countSchema.describe("Trail squares nobody had measured before them on that network and channel"),
+      newConfirmedCells: countSchema.describe("Cells they measured first that are now confirmed and everyone may see"),
+      newSites: countSchema.describe("Public estimated sites they measured first"),
+    }),
+  ),
+});
+export type ContributorLeaderboard = z.infer<typeof contributorLeaderboardSchema>;

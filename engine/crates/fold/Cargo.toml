@@ -1,0 +1,24 @@
+[package]
+name = "engine-fold"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+engine-batch = { path = "../batch" }
+engine-estimate = { path = "../estimate" }
+engine-geo = { path = "../geo" }
+serde.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+serde_json.workspace = true
+
+[[bench]]
+name = "fold"
+harness = false
+
+[lints]
+workspace = true

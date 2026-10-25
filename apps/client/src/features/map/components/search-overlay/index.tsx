@@ -18,6 +18,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { FILTER_KEYWORDS } from "../../constants";
+import type { MapCrowdState } from "../../crowd/useMapCrowd";
 import type { MapCountries } from "../../data/mapCountries";
 import { type MapFilters, type MapFiltersChange, changeMapFilterSource, countActiveMapFilters } from "../../data/mapFilters";
 import { getMapMaxBounds, listKeybindOperatorIds, useMapLookups } from "../../data/mapLookups";
@@ -96,6 +97,7 @@ type MapSearchOverlayProps = {
   onFilterQueryChange?: (q: string | undefined) => void;
   rejectedSearchText?: string;
   mapContext?: ReactElement;
+  crowd?: MapCrowdState;
 };
 
 function SearchPanelFrame({ children }: { children: ReactNode }) {
@@ -161,6 +163,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   onFilterQueryChange,
   rejectedSearchText,
   mapContext,
+  crowd,
 }: MapSearchOverlayProps) {
   const { i18n } = useTranslation();
   const [showFilters, setShowFilters] = useState(false);
@@ -380,6 +383,14 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
         if (!mapCountries.capabilities.emf) return false;
         onTogglePlannedMeasurements?.();
         return true;
+      case "e":
+        if (crowd === undefined || !crowd.isAvailable) return false;
+        handleFiltersChange((current) => ({ ...current, showEstimatedSites: !current.showEstimatedSites }));
+        return true;
+      case "t":
+        if (crowd === undefined || !crowd.isAvailable || crowd.isTrailsBlocked) return false;
+        handleFiltersChange((current) => ({ ...current, showTrails: !current.showTrails }));
+        return true;
       default:
         return false;
     }
@@ -581,6 +592,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       zoom={zoom}
       source={filters.source}
       mapCountries={mapCountries}
+      crowd={crowd}
       onSourceChange={handleSourceChange}
     />
   );
@@ -589,6 +601,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       isSheet={isMobile}
       filters={filters}
       mapCountries={mapCountries}
+      crowd={crowd}
       onFiltersChange={handleFiltersChange}
       onSourceChange={handleSourceChange}
       onToggleHeatmap={onToggleHeatmap}
@@ -729,6 +742,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
             zoom={zoom}
             source={filters.source}
             mapCountries={mapCountries}
+            crowd={crowd}
             onSourceChange={handleSourceChange}
           />
         </div>

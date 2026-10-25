@@ -24,6 +24,10 @@ export function stationInArea(grants: readonly EditorGrant[], stationId: SQLWrap
   )`;
 }
 
+export function observedSiteInArea(grants: readonly EditorGrant[], countryCode: SQLWrapper, regionId: SQLWrapper): SQL {
+  return grantsCover(grants, countryCode, regionId);
+}
+
 function listedStationInArea(grants: readonly EditorGrant[]): SQL {
   return stationPlacementMatches(grantsCover(grants, stationCountryCode, locations.region_id));
 }

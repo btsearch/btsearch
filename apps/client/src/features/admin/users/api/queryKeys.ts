@@ -18,6 +18,7 @@ export const userAdminKeys = {
   hasPassword: (userId: string) => [...USER_ADMIN_ROOT, "detail", userId, "has-password"] as const,
   activity: (userId: string) => [...USER_ADMIN_ROOT, "detail", userId, "activity"] as const,
   accountHistory: (userId: string) => [...USER_ADMIN_ROOT, "detail", userId, "history"] as const,
+  activeBan: (userId: string) => [...USER_ADMIN_ROOT, "detail", userId, "active-ban"] as const,
   profileVisibility: (userId: string, username: string | null) => [...USER_ADMIN_ROOT, "detail", userId, "profile-visibility", username] as const,
   countryRegions: (countryCodes: readonly string[]) => [...USER_ADMIN_ROOT, "reference", "regions", countryCodes] as const,
 };

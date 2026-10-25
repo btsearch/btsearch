@@ -4,7 +4,7 @@ set -e
 export COMMIT_SHA=$(git log -1 --format="%h")
 
 if [[ "$1" == "swarm" ]]; then
-  COMMIT_SHA=$COMMIT_SHA docker compose build client server discord-bot
+  COMMIT_SHA=$COMMIT_SHA docker compose build client server discord-bot engine
   set -a && source .env && set +a
   docker stack deploy -c docker-compose.swarm.yml btsearch
 elif [[ "$1" == "deploy" ]]; then

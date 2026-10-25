@@ -1,4 +1,4 @@
-import { stations } from "@openbts/drizzle";
+import { curatedCellSummaries, stations } from "@openbts/drizzle";
 import { type SQL, getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
@@ -10,7 +10,14 @@ import { readCell, readStation } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const stationTable = getTableName(stations);
+const summaryTable = getTableName(curatedCellSummaries);
 const band = { id: 3, rat: "LTE", code: "B3", name: "1800", value: 1800, duplex: "FDD", variant: "commercial" };
+const umtsCell = {
+  ...readCell,
+  cell: { ...readCell.cell, id: 2, rat: "UMTS" },
+  lte: null,
+  umts: { lac: 10, rnc: 2, cid: 3, cid_long: 131075, psc: null, arfcn: 10700 },
+};
 
 describe("getCells", () => {
   it.each([false, true])("returns the selected cell page with include=band and totals=%s", async (includeTotal) => {
@@ -54,6 +61,31 @@ describe("getCells", () => {
     expect(query.sql).toContain("CASE");
   });
 
+  it("adds the days phones saw each cell, its confirmed bandwidth except on UMTS, and null for a cell no phone saw", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "cells", [
+      { ...readCell, key: 1 },
+      { ...umtsCell, key: 2 },
+      { ...readCell, cell: { ...readCell.cell, id: 3 }, key: 3 },
+      { ...readCell, cell: { ...readCell.cell, id: 4 }, key: 4 },
+    ]);
+    dbMock.enqueueFor("select", "bands", [band]);
+    dbMock.enqueueFor("select", summaryTable, [
+      { cellId: 1, rat: "LTE", firstSeenOn: "2026-10-22", lastSeenOn: "2026-10-30", bandwidthKhz: 20000 },
+      { cellId: 2, rat: "UMTS", firstSeenOn: "2026-10-01", lastSeenOn: "2026-10-02", bandwidthKhz: 5000 },
+      { cellId: 3, rat: "LTE", firstSeenOn: "2026-10-05", lastSeenOn: "2026-10-05", bandwidthKhz: null },
+    ]);
+    const app = await createRouteHarness(getCells);
+    const response = await app.inject({ method: "GET", url: "/cells?include=sightings" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.map((cell: { id: number; sightings: unknown }) => [cell.id, cell.sightings])).toEqual([
+      [1, { firstSeenOn: "2026-10-22", lastSeenOn: "2026-10-30", bandwidthKhz: 20000 }],
+      [2, { firstSeenOn: "2026-10-01", lastSeenOn: "2026-10-02", bandwidthKhz: null }],
+      [3, { firstSeenOn: "2026-10-05", lastSeenOn: "2026-10-05", bandwidthKhz: null }],
+      [4, null],
+    ]);
+  });
+
   it.each(["limit=1001", "cursor=x&offset=0", "stationIds=0", "rats=LTE", "include=operator"])(
     "rejects invalid cell list queries: %s",
     async (query) => {
@@ -74,6 +106,17 @@ describe("getCell", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toMatchObject({ id: 1, bandId: null, enbid: null, clid: null, eci: null });
     expect(response.json().data).not.toHaveProperty("band");
+  });
+
+  it("leaves sightings out, and does not read them, without include=sightings", async () => {
+    dbMock.enqueueFor("select", "cells", [readCell]);
+    dbMock.enqueueFor("select", stationTable, [{ station: readStation, countryCode: null }]);
+    dbMock.enqueueFor("select", "bands", [band]);
+    const app = await createRouteHarness(getCell);
+    const response = await app.inject({ method: "GET", url: "/cells/1?include=band" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).not.toHaveProperty("sightings");
+    expect(dbMock.calls.some((call) => call.table === summaryTable)).toBe(false);
   });
 
   it.each(["cell", "radio", "station"])("returns 404 when the %s needed for a cell is missing", async (missing) => {

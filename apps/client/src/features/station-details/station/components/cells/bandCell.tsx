@@ -1,10 +1,14 @@
 import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
+import { CellMeasurementsPopover } from "../../measurements/cellMeasurementsPopover";
+import type { StationMeasurements } from "../../measurements/useStationMeasurements";
 import type { NrMode, StationCell } from "../../types";
 import { type DuplexMark, getBandCode, getBandDuplexMark, getBandLabel } from "../../utils/bands";
 import { getCellTypeNameKey, getNrMode, isEGsmCell } from "../../utils/cells";
+import { type SectorInfo, formatSectorAzimuth } from "../../utils/sectors";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +25,8 @@ const UNCONFIRMED_MARK_CLASS = "inline-flex items-center justify-center size-5 r
 
 type BandCellProps = {
   cell: StationCell;
+  sector: SectorInfo | null;
+  measurements: StationMeasurements;
 };
 
 type TextMarkProps = {
@@ -29,8 +35,15 @@ type TextMarkProps = {
   isHighlighted?: boolean;
 };
 
-export function BandCell({ cell }: BandCellProps) {
+function describeCellPlace(cell: StationCell, sector: SectorInfo | null, t: TFunction): string {
+  if (sector !== null) return `${sector.label} ${formatSectorAzimuth(sector.azimuth, t)}`;
+  if (cell.rat === "lte" || cell.rat === "nr") return `CLID ${cell.clid ?? "-"}`;
+  return `CID ${cell.cid ?? "-"}`;
+}
+
+export function BandCell({ cell, sector, measurements }: BandCellProps) {
   const { t, i18n } = useTranslation("stations");
+  const sightings = cell.sightings ?? null;
   const code = getBandCode(cell.band);
   const duplex = getBandDuplexMark(cell.band);
   const mode = getNrMode(cell);
@@ -66,6 +79,24 @@ export function BandCell({ cell }: BandCellProps) {
               <p>{t("cells.cellNotConfirmed")}</p>
             </TooltipContent>
           </Tooltip>
+        )}
+        {sightings === null ? null : (
+          <>
+            <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border" />
+            <CellMeasurementsPopover
+              subject={{
+                rat: cell.rat,
+                band: cell.band,
+                place: describeCellPlace(cell, sector, t),
+                sectorAzimuth: sector?.azimuth ?? null,
+                sightings,
+                measured: measurements.cellsById.get(cell.id),
+              }}
+              status={measurements}
+              showsBandwidth
+              className="-mx-1"
+            />
+          </>
         )}
       </div>
     </td>

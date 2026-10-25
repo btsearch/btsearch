@@ -139,6 +139,7 @@ async function* readRegister(file: LocalFile): AsyncGenerator<Row> {
 export async function* parseFixedLinks(ctx: ReadContext, _release: Release, files: readonly LocalFile[]): AsyncGenerator<MicrowaveLinkRecord> {
   const stationsByLicence = new Map<string, Station[]>();
   for (const file of files) {
+    // oxlint-disable-next-line no-await-in-loop
     for await (const row of readRegister(file)) {
       if (row("Product Description") !== FIXED_LINKS_PRODUCT) continue;
 

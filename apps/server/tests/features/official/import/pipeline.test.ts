@@ -319,7 +319,7 @@ function scriptAppliedSites({ replacesSectors = false }: { replacesSectors?: boo
   scriptStagedMatches();
   scriptStatements([]);
   dbMock.enqueueFor("insert", "official.locations", [{ id: 12 }], []);
-  dbMock.enqueueFor("select", undefined, [{ officialSiteId: 503, fromLocationId: 11, locationId: 12, firstOrdinal: 0, slice: "north" }]);
+  dbMock.enqueueFor("select", STAGED_PERMITS, [{ officialSiteId: 503, fromLocationId: 11, locationId: 12, firstOrdinal: 0, slice: "north" }]);
   scriptStatements([]);
   scriptStatements([{ officialSiteId: 504, slice: "north" }], [], []);
   dbMock.enqueueFor("insert", "official.permits", [{ id: 701 }]);
@@ -338,7 +338,7 @@ function scriptAppliedSites({ replacesSectors = false }: { replacesSectors?: boo
 function scriptAppliedSitesWithoutChanges(): void {
   scriptStagedMatches(5);
   dbMock.enqueueFor("insert", "official.locations", [], []);
-  dbMock.enqueueFor("select", undefined, []);
+  dbMock.enqueueFor("select", STAGED_PERMITS, []);
   dbMock.enqueueFor("insert", "official.permits", []);
   dbMock.enqueueFor("update", "official.permits", undefined);
   dbMock.enqueueFor("update", "official.permit_listings", undefined);
@@ -484,7 +484,7 @@ describe("a run through the engine", () => {
       "update official_import_staged_permits",
       "update official_import_staged_permits",
       "update official_import_staged_permits",
-      "select",
+      `select ${STAGED_PERMITS}`,
       "apply: move sites",
       "apply: insert sites",
       "apply: insert sites",
@@ -1103,7 +1103,7 @@ describe("a run through the engine", () => {
     scriptStagedSites({ live: 0 });
     scriptStagedMatches(6);
     dbMock.enqueueFor("insert", "official.locations", [], []);
-    dbMock.enqueueFor("select", undefined, []);
+    dbMock.enqueueFor("select", STAGED_PERMITS, []);
     dbMock.enqueueFor("insert", "official.permits", [{ id: 701 }]);
     dbMock.enqueueFor("update", "official.permits", undefined);
     dbMock.enqueueFor("update", "official.permit_listings", undefined);
@@ -1385,7 +1385,7 @@ describe("a run through the engine", () => {
     expect(end).toMatchObject({ end: "done", report: { siteNames: { written: 1, skipped: 2 } } });
     expect(syncSiteNames).toHaveBeenCalledWith(expect.objectContaining({ siteNames: [{ operatorId: 4, siteId: "BT1001", name: "WAW CENTRUM" }] }));
     const operations = trace();
-    expect(operations.indexOf(`select ${STAGED_PERMITS}`)).toBeGreaterThan(operations.indexOf("apply: unlist"));
+    expect(operations.lastIndexOf(`select ${STAGED_PERMITS}`)).toBeGreaterThan(operations.indexOf("apply: unlist"));
     expect(operations.indexOf("insert audit_logs")).toBeLessThan(operations.indexOf("insert official.import_run_slices"));
   });
 

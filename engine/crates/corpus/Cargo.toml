@@ -1,0 +1,12 @@
+[package]
+name = "engine-corpus"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

@@ -13,7 +13,7 @@ import { loadOfficialVisibility, officialLocationIsPublic } from "../official/vi
 export type UnmatchedCell = UnmatchedLteCell & { countryCode: string };
 export type OfficialSiteMatches = { siteIds: number[][]; sites: OfficialSiteRef[] };
 
-async function loadPublicSites(req: FastifyRequest, siteIds: readonly number[]): Promise<OfficialSiteRef[]> {
+export async function loadPublicSites(req: FastifyRequest, siteIds: readonly number[]): Promise<OfficialSiteRef[]> {
   if (siteIds.length === 0) return [];
 
   const visibility = await loadOfficialVisibility(req);
@@ -48,9 +48,13 @@ async function findSourceSites(source: OfficialSourceDefinition, cells: readonly
   return siteIds;
 }
 
-export async function findOfficialSites(req: FastifyRequest, cells: readonly (UnmatchedCell | null)[]): Promise<OfficialSiteMatches> {
+export async function findCandidateSiteIds(cells: readonly (UnmatchedCell | null)[]): Promise<number[][]> {
   const siteIdsBySource = await Promise.all(sourceDefinitions.map((source) => findSourceSites(source, cells)));
-  const candidates = cells.map((_cell, position) => unique(siteIdsBySource.flatMap((sourceSiteIds) => sourceSiteIds[position] ?? [])));
+  return cells.map((_cell, position) => unique(siteIdsBySource.flatMap((sourceSiteIds) => sourceSiteIds[position] ?? [])));
+}
+
+export async function findOfficialSites(req: FastifyRequest, cells: readonly (UnmatchedCell | null)[]): Promise<OfficialSiteMatches> {
+  const candidates = await findCandidateSiteIds(cells);
   const publicSites = await loadPublicSites(req, unique(candidates.flat()));
   const publicSiteIds = new Set(publicSites.map((site) => site.id));
   const siteIds = candidates.map((ids) => ids.filter((id) => publicSiteIds.has(id)).slice(0, OFFICIAL_SITES_PER_CELL));

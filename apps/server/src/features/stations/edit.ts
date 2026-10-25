@@ -11,7 +11,7 @@ import { unique } from "../../lib/collections.js";
 import type { PermissionObject } from "../../plugins/auth/permissions.js";
 import { type OperatorChange, type ScopeRefs, findLocationIdsAt, locationRefs } from "../access/scope.js";
 import { hasStaffPermission } from "../access/staff.js";
-import { auditContextFromRequest, runAuditedOperation } from "../audit/index.js";
+import { type AuditMetadata, type AuditRecorder, auditContextFromRequest, runAuditedOperation } from "../audit/index.js";
 import { checkOwnerCellDuplicates, checkPciDuplicate } from "../cells/duplicateCheck.js";
 import { loadStationNetworkOwner } from "../cells/networkWrites.js";
 import type { PciDuplicateDetails } from "../cells/pciDuplicateSpecs.js";
@@ -24,6 +24,12 @@ import { findVisibleStation } from "./read.js";
 import { stationStatusUpdate } from "./status.js";
 
 type PreparedChange = { change: SubmissionChange; cellNetworks: string[][] };
+type StationChangeOperation = {
+  bodyPath?: BodyPath;
+  metadata?: AuditMetadata;
+  beforeChange?: (audit: AuditRecorder) => Promise<void>;
+  afterChange?: (audit: AuditRecorder, applied: AppliedChange) => Promise<void>;
+};
 
 function getEditPermissions({ action, station, location, sectors, cells = [] }: StationEdit): PermissionObject {
   const cellActions = unique(cells.map((cell) => cell.action));
@@ -99,12 +105,17 @@ export async function applyStationChange(
   req: FastifyRequest,
   edit: StationEdit,
   kind: AuditOperationKind,
-  bodyPath?: BodyPath,
+  { bodyPath, metadata, beforeChange, afterChange }: StationChangeOperation = {},
 ): Promise<AppliedChange> {
   if (!(await hasStaffPermission(req, getEditPermissions(edit)))) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
 
   const { change } = await prepareStationChange(req, edit, bodyPath);
-  const applied = await runAuditedOperation(auditContextFromRequest(req), { kind }, (_tx, audit) => applyDirectChange(audit, change));
+  const applied = await runAuditedOperation(auditContextFromRequest(req), { kind, metadata }, async (_tx, audit) => {
+    await beforeChange?.(audit);
+    const result = await applyDirectChange(audit, change);
+    await afterChange?.(audit, result);
+    return result;
+  });
   await finishDirectChange(applied);
   return applied;
 }
@@ -118,6 +129,16 @@ export async function deactivateStation(req: FastifyRequest, stationId: number):
     if (!updated) throw new ErrorResponse("FAILED_TO_UPDATE");
     await audit.log({ entity: "stations", op: "delete", recordId: stationId, stationId, old: current, new: updated });
   });
+}
+
+export function toStationCreateEdit({ station, location, sectors, cells }: StationCreate): StationEdit {
+  return {
+    action: "create",
+    station,
+    location,
+    sectors: sectors?.map((sector) => ({ action: "create" as const, ...sector })),
+    cells: cells?.map((cell) => ({ action: "create" as const, ...cell })),
+  };
 }
 
 export async function stationCreateScope({ station, location }: StationCreate): Promise<ScopeRefs> {

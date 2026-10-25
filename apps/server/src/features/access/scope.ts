@@ -55,6 +55,7 @@ const SCOPED_PERMISSIONS: ReadonlySet<RoutePermission> = new Set<RoutePermission
   "update:locations",
   "delete:locations",
   "moderate:submissions",
+  "moderate:observations",
 ]);
 
 const OUT_OF_SCOPE_MESSAGE = "Your editor access does not cover this region";

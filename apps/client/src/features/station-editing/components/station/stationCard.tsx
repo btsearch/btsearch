@@ -1,7 +1,7 @@
 import { AirportTowerIcon, Building02Icon, Cancel01Icon, CheckmarkCircle02Icon, Clock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { Operator, StationStatus } from "@openbts/shared/contract";
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { StationDraftApi } from "../../hooks/useStationDraft";
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 type StationCardProps = {
   edit: StationDraftApi;
   stationId: number | null;
+  siteIdHint?: ReactNode;
 };
 
 type StatusFieldProps = {
@@ -93,7 +94,7 @@ function StatusField({ edit, idPrefix }: StatusFieldProps) {
   );
 }
 
-export function StationCard({ edit, stationId }: StationCardProps) {
+export function StationCard({ edit, stationId, siteIdHint }: StationCardProps) {
   const { t } = useTranslation(["common", "submissions"]);
   const idPrefix = useId();
   const { session, dispatch, canEdit, lookups } = edit;
@@ -157,7 +158,7 @@ export function StationCard({ edit, stationId }: StationCardProps) {
           </div>
           <BackhaulDetailFields edit={edit} idPrefix={idPrefix} />
         </div>
-        <IdentifierRows edit={edit} stationId={stationId} idPrefix={idPrefix} />
+        <IdentifierRows edit={edit} stationId={stationId} idPrefix={idPrefix} siteIdHint={siteIdHint} />
         <FieldGroup view={notesView} label={t("labels.notes")}>
           <Textarea
             {...NO_AUTOFILL_PROPS}

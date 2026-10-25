@@ -1,8 +1,10 @@
 import type {
+  Me,
   MeasurementContentType,
   MeasurementDevice,
   MeasurementDeviceList,
   MeasurementDeviceUpdate,
+  MeasurementSummary,
   MeasurementTerms,
   MeasurementTermsAccept,
   MeasurementUpload,
@@ -11,11 +13,10 @@ import type {
   MeasurementUploadsLimit,
   MeasurementWithdrawal,
   MeasurementWithdrawalResult,
-  Me,
 } from "@openbts/shared/contract";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
-import { API_V2_BASE, JSON_HEADERS, fetchJson, fetchV2Data } from "@/lib/api";
+import { API_V2_BASE, ApiResponseError, JSON_HEADERS, fetchJson, fetchV2Data } from "@/lib/api";
 import { meQueryOptions } from "@/lib/auth/me";
 
 const DEVICES_LIMIT = 50;
@@ -74,6 +75,13 @@ export function measurementUploadsQueryOptions(userId: string) {
   });
 }
 
+export function measurementSummaryQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: ["measurements", "summary", userId] as const,
+    queryFn: ({ signal }) => fetchV2Data<MeasurementSummary>("measurements/summary", { signal }),
+  });
+}
+
 export function measurementUploadsLimitQueryOptions(userId: string) {
   return queryOptions({ ...meQueryOptions(userId), select: readMeasurementUploadsLimit });
 }
@@ -98,14 +106,18 @@ export async function withdrawAllMeasurementUploads(): Promise<number> {
   return result.withdrawnCount;
 }
 
-export async function acceptMeasurementTerms(version: number): Promise<void> {
+export function acceptMeasurementTerms(version: number): Promise<MeasurementTerms> {
   const accept: MeasurementTermsAccept = { version };
-  await fetchJson(`${API_V2_BASE}/measurements/terms`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(accept) });
+  return fetchV2Data<MeasurementTerms>("measurements/terms", { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(accept) });
 }
 
 export async function downloadMeasurementUploadFile(upload: MeasurementUpload): Promise<void> {
   const response = await fetch(`${API_V2_BASE}/measurements/uploads/${upload.id}/file`, { credentials: "include" });
-  if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    if (errorData?.errors?.length) throw new ApiResponseError(response.status, errorData.errors);
+    throw new Error(`Download failed: ${response.status}`);
+  }
 
   const downloadUrl = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");

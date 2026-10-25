@@ -5,6 +5,7 @@ import { AnimatePresence } from "motion/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { MapCrowdState } from "../../crowd/useMapCrowd";
 import type { MapCountries } from "../../data/mapCountries";
 import { DEFAULT_MAP_FILTERS, type MapFilters, type MapFiltersChange, isDefaultMapStatus } from "../../data/mapFilters";
 import { useMapLookups } from "../../data/mapLookups";
@@ -25,6 +26,7 @@ import {
 import {
   BackhaulSection,
   BandSection,
+  EstimatedSiteStatusSection,
   MicrowaveLinkOperatorsSection,
   RecentDaysFilter,
   StandardSection,
@@ -51,6 +53,7 @@ type FilterPanelProps = {
   isSheet: boolean;
   filters: MapFilters;
   mapCountries: MapCountries;
+  crowd?: MapCrowdState;
   onFiltersChange: (update: MapFiltersChange) => void;
   onSourceChange: (source: StationSource) => void;
   onToggleHeatmap?: () => void;
@@ -221,6 +224,7 @@ export function FilterPanel({
   isSheet,
   filters,
   mapCountries,
+  crowd,
   onFiltersChange,
   onSourceChange,
   onToggleHeatmap,
@@ -290,6 +294,9 @@ export function FilterPanel({
           onFiltersChange={onFiltersChange}
         />
       </div>
+      <Reveal shown={crowd !== undefined && crowd.isStaff && crowd.isAvailable && filters.showEstimatedSites} className={SECTION_SLOT_CLASS}>
+        <EstimatedSiteStatusSection filters={filters} onFiltersChange={onFiltersChange} />
+      </Reveal>
       <Reveal shown={filters.showRadiolines && (microwaveLinkOperators.length > 0 || hasMicrowaveLinkOperatorsError)} className={SECTION_SLOT_CLASS}>
         <MicrowaveLinkOperatorsSection
           filters={filters}
@@ -345,6 +352,7 @@ export function FilterPanel({
       filters={filters}
       mapCountries={mapCountries}
       countries={lookups?.countries}
+      crowd={crowd}
       onFiltersChange={onFiltersChange}
       onToggleHeatmap={onToggleHeatmap}
       onTogglePlannedMeasurements={onTogglePlannedMeasurements}

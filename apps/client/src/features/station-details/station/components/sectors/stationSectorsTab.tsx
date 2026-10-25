@@ -1,17 +1,24 @@
+import { InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { type MeasuredBearing, listMeasuredDirections, listSectorBearings } from "../../measurements/measuredCells";
+import { useStationMeasurements } from "../../measurements/useStationMeasurements";
 import type { StationRecord } from "../../types";
 import { getBrandColor, getOperatorBrand } from "../../utils/brands";
 import { formatSectorAzimuth } from "../../utils/sectors";
+import { MeasuredBearingLegend } from "./measuredBearingLegend";
 import { type SectorBand, type SectorBandRow, summarizeSectorBands } from "./sectorBands";
 import { AzimuthCompass } from "@/components/cellular/azimuthCompass";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { brandsQueryOptions } from "@/features/shared/lookups";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { cn } from "@/lib/utils";
 
 const HEAD_CELL_CLASS = "pb-1.5 text-left font-normal";
 const NARROW_COLUMN_CLASS = "w-px whitespace-nowrap pr-3";
+const MEASURED_COLUMN_CLASS = "w-30 pl-3 sm:w-48";
 const BAND_CHIP_CLASS = "inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-2 text-xs font-medium";
 
 type StationSectorsTabProps = {
@@ -20,10 +27,13 @@ type StationSectorsTabProps = {
 
 type SectorsCompassProps = {
   station: StationRecord;
+  bearings: ReadonlyMap<number, MeasuredBearing>;
+  color: string;
 };
 
 type SectorBandsTableProps = {
   rows: SectorBandRow[];
+  bearings: ReadonlyMap<number, MeasuredBearing>;
 };
 
 type SectorBandChipsProps = {
@@ -32,12 +42,16 @@ type SectorBandChipsProps = {
 
 export function StationSectorsTab({ station }: StationSectorsTabProps) {
   const { t, i18n } = useTranslation("stationDetails");
+  const { data: brands } = useQuery(brandsQueryOptions());
+  const measurements = useStationMeasurements(station);
   const { rows, hasLinkedCells, unlinkedCellCount } = summarizeSectorBands(station.sectors, station.cells, i18n.language);
+  const bearings = listSectorBearings(station.sectors, station.cells, measurements.cellsById);
+  const color = getBrandColor(getOperatorBrand(station.operator, brands));
 
   if (!hasLinkedCells) {
     return (
       <section className="flex min-h-72 flex-col items-center justify-center gap-4">
-        <SectorsCompass station={station} />
+        <SectorsCompass station={station} bearings={bearings} color={color} />
         <div className="flex flex-wrap items-center justify-center gap-2">
           {rows.map((sector) => (
             <span key={sector.id} className="text-xs font-medium text-muted-foreground tabular-nums">
@@ -52,9 +66,12 @@ export function StationSectorsTab({ station }: StationSectorsTabProps) {
 
   return (
     <section className="flex min-h-72 flex-wrap items-center justify-center gap-x-12 gap-y-8">
-      <SectorsCompass station={station} />
+      <div className="flex flex-col items-center gap-2.5">
+        <SectorsCompass station={station} bearings={bearings} color={color} />
+        {bearings.size > 0 ? <MeasuredBearingLegend color={color} /> : null}
+      </div>
       <div className="min-w-0 grow basis-80">
-        <SectorBandsTable rows={rows} />
+        <SectorBandsTable rows={rows} bearings={bearings} />
         {unlinkedCellCount > 0 ? (
           <p className="mt-3 text-xs text-muted-foreground">{t("sectors.unlinkedCells", { count: unlinkedCellCount })}</p>
         ) : null}
@@ -63,21 +80,22 @@ export function StationSectorsTab({ station }: StationSectorsTabProps) {
   );
 }
 
-function SectorsCompass({ station }: SectorsCompassProps) {
+function SectorsCompass({ station, bearings, color }: SectorsCompassProps) {
   const { t } = useTranslation("stationDetails");
-  const { data: brands } = useQuery(brandsQueryOptions());
 
   return (
     <AzimuthCompass
       directions={station.sectors.map((sector) => ({ azimuth: sector.azimuth, name: formatSectorAzimuth(sector.azimuth, t) }))}
-      color={getBrandColor(getOperatorBrand(station.operator, brands))}
+      measuredDirections={listMeasuredDirections(bearings)}
+      color={color}
       className="size-56 sm:size-60"
     />
   );
 }
 
-function SectorBandsTable({ rows }: SectorBandsTableProps) {
+function SectorBandsTable({ rows, bearings }: SectorBandsTableProps) {
   const { t } = useTranslation("stationDetails");
+  const hasBearings = bearings.size > 0;
 
   return (
     <table aria-label={t("tabs.sectors")} className="w-full">
@@ -89,6 +107,14 @@ function SectorBandsTable({ rows }: SectorBandsTableProps) {
           <th scope="col" className={HEAD_CELL_CLASS}>
             {t("sectors.bandsOnSector")}
           </th>
+          {hasBearings ? (
+            <th scope="col" className={cn(HEAD_CELL_CLASS, MEASURED_COLUMN_CLASS)}>
+              <Tooltip>
+                <TooltipTrigger className="cursor-help text-left">{t("sectors.measured")}</TooltipTrigger>
+                <TooltipContent className="max-w-65">{t("sectors.measuredHint")}</TooltipContent>
+              </Tooltip>
+            </th>
+          ) : null}
         </tr>
       </thead>
       <tbody>
@@ -103,10 +129,45 @@ function SectorBandsTable({ rows }: SectorBandsTableProps) {
             <td className="py-2.5">
               <SectorBandChips bands={sector.bands} />
             </td>
+            {hasBearings ? (
+              <td className={cn(MEASURED_COLUMN_CLASS, "py-2.5")}>
+                <MeasuredBearingCell bearing={bearings.get(sector.id)} />
+              </td>
+            ) : null}
           </tr>
         ))}
       </tbody>
     </table>
+  );
+}
+
+function MeasuredBearingCell({ bearing }: { bearing: MeasuredBearing | undefined }) {
+  const { t } = useTranslation("stationDetails");
+
+  if (bearing === undefined) {
+    return (
+      <Tooltip>
+        <TooltipTrigger className="cursor-help text-sm text-muted-foreground">-</TooltipTrigger>
+        <TooltipContent>{t("sectors.notEnoughMeasurements")}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <>
+      <span className="flex flex-wrap items-baseline gap-x-1.5">
+        <span className="font-mono text-sm font-medium">{bearing.bearingDegrees}°</span>
+        <span className="text-xs text-muted-foreground">
+          {t("measurements.spread", { degrees: bearing.spreadDegrees })} · {t("measurements.people", { count: bearing.people })}
+        </span>
+      </span>
+      {bearing.differs ? (
+        <span className="mt-0.5 flex items-start gap-1 text-xs text-muted-foreground">
+          <HugeiconsIcon icon={InformationCircleIcon} className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+          {t("measurements.bearingDiffers")}
+        </span>
+      ) : null}
+    </>
   );
 }
 

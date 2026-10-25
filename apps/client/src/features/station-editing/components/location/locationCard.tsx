@@ -27,6 +27,7 @@ type LocationCardProps = {
   edit: StationDraftApi;
   stationId?: number | null;
   onRegisterStationPick?: (site: OfficialSite) => void;
+  mapOverlay?: ReactNode;
 };
 
 type CoordinateLooks = {
@@ -204,7 +205,7 @@ function PlaceExtras({ edit, existingMatch, ownStations, stationId }: PlaceExtra
   );
 }
 
-export function LocationCard({ edit, stationId = null, onRegisterStationPick }: LocationCardProps) {
+export function LocationCard({ edit, stationId = null, onRegisterStationPick, mapOverlay }: LocationCardProps) {
   const { t } = useTranslation();
   const text = useEditText();
   const { session, dispatch, lookups, canEdit } = edit;
@@ -321,6 +322,7 @@ export function LocationCard({ edit, stationId = null, onRegisterStationPick }: 
         <MoveSection edit={edit} joinsExisting={picker.existingMatch !== null} otherStationCount={ownStations?.length ?? null} />
       )}
       regionHint={hasRegionHint ? <RegionHint /> : null}
+      mapOverlay={mapOverlay}
     >
       {(picker) => <PlaceExtras edit={edit} existingMatch={picker.existingMatch} ownStations={ownStations} stationId={stationId} />}
     </LocationPicker>

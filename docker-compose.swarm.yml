@@ -51,8 +51,15 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - KMZ_OUTPUT_DIR=/app/kmz
       - DISPOSABLE_EMAIL_BLOCKLIST_PATH=/app/data/disposable_email_blocklist.conf
+      # Measurements from the app: raw uploads, sealed, on observations-volume
+      - OBSERVATIONS_STORE=disk
+      - OBSERVATIONS_DIR=/app/observations
+      - OBSERVATIONS_SEAL_KEYS=${OBSERVATIONS_SEAL_KEYS:?OBSERVATIONS_SEAL_KEYS is required}
+      - OBSERVATIONS_PHONE_KEY=${OBSERVATIONS_PHONE_KEY:?OBSERVATIONS_PHONE_KEY is required}
+      - APP_OAUTH_CLIENT_IDS=${APP_OAUTH_CLIENT_IDS:-btsearch-app}
     volumes:
       - uploads-volume:/app/uploads
+      - observations-volume:/app/observations
       - disposable-email-blocklist-volume:/app/data
       - type: bind
         source: /opt/btsearch/kmz
@@ -178,6 +185,46 @@ services:
       resources:
         limits:
           memory: 4G
+      placement:
+        constraints:
+          - node.role == manager
+
+  engine:
+    image: btsearch-engine:${COMMIT_SHA}
+    environment:
+      # Database, connected directly: the engine listens for NOTIFY and holds long transactions, which must not go through PgBouncer
+      - ENGINE_DATABASE_URL=${ENGINE_DATABASE_URL:?ENGINE_DATABASE_URL is required}
+      - OBSERVATIONS_DIR=/app/observations
+      # The server's keys, so the engine can open what the server sealed
+      - OBSERVATIONS_SEAL_KEYS=${OBSERVATIONS_SEAL_KEYS:?OBSERVATIONS_SEAL_KEYS is required}
+    volumes:
+      - observations-volume:/app/observations:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "engine", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 60s
+    deploy:
+      replicas: ${ENGINE_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: pause
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1536M
       placement:
         constraints:
           - node.role == manager
@@ -317,6 +364,9 @@ volumes:
     external: true
     name: btsearch_disposable-email-blocklist-volume
   official-archive-volume:
+  observations-volume:
+    external: true
+    name: btsearch_observations-volume
   postgres-volume:
     external: true
     name: btsearch_postgres-volume

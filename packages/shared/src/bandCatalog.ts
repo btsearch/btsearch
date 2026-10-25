@@ -1,6 +1,7 @@
 export type CatalogRat = "GSM" | "UMTS" | "LTE" | "NR";
 export type CatalogDuplex = "FDD" | "TDD" | "SDL" | "SUL";
 export type KhzRange = readonly [number, number];
+export type ChannelRange = readonly [first: number, last: number];
 
 type MhzRange = readonly [number, number];
 type ChannelBlock = { first: number; last: number; offsetKhz: number } | { list: readonly number[]; offsetKhz: number };
@@ -476,6 +477,22 @@ export function channelKhz(band: CatalogBand, channel: number): number | null {
 
 export function bandsForChannel(rat: string, channel: number): CatalogBand[] {
   return BAND_CATALOG.filter((band) => band.rat === rat && channelKhz(band, channel) !== null);
+}
+
+export function channelRanges(band: CatalogBand): ChannelRange[] {
+  if (band.rat !== "NR") {
+    return band.channels.flatMap((block): ChannelRange[] =>
+      "list" in block ? block.list.map((channel) => [channel, channel]) : [[block.first, block.last]],
+    );
+  }
+  if (band.downlinkKhz === null) return [];
+
+  const [lowKhz, highKhz] = band.downlinkKhz;
+  return NR_RASTER.flatMap(({ first, last, referenceKhz, referenceChannel, stepKhz }): ChannelRange[] => {
+    const from = Math.max(first, referenceChannel + Math.ceil((lowKhz - referenceKhz) / stepKhz));
+    const to = Math.min(last, referenceChannel + Math.floor((highKhz - referenceKhz) / stepKhz));
+    return from <= to ? [[from, to]] : [];
+  });
 }
 
 export function isChannelValidForBand(band: BandLike, channel: number): boolean {

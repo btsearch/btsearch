@@ -4,6 +4,11 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useSta
 
 import { mapLocationsQueryOptions, mapMicrowaveLinksQueryOptions } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "../constants";
+import { transformCrowdTileRequest } from "../crowd/api/tiles";
+import { keepFocusedPoints } from "../crowd/coverage/coverageFocus";
+import { useFocusedCoverageTarget } from "../crowd/coverage/coverageStore";
+import { CrowdLayers } from "../crowd/crowdLayers";
+import { useMapCrowd } from "../crowd/useMapCrowd";
 import { getEffectiveMapFilters, isMapSourceUndecided, useCapabilitiesOnScreen, useMapCountries } from "../data/mapCountries";
 import { areMapRatFiltersReady } from "../data/mapFilters";
 import { useMapLookups, useMapMaxBounds } from "../data/mapLookups";
@@ -122,6 +127,8 @@ function MapViewInner() {
   const mapCountries = useMapCountries({ bounds, points });
   const locationCount = page?.locations.length ?? 0;
   const totalCount = page?.total ?? 0;
+  const crowd = useMapCrowd({ bbox, isMoving, filters: shownFilters, lookups, countryCodesOnScreen: mapCountries.onScreen });
+  const focusedCoverageTarget = useFocusedCoverageTarget();
 
   const { data: microwaveLinksResponse, isFetching: isMicrowaveLinksFetching } = useQuery({
     ...mapMicrowaveLinksQueryOptions({ bounds, filters: shownFilters, limit: preferences.mapRadiolinesLimit }),
@@ -248,6 +255,7 @@ function MapViewInner() {
         onTogglePlannedMeasurements={handleTogglePlannedMeasurements}
         onFilterQueryChange={setMapQuery}
         rejectedSearchText={rejectedSearchText}
+        crowd={crowd.state}
       />
       {showSelectedDot && selectedLocation ? (
         <MapMarker longitude={selectedLocation.lng} latitude={selectedLocation.lat}>
@@ -263,14 +271,23 @@ function MapViewInner() {
         filters={shownFilters}
         savedFilters={savedFilters}
         onFiltersChange={setSavedFilters}
-        points={points}
+        points={keepFocusedPoints(points, focusedCoverageTarget)}
         wantAzimuths={wantAzimuths}
         isPickingReceiver={terrainProfile.isPickingReceiver}
         onActiveMarkerChange={setActiveMarker}
         stationActions={stationActions}
         popupActions={popupActions}
         onMicrowaveLinkIdFromUrl={setPendingMicrowaveLinkId}
+        onObservedSiteIdFromUrl={crowd.setSharedSiteId}
         activePopupLocations={openLocations}
+      />
+      <CrowdLayers
+        crowd={crowd}
+        filters={shownFilters}
+        lookups={lookups}
+        trailCountryCode={mapCountries.first}
+        isPickingReceiver={terrainProfile.isPickingReceiver}
+        onOpenStation={(stationId) => openStationDetails(stationId, "internal")}
       />
       {shownFilters.showRadiolines || pendingMicrowaveLinkId !== null ? (
         <Suspense fallback={null}>
@@ -303,6 +320,7 @@ export default function MapView() {
       center={saved?.center ?? POLAND_CENTER}
       zoom={saved?.zoom ?? 7}
       minZoom={5}
+      transformRequest={transformCrowdTileRequest}
       className={preferences.navMode === "floating" ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}
     >
       <MapViewInner />

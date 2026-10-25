@@ -22,7 +22,7 @@ import {
   PopupStationId,
   PopupStatusBadge,
 } from "./popupParts";
-import { TechnologySummary } from "./technologySummary";
+import { TechnologySummary, TechnologySummarySkeleton } from "./technologySummary";
 import { useLightbox } from "@/components/lightbox";
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { CloseButton } from "@/components/ui/close-button";
@@ -372,15 +372,6 @@ function StationSkeleton() {
         </div>
         <TechnologySummarySkeleton />
       </div>
-    </div>
-  );
-}
-
-function TechnologySummarySkeleton() {
-  return (
-    <div className="mt-1 flex h-4 items-center gap-2">
-      <Skeleton className="h-2.5 w-8 rounded-sm" />
-      <Skeleton className="h-2.5 w-24 rounded-sm" />
     </div>
   );
 }

@@ -141,7 +141,7 @@ export const userAccountSchema = z.object({
 });
 export type UserAccount = z.infer<typeof userAccountSchema>;
 
-const ADMIN_SESSION_NOTE = "Requires an administrator's session; not available with a token";
+const ADMIN_SESSION_NOTE = "Requires an administrator's session, not a token";
 
 export const listedUserSchema = userRefSchema.extend({
   account: userAccountSchema.optional().describe(`Only returned with \`include=account\`. ${ADMIN_SESSION_NOTE}`),

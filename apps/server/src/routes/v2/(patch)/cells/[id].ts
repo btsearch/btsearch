@@ -46,12 +46,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const row = await findListedCell(id);
   await findVisibleStation(req, row.station.id);
 
-  await applyStationChange(
-    req,
-    { action: "update", stationId: row.station.id, cells: [{ action: "update", id, ...req.body }] },
-    "cells.update",
-    ([_cells, _index, ...path]) => path,
-  );
+  await applyStationChange(req, { action: "update", stationId: row.station.id, cells: [{ action: "update", id, ...req.body }] }, "cells.update", {
+    bodyPath: ([_cells, _index, ...path]) => path,
+  });
 
   return res.send({ data: await serializeCell(await findListedCell(id), req.query.include) });
 }

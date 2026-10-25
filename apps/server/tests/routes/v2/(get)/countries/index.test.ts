@@ -8,7 +8,7 @@ import { SOURCE_VISIBILITY_KEY, cacheCountryVisibility } from "../../../../helpe
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const userId = "123e4567-e89b-42d3-a456-426614174000";
-const features = { structureOwnerProposals: false, psc: true, bsic: false };
+const features = { structureOwnerProposals: false, psc: true, bsic: false, observationsPublic: true };
 const packCapabilities = {
   official: true,
   microwaveLinks: true,

@@ -7,6 +7,15 @@ export type RetryHeaders = { header(name: string, value: string): unknown };
 
 export const UNLIMITED: RateLimitTier = { max: Number.POSITIVE_INFINITY, window: 300 };
 
+export function setRetryAfter(res: RetryHeaders, seconds: number): void {
+  res.header("Retry-After", String(seconds));
+  res.header("X-Retry-After", String(seconds));
+}
+
+export function setRetryAt(res: RetryHeaders, freesAt: number): void {
+  setRetryAfter(res, Math.max(1, Math.ceil((freesAt - Date.now()) / 1000)));
+}
+
 export async function countAgainstLimit(req: FastifyRequest, res: RetryHeaders, limit: RouteRateLimit): Promise<void> {
   const limiter = req.server.rateLimitService;
   const key = limiter.generateKey(req, limit);

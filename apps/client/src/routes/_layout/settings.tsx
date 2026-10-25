@@ -11,7 +11,7 @@ import { useRegisterPageSections } from "@/contexts/pageSections";
 import { AccountSection } from "@/features/settings/components/accountSection";
 import { AppsSection } from "@/features/settings/components/appsSection";
 import { IdentityBanner, type SettingsUser } from "@/features/settings/components/identityBanner";
-import { MeasurementsSection } from "@/features/settings/components/measurementsSection";
+import { MeasurementsSection } from "@/features/settings/components/measurements/measurementsSection";
 import { PreferencesSection } from "@/features/settings/components/preferencesSection";
 import { ProfileSection } from "@/features/settings/components/profileSection";
 import { SecuritySection } from "@/features/settings/components/securitySection";

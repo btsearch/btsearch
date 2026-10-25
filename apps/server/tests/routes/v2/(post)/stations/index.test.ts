@@ -11,7 +11,7 @@ import { stationRow, visibleStation } from "../../../../helpers/stationFixtures.
 
 const payload = { station: { siteId: "A1", operatorId: 1 } };
 const SITE_ID_NEEDED =
-  "A station needs a station number unless it has a cell that names it: an LTE cell with an eNB, an NR cell with a gNB, a UMTS cell with an RNC or a GSM cell with a LAC";
+  "A station needs a station number unless it has a cell that names it: an LTE cell with an eNBID, an NR cell with a gNBID, a UMTS cell with an RNC or a GSM cell with a LAC";
 
 describe("POST /stations", () => {
   it("creates a confirmed station awaiting cells without requiring a location or a photo", async () => {

@@ -33,9 +33,10 @@ type QueryBoundary = {
 const results: ScriptedResult[] = [];
 const calls: DatabaseCall[] = [];
 const queryTables: Record<string, Record<string, ReturnType<typeof vi.fn>>> = {};
-const defaultCountryFeatures: CountryFeatures = { structureOwnerProposals: true, psc: false, bsic: false };
+const defaultCountryFeatures: CountryFeatures = { structureOwnerProposals: true, psc: false, bsic: false, observationsPublic: true };
 const countryFeatures = new Map<string, CountryFeatures>();
 const dialect = new PgDialect();
+const SOURCE_TABLE = Symbol("sourceTable");
 
 export function setCountryFeatures(features: Partial<CountryFeatures>, countryCode = "PL"): void {
   countryFeatures.set(countryCode, { ...(countryFeatures.get(countryCode) ?? defaultCountryFeatures), ...features });
@@ -45,7 +46,7 @@ function isCountryFeatureProjection(selection: unknown): selection is Record<str
   return (
     typeof selection === "object" &&
     selection !== null &&
-    Object.keys(selection).length <= 4 &&
+    Object.keys(selection).length <= 5 &&
     "structureOwnerProposals" in selection &&
     "psc" in selection &&
     "bsic" in selection
@@ -103,6 +104,8 @@ function isNetworkRead(call: DatabaseCall): boolean {
 
 function tableName(table: unknown): string | undefined {
   if (typeof table !== "object" || table === null) return undefined;
+  const subqueryTable = (table as { [SOURCE_TABLE]?: unknown })[SOURCE_TABLE];
+  if (typeof subqueryTable === "string") return subqueryTable;
   try {
     const name = getTableName(table as Table);
     if (typeof name !== "string") return undefined;
@@ -165,6 +168,7 @@ function chain(operation: string, table?: unknown, selection?: unknown): Record<
           return sql`select ${selected}${source ? sql` from ${source as SQLWrapper}` : sql``}${where ? sql` where ${where as SQLWrapper}` : sql``}`;
         };
       if (property === Symbol.toStringTag) return "DatabaseBoundaryQuery";
+      if (property === SOURCE_TABLE) return call.table;
       return (...args: unknown[]) => {
         const name = String(property);
         call.clauses[name] = args;

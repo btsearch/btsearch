@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { csvBandIdsSchema } from "./bands.ts";
-import { stationCellSchema } from "./cells.ts";
+import { cellSightingsSchema, stationCellSchema } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
@@ -17,7 +17,9 @@ import {
   idParamSchema,
   idSchema,
   instantSchema,
+  latitudeQuerySchema,
   limitSchema,
+  longitudeQuerySchema,
   offsetSchema,
   pagingSchema,
   searchTextSchema,
@@ -42,10 +44,20 @@ export type StationStatus = (typeof STATION_STATUSES)[number];
 
 export const DEFAULT_STATION_STATUSES: readonly StationStatus[] = ["active", "awaitingCells"];
 
-export const STATION_INCLUDES = ["operator", "location", "location.region", "cells", "cells.band", "sectors", "backhaul"] as const;
+export const STATION_INCLUDES = [
+  "operator",
+  "location",
+  "location.region",
+  "cells",
+  "cells.band",
+  "cells.sightings",
+  "sectors",
+  "backhaul",
+  "sightings",
+] as const;
 export type StationInclude = (typeof STATION_INCLUDES)[number];
 
-export const STATION_SORTS = ["-id", "id", "siteId", "-siteId", "createdAt", "-createdAt", "updatedAt", "-updatedAt"] as const;
+export const STATION_SORTS = ["-id", "id", "siteId", "-siteId", "createdAt", "-createdAt", "updatedAt", "-updatedAt", "distance"] as const;
 export type StationSort = (typeof STATION_SORTS)[number];
 
 export const LOCATION_SORTS = ["-id", "id", "createdAt", "-createdAt", "updatedAt", "-updatedAt"] as const;
@@ -57,8 +69,10 @@ export const LOCATION_INCLUDES = [
   "stations.operator",
   "stations.cells",
   "stations.cells.band",
+  "stations.cells.sightings",
   "stations.sectors",
   "stations.backhaul",
+  "stations.sightings",
 ] as const;
 export type LocationInclude = (typeof LOCATION_INCLUDES)[number];
 
@@ -110,7 +124,7 @@ export const STATION_SITE_ID_NOTE = "The id the operator uses for the station, u
 export const STATION_SITE_ID_READ_NOTE = `${STATION_SITE_ID_NOTE}. \`null\` while no number is known`;
 export const NODE_NAME_NOTE =
   "A name you can show in place of `siteId` while the station has no number, taken from the first of these it has: " +
-  "its lowest eNB (`4G 412345`), its lowest gNB (`5G 1234567`), its lowest UMTS cell (`3G 12:34561`, RNC and cell id) " +
+  "its lowest eNBID (`4G 412345`), its lowest gNBID (`5G 1234567`), its lowest UMTS cell (`3G 12:34561`, RNC and cell id) " +
   "or its lowest GSM cell (`2G 1234:5678`, LAC and cell id). `null` for a station with a number, and for one with none of these";
 
 const HOST_STATION_NOTE =
@@ -140,6 +154,12 @@ export const stationBaseSchema = z.object(stationOwnShape);
 export type StationBase = z.infer<typeof stationBaseSchema>;
 
 const GUEST_OPERATORS_NOTE = "Operators other than the owner that at least one of the station's cells also broadcasts for";
+const STATION_SIGHTINGS_NOTE =
+  `${INCLUDE_NOTE}. The earliest and latest days over the station's cells, and over the cells phones measured that match only the station, ` +
+  "such as by its eNBID. `null` if no phone has measured any of them. The `observations` setting does not hide it";
+
+export const stationSightingsSchema = cellSightingsSchema.omit({ bandwidthKhz: true });
+export type StationSightings = z.infer<typeof stationSightingsSchema>;
 
 export const stationSchema = z.object({
   ...stationOwnShape,
@@ -149,6 +169,7 @@ export const stationSchema = z.object({
   cells: z.array(stationCellSchema).optional().describe(INCLUDE_NOTE),
   sectors: z.array(sectorSchema).optional().describe(INCLUDE_NOTE),
   backhaul: backhaulSchema.nullable().optional().describe(INCLUDE_NOTE),
+  sightings: stationSightingsSchema.nullable().optional().describe(STATION_SIGHTINGS_NOTE),
 });
 export type Station = z.infer<typeof stationSchema>;
 
@@ -267,20 +288,32 @@ export const listedStationFilterShape = {
 export const stationQuerySchema = z.object({ include: csvEnumSchema(STATION_INCLUDES).optional() }).strict();
 export type StationQuery = z.infer<typeof stationQuerySchema>;
 
+const NEAR_POINT_NOTE = "The point `sort=distance` measures from. Send it with both coordinates";
+const NEAR_POINT_ISSUE = { path: ["sort"], message: "Send `latitude` and `longitude` with `sort=distance`, and only with it" };
+
 export const stationListQuerySchema = z
   .object({
     ...stationFilterShape,
     ...listedStationFilterShape,
     ...areaFilterShape,
     include: csvEnumSchema(STATION_INCLUDES).optional(),
-    sort: z.enum(STATION_SORTS).default("-id"),
+    latitude: latitudeQuerySchema.optional().describe(NEAR_POINT_NOTE),
+    longitude: longitudeQuerySchema.optional().describe(NEAR_POINT_NOTE),
+    sort: z
+      .enum(STATION_SORTS)
+      .default("-id")
+      .describe(
+        "`distance` lists the stations nearest to `latitude` and `longitude` first, and the stations without a location last. " +
+          "It pages through at most 100,000 stations",
+      ),
     limit: limitSchema,
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
     includeTotal: booleanQuerySchema.optional(),
   })
   .strict()
-  .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
+  .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE)
+  .refine((query) => (query.sort === "distance") === (query.latitude !== undefined && query.longitude !== undefined), NEAR_POINT_ISSUE);
 export type StationListQuery = z.infer<typeof stationListQuerySchema>;
 
 export const stationListSchema = z.object({

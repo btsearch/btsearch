@@ -147,7 +147,12 @@
     "radiolinesCount_few": "radiolinie",
     "radiolinesCount_many": "radiolinii",
     "radiolinesCount_other": "radiolinii",
-    "moreRadiolines": "Pokazano {{shown, number}} z {{total, number}} radiolinii. Przybliż, aby zobaczyć wszystkie"
+    "moreRadiolines": "Pokazano {{shown, number}} z {{total, number}} radiolinii. Przybliż, aby zobaczyć wszystkie",
+    "estimatedSites_one": "szacowana",
+    "estimatedSites_few": "szacowane",
+    "estimatedSites_many": "szacowanych",
+    "estimatedSites_other": "szacowanych",
+    "moreEstimatedSites": "Pokazano {{shown, number}} z {{total, number}} szacowanych stacji. Przybliż, aby zobaczyć wszystkie"
   },
   "ads": {
     "dismiss": "Ukryj reklamę"
@@ -219,6 +224,113 @@
     "unconfirmed": "Niepotwierdzone"
   },
   "unknownOperator": "Nieznany operator",
+  "crowd": {
+    "estimated": "Szacowana",
+    "estimatedHint": "Położenie wyliczone z pomiarów zebranych w aplikacji {{appName}}",
+    "unknownBand": "Nieznane pasmo",
+    "collapseLegend": "Zwiń legendę",
+    "expandLegend": "Rozwiń legendę",
+    "layers": {
+      "estimated": "Szacowane",
+      "switchedOff": "Pomiary są chwilowo wyłączone",
+      "privateCountries": "Ślady i szacowane stacje nie obejmują krajów, które nie udostępniają pomiarów publicznie",
+      "trailsPrivate": "Kraje widoczne na mapie nie udostępniają pomiarów publicznie"
+    },
+    "filters": {
+      "title": "Szacowane stacje",
+      "statuses": {
+        "unmatched": "Niedopasowane",
+        "suggested": "Sugerowane",
+        "matched": "Dopasowane",
+        "ignored": "Zignorowane"
+      },
+      "seenByEveryone": "Widzą wszyscy",
+      "seenByStaff": "Widzą tylko redaktorzy i administratorzy"
+    },
+    "legend": {
+      "signal": "Sygnał",
+      "below": "poniżej {{value}} {{unit}}",
+      "between": "od {{from}} do {{to}} {{unit}}",
+      "above": "{{value}} {{unit}} i więcej",
+      "noSinr": "brak",
+      "sinrCaption": "SINR z chwil, w których ktoś mierzył. Zmienia się wraz z obciążeniem sieci"
+    },
+    "trails": {
+      "title": "Ślady",
+      "network": "Sieć",
+      "mine": "Moje ślady",
+      "mineTitle": "Twoje pomiary",
+      "readings": "odczyty",
+      "mineCaption": "Razem z postojami i końcami tras. Widzisz je tylko ty",
+      "levelCaption": "Kolor pokazuje siłę sygnału, którą osiąga 9 na 10 pomiarów w danym miejscu. Ślady pomijają postoje oraz pierwsze i ostatnie 100 m każdej trasy",
+      "bandsFromFilters": "Pasma z filtrów:",
+      "empty": "Nikt jeszcze nie zmierzył tu sieci {{operator}}",
+      "mineEmpty": "Nie masz tu pomiarów w sieci {{operator}}",
+      "zoomIn": "Przybliż mapę, aby zobaczyć ślady",
+      "privateGuest": "Ten kraj nie udostępnia pomiarów publicznie, dlatego nie widać tu śladów",
+      "privateAdmin": "Ten kraj nie udostępnia pomiarów publicznie. Te ślady widzisz jako administrator",
+      "loadError": "Nie udało się wczytać śladów"
+    },
+    "coverage": {
+      "title": "Zasięg z pomiarów",
+      "turnOff": "Wyłącz zasięg z pomiarów",
+      "band": "Pasmo",
+      "loadError": "Nie udało się wczytać zasięgu",
+      "noCells": "Nikt jeszcze nie zmierzył komórek tej stacji",
+      "notPublic": "Ten kraj nie udostępnia pomiarów publicznie",
+      "zoomIn": "Przybliż mapę, aby zobaczyć zasięg",
+      "cells": "Komórki",
+      "showCell": "Pokaż sygnał komórki {{cell}}",
+      "outsideDatabase": "spoza bazy",
+      "outsideDatabaseByNode": "spoza bazy, dopasowana tylko po {{node}}",
+      "noShape": "za mało pomiarów, by wyznaczyć kształt",
+      "cellsCaption": "Kolor pokazuje komórkę, która najczęściej obsługiwała telefony w danym miejscu. Im mocniejszy sygnał, tym pełniejszy kolor. Każdy obrys pokazuje, jak daleko sięga jedna komórka. Kliknij go, żeby zobaczyć tylko tę komórkę",
+      "allCells": "Wszystkie komórki",
+      "colorBySinr": "Koloruj według SINR",
+      "oneCellCaption": "Kolor pokazuje siłę sygnału tej komórki wszędzie, gdzie ją zmierzono, także tam, gdzie obsługiwała inna",
+      "edges": "Krawędzie",
+      "edgeKinds": {
+        "handedOver": "Tu telefony przejęła inna komórka",
+        "faded": "Tu sygnał zanikł",
+        "otherLayer": "Tu sieć przeniosła telefony na inne pasmo",
+        "unmeasured": "Dalej nikt nie mierzył"
+      },
+      "edgesCaptionCell": "Obrys biegnie od stacji do każdego miejsca, w którym telefony korzystały z tej komórki",
+      "edgesCaptionShort": "Obrys biegnie od stacji do miejsc, w których telefony korzystały z tej komórki"
+    },
+    "popup": {
+      "share": "Udostępnij stację",
+      "radius": "W promieniu {{radius}} ({{confidence}}%)",
+      "radiusHint": "Z prawdopodobieństwem {{confidence}}% stacja stoi w tym promieniu",
+      "onLocation": "W lokalizacji: {{address}} ({{probability}}%)",
+      "onNamedRegisterSite": "Na stacji z rejestru {{register}}: {{address}} ({{probability}}%)",
+      "onRegisterSite": "Na stacji z rejestru: {{address}} ({{probability}}%)",
+      "onEstimatedSite": "Na szacowanej stacji {{site}} ({{probability}}%)",
+      "snapHint": "Z takim prawdopodobieństwem stacja stoi właśnie tutaj",
+      "suggested": "Może to być ta stacja, {{distance}} stąd:",
+      "suggestedHere": "Może to być ta stacja:",
+      "matched": "Dopasowana do stacji, {{distance}} stąd:",
+      "matchedHere": "Dopasowana do stacji:",
+      "people_one": "{{count}} osobę",
+      "people_few": "{{count}} osoby",
+      "people_many": "{{count}} osób",
+      "people_other": "{{count}} osoby",
+      "measuredBy": "Zmierzona przez {{people}} · ostatnio {{date}}",
+      "measuredByYou": "Zmierzona tylko przez ciebie · ostatnio {{date}}",
+      "ignored": "Zignorowana: {{reason}} · {{date}}",
+      "ownNote": "Widzisz ją tylko ty, dopóki nie zostanie potwierdzona",
+      "staffNote": "Widzą ją tylko redaktorzy i administratorzy",
+      "staffNoteReasons": "Widzą ją tylko redaktorzy i administratorzy: {{reasons}}",
+      "approximate": "przybliżone"
+    },
+    "notPublicReasons": {
+      "notEstimated": "jeszcze bez położenia",
+      "unconfirmed": "niepotwierdzona",
+      "looseFit": "niepewne położenie",
+      "possibleSmallCell": "może to być mała komórka",
+      "privateCountry": "kraj nie udostępnia pomiarów"
+    }
+  },
   "photos": {
     "loadedCount": "Pokazano {{count, number}} z {{total, number}} zdjęć",
     "loadingMore": "Ładowanie kolejnych zdjęć...",

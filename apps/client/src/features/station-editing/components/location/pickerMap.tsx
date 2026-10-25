@@ -1,7 +1,7 @@
 import type { OfficialLocation, OfficialSite } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import type { Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { type PickerLocation, pickerLocationsQueryOptions, registerLocationsQueryOptions, roundCoordinate } from "../../data/places";
 import { NearbyLocationsPanel } from "./nearbyLocationsPanel";
@@ -45,6 +45,7 @@ type PickerMapProps = {
   onPlaceDetect: (location: PickerLocation) => void;
   onMatchChange: (location: PickerLocation | null) => void;
   onRegisterStationPick: (site: OfficialSite) => void;
+  overlay?: ReactNode;
 };
 
 type MapView = {
@@ -345,6 +346,7 @@ export function PickerMap(props: PickerMapProps) {
   return (
     <MapGL center={initialView.center} zoom={initialView.zoom}>
       <PickerMapContent {...props} />
+      {props.overlay}
       <MapControls showZoom showLocate position="bottom-right" />
       <MapSizeWatch />
     </MapGL>

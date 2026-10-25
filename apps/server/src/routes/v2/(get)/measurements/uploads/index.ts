@@ -7,9 +7,10 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
-import { canManageDevices } from "../../../../../features/measurements/devices.js";
+import { canManageMeasurements, coversEveryone } from "../../../../../features/measurements/access.js";
 import { loadCrowdSettings } from "../../../../../features/measurements/settings.js";
-import { selectUploads, toMeasurementUpload } from "../../../../../features/measurements/uploads.js";
+import { selectUploads } from "../../../../../features/measurements/uploads/read.js";
+import { toMeasurementUploads } from "../../../../../features/measurements/uploads/serialize.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { createKeyset } from "../../../../../lib/keyset.js";
@@ -23,21 +24,25 @@ const SORT_COLUMNS = {
 
 const schemaRoute = {
   summary: "List uploads",
-  description:
-    "Your uploads, withdrawn ones included. To follow what processing does with them, set `updatedAfter` to the latest `updatedAt` you have seen.",
+  description: "Your uploads, withdrawn ones included. To follow what processing does with them, ask again with `updatedAfter`.",
   querystring: measurementUploadListQuerySchema,
   response: { 200: measurementUploadListSchema },
+};
+const errorReasons = {
+  403: "Also returned when you send `scope=all` or `include=uploader` and are not an administrator.",
 };
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<MeasurementUploadList>>) {
   const userId = req.userSession?.user.id;
   if (userId === undefined) throw new ErrorResponse("UNAUTHORIZED");
 
-  const { uploaders, deviceIds, statuses, receivedAfter, updatedAfter, sort, limit, cursor, includeTotal } = req.query;
-  if (uploaders === "all" && !(await canManageDevices(req))) throw new ErrorResponse("FORBIDDEN");
+  const { scope, userIds, deviceIds, statuses, receivedAfter, updatedAfter, sort, include, limit, cursor, includeTotal } = req.query;
+  const listsEveryone = await coversEveryone(req, scope, userIds !== undefined || deviceIds !== undefined);
+  if (include?.includes("uploader") && !(await canManageMeasurements(req))) throw new ErrorResponse("FORBIDDEN");
 
   const filters = and(
-    uploaders === "all" ? undefined : eq(devices.userId, userId),
+    listsEveryone ? undefined : eq(devices.userId, userId),
+    userIds ? inArray(devices.userId, userIds) : undefined,
     deviceIds ? inArray(uploads.deviceId, deviceIds) : undefined,
     statuses ? inArray(uploads.status, statuses) : undefined,
     receivedAfter ? gte(uploads.receivedAt, new Date(receivedAfter)) : undefined,
@@ -57,13 +62,13 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const paging: Paging = { limit, nextCursor: rows.length > limit && last ? keyset.cursorAfter({ id: last.upload.id, key: last.sortKey }) : null };
   if (totals) paging.total = totals[0]?.total ?? 0;
 
-  return res.send({ data: page.map((row) => toMeasurementUpload(row.upload, settings.rawRetentionDays)), paging });
+  return res.send({ data: await toMeasurementUploads(req, page, settings.rawRetentionDays, include), paging });
 }
 
 const getMeasurementUploads: Route<ReqQuery, MeasurementUploadList> = {
   url: "/measurements/uploads",
   method: "GET",
-  config: { permissions: ["upload:observations"], callers: ["app", "session"] },
+  config: { permissions: ["upload:observations"], callers: ["app", "session"], errorReasons },
   schema: schemaRoute,
   handler,
 };

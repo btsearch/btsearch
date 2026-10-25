@@ -52,7 +52,7 @@ declare module "fastify" {
     scope?: ScopeResolver;
     allowGuestAccess?: boolean;
     callers?: readonly RouteCaller[];
-    retainIdempotencyKey?: boolean;
+    idempotentReplay?: boolean;
     multipartBody?: z.ZodType;
     rawBodyTypes?: readonly string[];
     errorReasons?: ErrorReasons;

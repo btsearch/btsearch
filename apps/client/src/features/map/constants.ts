@@ -49,6 +49,25 @@ export const MICROWAVE_LINKS_ENDPOINT_LAYER_ID = "radiolines-endpoints";
 export const PLANNED_PEM_SOURCE_ID = "planned-pem-source";
 export const PLANNED_PEM_LAYER_ID = "planned-pem-layer";
 
+export const ESTIMATED_SITES_SOURCE_ID = "estimated-sites-source";
+export const ESTIMATED_SITES_LAYER_ID = "estimated-sites-layer";
+export const ESTIMATED_SITE_AREA_SOURCE_ID = "estimated-site-area-source";
+export const ESTIMATED_SITE_AREA_FILL_LAYER_ID = "estimated-site-area-fill";
+export const ESTIMATED_SITE_AREA_LINE_LAYER_ID = "estimated-site-area-line";
+export const TRAILS_SOURCE_ID = "trails-source";
+export const TRAILS_LAYER_ID = "trails-layer";
+export const MY_TRAILS_SOURCE_ID = "my-trails-source";
+export const MY_TRAILS_LAYER_ID = "my-trails-layer";
+export const COVERAGE_SOURCE_ID = "coverage-source";
+export const COVERAGE_LAYER_ID = "coverage-layer";
+export const COVERAGE_SHAPES_SOURCE_ID = "coverage-shapes-source";
+export const COVERAGE_WEDGE_LAYER_ID = "coverage-wedge-layer";
+export const COVERAGE_FOOTPRINT_FILL_LAYER_ID = "coverage-footprint-fill-layer";
+export const COVERAGE_FOOTPRINT_LINE_LAYER_ID = "coverage-footprint-line-layer";
+export const COVERAGE_HANDED_OVER_LAYER_ID = "coverage-handed-over-layer";
+export const COVERAGE_FADED_LAYER_ID = "coverage-faded-layer";
+export const COVERAGE_OTHER_LAYER_LAYER_ID = "coverage-other-layer-layer";
+
 export const RAT_OPTIONS = [
   { value: "NR", label: "NR", gen: "5G" },
   { value: "LTE", label: "LTE", gen: "4G" },

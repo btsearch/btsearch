@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { useStationMeasurements } from "../../measurements/useStationMeasurements";
 import type { StationRecord } from "../../types";
 import { listCellTables } from "../../utils/cells";
 import { indexSectorInfo } from "../../utils/sectors";
@@ -18,6 +19,7 @@ export function StationCellTables({ station, showHeading = true }: StationCellTa
   const { t } = useTranslation("stationDetails");
   const { data: operators } = useQuery(operatorsQueryOptions());
   const { data: brands } = useQuery(brandsQueryOptions());
+  const measurements = useStationMeasurements(station);
   const sectorsById = indexSectorInfo(station.sectors);
   const networks = { ownerPlmn: station.operator?.primaryPlmn ?? null, operators, brands };
   const tables = listCellTables(station.cells, sectorsById, networks.ownerPlmn);
@@ -33,7 +35,13 @@ export function StationCellTables({ station, showHeading = true }: StationCellTa
       ) : (
         <div className="space-y-4">
           {tables.map((table) => (
-            <CellTableCard key={`${station.id}:${table.rat}`} table={table} sectorsById={sectorsById} networks={networks} />
+            <CellTableCard
+              key={`${station.id}:${table.rat}`}
+              table={table}
+              sectorsById={sectorsById}
+              networks={networks}
+              measurements={measurements}
+            />
           ))}
         </div>
       )}

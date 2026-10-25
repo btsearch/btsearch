@@ -62,7 +62,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const createTerrainProfileRoute: Route<RequestData, TerrainProfile> = {
   url: "/terrain-profiles",
   method: "POST",
-  config: { allowGuestAccess: true, permissions: ["read:stations", "read:official_permits"], errorReasons },
+  config: { allowGuestAccess: true, permissions: ["read:stations", "read:official_permits"], idempotentReplay: false, errorReasons },
   schema: schemaRoute,
   handler,
 };

@@ -5,9 +5,8 @@ import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
 import { defineScope } from "../../../../features/access/scope.js";
-import { applyStationChange, stationCreateScope } from "../../../../features/stations/edit.js";
+import { applyStationChange, stationCreateScope, toStationCreateEdit } from "../../../../features/stations/edit.js";
 import { readStation } from "../../../../features/stations/read.js";
-import type { StationEdit } from "../../../../features/submissions/translate.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -37,15 +36,7 @@ const errorReasons = {
 type RequestData = { Querystring: StationQuery; Body: StationCreate };
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<Station>>) {
-  const { station, location, sectors, cells } = req.body;
-  const edit: StationEdit = {
-    action: "create",
-    station,
-    location,
-    sectors: sectors?.map((sector) => ({ action: "create" as const, ...sector })),
-    cells: cells?.map((cell) => ({ action: "create" as const, ...cell })),
-  };
-  const applied = await applyStationChange(req, edit, "station.create");
+  const applied = await applyStationChange(req, toStationCreateEdit(req.body), "station.create");
   if (applied.stationId === null) throw new ErrorResponse("FAILED_TO_CREATE");
 
   return res.status(201).send({ data: await readStation(req, applied.stationId, req.query.include) });

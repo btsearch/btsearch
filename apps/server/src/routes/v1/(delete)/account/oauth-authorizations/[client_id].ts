@@ -5,6 +5,8 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { ownerOf } from "../../../../../features/audit/auth/events.js";
+import { runAuditedOperation, standaloneAuditContext } from "../../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -25,12 +27,12 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 
   const consent = await db.query.oauthConsents.findFirst({
     where: { clientId: client_id, userId },
-    columns: { id: true },
+    columns: { id: true, scopes: true },
   });
   if (!consent) throw new ErrorResponse("NOT_FOUND");
 
   const now = new Date();
-  await db.transaction(async (tx) => {
+  await runAuditedOperation(standaloneAuditContext(req), { kind: "oauth_consent.delete" }, async (tx, audit) => {
     await tx.delete(oauthConsents).where(and(eq(oauthConsents.clientId, client_id), eq(oauthConsents.userId, userId)));
     await tx
       .update(oauthAccessTokens)
@@ -40,6 +42,13 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
       .update(oauthRefreshTokens)
       .set({ revoked: now })
       .where(and(eq(oauthRefreshTokens.clientId, client_id), eq(oauthRefreshTokens.userId, userId), isNull(oauthRefreshTokens.revoked)));
+    await audit.log({
+      entity: "oauth_consents",
+      op: "delete",
+      recordId: consent.id,
+      old: { clientId: client_id, scopes: consent.scopes },
+      metadata: ownerOf(session.user),
+    });
   });
 
   return res.status(204).send();

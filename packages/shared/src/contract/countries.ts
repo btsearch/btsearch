@@ -40,6 +40,12 @@ export const countryFeaturesSchema = z.object({
   bsic: z
     .boolean()
     .describe("GSM base station identity codes can be collected and displayed. Disabling this hides existing values without deleting them"),
+  observationsPublic: z
+    .boolean()
+    .describe(
+      "Observed cells, estimated sites, coverage and trails measured in the country are shown to everyone. " +
+        "While it is off, only editors with a grant in the country and administrators get its cells and sites, and only administrators get its trails",
+    ),
 });
 export type CountryFeatures = z.infer<typeof countryFeaturesSchema>;
 
@@ -62,7 +68,7 @@ export const countrySchema = z.object({
   isVisible: z.boolean().describe(VISIBILITY_NOTE),
   contributions: z.enum(CONTRIBUTION_MODES).describe(CONTRIBUTIONS_NOTE),
   tools: z.array(z.enum(COUNTRY_TOOLS)).describe(TOOLS_NOTE),
-  features: countryFeaturesSchema,
+  features: countryFeaturesSchema.describe("What is collected and shown in the country, while `tools` says what works there"),
   capabilities: countryCapabilitiesSchema,
   defaultView: boundingBoxSchema.nullable().describe(DEFAULT_VIEW_NOTE),
 });
@@ -76,7 +82,9 @@ export const countryCreateSchema = z
     isVisible: z.boolean().optional().describe(`${VISIBILITY_NOTE}. Defaults to \`false\``),
     contributions: z.enum(CONTRIBUTION_MODES).optional().describe(`${CONTRIBUTIONS_NOTE}. Defaults to \`closed\``),
     tools: countryToolsSchema.optional().describe(`${TOOLS_NOTE}. Defaults to every tool`),
-    features: countryFeaturesUpdateSchema.optional().describe("New owner proposals default to true. PSC and BSIC default to false"),
+    features: countryFeaturesUpdateSchema
+      .optional()
+      .describe("New owner proposals and public observations default to true. PSC and BSIC default to false"),
     defaultView: boundingBoxSchema.nullable().optional().describe(DEFAULT_VIEW_NOTE),
   })
   .strict();

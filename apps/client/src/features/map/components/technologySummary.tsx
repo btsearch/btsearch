@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { groupTechnologyBands } from "@/features/station-details/station/utils/bands";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,15 @@ export function TechnologySummary({ bands, className, detail }: TechnologySummar
           <span>{detail}</span>
         </>
       ) : null}
+    </div>
+  );
+}
+
+export function TechnologySummarySkeleton() {
+  return (
+    <div className="mt-1 flex h-4 items-center gap-2">
+      <Skeleton className="h-2.5 w-8 rounded-sm" />
+      <Skeleton className="h-2.5 w-24 rounded-sm" />
     </div>
   );
 }

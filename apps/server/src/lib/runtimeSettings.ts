@@ -19,6 +19,7 @@ export interface RuntimeSettings {
   enableUserLists: boolean;
   photosEnabled: boolean;
   measurementUploadsEnabled: boolean;
+  observationsEnabled: boolean;
   announcement: Announcement;
 }
 
@@ -28,9 +29,10 @@ export interface RuntimeSettingsPatch extends Partial<Omit<RuntimeSettings, "all
   announcement?: Partial<Announcement>;
 }
 
-type StoredRuntimeSettings = Omit<RuntimeSettings, "maintenanceEnabled" | "measurementUploadsEnabled"> & {
+type StoredRuntimeSettings = Omit<RuntimeSettings, "maintenanceEnabled" | "measurementUploadsEnabled" | "observationsEnabled"> & {
   maintenanceEnabled?: boolean;
   measurementUploadsEnabled?: boolean;
+  observationsEnabled?: boolean;
 };
 
 const SETTINGS_KEY = "runtime:settings";
@@ -48,6 +50,7 @@ const defaultSettings: RuntimeSettings = {
   enableUserLists: false,
   photosEnabled: true,
   measurementUploadsEnabled: false,
+  observationsEnabled: true,
   announcement: { message: "", enabled: false, type: "info" },
 };
 
@@ -74,6 +77,7 @@ function isStoredSettings(obj: unknown): obj is StoredRuntimeSettings {
     typeof candidate.enableUserLists === "boolean" &&
     typeof candidate.photosEnabled === "boolean" &&
     (candidate.measurementUploadsEnabled === undefined || typeof candidate.measurementUploadsEnabled === "boolean") &&
+    (candidate.observationsEnabled === undefined || typeof candidate.observationsEnabled === "boolean") &&
     candidate.announcement !== null &&
     typeof candidate.announcement === "object" &&
     typeof candidate.announcement.enabled === "boolean" &&
@@ -91,6 +95,7 @@ function parseSettings(json: string | null): RuntimeSettings | null {
       ...parsed,
       maintenanceEnabled: parsed.maintenanceEnabled ?? false,
       measurementUploadsEnabled: parsed.measurementUploadsEnabled ?? false,
+      observationsEnabled: parsed.observationsEnabled ?? true,
     };
   } catch {
     return null;
@@ -115,6 +120,7 @@ export function mergeRuntimeSettings(base: RuntimeSettings, patch: RuntimeSettin
   if (typeof patch.photosEnabled === "boolean") next.photosEnabled = patch.photosEnabled;
   if (typeof patch.enableUserLists === "boolean") next.enableUserLists = patch.enableUserLists;
   if (typeof patch.measurementUploadsEnabled === "boolean") next.measurementUploadsEnabled = patch.measurementUploadsEnabled;
+  if (typeof patch.observationsEnabled === "boolean") next.observationsEnabled = patch.observationsEnabled;
   if (Array.isArray(patch.allowedUnauthenticatedRoutes))
     next.allowedUnauthenticatedRoutes = patch.allowedUnauthenticatedRoutes.filter(isNonEmptyString) as NonEmptyString[];
   if (Array.isArray(patch.disabledRoutes)) next.disabledRoutes = patch.disabledRoutes.filter(isNonEmptyString) as NonEmptyString[];

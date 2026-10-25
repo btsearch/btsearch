@@ -15,13 +15,17 @@ describe("PUT /measurements/terms", () => {
     expectError(response, 403, "FEATURE_DISABLED");
   });
 
-  it("records the person as a contributor who accepted the current version", async () => {
+  it("records the person as a contributor who accepted the current version, and answers the terms", async () => {
+    const acceptedAt = new Date("2026-10-26T08:00:00Z");
     setMeasurementUploads(true);
     dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
     dbMock.enqueueFor("insert", "contributors", []);
     dbMock.enqueueFor("insert", "terms_acceptances", []);
+    dbMock.enqueueFor("select", "terms_acceptances", [{ userId, version: 2, acceptedAt }]);
     const response = await injectMutation(route, { method: "PUT", url: "/measurements/terms", payload: { version: 2 } }, { session: userSession() });
-    expect(response.statusCode).toBe(204);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual({ currentVersion: 2, acceptedVersion: 2, acceptedAt: acceptedAt.toISOString() });
     expect(dbMock.calls.filter((call) => call.operation === "insert").map((call) => [call.table, call.values])).toEqual([
       ["contributors", { userId }],
       ["terms_acceptances", { userId, version: 2 }],

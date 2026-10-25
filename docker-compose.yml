@@ -71,8 +71,15 @@ services:
       - NTM_USERAGENT=
       - KMZ_OUTPUT_DIR=/app/kmz
       - DISPOSABLE_EMAIL_BLOCKLIST_PATH=/app/data/disposable_email_blocklist.conf
+      # Measurements from the app (keys: see apps/server/.env.example)
+      - OBSERVATIONS_STORE=disk
+      - OBSERVATIONS_DIR=/app/observations
+      - OBSERVATIONS_SEAL_KEYS=${OBSERVATIONS_SEAL_KEYS:-}
+      - OBSERVATIONS_PHONE_KEY=${OBSERVATIONS_PHONE_KEY:-}
+      - APP_OAUTH_CLIENT_IDS=${APP_OAUTH_CLIENT_IDS:-btsearch-app}
     volumes:
       - uploads-volume:/app/uploads
+      - observations-volume:/app/observations
       - /opt/btsearch/kmz:/app/kmz
       - disposable-email-blocklist-volume:/app/data
     depends_on:
@@ -139,6 +146,26 @@ services:
     mem_limit: 4g
     restart: unless-stopped
 
+  engine:
+    image: btsearch-engine:${COMMIT_SHA}
+    build:
+      context: .
+      dockerfile: engine/Dockerfile
+    environment:
+      # Database, connected directly: the engine listens for NOTIFY and holds long transactions, which must not go through PgBouncer
+      - ENGINE_DATABASE_URL=${ENGINE_DATABASE_URL:-postgres://user:password@postgres:5432/openbts}
+      - OBSERVATIONS_DIR=/app/observations
+      # The server's keys, so the engine can open what the server sealed
+      - OBSERVATIONS_SEAL_KEYS=${OBSERVATIONS_SEAL_KEYS:-}
+    volumes:
+      - observations-volume:/app/observations:ro
+    depends_on:
+      - postgres
+    stop_grace_period: 60s
+    cpus: 2.0
+    mem_limit: 1536m
+    restart: unless-stopped
+
   postgres:
     image: postgis/postgis:18-3.6@sha256:60f6ad1d21ea86a67d47780b9a0d1e1d200500f62b19293fa834d0dea80b8677
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
@@ -177,6 +204,7 @@ volumes:
   client-assets-volume:
   disposable-email-blocklist-volume:
   official-archive-volume:
+  observations-volume:
   postgres-volume:
   uploads-volume:
   redis-volume:

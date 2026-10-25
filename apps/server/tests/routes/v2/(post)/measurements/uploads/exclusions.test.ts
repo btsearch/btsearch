@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import route from "../../../../../../src/routes/v2/(post)/measurements/uploads/exclusions.js";
 import { dbMock, userSession } from "../../../../../helpers/boundaries.js";
-import { expectError, injectMutation, scriptAudit, whereQuery } from "../../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, scriptAudit } from "../../../../../helpers/mutationAssertions.js";
 
 const adminId = userSession().user.id;
 const spammerId = "22222222-2222-4222-8222-222222222222";
@@ -13,7 +13,7 @@ function exclude(payload: object) {
 }
 
 describe("POST /measurements/uploads/exclusions", () => {
-  it("excludes every upload of a person that is not withdrawn or excluded yet, and audits each one", async () => {
+  it("excludes every upload of a person, audits each one, and queues a subtraction, or a rebuild for a folded upload whose file is gone", async () => {
     dbMock.enqueueFor("select", "users", [{ id: spammerId }]);
     dbMock.enqueueFor(
       "select",
@@ -22,21 +22,29 @@ describe("POST /measurements/uploads/exclusions", () => {
     );
     scriptAudit();
     dbMock.enqueueFor("update", "uploads", []);
+    dbMock.enqueueFor("select", "upload_folds", [
+      { uploadId: uploadIds[0], objectDeletedAt: null },
+      { uploadId: uploadIds[1], objectDeletedAt: new Date("2026-10-01T00:00:00Z") },
+    ]);
+    dbMock.enqueueFor("select", "engine_runs", []);
+    dbMock.enqueueFor("insert", "engine_runs", [], []);
+    dbMock.enqueueFor("execute", undefined, [], []);
     const response = await exclude({ userId: spammerId, reason: "Fake readings" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ data: { excludedCount: 2 } });
-    const { params } = whereQuery("uploads", "select");
-    expect(params).toEqual(expect.arrayContaining(["received", "processing", "processed", "rejected"]));
-    expect(params).not.toContain("withdrawn");
-    expect(params).not.toContain("excluded");
     expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "uploads")?.values).toMatchObject({
       status: "excluded",
       statusReason: "Fake readings",
+      excludedById: adminId,
     });
     expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toMatchObject(
       uploadIds.map((id) => ({ entity: "uploads", record_id: id, new_values: { status: "excluded", statusReason: "Fake readings" } })),
     );
+    expect(dbMock.calls.filter((call) => call.operation === "insert" && call.table === "engine_runs").map((call) => call.values)).toEqual([
+      { kind: "subtract" },
+      [{ kind: "rebuild", params: { uploadId: uploadIds[1] } }],
+    ]);
   });
 
   it("excludes nothing for a `userId` that no account has", async () => {

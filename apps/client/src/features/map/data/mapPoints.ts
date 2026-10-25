@@ -93,7 +93,7 @@ function toMapAzimuth(registerAzimuth: number): number | null {
   return registerAzimuth === OMNIDIRECTIONAL_REGISTER_AZIMUTH ? null : registerAzimuth;
 }
 
-function listGuests(operatorIds: readonly number[], lookups: MapLookups): MapStationGuest[] {
+export function listGuests(operatorIds: readonly number[], lookups: MapLookups): MapStationGuest[] {
   return operatorIds.flatMap((operatorId) => {
     const { operator, brand, color } = getOperatorLook(lookups, operatorId);
     return operator === null ? [] : [{ operatorId, name: operator.name, code: operator.primaryPlmn, brand, color }];

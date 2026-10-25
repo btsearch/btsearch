@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { recordRoutePattern } from "../../../../src/features/settings/routeRules.js";
 import { getRuntimeSettings } from "../../../../src/lib/runtimeSettings.js";
 import getSettings from "../../../../src/routes/v2/(get)/settings.js";
-import { authBoundary, redisMock, userSession } from "../../../helpers/boundaries.js";
+import { authBoundary, dbMock, redisMock, userSession } from "../../../helpers/boundaries.js";
+import { crowdSettingsRow } from "../../../helpers/measurementFixtures.js";
 import { readUserId } from "../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../helpers/routeHarness.js";
 
@@ -11,6 +12,7 @@ describe("getSettings", () => {
   beforeEach(() => {
     recordRoutePattern("/api/v2/settings");
     recordRoutePattern("/api/v2/stations");
+    dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
   });
   it("exposes maintenance mode to guests without administrator-only settings", async () => {
     getRuntimeSettings().maintenanceEnabled = true;
@@ -55,9 +57,26 @@ describe("getSettings", () => {
       expect(response.json().data).toMatchObject({
         announcement: { isEnabled: false, type: "info", message: "Private draft" },
         access: { openRoutes: ["/api/v2/settings"], disabledRoutes: ["/api/v2/stations"] },
+        measurements: {
+          rawRetentionDays: 365,
+          rawStorageBudgetGib: 100,
+          minAppVersionCode: 100,
+          termsVersion: 2,
+          publishedAlgorithmVersion: 1,
+          publicRadiusMaxMeters: 1000,
+        },
       });
     else expect(response.json().data).toMatchObject({ announcement: null });
     if (!admin) expect(response.json().data).not.toHaveProperty("access");
+    if (!admin) expect(response.json().data).not.toHaveProperty("measurements");
+  });
+
+  it("tells a guest that observations are off, so a map can say so before it asks for a tile", async () => {
+    getRuntimeSettings().observationsEnabled = false;
+    const app = await createRouteHarness(getSettings, { runAuth: true, prefix: "/api/v2" });
+    const response = await app.inject({ url: "/api/v2/settings" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.features).toMatchObject({ observations: false });
   });
 
   it("rejects undeclared settings query parameters", async () => {

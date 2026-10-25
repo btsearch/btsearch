@@ -5,7 +5,8 @@ import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../../errors.js";
 import { loadCrowdSettings } from "../../../../../features/measurements/settings.js";
-import { findVisibleUpload, toMeasurementUpload } from "../../../../../features/measurements/uploads.js";
+import { findVisibleUpload } from "../../../../../features/measurements/uploads/read.js";
+import { toMeasurementUpload } from "../../../../../features/measurements/uploads/serialize.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -27,8 +28,8 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   const userId = req.userSession?.user.id;
   if (userId === undefined) throw new ErrorResponse("UNAUTHORIZED");
 
-  const [{ upload }, settings] = await Promise.all([findVisibleUpload(req, userId, req.params.id), loadCrowdSettings()]);
-  return res.send({ data: toMeasurementUpload(upload, settings.rawRetentionDays) });
+  const [stored, settings] = await Promise.all([findVisibleUpload(req, userId, req.params.id), loadCrowdSettings()]);
+  return res.send({ data: await toMeasurementUpload(req, stored, settings.rawRetentionDays) });
 }
 
 const getMeasurementUpload: Route<ReqParams, MeasurementUpload> = {

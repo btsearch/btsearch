@@ -1,8 +1,9 @@
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, SmartPhone01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { StationMeasurements } from "../../measurements/useStationMeasurements";
 import { type CellColumn, type CellNetworks, type CellTable, getColumnKey } from "../../utils/cells";
 import { type SectorIndex, findCellSector } from "../../utils/sectors";
 import { CellTableRow } from "./cellTableRow";
@@ -21,16 +22,18 @@ type CellTableCardProps = {
   table: CellTable;
   sectorsById: SectorIndex;
   networks: CellNetworks;
+  measurements: StationMeasurements;
 };
 
 type ColumnHeaderProps = {
   column: CellColumn;
 };
 
-export function CellTableCard({ table, sectorsById, networks }: CellTableCardProps) {
-  const { t } = useTranslation(["common", "stations"]);
+export function CellTableCard({ table, sectorsById, networks, measurements }: CellTableCardProps) {
+  const { t } = useTranslation(["common", "stations", "stationDetails"]);
   const [open, setOpen] = useState(true);
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
+  const seenCellCount = table.cells.filter((cell) => cell.sightings !== null && cell.sightings !== undefined).length;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="border rounded-xl overflow-hidden">
@@ -79,11 +82,24 @@ export function CellTableCard({ table, sectorsById, networks }: CellTableCardPro
             </thead>
             <tbody>
               {table.cells.map((cell) => (
-                <CellTableRow key={cell.id} cell={cell} columns={table.columns} sector={findCellSector(cell, sectorsById)} networks={networks} />
+                <CellTableRow
+                  key={cell.id}
+                  cell={cell}
+                  columns={table.columns}
+                  sector={findCellSector(cell, sectorsById)}
+                  networks={networks}
+                  measurements={measurements}
+                />
               ))}
             </tbody>
           </table>
         </div>
+        {seenCellCount > 0 && seenCellCount < table.cells.length ? (
+          <p className="flex items-center gap-1.5 border-t px-4 py-2 text-xs text-muted-foreground">
+            <HugeiconsIcon icon={SmartPhone01Icon} className="size-3 shrink-0" aria-hidden="true" />
+            <span>{t("stationDetails:measurements.unseenCellsNote")}</span>
+          </p>
+        ) : null}
       </CollapsibleContent>
     </Collapsible>
   );

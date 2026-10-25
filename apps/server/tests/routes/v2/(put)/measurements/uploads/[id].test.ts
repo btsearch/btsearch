@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { signedUploadLines } from "../../../../../../src/features/measurements/intake.js";
-import { rawFilePath } from "../../../../../../src/features/measurements/rawStore.js";
-import { openUpload } from "../../../../../../src/features/measurements/seal.js";
+import { openUpload } from "../../../../../../src/features/measurements/rawFiles/seal.js";
+import { rawFilePath } from "../../../../../../src/features/measurements/rawFiles/store.js";
+import { signedUploadLines } from "../../../../../../src/features/measurements/uploads/intake.js";
 import route from "../../../../../../src/routes/v2/(put)/measurements/uploads/[id].js";
 import { dbMock, userSession } from "../../../../../helpers/boundaries.js";
 import { appToken, crowdSettingsRow, deviceId, setMeasurementUploads } from "../../../../../helpers/measurementFixtures.js";
@@ -82,7 +82,7 @@ function uploadRow(overrides: Record<string, unknown> = {}) {
 function scriptChecks({ acceptedVersion = 2, block = null as { until: Date | null } | null } = {}) {
   dbMock.enqueueFor("select", "uploads", []);
   dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
-  dbMock.enqueueFor("select", "terms_acceptances", [{ version: acceptedVersion, acceptedAt: new Date() }]);
+  dbMock.enqueueFor("select", "terms_acceptances", [{ userId, version: acceptedVersion, acceptedAt: new Date() }]);
   dbMock.enqueueFor("select", "contributor_blocks", block ? [block] : []);
 }
 
@@ -142,7 +142,7 @@ describe("PUT /measurements/uploads/:id", () => {
 
   it("answers 200 with the stored upload when it comes again, even after uploads were switched off", async () => {
     setMeasurementUploads(false);
-    dbMock.enqueueFor("select", "uploads", [{ upload: uploadRow(), userId }]);
+    dbMock.enqueueFor("select", "uploads", [{ upload: uploadRow(), userId, fold: null }]);
     dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
     expect((await put(uploadId, zstdBody)).statusCode).toBe(200);
   });
@@ -199,7 +199,7 @@ describe("PUT /measurements/uploads/:id", () => {
     const response = await put(uploadId, zstdBody);
 
     expectError(response, 403, "CONTRIBUTOR_BLOCKED");
-    expect(response.json().errors[0].details).toEqual([{ until: until.toISOString() }]);
+    expect(response.json().errors[0].details).toEqual([{ endsAt: until.toISOString() }]);
   });
 
   it("refuses an id from more than 120 days ago", async () => {

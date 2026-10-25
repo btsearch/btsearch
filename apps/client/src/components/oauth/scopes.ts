@@ -9,6 +9,7 @@ const KNOWN_WRITE_SCOPES = new Set([
   "create:submissions",
   "update:submissions",
   "delete:submissions",
+  "moderate:observations",
 ]);
 
 export type GroupedScopes = {

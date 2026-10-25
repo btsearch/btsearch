@@ -12,7 +12,7 @@ export type NetworkOwner = { operatorId: number | null; mainCode: string | null;
 export type KnownPlmns = ReadonlyMap<string, KnownPlmn>;
 export type ExtraCodesWrite = { cellId: number; extras: readonly string[] };
 
-const EXTRA_CODE_LIMITS: Partial<Record<string, number>> = { GSM: 0, UMTS: 5, LTE: 5, NR: 11 };
+export const EXTRA_CODE_LIMITS: Partial<Record<string, number>> = { GSM: 0, UMTS: 5, LTE: 5, NR: 11 };
 
 function refusal(message: string): ErrorResponse {
   return new ErrorResponse("BAD_REQUEST", { message });

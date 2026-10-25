@@ -1,4 +1,4 @@
-import { type OperatorRef, conventionsFor } from "@openbts/country-packs";
+import { type OperatorRef, conventionsFor, knownGnbidLength } from "@openbts/country-packs";
 import {
   bands,
   cellPlmns,
@@ -29,6 +29,7 @@ import type {
   ObservedCell,
   Station,
 } from "@openbts/shared/contract";
+import { DEFAULT_GNBID_LENGTH } from "@openbts/shared/contract";
 import { plmnCandidates } from "@openbts/shared/operatorUtils";
 import { type AnyColumn, type SQL, and, asc, eq, inArray, or } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
@@ -44,7 +45,7 @@ import { stationCountryCode, stationPlacementMatches } from "../stations/country
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, toCell } from "../stations/serialize.js";
-import { type OfficialSiteMatches, type UnmatchedCell, findOfficialSites } from "./officialSites.js";
+import { type OfficialSiteMatches, type UnmatchedCell, findCandidateSiteIds, findOfficialSites } from "./officialSites.js";
 
 type Network = {
   operatorId: number;
@@ -53,8 +54,10 @@ type Network = {
   countryCode: string;
   code: string;
   hasGuestCells: boolean;
-  isAnalyzerEnabled: boolean;
+  isMatchable: boolean;
 };
+type MatchScope = { hiddenCountryCodes: readonly string[]; publishedOnly: boolean; followsAnalyzerSwitch: boolean };
+export type SystemCellMatch = { result: CellMatchResult; officialSiteIds: number[] };
 type StoredCell = CellRows & { operatorId: number | null; through?: "extraCode" | "missingCode" };
 type IdentifierPair = [number, number];
 type IdentifiersByOperator<T> = Map<number, Map<string, T>>;
@@ -79,7 +82,8 @@ const PAIRS_PER_QUERY = 200;
 const VALUES_PER_QUERY = 1000;
 const NETWORK_MATCH_RANKS: Record<CellNetworkMatch, number> = { own: 0, extraCode: 1, partner: 2, missingCode: 3 };
 const STORED_CELL_COLUMNS = { cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells, operatorId: stations.operator_id };
-const SHARED_AREA_FIELDS = new Set<string>(["tac", "lac"]);
+export const SHARED_AREA_FIELDS = new Set<string>(["tac", "lac"]);
+const SYSTEM_SCOPE: MatchScope = { hiddenCountryCodes: [], publishedOnly: false, followsAnalyzerSwitch: false };
 
 function identityKey(operatorId: number, ...values: (number | string)[]): string {
   return `${operatorId}:${values.join(":")}`;
@@ -153,8 +157,9 @@ function inChannelIdentifiers(
   return or(...values.map((value) => and(...columns.map((column, position) => eq(column, value[position])))));
 }
 
-function publishedConditions(hidden: readonly string[]): SQL[] {
-  return [eq(stations.status, "published"), ...stationAreaConditions({}, hidden)];
+function scopeConditions(scope: MatchScope): SQL[] {
+  const statusConditions = scope.publishedOnly ? [eq(stations.status, "published")] : [];
+  return [...statusConditions, ...stationAreaConditions({}, scope.hiddenCountryCodes)];
 }
 
 function selectStoredCells() {
@@ -168,11 +173,11 @@ function selectStoredCells() {
     .leftJoin(nrCells, eq(nrCells.cell_id, cells.id));
 }
 
-async function loadPublishedCells(identifiers: SQL | undefined, operatorIds: readonly number[], hidden: readonly string[]): Promise<StoredCell[]> {
-  return selectStoredCells().where(and(identifiers, inArray(stations.operator_id, [...operatorIds]), ...publishedConditions(hidden)));
+async function loadOperatorCells(identifiers: SQL | undefined, operatorIds: readonly number[], scope: MatchScope): Promise<StoredCell[]> {
+  return selectStoredCells().where(and(identifiers, inArray(stations.operator_id, [...operatorIds]), ...scopeConditions(scope)));
 }
 
-async function loadGuestCells(identifiers: SQL | undefined, codes: readonly string[], hidden: readonly string[]): Promise<StoredCell[]> {
+async function loadGuestCells(identifiers: SQL | undefined, codes: readonly string[], scope: MatchScope): Promise<StoredCell[]> {
   if (codes.length === 0) return [];
 
   const rows = await db
@@ -185,13 +190,13 @@ async function loadGuestCells(identifiers: SQL | undefined, codes: readonly stri
     .leftJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
     .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
     .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
-    .where(and(identifiers, inArray(plmns.code, [...codes]), ...publishedConditions(hidden)));
+    .where(and(identifiers, inArray(plmns.code, [...codes]), ...scopeConditions(scope)));
   return rows.map((row): StoredCell => ({ ...row, through: "extraCode" }));
 }
 
-async function loadCountryCells(identifiers: SQL | undefined, countryCode: string, hidden: readonly string[]): Promise<StoredCell[]> {
+async function loadCountryCells(identifiers: SQL | undefined, countryCode: string, scope: MatchScope): Promise<StoredCell[]> {
   const rows = await selectStoredCells().where(
-    and(identifiers, stationPlacementMatches(eq(stationCountryCode, countryCode)), ...publishedConditions(hidden)),
+    and(identifiers, stationPlacementMatches(eq(stationCountryCode, countryCode)), ...scopeConditions(scope)),
   );
   return rows.map((row): StoredCell => ({ ...row, through: "missingCode" }));
 }
@@ -228,14 +233,14 @@ async function loadBroadcastCodes(codes: readonly string[]): Promise<Set<string>
   return new Set(rows.map((row) => row.code));
 }
 
-async function resolveNetworks(plmnCodes: readonly string[], hidden: readonly string[]): Promise<Map<string, Network>> {
+async function resolveNetworks(plmnCodes: readonly string[], scope: MatchScope): Promise<Map<string, Network>> {
   const rows = await db
     .select({ code: plmns.code, operatorId: plmns.operatorId, countryCode: operators.countryCode, countryTools: countries.tools })
     .from(plmns)
     .innerJoin(operators, eq(operators.id, plmns.operatorId))
     .innerJoin(countries, eq(countries.code, operators.countryCode))
     .where(inArray(plmns.code, unique(plmnCodes.flatMap(plmnCandidates))));
-  const visible = new Map(rows.filter((row) => !hidden.includes(row.countryCode)).map((row) => [row.code, row]));
+  const visible = new Map(rows.filter((row) => !scope.hiddenCountryCodes.includes(row.countryCode)).map((row) => [row.code, row]));
   const operatorIds = unique([...visible.values()].map((row) => row.operatorId));
   const [partners, operatorRefs, broadcastCodes] = await Promise.all([
     loadPartners(operatorIds),
@@ -256,7 +261,7 @@ async function resolveNetworks(plmnCodes: readonly string[], hidden: readonly st
       countryCode: row.countryCode,
       code: row.code,
       hasGuestCells: broadcastCodes.has(row.code),
-      isAnalyzerEnabled: row.countryTools.includes("analyzer"),
+      isMatchable: !scope.followsAnalyzerSwitch || row.countryTools.includes("analyzer"),
     });
   }
   return networks;
@@ -265,7 +270,7 @@ async function resolveNetworks(plmnCodes: readonly string[], hidden: readonly st
 async function findStoredCells(
   observed: readonly ObservedCell[],
   networks: ReadonlyMap<string, Network>,
-  hidden: readonly string[],
+  scope: MatchScope,
 ): Promise<StoredCellIndex> {
   const found: StoredCellIndex = {
     gsm: new Map(),
@@ -286,8 +291,8 @@ async function findStoredCells(
     unique([...networks.values()].filter((network) => network.operatorId === operatorId && network.hasGuestCells).map((network) => network.code));
   const loadCandidates = async (identifiers: SQL | undefined, operatorId: number, operatorIds: readonly number[]) => {
     const [owned, guests] = await Promise.all([
-      loadPublishedCells(identifiers, operatorIds, hidden),
-      loadGuestCells(identifiers, codesOf(operatorId), hidden),
+      loadOperatorCells(identifiers, operatorIds, scope),
+      loadGuestCells(identifiers, codesOf(operatorId), scope),
     ]);
     return [...owned, ...guests];
   };
@@ -325,7 +330,7 @@ async function findStoredCells(
 
   await runLimited([
     ...lookupTasks(gsmPairs, PAIRS_PER_QUERY, async (own, chunk) => {
-      for (const row of await loadPublishedCells(inPairs(gsmCells.lac, gsmCells.cid, chunk), [own], hidden)) {
+      for (const row of await loadOperatorCells(inPairs(gsmCells.lac, gsmCells.cid, chunk), [own], scope)) {
         if (row.gsm) keep(found.gsm, identityKey(own, row.gsm.lac, row.gsm.cid), row, own);
       }
     }),
@@ -386,7 +391,7 @@ async function findStoredCells(
     }),
   ]);
 
-  await findMissingCodeCells(observed, networks, networksById, hidden, found);
+  await findMissingCodeCells(observed, networks, networksById, scope, found);
   return found;
 }
 
@@ -394,7 +399,7 @@ async function findMissingCodeCells(
   observed: readonly ObservedCell[],
   networks: ReadonlyMap<string, Network>,
   networksById: ReadonlyMap<number, Network>,
-  hidden: readonly string[],
+  scope: MatchScope,
   found: StoredCellIndex,
 ): Promise<void> {
   const umtsValues: IdentifiersByOperator<ChannelIdentifiers> = new Map();
@@ -434,7 +439,7 @@ async function findMissingCodeCells(
     lookupTasks(values, PAIRS_PER_QUERY, async (own, chunk) => {
       const network = networksById.get(own);
       if (!network) return;
-      for (const row of await loadCountryCells(toCondition(chunk), network.countryCode, hidden)) index(own, row);
+      for (const row of await loadCountryCells(toCondition(chunk), network.countryCode, scope)) index(own, row);
     });
 
   await runLimited([
@@ -497,10 +502,14 @@ function matchedMissingCode(network: Network, storedCell: StoredCell, nrIdentity
   return matched("cell", network, storedCell, [{ field: "network", observed: network.code, stored: null }], nrIdentity);
 }
 
+export function isSwitchedOff(field: string, features: Readonly<CountryFeatures>): boolean {
+  return (field === "psc" && !features.psc) || (field === "bsic" && !features.bsic);
+}
+
 function findDifferences(comparisons: readonly ComparedField[], features: Readonly<CountryFeatures>): CellDifference[] {
   return comparisons.flatMap(([field, observed, stored]) => {
     if (observed === null || observed === undefined || observed === stored) return [];
-    if ((field === "psc" && !features.psc) || (field === "bsic" && !features.bsic)) return [];
+    if (isSwitchedOff(field, features)) return [];
     return [{ field, observed, stored }];
   });
 }
@@ -512,7 +521,7 @@ function resolveCell(
   featuresByStation: ReadonlyMap<number, CountryFeatures>,
 ): ObservedCellMatch {
   if (!network) return unmatched(null, "operatorUnknown");
-  if (!network.isAnalyzerEnabled) return unmatched(null, "analyzerDisabled");
+  if (!network.isMatchable) return unmatched(null, "analyzerDisabled");
   const own = network.operatorId;
   const compare = (stored: StoredCell, comparisons: readonly ComparedField[]) =>
     findDifferences(comparisons, featuresByStation.get(stored.cell.station_id) ?? disabledCountryFeatures);
@@ -630,6 +639,10 @@ async function serializeMatchedCells(storedCells: readonly StoredCell[], feature
   );
 }
 
+function unmatchedCellOf(network: Network, enbid: number): UnmatchedCell {
+  return { countryCode: network.countryCode, operator: network.operator, operatorIds: [network.operatorId, ...network.partnerIds], enbid };
+}
+
 async function findOfficialSitesForUnknownCells(
   req: FastifyRequest,
   observed: readonly ObservedCell[],
@@ -639,9 +652,7 @@ async function findOfficialSitesForUnknownCells(
   const unmatchedCells = observed.map((cell, index): UnmatchedCell | null => {
     const network = networks.get(cell.plmn);
     if (!network || cell.rat !== "lte" || results[index]?.reason !== "cellUnknown") return null;
-
-    const operatorIds = [network.operatorId, ...network.partnerIds];
-    return { countryCode: network.countryCode, operator: network.operator, operatorIds, enbid: cell.enbid };
+    return unmatchedCellOf(network, cell.enbid);
   });
 
   return findOfficialSites(req, unmatchedCells).catch((error: unknown) => {
@@ -650,19 +661,24 @@ async function findOfficialSitesForUnknownCells(
   });
 }
 
+async function matchInScope(scope: MatchScope, observed: readonly ObservedCell[]) {
+  const networks = await resolveNetworks(unique(observed.map((cell) => cell.plmn)), scope);
+  const matchableNetworks = new Map([...networks].filter(([, network]) => network.isMatchable));
+  const found = await findStoredCells(observed, matchableNetworks, scope);
+  const storedStationIds = unique(Object.values(found).flatMap((index) => [...index.values()].map((row) => row.cell.station_id)));
+  const featuresByStation = await getStationCountryFeatures(storedStationIds);
+
+  const matches = observed.map((cell) => resolveCell(cell, networks.get(cell.plmn), found, featuresByStation));
+  return { networks, featuresByStation, matches };
+}
+
 export async function matchCells(
   req: FastifyRequest,
   observed: readonly ObservedCell[],
   include: readonly CellMatchInclude[],
 ): Promise<CellMatchAnswer> {
-  const hidden = await loadHiddenCountryCodes(req);
-  const networks = await resolveNetworks(unique(observed.map((cell) => cell.plmn)), hidden);
-  const analyzedNetworks = new Map([...networks].filter(([, network]) => network.isAnalyzerEnabled));
-  const found = await findStoredCells(observed, analyzedNetworks, hidden);
-  const storedStationIds = unique(Object.values(found).flatMap((index) => [...index.values()].map((row) => row.cell.station_id)));
-  const featuresByStation = await getStationCountryFeatures(storedStationIds);
-
-  const matches = observed.map((cell) => resolveCell(cell, networks.get(cell.plmn), found, featuresByStation));
+  const scope: MatchScope = { hiddenCountryCodes: await loadHiddenCountryCodes(req), publishedOnly: true, followsAnalyzerSwitch: true };
+  const { networks, featuresByStation, matches } = await matchInScope(scope, observed);
   const results = matches.map(({ result }) => result);
   const stationIds = unique(results.flatMap((result) => result.stationId ?? []));
   const matchedCells = matches.flatMap(({ result, storedCell }) => (storedCell && result.cellId !== null ? [storedCell] : []));
@@ -681,4 +697,30 @@ export async function matchCells(
     answer.officialSites = officialSites.sites;
   }
   return answer;
+}
+
+export async function findGnbidLengths(plmnCodes: readonly string[]): Promise<Map<string, number>> {
+  const networks = await resolveNetworks(plmnCodes, SYSTEM_SCOPE);
+  return new Map(
+    plmnCodes.map((plmn) => {
+      const network = networks.get(plmn);
+      const length = network ? operatorGnbidLength(network) : (knownGnbidLength(plmn.slice(0, 3), plmn.slice(3)) ?? DEFAULT_GNBID_LENGTH);
+      return [plmn, length];
+    }),
+  );
+}
+
+export async function findNetworkOperators(plmnCodes: readonly string[]): Promise<Map<string, number[]>> {
+  const networks = await resolveNetworks(plmnCodes, SYSTEM_SCOPE);
+  return new Map([...networks].map(([plmn, network]) => [plmn, [network.operatorId, ...network.partnerIds]]));
+}
+
+export async function matchCellsAsSystem(observed: readonly ObservedCell[]): Promise<SystemCellMatch[]> {
+  const { networks, matches } = await matchInScope(SYSTEM_SCOPE, observed);
+  const officialLookups = observed.map((cell) => {
+    const network = networks.get(cell.plmn);
+    return network && cell.rat === "lte" ? unmatchedCellOf(network, cell.enbid) : null;
+  });
+  const officialSiteIds = await findCandidateSiteIds(officialLookups);
+  return matches.map(({ result }, index) => ({ result, officialSiteIds: officialSiteIds[index] ?? [] }));
 }

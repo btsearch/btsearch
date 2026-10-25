@@ -17,7 +17,7 @@ import {
 import { CELL_RATS } from "./constants.ts";
 import { STATION_STATUSES, areaFilterShape, stationBaseSchema } from "./stations.ts";
 
-export const CELL_INCLUDES = ["band", "station"] as const;
+export const CELL_INCLUDES = ["band", "station", "sightings"] as const;
 export type CellInclude = (typeof CELL_INCLUDES)[number];
 
 export const CELL_SORTS = ["-id", "id", "createdAt", "-createdAt", "updatedAt", "-updatedAt"] as const;

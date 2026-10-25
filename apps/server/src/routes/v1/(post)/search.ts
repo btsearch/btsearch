@@ -397,7 +397,7 @@ const searchRoute: Route<ReqBody, StationWithCells[]> = {
   url: "/search",
   method: "POST",
   schema: schemaRoute,
-  config: { permissions: ["read:stations", "read:cells"], allowGuestAccess: true },
+  config: { permissions: ["read:stations", "read:cells"], allowGuestAccess: true, idempotentReplay: false },
   handler,
 };
 

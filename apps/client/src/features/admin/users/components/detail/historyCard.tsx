@@ -5,9 +5,9 @@ import { Link } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
-import { accountHistoryQueryOptions } from "../../api/activity";
+import { accountHistoryQueryOptions, activeBanOperationQueryOptions } from "../../api/activity";
 import type { AdminUser, AuditOperation } from "../../types";
-import { findActiveBanOperation, getOperationAuthor } from "../../utils/accountHistory";
+import { getOperationAuthor } from "../../utils/accountHistory";
 import { getBanUntilLabel, getBanUntilSentence, readBanReason } from "../../utils/ban";
 import { resolveDisplayName } from "../../utils/identity";
 import { CenteredCardState, META_USER_LINK_CLASS } from "./userDetailPrimitives";
@@ -30,8 +30,6 @@ type HistoryRowProps = {
   operation: AuditOperation;
   description: string | null;
 };
-
-const VISIBLE_OPERATION_COUNT = 4;
 
 function describeActiveBan(t: TFunction, language: string, user: AdminUser): string {
   const reason = readBanReason(user.banReason);
@@ -73,7 +71,7 @@ export function HistoryCard({ user }: { user: AdminUser }) {
   const { t, i18n } = useTranslation("admin");
   const { data: operations, isError, isFetching, refetch } = useQuery(accountHistoryQueryOptions(user.id));
 
-  const activeBanOperation = user.isBanned && operations !== undefined ? findActiveBanOperation(operations) : null;
+  const { data: activeBanOperation } = useQuery({ ...activeBanOperationQueryOptions(user.id), enabled: user.isBanned });
   const auditLogLink = (
     <Link to="/admin/audit-logs" search={{ q: user.id }} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-muted-foreground")}>
       {t("nav:items.auditLogs")}
@@ -83,7 +81,7 @@ export function HistoryCard({ user }: { user: AdminUser }) {
 
   function describeOperation(operation: AuditOperation): string | null {
     if (operation.kind === "user.unban" && operation.source === "system") return t("admin:users.detail.activity.history.banExpired");
-    return operation.id === activeBanOperation?.id ? describeActiveBan(t, i18n.language, user) : null;
+    return user.isBanned && operation.id === activeBanOperation?.id ? describeActiveBan(t, i18n.language, user) : null;
   }
 
   return (
@@ -108,7 +106,7 @@ export function HistoryCard({ user }: { user: AdminUser }) {
         <CenteredCardState icon={Note01Icon} title={t("common:empty.changes")} description={t("users.detail.activity.history.emptyDescription")} />
       ) : (
         <div className="border-t">
-          {operations.slice(0, VISIBLE_OPERATION_COUNT).map((operation) => (
+          {operations.map((operation) => (
             <HistoryRow key={operation.id} operation={operation} description={describeOperation(operation)} />
           ))}
         </div>

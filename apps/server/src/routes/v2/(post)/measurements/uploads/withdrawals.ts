@@ -3,7 +3,7 @@ import type { MeasurementWithdrawal, MeasurementWithdrawalResult } from "@openbt
 import type { FastifyRequest } from "fastify/types/request.js";
 
 import { ErrorResponse } from "../../../../../errors.js";
-import { withdrawUploads } from "../../../../../features/measurements/withdrawals.js";
+import { withdrawUploads } from "../../../../../features/measurements/uploads/withdrawals.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 

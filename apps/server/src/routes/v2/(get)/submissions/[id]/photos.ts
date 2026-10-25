@@ -16,7 +16,7 @@ const schemaRoute = {
   summary: "List a submission's photos",
   description:
     "Returns the photos uploaded to the submission, oldest first. " +
-    "Existing photos that the submission selects or removes are not included; you find those in its `changes.photos`. " +
+    "Existing photos that the submission selects or removes are not included. You find those in its `changes.photos`. " +
     "Anyone who can read the submission can read its photos.",
   params: submissionParamsSchema,
   response: {

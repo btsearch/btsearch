@@ -8,7 +8,10 @@ import { useTranslation } from "react-i18next";
 
 import { RAT_OPTIONS } from "../../constants";
 import {
+  DEFAULT_ESTIMATED_SITE_STATUSES,
   DEFAULT_RECENT_DAYS,
+  ESTIMATED_SITE_STATUSES,
+  type EstimatedSiteStatus,
   IOT_RAT,
   type MapFilters,
   type MapFiltersChange,
@@ -85,6 +88,16 @@ type BandFacetPillProps = {
 type BackhaulSectionProps = {
   filters: MapFilters;
   onFiltersChange: (update: MapFiltersChange) => void;
+};
+
+type EstimatedSiteStatusSectionProps = {
+  filters: MapFilters;
+  onFiltersChange: (update: MapFiltersChange) => void;
+};
+
+type EstimatedSiteStatusIconProps = {
+  status: EstimatedSiteStatus | null;
+  isDashed?: boolean;
 };
 
 type RecentDaysFilterProps = {
@@ -430,5 +443,74 @@ export function RecentDaysFilter({ filters, onRecentDaysChange, onRecentDateFiel
         </div>
       ) : null}
     </div>
+  );
+}
+
+function EstimatedSiteStatusIcon({ status, isDashed = false }: EstimatedSiteStatusIconProps) {
+  const hasLink = status === "suggested" || status === "matched";
+  const width = hasLink ? 22 : 14;
+
+  return (
+    <svg width={width} height="14" viewBox={`0 0 ${width} 14`} aria-hidden="true" className="block shrink-0">
+      <circle
+        cx="7"
+        cy="7"
+        r="4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeDasharray={isDashed || status === "ignored" ? "2.4 1.6" : undefined}
+      />
+      {hasLink ? (
+        <>
+          <path d="M12 7H17" stroke="currentColor" strokeWidth="1.5" strokeDasharray={status === "suggested" ? "2 1.5" : undefined} />
+          <circle cx="19" cy="7" r="2" fill="currentColor" />
+        </>
+      ) : null}
+      {status === "ignored" ? <path d="M3.5 10.5L10.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /> : null}
+    </svg>
+  );
+}
+
+export function EstimatedSiteStatusSection({ filters, onFiltersChange }: EstimatedSiteStatusSectionProps) {
+  const { t } = useTranslation("main");
+  const isDefaultShown =
+    filters.estimatedSiteStatuses.length === DEFAULT_ESTIMATED_SITE_STATUSES.length &&
+    DEFAULT_ESTIMATED_SITE_STATUSES.every((status) => filters.estimatedSiteStatuses.includes(status));
+
+  return (
+    <FilterPanelSection
+      title={t("crowd.filters.title")}
+      onClear={
+        isDefaultShown ? undefined : () => onFiltersChange((current) => ({ ...current, estimatedSiteStatuses: [...DEFAULT_ESTIMATED_SITE_STATUSES] }))
+      }
+    >
+      <div className="flex flex-wrap gap-1.5">
+        {ESTIMATED_SITE_STATUSES.map((status) => (
+          <FacetPill
+            key={status}
+            active={filters.estimatedSiteStatuses.includes(status)}
+            onClick={() => onFiltersChange((current) => ({ ...current, estimatedSiteStatuses: toggleValue(current.estimatedSiteStatuses, status) }))}
+          >
+            <EstimatedSiteStatusIcon status={status} />
+            <span>{t(`crowd.filters.statuses.${status}`)}</span>
+          </FacetPill>
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-4 text-muted-foreground">
+        <span className="inline-flex items-center gap-1.25">
+          <span className="text-foreground">
+            <EstimatedSiteStatusIcon status={null} />
+          </span>
+          {t("crowd.filters.seenByEveryone")}
+        </span>
+        <span className="inline-flex items-center gap-1.25">
+          <span className="text-foreground">
+            <EstimatedSiteStatusIcon status={null} isDashed />
+          </span>
+          {t("crowd.filters.seenByStaff")}
+        </span>
+      </div>
+    </FilterPanelSection>
   );
 }

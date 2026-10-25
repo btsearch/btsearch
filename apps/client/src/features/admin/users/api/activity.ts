@@ -1,3 +1,4 @@
+import type { AuditEntity, AuditOperationKind } from "@openbts/shared/audit";
 import type { Paging } from "@openbts/shared/contract";
 import { queryOptions } from "@tanstack/react-query";
 
@@ -7,7 +8,9 @@ import { userAdminKeys } from "./queryKeys";
 import { fetchAuditOperations } from "@/features/admin/audit-operations/api";
 import { API_V2_BASE, ApiResponseError, fetchJson, isNotFound } from "@/lib/api";
 
-const ACCOUNT_HISTORY_LIMIT = 20;
+const ACCOUNT_HISTORY_LIMIT = 4;
+const ACCOUNT_HISTORY_ENTITIES: AuditEntity[] = ["users", "apikeys", "passkeys", "sessions", "accounts", "oauth_clients", "oauth_consents"];
+const BAN_CHANGE_KINDS: AuditOperationKind[] = ["user.ban", "user.unban"];
 const FORBIDDEN_STATUS = 403;
 const FEATURE_DISABLED_CODE = "FEATURE_DISABLED";
 
@@ -68,8 +71,14 @@ async function fetchUserActivityCounts(userId: string, signal?: AbortSignal): Pr
 }
 
 async function fetchAccountHistory(userId: string, signal?: AbortSignal): Promise<AuditOperation[]> {
-  const page = await fetchAuditOperations({ entities: ["users"], q: userId, limit: ACCOUNT_HISTORY_LIMIT }, signal);
+  const page = await fetchAuditOperations({ entities: ACCOUNT_HISTORY_ENTITIES, q: userId, limit: ACCOUNT_HISTORY_LIMIT }, signal);
   return page.data;
+}
+
+async function fetchActiveBanOperation(userId: string, signal?: AbortSignal): Promise<AuditOperation | null> {
+  const page = await fetchAuditOperations({ kinds: BAN_CHANGE_KINDS, q: userId, limit: 1 }, signal);
+  const latestBanChange = page.data.at(0);
+  return latestBanChange?.kind === "user.ban" ? latestBanChange : null;
 }
 
 async function fetchProfileVisibility(username: string | null, signal?: AbortSignal): Promise<ProfileVisibility | null> {
@@ -95,6 +104,14 @@ export function accountHistoryQueryOptions(userId: string) {
   return queryOptions({
     queryKey: userAdminKeys.accountHistory(userId),
     queryFn: ({ signal }) => fetchAccountHistory(userId, signal),
+    staleTime: USER_DETAIL_PRELOAD_STALE_TIME,
+  });
+}
+
+export function activeBanOperationQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: userAdminKeys.activeBan(userId),
+    queryFn: ({ signal }) => fetchActiveBanOperation(userId, signal),
     staleTime: USER_DETAIL_PRELOAD_STALE_TIME,
   });
 }

@@ -114,7 +114,7 @@ const RADIO_SCHEMAS: Record<CellRat, z.ZodType> = { gsm: gsmInsertSchema, umts: 
 const ALL_RADIO_FIELDS = [...new Set(Object.values(RADIO_FIELD_NAMES).flatMap((names) => Object.values(names)))];
 const UNKNOWN_AS_ZERO: Partial<Record<CellRat, IdentifierPair>> = {
   umts: { fields: ["rnc", "cid"], unknownTogetherMessage: "RNC and CID are unknown together: a cell with a known RNC needs a CID" },
-  lte: { fields: ["enbid", "clid"], unknownTogetherMessage: "eNB ID and CLID are unknown together: a cell with a known eNB ID needs a CLID" },
+  lte: { fields: ["enbid", "clid"], unknownTogetherMessage: "eNBID and CLID are unknown together: a cell with a known eNBID needs a CLID" },
 };
 const CLEARED_NOTES = "";
 

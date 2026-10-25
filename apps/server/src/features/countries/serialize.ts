@@ -17,7 +17,7 @@ export function toCountry(row: CountryRow, sourceCapabilities: ReadonlyMap<strin
     isVisible: row.isVisible,
     contributions: row.contributions,
     tools: row.tools,
-    features: { structureOwnerProposals: row.structureOwnerProposals, psc: row.psc, bsic: row.bsic },
+    features: { structureOwnerProposals: row.structureOwnerProposals, psc: row.psc, bsic: row.bsic, observationsPublic: row.observationsPublic },
     capabilities: capabilitiesFor(row.code, sourceCapabilities.get(row.code)),
     defaultView,
   };

@@ -3,17 +3,21 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import type { StationRecord } from "../../types";
+import { StationFlagsStrip } from "./stationFlagsStrip";
 
 type StationPanelBannersProps = {
   station: StationRecord;
+  canReviewFlags: boolean;
+  onClose: () => void;
 };
 
-export function StationPanelBanners({ station }: StationPanelBannersProps) {
+export function StationPanelBanners({ station, canReviewFlags, onClose }: StationPanelBannersProps) {
   const { t } = useTranslation("stationDetails");
   const notes = station.notes?.trim();
 
   return (
     <>
+      <StationFlagsStrip stationId={station.id} canReview={canReviewFlags} onClose={onClose} />
       {notes ? (
         <div className="border-t border-primary/20 bg-primary/8 px-6 py-3 text-primary">
           <div className="flex items-start gap-2.5">

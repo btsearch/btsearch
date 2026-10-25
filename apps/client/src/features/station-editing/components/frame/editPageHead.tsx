@@ -1,9 +1,11 @@
 import { ArrowLeft01Icon, MapsLocation01Icon, SquareArrowExpand01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { Operator } from "@openbts/shared/contract";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { EditReference } from "../../data/lookups";
 import { TEXT_SEPARATOR } from "../../model/changes";
 import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import {
   stationDialogInlineActionClassName,
   stationDialogInlineActionLabelClassName,
 } from "@/features/station-details/components/stationDialogActionBar";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { useIsMobile } from "@/hooks/useMobile";
 import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate } from "@/lib/format";
@@ -60,6 +63,13 @@ type EditPageHeadStationLinksProps = {
   stationId: number;
   place: { latitude: number; longitude: number } | null;
 };
+
+export function findHeadOperator(operatorId: number | null, lookups: EditReference, savedOperator: Operator | null): HeadOperator | null {
+  if (operatorId === null) return null;
+
+  const operator = lookups.operatorsById.get(operatorId) ?? (savedOperator?.id === operatorId ? savedOperator : null);
+  return operator === null ? null : { name: operator.name, brand: getOperatorBrand(operator, lookups.brands) };
+}
 
 function goBack(): void {
   window.history.back();

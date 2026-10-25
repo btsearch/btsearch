@@ -34,7 +34,7 @@
       "name": "btsearch",
       "version": "0.5.0",
       "source": "api",
-      "shell": true,
+      "usesShizuku": true,
       "rules": 13
     },
     {
@@ -56,7 +56,7 @@
       "bandwidthKhz": 20000,
       "ulEarfcn": 19300,
       "ulBandwidthKhz": 20000,
-      "endcAvailable": true
+      "supportsEndc": true
     },
     {
       "rat": "lte",
@@ -94,8 +94,8 @@
       "tac": 41240,
       "earfcn": 6300,
       "pci": 77,
-      "barred": true,
-      "reservedForOperatorUse": []
+      "isBarred": true,
+      "reservedForOperatorUsePlmns": []
     }
   ],
   "fixes": [
@@ -116,8 +116,8 @@
       "t": 812346000,
       "simSlot": 0,
       "reader": 0,
-      "nrAvailable": true,
-      "dcNrRestricted": false,
+      "isNrAvailable": true,
+      "isDcNrRestricted": false,
       "dataNetworkType": "lte",
       "displayOverride": "nrNsa",
       "dataActivity": "inOut",

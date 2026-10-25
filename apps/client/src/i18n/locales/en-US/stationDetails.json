@@ -36,7 +36,13 @@
     "bandsOnSector": "Bands on the azimuth",
     "noLinkedCells": "No cell of this station has an azimuth assigned",
     "unlinkedCells_one": "{{count, number}} cell of this station has no azimuth assigned",
-    "unlinkedCells_other": "{{count, number}} cells of this station have no azimuth assigned"
+    "unlinkedCells_other": "{{count, number}} cells of this station have no azimuth assigned",
+    "measured": "Measured",
+    "measuredHint": "The direction in which phones used this azimuth's most measured cell, and how many people measured it",
+    "enteredAzimuth": "Entered azimuth",
+    "notEnoughMeasurements": "Not enough measurements to work out the direction",
+    "measuredList": "Measured: {{bearings}}",
+    "measuredDiffers": "{{sectors}}: measurements point another way"
   },
   "si2pemAntennaData": {
     "action": "Antennas",
@@ -164,7 +170,10 @@
     "inactiveStationDescription": "This station is no longer active and is pending removal from the database",
     "detailsLoadErrorTitle": "Couldn't load the latest station details",
     "detailsLoadErrorDescription": "Some information may be incomplete or out of date",
-    "atThisLocation": "At this location"
+    "atThisLocation": "At this location",
+    "openFlags_one": "{{count, number}} open measurement flag",
+    "openFlags_other": "{{count, number}} open measurement flags",
+    "openInQueue": "Open in the queue"
   },
   "comments": {
     "title": "Community comments",
@@ -255,6 +264,56 @@
     "sources": {
       "import": "Import",
       "system": "System"
+    }
+  },
+  "measurements": {
+    "notInDatabase": "Not in the database",
+    "seen": "Seen {{days}}",
+    "loading": "Loading measurements",
+    "loadError": "Couldn't load the measurements",
+    "people_one": "{{count, number}} person",
+    "people_other": "{{count, number}} people",
+    "lastSeen": "last {{date}}",
+    "spread": "spread {{degrees}}°",
+    "bearingDiffers": "Measurements point another way",
+    "unseenCellsNote": "Cells without a phone icon have no measurements yet",
+    "coverage": {
+      "seenOnce": "Measured on {{date}}",
+      "seenRange": "First measured {{first}}, last {{last}}",
+      "showOnMap": "Show coverage on the map"
+    },
+    "popover": {
+      "label": "Cell measurements",
+      "open": "Measurements of {{cell}}",
+      "measurements": "Measurements",
+      "squares_one": "measured in {{count, number}} square",
+      "squares_other": "measured in {{count, number}} squares",
+      "bandwidth": "Bandwidth",
+      "bearing": "Direction",
+      "azimuth": "azimuth {{degrees}}°",
+      "reach": "Measured reach",
+      "reachHint": "95% of the places where this cell served phones lie within this distance of the station",
+      "reachByTa": "Reach from TA",
+      "reachByTaHint": "How far the cell answered phones, wherever people measured",
+      "meanRsrq": "Mean {{metric}}",
+      "meanSinr": "Mean {{metric}}",
+      "onePerson": "The PCI, bandwidth and other values of this cell appear once a second person measures it",
+      "noShape": "Not enough measurements to work out the direction and reach",
+      "outsideDatabase": "This cell isn't in the database",
+      "outsideDatabaseByNode": "This cell isn't in the database. It has this station's {{node}} ({{id}})"
+    },
+    "chart": {
+      "level": "Signal level (dBm) by distance",
+      "levelSummary": "Signal level from {{from}} at the station to {{to}} at {{distance}}",
+      "sinr": "{{metric}} (dB) by distance",
+      "sinrSummary": "{{metric}} from {{from}} at the station to {{to}} at {{distance}}"
+    },
+    "edges": {
+      "title": "Where the coverage ends",
+      "handedOver": "Another cell takes over",
+      "faded": "The signal fades",
+      "otherLayer": "The network moves phones to another band",
+      "unmeasured": "Nobody measured further"
     }
   }
 }

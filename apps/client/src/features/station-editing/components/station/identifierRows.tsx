@@ -1,7 +1,7 @@
 import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { conventionsFor } from "@openbts/country-packs";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -24,6 +24,7 @@ type IdentifierRowsProps = {
   edit: StationDraftApi;
   stationId: number | null;
   idPrefix: string;
+  siteIdHint?: ReactNode;
 };
 
 const SITE_ID_EXAMPLE = "WWW12345";
@@ -32,7 +33,7 @@ function hasText(value: string | null): value is string {
   return value !== null && value !== "";
 }
 
-export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProps) {
+export function IdentifierRows({ edit, stationId, idPrefix, siteIdHint }: IdentifierRowsProps) {
   const { t } = useTranslation(["common", "stations", "submissions"]);
   const [isSiteIdFocused, setIsSiteIdFocused] = useState(false);
   const [isFetchingPartner, setIsFetchingPartner] = useState(false);
@@ -127,6 +128,7 @@ export function IdentifierRows({ edit, stationId, idPrefix }: IdentifierRowsProp
         </p>
       )}
       {isForm ? <p className="col-span-full -mt-1.5 text-xs text-muted-foreground">{t("submissions:stationInfo.stationIdHint")}</p> : null}
+      {siteIdHint === undefined ? null : <div className="col-span-full -mt-1.5">{siteIdHint}</div>}
       {hasNetworksFields ? (
         <>
           <FieldGroup view={networksIdView} label={t("labels.networksId")}>

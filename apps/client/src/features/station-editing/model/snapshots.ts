@@ -261,7 +261,7 @@ function deriveAreaCode(cells: readonly CellDraft[], rat: Rat): AreaCode {
   return new Set(values).size > 1 ? PER_CELL : { mode: "shared", value: first };
 }
 
-function deriveAreaCodes(cells: readonly CellDraft[]): Record<Rat, AreaCode> {
+export function deriveAreaCodes(cells: readonly CellDraft[]): Record<Rat, AreaCode> {
   const areaCodes = createSharedAreaCodes();
   for (const rat of RAT_ORDER) areaCodes[rat] = deriveAreaCode(cells, rat);
   return areaCodes;

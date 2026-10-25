@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { type ReactNode, useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { isConfirmationOpen } from "../utils/saveShortcut";
+import { isConfirmationOpen, submitShortcutForms } from "../utils/saveShortcut";
 import { AdminSettingsSections } from "./adminSettingsSections";
 import { AdminSettingsSkeleton } from "./adminSettingsSkeleton";
 import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
@@ -38,14 +38,14 @@ function AdminSettingsHead({ notice }: { notice: ReactNode }) {
 export function AdminSettingsPage() {
   const { t } = useTranslation("admin");
   const navMode = useNavMode();
-  const announcementFormRef = useRef<HTMLFormElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
   const { data: settings, isLoading, isFetching, isRefetchError, refetch } = useQuery({ ...settingsQueryOptions(), staleTime: 0 });
 
-  function submitAnnouncement() {
-    if (!isConfirmationOpen()) announcementFormRef.current?.requestSubmit();
+  function submitForms() {
+    if (pageRef.current !== null && !isConfirmationOpen()) submitShortcutForms(pageRef.current);
   }
 
-  useSaveShortcut({ canSave: true, onSave: submitAnnouncement });
+  useSaveShortcut({ canSave: true, onSave: submitForms });
 
   if (!isLoading && settings === undefined) {
     return (
@@ -59,10 +59,10 @@ export function AdminSettingsPage() {
   }
 
   return (
-    <div className="@container custom-scrollbar flex-1 overflow-y-auto">
+    <div ref={pageRef} className="@container custom-scrollbar flex-1 overflow-y-auto">
       <div className={cn("flex w-full flex-col gap-10 px-3 pt-5 sm:gap-12 sm:px-6 lg:px-8", navMode === "floating" ? "pb-32" : "pb-10")}>
         <AdminSettingsHead notice={isRefetchError ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} /> : null} />
-        {settings === undefined ? <AdminSettingsSkeleton /> : <AdminSettingsSections settings={settings} announcementFormRef={announcementFormRef} />}
+        {settings === undefined ? <AdminSettingsSkeleton /> : <AdminSettingsSections settings={settings} />}
       </div>
     </div>
   );

@@ -24,7 +24,7 @@ import { APIv1Controller } from "./controllers/v1.controller.js";
 import { APIv2Controller } from "./controllers/v2.controller.js";
 import { redisReady } from "./database/redis.js";
 import { DetailedErrorResponse, ErrorResponse, ValidationError, callerFaultResponse } from "./errors.js";
-import { registerUnreadBodyParsers } from "./features/measurements/uploadBody.js";
+import { registerUnreadBodyParsers } from "./features/measurements/uploads/body.js";
 import { recordRoutePattern } from "./features/settings/routeRules.js";
 import { OnRequestHook } from "./hooks/onRequest.hook.js";
 import { OnSendHook } from "./hooks/onSend.hook.js";
@@ -77,6 +77,8 @@ const CORS_OPTIONS = {
     "accept",
   ],
   exposedHeaders: [
+    "x-request-id",
+    "idempotent-replayed",
     "x-response-time",
     "x-ratelimit-limit",
     "x-ratelimit-remaining",

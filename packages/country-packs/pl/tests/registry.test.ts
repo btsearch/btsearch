@@ -84,7 +84,7 @@ void test("knows a gNB ID length by PLMN only where it differs from the default"
   assert.equal(knownGnbidLength("262", "01"), null);
 });
 
-const TERRAIN_PROFILES ={ receiverBounds: { south: 48.8, north: 55.2, west: 13.8, east: 24.5 } };
+const TERRAIN_PROFILES = { receiverBounds: { south: 48.8, north: 55.2, west: 13.8, east: 24.5 } };
 
 void test("takes the official layers from the sources and lets KMZ follow the official sites", () => {
   assert.deepEqual(capabilitiesFor("PL", { official: true, microwaveLinks: true }), {

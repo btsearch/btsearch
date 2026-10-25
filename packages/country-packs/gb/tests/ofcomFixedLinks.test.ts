@@ -120,7 +120,7 @@ void test("offers the register as one release, dated by its Last-Modified day", 
   const releases = await discoverFixedLinks({
     ...ctx,
     fetch: (input, init) => {
-      requests.push({ url: input.toString(), method: init?.method });
+      requests.push({ url: input instanceof Request ? input.url : input.toString(), method: init?.method });
       return Promise.resolve(new Response(null, { headers: { "last-modified": "Wed, 21 Oct 2026 07:45:03 GMT" } }));
     },
   });
