@@ -330,7 +330,7 @@
         "fillChannelsHint": "Fills empty fields by band and operator",
         "addMissingCellsHint": "Completes the sectors of each band",
         "assignSectorsHint": "Cells without an azimuth take it from the cell with the same PCI",
-        "assignSectorsHintNr": "NSA cells take the azimuth of the LTE cell with the same PCI",
+        "assignSectorsHintNr": "NR cells take the azimuth of the NR or LTE cell with the same PCI",
         "sharedNetworks": "Shared networks...",
         "sharedNetworksHint": "Sets the networks of the cells in chosen bands"
       },

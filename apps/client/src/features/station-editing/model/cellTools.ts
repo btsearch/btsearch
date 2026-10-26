@@ -54,12 +54,8 @@ function isKeptLteCell(cell: CellDraft): boolean {
   return cell.rat === "lte" && !cell.isDeleted;
 }
 
-function isKeptStandaloneCell(cell: CellDraft): boolean {
-  return cell.rat === "nr" && cell.mode === "sa" && !cell.isDeleted;
-}
-
-function isNonStandaloneTarget(cell: CellDraft): boolean {
-  return cell.rat === "nr" && cell.mode !== "sa" && !cell.isDeleted && cell.sectorKey === null;
+function isKeptNrCell(cell: CellDraft): boolean {
+  return cell.rat === "nr" && !cell.isDeleted;
 }
 
 function hasEmptyChannel(cell: CellDraft): boolean {
@@ -134,7 +130,7 @@ function fillFromSamePci(cells: readonly CellDraft[], isMember: CellTest): reado
   });
 }
 
-function fillNonStandaloneFromLte(cells: readonly CellDraft[]): readonly CellDraft[] {
+function fillNrFromLte(cells: readonly CellDraft[]): readonly CellDraft[] {
   const lteSectorsByPci = new Map<number, DraftKey | null>();
   for (const cell of cells) {
     const pci = getCellNumber(cell, "pci");
@@ -148,7 +144,7 @@ function fillNonStandaloneFromLte(cells: readonly CellDraft[]): readonly CellDra
 
   return cells.map((cell) => {
     const pci = getCellNumber(cell, "pci");
-    if (!isNonStandaloneTarget(cell) || pci === null) return cell;
+    if (!isKeptNrCell(cell) || cell.sectorKey !== null || pci === null) return cell;
 
     const sectorKey = lteSectorsByPci.get(pci) ?? null;
     return sectorKey === null ? cell : patchCell(cell, { sectorKey });
@@ -157,7 +153,7 @@ function fillNonStandaloneFromLte(cells: readonly CellDraft[]): readonly CellDra
 
 export function assignSectorsByPci(cells: readonly CellDraft[], rat: Rat): readonly CellDraft[] {
   if (rat === "lte") return keepUnchanged(cells, fillFromSamePci(cells, isKeptLteCell));
-  if (rat === "nr") return keepUnchanged(cells, fillNonStandaloneFromLte(fillFromSamePci(cells, isKeptStandaloneCell)));
+  if (rat === "nr") return keepUnchanged(cells, fillNrFromLte(fillFromSamePci(cells, isKeptNrCell)));
   return cells;
 }
 

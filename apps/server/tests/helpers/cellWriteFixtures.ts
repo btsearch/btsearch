@@ -10,7 +10,7 @@ export const radioTables = { gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: 
 export const cellInputs = {
   gsm: { rat: "gsm", bandId: 1, lac: 1, cid: 2 },
   umts: { rat: "umts", bandId: 2, rnc: 1, cid: 2 },
-  lte: { rat: "lte", bandId: 3, enbid: 100, clid: 1 },
+  lte: { rat: "lte", bandId: 3, tac: 10, enbid: 100, clid: 1 },
   nr: { rat: "nr", bandId: 4, mode: "nsa" },
 } satisfies Record<NewCellInput["rat"], NewCellInput>;
 export const cellBands = [

@@ -267,7 +267,7 @@ const SECTOR_KEY_OR_ID = { path: ["sectorKey"], message: "Use either sectorId or
 const createAction = { action: z.literal("create") };
 
 const BAND_ID_NOTE = "Must be a band of the cell's technology that is in the country's band plan";
-const NR_MODE_NOTE = `${CELL_FIELD_NOTES.mode}. A non-standalone cell cannot have \`tac\`, \`gnbid\`, \`clid\` or RedCap support`;
+const NR_MODE_NOTE = `${CELL_FIELD_NOTES.mode}. A standalone cell needs \`tac\`. A non-standalone cell cannot have \`tac\`, \`gnbid\`, \`clid\` or RedCap support`;
 const gnbidLengthSchema = z.number().int().min(GNBID_MIN_LENGTH).max(GNBID_MAX_LENGTH).optional().describe(CELL_FIELD_NOTES.gnbidLength);
 
 const newCellShape = {
@@ -305,7 +305,7 @@ export const newLteCellSchema = z
   .object({
     ...newCellShape,
     rat: z.literal("lte"),
-    tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
+    tac: identifierSchema.describe(`${CELL_FIELD_NOTES.tac}. Rejected with 400 when missing or \`null\``),
     enbid: knownOrNullSchema.describe(CELL_FIELD_NOTES.enbid),
     clid: knownOrNullSchema.describe(`${CELL_FIELD_NOTES.clid}. Can only be \`null\` if \`enbid\` is \`null\` too`),
     pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
@@ -349,7 +349,7 @@ const cellRadioUpdateShape = {
   gnbid: gnbidSchema.describe(CELL_FIELD_NOTES.gnbid),
   gnbidLength: gnbidLengthSchema,
   clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
-  tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
+  tac: identifierSchema.describe(`${CELL_FIELD_NOTES.tac}. LTE and standalone NR cells need one, so leave it out only when the cell already has one`),
   pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
   psc: pscSchema,
   bsic: bsicSchema,

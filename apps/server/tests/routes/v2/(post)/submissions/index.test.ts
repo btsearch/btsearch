@@ -420,15 +420,15 @@ describe("POST /submissions", () => {
     {
       description: "unknown LTE identity",
       index: 2,
-      input: { action: "create", rat: "lte", bandId: 3, enbid: null, clid: null },
-      details: { enbid: 0, clid: 0, tac: null, pci: null, earfcn: null, supports_iot: false },
+      input: { action: "create", rat: "lte", bandId: 3, tac: 1, enbid: null, clid: null },
+      details: { enbid: 0, clid: 0, tac: 1, pci: null, earfcn: null, supports_iot: false },
       expected: { enbid: null, clid: null },
     },
     {
       description: "zero LTE unknown sentinel",
       index: 2,
-      input: { action: "create", rat: "lte", bandId: 3, enbid: 0, clid: 0 },
-      details: { enbid: 0, clid: 0, tac: null, pci: null, earfcn: null, supports_iot: false },
+      input: { action: "create", rat: "lte", bandId: 3, tac: 1, enbid: 0, clid: 0 },
+      details: { enbid: 0, clid: 0, tac: 1, pci: null, earfcn: null, supports_iot: false },
       expected: { enbid: null, clid: null },
     },
     {
@@ -511,6 +511,35 @@ describe("POST /submissions", () => {
     const response = await injectMutation(route, { ...request, payload: [{ ...fixture.input, cells: [cell] }] }, options);
     expectError(response, 400, "VALIDATION_ERROR");
     expect(response.json().errors[0].details).toContainEqual(expect.objectContaining({ field: `0/cells/0/${field}` }));
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { description: "an LTE cell without a TAC", cell: { action: "create", rat: "lte", bandId: 3, enbid: 1, clid: 1 } },
+    { description: "an LTE cell with a null TAC", cell: { action: "create", rat: "lte", bandId: 3, tac: null, enbid: 1, clid: 1 } },
+    { description: "an NR SA cell without a TAC", cell: { action: "create", rat: "nr", bandId: 4, mode: "sa" } },
+  ])("rejects $description", async ({ cell }) => {
+    const fixture = draftFixture([draftRadios[0]]);
+    scriptDraftTranslation(fixture);
+    dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
+    const response = await injectMutation(route, { ...request, payload: [{ ...fixture.input, cells: [cell] }] }, options);
+    expectError(response, 400, "VALIDATION_ERROR");
+    expect(response.json().errors[0].details).toContainEqual(expect.objectContaining({ field: "0/cells/0/tac" }));
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects clearing the TAC of an LTE cell", async () => {
+    const { fixture, targets } = existingDraftFixture([draftRadios[2]]);
+    dbMock.enqueueFor("select", "stations", [{ station: stationRow(), countryCode: null }], [{ locationCountry: "PL", operatorCountry: "PL" }]);
+    dbMock.enqueueFor("select", "cells", targets);
+    dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
+    const response = await injectMutation(
+      route,
+      { ...request, payload: [{ ...fixture.input, cells: [{ action: "update", id: 100, tac: null }] }] },
+      options,
+    );
+    expectError(response, 400, "VALIDATION_ERROR");
+    expect(response.json().errors[0].details).toContainEqual(expect.objectContaining({ field: "0/cells/0/tac" }));
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
@@ -607,11 +636,11 @@ describe("POST /submissions", () => {
 
   it("clears explicit nullable LTE fields while preserving omitted identifiers and live notes in an update draft", async () => {
     const { fixture, targets } = existingDraftFixture([draftRadios[2]]);
-    fixture.input.cells = [{ action: "update", id: 100, tac: null, pci: null, earfcn: null, supportsIot: false }];
+    fixture.input.cells = [{ action: "update", id: 100, pci: null, earfcn: null, supportsIot: false }];
     fixture.cells[0] = {
       ...fixture.cells[0]!,
       cell: { ...fixture.cells[0]!.cell, notes: null },
-      lte: { ...draftRadios[2].details, proposed_cell_id: 40, tac: null, pci: null, earfcn: null, supports_iot: false },
+      lte: { ...draftRadios[2].details, proposed_cell_id: 40, pci: null, earfcn: null, supports_iot: false },
     };
     fixture.snapshot.proposedCells = fixture.cells.map(({ cell, ...radio }) => ({ ...cell, ...radio }));
     scriptExistingDraftCreate(fixture, targets);
@@ -621,12 +650,12 @@ describe("POST /submissions", () => {
     expect(errors).toEqual([]);
     expect(response.statusCode).toBe(201);
     expect(response.json().data[0].changes.cells).toMatchObject([
-      { action: "update", id: 100, enbid: 1048575, clid: 255, notes: "Stored evidence", tac: null, pci: null, earfcn: null, supportsIot: false },
+      { action: "update", id: 100, enbid: 1048575, clid: 255, notes: "Stored evidence", tac: 0, pci: null, earfcn: null, supportsIot: false },
     ]);
     expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "proposed_lte_cells")?.values).toMatchObject({
       enbid: 1048575,
       clid: 255,
-      tac: null,
+      tac: 0,
       pci: null,
       earfcn: null,
       supports_iot: false,

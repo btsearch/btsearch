@@ -97,6 +97,12 @@ export function refuseNsaFields(details: NsaFieldValues & { type?: string }, ctx
   for (const field of nsaFieldsInUse(details)) ctx.addIssue({ code: "custom", message: NSA_FIELD_MESSAGES[field], path: [field] });
 }
 
+export function requireStandaloneTac(details: { type?: string; nrtac?: number | null }, ctx: z.RefinementCtx): void {
+  if (details.type === "sa" && (details.nrtac === null || details.nrtac === undefined)) {
+    ctx.addIssue({ code: "custom", message: "A TAC is required for an NR SA cell", path: ["nrtac"] });
+  }
+}
+
 export function assertNsaFieldsUnset(details: z.infer<typeof nrUpdateSchema>, storedType: string | null | undefined): void {
   if ((details.type ?? storedType) !== "nsa") return;
 

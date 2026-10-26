@@ -48,7 +48,7 @@ export const umtsInsertSchema = createInsertSchema(proposedUMTSCells)
 export const lteInsertSchema = createInsertSchema(proposedLTECells)
   .omit({ proposed_cell_id: true })
   .extend({
-    tac: z.number().int().min(0).max(65535).nullable().optional(),
+    tac: z.number().int().min(0).max(65535),
     enbid: z.number().int().min(0).max(1048575),
     clid: z.number().int().min(0).max(255),
     pci: z.number().int().min(0).max(503).nullable().optional(),

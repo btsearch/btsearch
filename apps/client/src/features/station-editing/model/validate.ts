@@ -17,6 +17,7 @@ import {
   OMNIDIRECTIONAL_DEGREES,
   RAT_FIELDS,
   RAT_ORDER,
+  TAC_RATS,
   carriesAreaCode,
   getAreaCodeField,
   getAreaCodeMax,
@@ -263,6 +264,9 @@ function validateRequiredIds(session: EditSession, cell: CellDraft): EditError[]
   }
   if (cell.rat === "gsm" && getCellNumber(cell, "cid") === null) requireField("cid");
   if (cell.rat === "gsm" && draft.areaCodes.gsm.mode === "perCell" && getCellNumber(cell, "lac") === null) requireField("lac");
+  if (TAC_RATS.includes(cell.rat) && carriesAreaCode(cell) && draft.areaCodes[cell.rat].mode === "perCell" && getCellNumber(cell, "tac") === null) {
+    requireField("tac");
+  }
   if ((cell.rat === "umts" || cell.rat === "lte") && nodeField !== null && cellIdField !== null) {
     const node = getCellNumber(cell, nodeField);
     if (node !== null && node !== 0 && getCellNumber(cell, cellIdField) === null) requireField(cellIdField);
@@ -401,7 +405,7 @@ function validateDuplicates(session: EditSession, rat: Rat, cells: readonly Cell
   return errors;
 }
 
-function validateAreaCode(session: EditSession, rat: Rat, cells: readonly CellDraft[]): EditError[] {
+function validateAreaCode(session: EditSession, rat: Rat, cells: readonly CellDraft[], written: ReadonlySet<DraftKey>): EditError[] {
   const areaCode = session.draft.areaCodes[rat];
   const carriers = cells.filter(carriesAreaCode);
   if (areaCode.mode !== "shared" || carriers.length === 0) return [];
@@ -412,7 +416,8 @@ function validateAreaCode(session: EditSession, rat: Rat, cells: readonly CellDr
   const label = CELL_NUMBER_LABELS[field];
   if (areaCode.value === null) {
     const isQuiet = carriers.every((cell) => cell.id === null);
-    return rat === "gsm" ? [toError(target, "stations:edit.errors.required", { field: label }, isQuiet)] : [];
+    const isRequired = rat === "gsm" || carriers.some((cell) => written.has(cell.key));
+    return isRequired ? [toError(target, "stations:edit.errors.required", { field: label }, isQuiet)] : [];
   }
   return isOutOfRange(areaCode.value, 0, max) ? [toError(target, "stations:edit.errors.range", { field: label, max })] : [];
 }
@@ -424,7 +429,7 @@ function validateRat(session: EditSession, context: ValidationContext, rat: Rat)
   const written = new Set(writtenCells.map((cell) => cell.key));
 
   return [
-    ...validateAreaCode(session, rat, cells),
+    ...validateAreaCode(session, rat, cells, written),
     ...writtenCells.flatMap((cell) => [
       ...validateRequiredIds(session, cell),
       ...validateNumbers(session, context, cell),

@@ -368,7 +368,7 @@
         "fillChannelsHint": "Uzupełnia puste pola według pasma i operatora",
         "addMissingCellsHint": "Dopełnia sektory w każdym paśmie",
         "assignSectorsHint": "Komórki bez azymutu biorą go od komórki z tym samym PCI",
-        "assignSectorsHintNr": "NSA bierze azymut od komórki LTE z tym samym PCI",
+        "assignSectorsHintNr": "Komórki NR biorą azymut od komórki NR lub LTE z tym samym PCI",
         "sharedNetworks": "Współdzielone sieci...",
         "sharedNetworksHint": "Ustawia sieci komórek w wybranych pasmach"
       },
