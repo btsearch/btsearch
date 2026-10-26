@@ -181,7 +181,8 @@
       "tooManyPicks": "Najwyżej {{max}} wybranych zdjęć",
       "mainPhotoNotPicked": "Zdjęcie główne musi być wśród wybranych",
       "tooManyNetworks": "{{rat}}: najwyżej {{max}} sieci oprócz sieci właściciela",
-      "networkOtherCountry": "Sieci {{code}} nie ma w kraju stacji"
+      "networkOtherCountry": "Sieci {{code}} nie ma w kraju stacji",
+      "operatorOtherCountry": "Ten operator należy do innego kraju niż lokalizacja"
     },
     "refusals": {
       "unknown": "Serwer odrzucił zapis: {{message}}",

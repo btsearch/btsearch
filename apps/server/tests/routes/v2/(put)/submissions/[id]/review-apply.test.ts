@@ -213,6 +213,14 @@ describe("submission approval application", () => {
     expect((await injectMutation(route, request, options)).statusCode).toBe(200);
   });
 
+  it("refuses a new station whose operator belongs to another country than its location", async () => {
+    const scenario = prepareNewReview([], { withSector: false });
+    writeNewReview(scenario);
+    dbMock.enqueueOperatorCountries([{ foreignOperatorStationId: 12 }]);
+    expectError(await injectMutation(route, request, options), 400, "BAD_REQUEST", "The operator belongs to another country than the location");
+    expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "submissions")).toBe(false);
+  });
+
   it("stops a combined proposal when a later cell insert returns no created row", async () => {
     const scenario = prepareNewReview([cellInputs.gsm, cellInputs.lte], { submitter: true });
     writeNewReview(scenario, { failCellAt: 1 });

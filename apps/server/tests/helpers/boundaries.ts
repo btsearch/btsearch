@@ -22,6 +22,7 @@ type ScriptedResult = {
   submissionPlacement?: boolean;
   stationLinks?: boolean;
   networks?: boolean;
+  operatorCountries?: boolean;
   result: unknown;
 };
 type QueryBoundary = {
@@ -102,6 +103,10 @@ function isNetworkRead(call: DatabaseCall): boolean {
   return call.table === "cell_plmns" || (typeof call.selection === "object" && call.selection !== null && "ownerCode" in call.selection);
 }
 
+function isOperatorCountryRead(call: DatabaseCall): boolean {
+  return call.operation === "select" && typeof call.selection === "object" && call.selection !== null && "foreignOperatorStationId" in call.selection;
+}
+
 function tableName(table: unknown): string | undefined {
   if (typeof table !== "object" || table === null) return undefined;
   const subqueryTable = (table as { [SOURCE_TABLE]?: unknown })[SOURCE_TABLE];
@@ -123,18 +128,21 @@ function consume(call: DatabaseCall): Promise<unknown> {
   const placementProjection = isSubmissionPlacementProjection(call);
   const stationLinkRead = isStationLinkRead(call);
   const networkRead = isNetworkRead(call);
+  const operatorCountryRead = isOperatorCountryRead(call);
   const matching = results.findIndex(
     (entry) =>
       (entry.countryFeatures === true) === featureProjection &&
       (entry.submissionPlacement === true) === placementProjection &&
       (entry.stationLinks === true) === stationLinkRead &&
       (entry.networks === true) === networkRead &&
+      (entry.operatorCountries === true) === operatorCountryRead &&
       (entry.operation === undefined || entry.operation === call.operation) &&
       (entry.table === undefined || entry.table === call.table),
   );
   if (matching < 0 && featureProjection) return Promise.resolve(defaultFeatureResult(call, selection));
   if (matching < 0 && stationLinkRead) return Promise.resolve([]);
   if (matching < 0 && networkRead) return Promise.resolve([]);
+  if (matching < 0 && operatorCountryRead) return Promise.resolve([]);
   if (matching < 0) return Promise.reject(new Error(`Unscripted database call: ${call.operation} ${call.table ?? ""}`));
   const entry = results.splice(matching, 1)[0];
   if (entry?.result instanceof Error) return Promise.reject(entry.result);
@@ -217,6 +225,9 @@ export const dbMock = {
   },
   enqueueNetworks(...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation: "select", networks: true, result })));
+  },
+  enqueueOperatorCountries(...scripted: unknown[]): void {
+    results.push(...scripted.map((result) => ({ operation: "select", operatorCountries: true, result })));
   },
   enqueueStationLinks(...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation: "select", stationLinks: true, result })));

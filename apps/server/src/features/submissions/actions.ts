@@ -68,7 +68,7 @@ import { createAndDeliverNotification, createQueuedSubmissionApprovalNotificatio
 import { correctStationLinks, findStationGroups } from "../official/links.js";
 import { findRegionIdAt } from "../regions/lookup.js";
 import { isBackhaulMedium } from "../stations/backhaul.js";
-import { stationCountryCode } from "../stations/country.js";
+import { assertOperatorsFitLocation, stationCountryCode } from "../stations/country.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { writeSectorAzimuths } from "../stations/sectorAzimuths.js";
@@ -1879,6 +1879,9 @@ async function applyChange(
     await correctStationLinks(tx, [...groupsBefore, ...groupsAfter]);
   }
   const movesStation = draft.proposedLocation !== undefined || typeof draft.proposedStation?.operator_id === "number" || change?.location === null;
+  if (stationId && (type === "new" || movesStation)) {
+    await assertOperatorsFitLocation(tx, resolvedLocationId === null ? eq(stations.id, stationId) : eq(stations.location_id, resolvedLocationId));
+  }
   const writtenCellIds = [...cellChanges.added, ...cellChanges.updated.map(({ id }) => id)];
   await assertStoredCellBandsFit(tx, { cellIds: writtenCellIds, stationId: type === "update" && movesStation ? stationId : null });
   const checksWholeStation = typeof draft.proposedStation?.operator_id === "number" || change?.station_status === "published";

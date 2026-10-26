@@ -161,7 +161,8 @@
       "tooManyPicks": "At most {{max}} picked photos",
       "mainPhotoNotPicked": "The main photo must be one of the picked photos",
       "tooManyNetworks": "{{rat}}: at most {{max}} networks besides the owner's",
-      "networkOtherCountry": "Network {{code}} is not in the station's country"
+      "networkOtherCountry": "Network {{code}} is not in the station's country",
+      "operatorOtherCountry": "This operator belongs to another country than the location"
     },
     "refusals": {
       "unknown": "The server refused the save: {{message}}",

@@ -1,7 +1,7 @@
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from "motion/react";
 import type { MotionValue } from "motion/react";
 import { useEffect, useImperativeHandle, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { LightboxCaption } from "./lightboxCaption";
@@ -16,9 +16,12 @@ import { useFullscreen } from "./useFullscreen";
 import { togglePeekPreference, usePeekPreference } from "./usePeekPreference";
 import { useZoomPan } from "./useZoomPan";
 import { useIsMobile } from "@/hooks/useMobile";
+import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
 import { cn } from "@/lib/utils";
 
 const PAN_STEP = 120;
+
+const TITLE_BAR_STYLE = { height: "env(titlebar-area-height, 3rem)", WebkitAppRegion: "drag", appRegion: "drag" } as CSSProperties;
 
 export type LightboxViewerHandle = {
   handleKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
@@ -37,6 +40,7 @@ type Props = Omit<LightboxProps, "index" | "onIndexChange"> & {
 export function LightboxViewer({ slides, index, onIndexChange, onClose, loop = true, getTrigger, closing, onExited, backdrop, handleRef }: Props) {
   const { t } = useTranslation("lightbox");
   const compact = useIsMobile();
+  const { visible: windowControlsOverlay } = useWindowControlsOverlay();
   const reduceMotion = useReducedMotion();
   const peekPreference = usePeekPreference();
   const zoom = useZoomPan();
@@ -203,6 +207,7 @@ export function LightboxViewer({ slides, index, onIndexChange, onClose, loop = t
         inert={!chromeVisible}
         className="relative z-10 pt-[env(safe-area-inset-top)] max-md:absolute max-md:inset-x-0 max-md:top-0 max-md:bg-linear-to-b max-md:from-black/70 max-md:to-transparent"
       >
+        {windowControlsOverlay ? <div style={TITLE_BAR_STYLE} /> : null}
         <LightboxToolbar
           slide={slide}
           index={index}

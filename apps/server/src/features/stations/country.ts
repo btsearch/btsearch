@@ -1,11 +1,14 @@
 import { locations, operators, regions, stations } from "@openbts/drizzle";
-import { type SQL, eq, sql } from "drizzle-orm";
+import { type SQL, and, eq, ne, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
+import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
 
 type Placement = { stationId: number | null; regionId?: number | null; operatorId?: number | null; withoutLocation?: boolean };
 type Reader = Pick<DbTx, "select">;
+
+export const OPERATOR_OF_ANOTHER_COUNTRY_MESSAGE = "The operator belongs to another country than the location";
 
 export const stationCountryCode = sql<string | null>`COALESCE(${regions.countryCode}, ${operators.countryCode})`;
 
@@ -69,4 +72,16 @@ export async function findPlacementCountryCode(
       : [],
   ]);
   return region?.countryCode ?? (withoutLocation ? null : station?.locationCountry) ?? operator?.countryCode ?? station?.operatorCountry ?? null;
+}
+
+export async function assertOperatorsFitLocation(reader: Reader, condition: SQL): Promise<void> {
+  const [misfit] = await reader
+    .select({ foreignOperatorStationId: stations.id })
+    .from(stations)
+    .innerJoin(locations, eq(locations.id, stations.location_id))
+    .innerJoin(regions, eq(regions.id, locations.region_id))
+    .innerJoin(operators, eq(operators.id, stations.operator_id))
+    .where(and(condition, ne(regions.countryCode, operators.countryCode)))
+    .limit(1);
+  if (misfit) throw new ErrorResponse("BAD_REQUEST", { message: OPERATOR_OF_ANOTHER_COUNTRY_MESSAGE });
 }

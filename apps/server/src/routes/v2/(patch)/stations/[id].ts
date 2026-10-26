@@ -32,7 +32,8 @@ const schemaRoute = {
 const errorReasons = {
   400:
     "The change cannot be applied as sent. For example, a band is not in the country's band plan, " +
-    "two sectors share an azimuth, or the operator already has another station with this `siteId`.",
+    "two sectors share an azimuth, the operator belongs to a different country than the location, " +
+    "or the operator already has another station with this `siteId`.",
   403:
     "Your editor access does not cover the place the station moves to, or a station a cell is moved to. " +
     "Editors can also get this response when the station does not exist.",

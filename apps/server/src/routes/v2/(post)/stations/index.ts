@@ -28,7 +28,8 @@ const schemaRoute = {
 const errorReasons = {
   400:
     "The station cannot be created as sent. For example, the operator already has a station with this `siteId`, " +
-    "a band is not in the country's band plan, or an operator, region or band does not exist.",
+    "a band is not in the country's band plan, the operator belongs to a different country than the region, " +
+    "or an operator, region or band does not exist.",
   409:
     "An active station already has a cell with the same identity on one of the cell's networks: " +
     "`lac` and `cid` for GSM, `rnc` and `cid` for UMTS, `enbid` and `clid` for LTE, `nci` for NR.",

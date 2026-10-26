@@ -12,6 +12,7 @@ import { type ScopeRefs, locationRefs } from "../access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../audit/index.js";
 import { correctStationLinks, findStationGroups } from "../official/links.js";
 import { findRegionIdAt } from "../regions/lookup.js";
+import { assertOperatorsFitLocation } from "../stations/country.js";
 import { assertOwnerFitsAfterWrite } from "./structure.js";
 
 const locationSelectSchema = createSelectSchema(locations);
@@ -107,6 +108,7 @@ export async function updateLocation(req: FastifyRequest, id: number, patch: Loc
     if (!nextLocation) throw new ErrorResponse("FAILED_TO_UPDATE");
 
     await audit.log({ entity: "locations", op: "update", recordId: id, old: oldLocation, new: nextLocation });
+    if (stationIds.length > 0 && nextLocation.region_id !== oldLocation.region_id) await assertOperatorsFitLocation(tx, eq(stations.location_id, id));
     if (stationIds.length > 0) await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.location_id, id));
     if (moves) await correctStationLinks(tx, await findStationGroups(tx, { locationIds: [id] }));
     return nextLocation;

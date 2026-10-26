@@ -154,6 +154,7 @@ export function StationOperatorSelect({
   const [onlyCountry] = countries;
   const hasCountryRows = countries.length > MOST_ALWAYS_OPEN_OPERATOR_ROWS;
   const selectedId = selected?.id ?? null;
+  const isSelectedNameShared = selected !== null && options.some((operator) => operator.id !== selected.id && operator.name === selected.name);
 
   function keepOpen(eventDetails: SelectRootChangeEventDetails) {
     eventDetails.cancel();
@@ -191,6 +192,9 @@ export function StationOperatorSelect({
             <>
               <BrandMark brand={getOperatorBrand(selected, brands)} size={16} />
               <span className="truncate">{selected.name}</span>
+              {isSelectedNameShared ? (
+                <CountryCodeTile code={selected.countryCode} size="xs" label={getCountryName(selected.countryCode, i18n.language)} />
+              ) : null}
             </>
           )}
         </SelectValue>

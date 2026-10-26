@@ -27,7 +27,9 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400: "`structure.ownerId` refers to an owner that does not exist or belongs to a different country than the location.",
+  400:
+    "`structure.ownerId` refers to an owner that does not exist or belongs to a different country than the location, " +
+    "or the move puts the location in a country where a station's operator does not belong.",
   403: "Your editor access does not cover the place the location moves to. Editors can also get this response when the location does not exist.",
   409: "Another location already exists at the new coordinates.",
 };

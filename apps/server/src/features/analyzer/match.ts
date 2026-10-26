@@ -29,7 +29,6 @@ import type {
   ObservedCell,
   Station,
 } from "@openbts/shared/contract";
-import { DEFAULT_GNBID_LENGTH } from "@openbts/shared/contract";
 import { plmnCandidates } from "@openbts/shared/operatorUtils";
 import { type AnyColumn, type SQL, and, asc, eq, inArray, or } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";

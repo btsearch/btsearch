@@ -287,6 +287,11 @@ const REFUSAL_RULES: readonly RefusalRule[] = [
     findTargets: atPlace("structureOwner"),
   },
   {
+    pattern: /^The operator belongs to another country than the location$/,
+    messageKey: "stations:edit.errors.operatorOtherCountry",
+    findTargets: atStation("operatorId"),
+  },
+  {
     pattern: /^An? (TAC|CLID|gNBID) must not be set for an NR NSA cell$/,
     messageKey: "stations:edit.errors.nsaField",
     findTargets: atRat("nr"),

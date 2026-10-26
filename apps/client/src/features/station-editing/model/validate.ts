@@ -1,7 +1,7 @@
 import { conventionsFor } from "@openbts/country-packs";
 import { isChannelValidForBand } from "@openbts/shared/bandCatalog";
 import { RESERVED_SITE_ID_PREFIX } from "@openbts/shared/contract";
-import type { Band, Operator, StationIdentifierKind } from "@openbts/shared/contract";
+import type { Band, Operator, Region, StationIdentifierKind } from "@openbts/shared/contract";
 
 import { countCellEntries } from "./bodies";
 import { findNodeName, getAreaValue, getRowKind, normalizeText } from "./changes";
@@ -50,6 +50,7 @@ type ValidationContext = {
   countryFeatures: { psc: boolean; bsic: boolean } | null;
   countryOperators: readonly Operator[];
   operatorsById: ReadonlyMap<number, Operator>;
+  regionsById: ReadonlyMap<number, Region>;
 };
 
 type UploadFile = {
@@ -176,6 +177,16 @@ function validateStation(session: EditSession): EditError[] {
     errors.push(toError(stationTarget("backhaulModel"), "stations:edit.errors.backhaulModelTooLong", { max: EDIT_LIMITS.backhaulModel }));
   }
   return errors;
+}
+
+function validateOperatorCountry(session: EditSession, context: ValidationContext): EditError[] {
+  const { station, place } = session.draft;
+  const regionId = place?.regionId ?? null;
+  if (station.operatorId === null || regionId === null) return [];
+  const operatorCountryCode = context.operatorsById.get(station.operatorId)?.countryCode;
+  const regionCountryCode = context.regionsById.get(regionId)?.countryCode;
+  if (operatorCountryCode === undefined || regionCountryCode === undefined || operatorCountryCode === regionCountryCode) return [];
+  return [toError(stationTarget("operatorId"), "stations:edit.errors.operatorOtherCountry")];
 }
 
 function validateCoordinates(place: PlaceDraft): EditError[] {
@@ -429,6 +440,7 @@ export function validateDraft(session: EditSession, context: ValidationContext):
 
   const errors = [
     ...validateStation(session),
+    ...validateOperatorCountry(session, context),
     ...validatePlace(session, context),
     ...validateSectors(session.draft.sectors),
     ...RAT_ORDER.flatMap((rat) => validateRat(session, context, rat)),
