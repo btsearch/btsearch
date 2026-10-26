@@ -261,7 +261,10 @@ pub async fn write(transaction: &Transaction<'_>, record: &FoldRecord<'_>) -> Re
 
     let skipped_rules: Vec<&str> = report.skipped_rules.iter().map(String::as_str).collect();
     transaction
-        .execute("INSERT INTO observations.upload_skipped_rules (upload_id, quirk_rule_id) SELECT $1, unnest($2::text[])", &[upload_id, &skipped_rules])
+        .execute(
+            "INSERT INTO observations.upload_skipped_rules (upload_id, quirk_rule_id) SELECT $1, unnest($2::text[])",
+            &[upload_id, &skipped_rules],
+        )
         .await?;
 
     let blocks: Vec<i16> = report.blocked_values.keys().copied().collect();

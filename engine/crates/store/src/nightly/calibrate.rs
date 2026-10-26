@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use engine_estimate::ALGORITHM_VERSION;
 use engine_estimate::calibration::{
     AreaClass, EllipseMiss, LEAST_GROUP_SAMPLES, LEAST_GROUP_STATIONS, LEAST_MODEL_SAMPLES, LEAST_MODEL_STATIONS, SnapCase, TaFit, TaSample,
     fit_ellipse_scales, fit_error_model, fit_snap_priors, fit_timing_advance,
@@ -8,7 +9,6 @@ use engine_estimate::confidence::{is_surrounded, mahalanobis_squared};
 use engine_estimate::error_model::ErrorModel;
 use engine_estimate::input::{EvidenceClass, Technology};
 use engine_estimate::objective::slant_m;
-use engine_estimate::ALGORITHM_VERSION;
 use engine_fold::report::DISTANCE_BUCKET_M;
 use engine_geo::Point;
 use engine_geo::plane::{LocalPlane, distance_meters};
@@ -67,11 +67,17 @@ impl TimingAdvanceRows {
         self.groups
             .iter()
             .filter(|(_, rows)| rows.total() >= LEAST_GROUP_SAMPLES && rows.stations.len() >= LEAST_GROUP_STATIONS)
-            .filter_map(|(&(group, technology), rows)| Some(((group, technology), fit_timing_advance(&rows.samples(technology.timing_advance_step_m()?))?)))
+            .filter_map(|(&(group, technology), rows)| {
+                Some(((group, technology), fit_timing_advance(&rows.samples(technology.timing_advance_step_m()?))?))
+            })
             .collect()
     }
 
-    fn error_models(&self, fits: &BTreeMap<(i16, Technology), TaFit>, sources: &BTreeMap<i16, String>) -> Vec<(i16, Technology, AreaClass, ErrorModel, f64)> {
+    fn error_models(
+        &self,
+        fits: &BTreeMap<(i16, Technology), TaFit>,
+        sources: &BTreeMap<i16, String>,
+    ) -> Vec<(i16, Technology, AreaClass, ErrorModel, f64)> {
         let mut models = Vec::new();
         for (&(group, technology), rows) in &self.groups {
             let fit = fits.get(&(group, technology)).copied();
@@ -455,7 +461,15 @@ mod tests {
         for station_id in 0..stations {
             for distance in (1..=30).map(|step| f64::from(step) * 100.0) {
                 let steps = (2.0 * slant_m(distance, 0.0) / LTE_STEP_M).round() as i16;
-                rows.add(TaRow { ta_group_id: group, technology: Technology::Lte, station_id, area_class: AreaClass::Town, distance_m: distance, steps, samples: 10.0 });
+                rows.add(TaRow {
+                    ta_group_id: group,
+                    technology: Technology::Lte,
+                    station_id,
+                    area_class: AreaClass::Town,
+                    distance_m: distance,
+                    steps,
+                    samples: 10.0,
+                });
             }
         }
         rows
@@ -517,7 +531,15 @@ mod tests {
     fn nr_timing_advance_from_android_gets_no_error_model_without_a_fit() {
         let mut rows = TimingAdvanceRows::default();
         for distance in (1..=600).map(f64::from) {
-            rows.add(TaRow { ta_group_id: 9, technology: Technology::Nr, station_id: 1, area_class: AreaClass::Town, distance_m: distance * 5.0, steps: 1, samples: 5.0 });
+            rows.add(TaRow {
+                ta_group_id: 9,
+                technology: Technology::Nr,
+                station_id: 1,
+                area_class: AreaClass::Town,
+                distance_m: distance * 5.0,
+                steps: 1,
+                samples: 5.0,
+            });
         }
         let sources = BTreeMap::from([(9, "api".to_owned())]);
         assert!(rows.fits().is_empty());
@@ -529,7 +551,15 @@ mod tests {
         let mut rows = TimingAdvanceRows::default();
         for distance_m in (1..=600).map(|step| f64::from(step) * 5.0) {
             let steps = (slant_m(distance_m, 0.0) / GSM_STEP_M).round() as i16;
-            rows.add(TaRow { ta_group_id: 9, technology: Technology::Gsm, station_id: 1, area_class: AreaClass::Town, distance_m, steps, samples: 5.0 });
+            rows.add(TaRow {
+                ta_group_id: 9,
+                technology: Technology::Gsm,
+                station_id: 1,
+                area_class: AreaClass::Town,
+                distance_m,
+                steps,
+                samples: 5.0,
+            });
         }
         let sources = BTreeMap::from([(9, "api".to_owned())]);
         assert!(rows.fits().is_empty(), "one station is too few for a fit");

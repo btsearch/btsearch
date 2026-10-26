@@ -178,7 +178,13 @@ pub(crate) async fn area_classes(client: &impl GenericClient, places: &[(i32, Po
 
 impl Calibrated {
     pub(crate) fn uncalibrated() -> Self {
-        Self { run_id: None, context: Context::uncalibrated(), timing_advance: BTreeMap::new(), error_tables: BTreeMap::new(), snap_priors: BTreeMap::new() }
+        Self {
+            run_id: None,
+            context: Context::uncalibrated(),
+            timing_advance: BTreeMap::new(),
+            error_tables: BTreeMap::new(),
+            snap_priors: BTreeMap::new(),
+        }
     }
 
     pub async fn latest(client: &impl GenericClient) -> Result<Self, StoreError> {

@@ -63,13 +63,7 @@ pub struct Estimate {
 
 impl Estimate {
     pub fn cell_parameters(&self) -> Vec<CellParameters> {
-        self.cells
-            .iter()
-            .map(|cell| CellParameters {
-                azimuth_deg: cell.azimuth_deg,
-                power_db: cell.power_db,
-            })
-            .collect()
+        self.cells.iter().map(|cell| CellParameters { azimuth_deg: cell.azimuth_deg, power_db: cell.power_db }).collect()
     }
 }
 
@@ -83,11 +77,7 @@ fn ellipse_of(curvature: [[f64; 2]; 2]) -> Ellipse {
     let [[a, b], [_, d]] = curvature;
     let determinant = a * d - b * b;
     if a <= 0.0 || determinant <= 0.0 {
-        return Ellipse {
-            major_m: UNKNOWN_SPREAD_M,
-            minor_m: UNKNOWN_SPREAD_M,
-            azimuth_deg: 0.0,
-        };
+        return Ellipse { major_m: UNKNOWN_SPREAD_M, minor_m: UNKNOWN_SPREAD_M, azimuth_deg: 0.0 };
     }
     let (variance_east, variance_north, covariance) = (d / determinant, a / determinant, -b / determinant);
     let mean = (variance_east + variance_north) / 2.0;
@@ -111,12 +101,8 @@ fn timing_advance_says_closer(problem: &Problem, cell: usize, technology: Techno
     let Some(shortest_m) = technology.timing_advance_step_m().map(shortest_plausible_residual_m) else {
         return false;
     };
-    let residuals: Vec<(f64, f64)> = problem
-        .timing_advance
-        .iter()
-        .filter(|row| row.cell == cell)
-        .map(|row| (row.residual_m(fit.east, fit.north), row.weight))
-        .collect();
+    let residuals: Vec<(f64, f64)> =
+        problem.timing_advance.iter().filter(|row| row.cell == cell).map(|row| (row.residual_m(fit.east, fit.north), row.weight)).collect();
     let is_judged = residuals.iter().map(|(_, weight)| weight).sum::<f64>() >= LEAST_JUDGED_WEIGHT;
     is_judged && weighted_quantile(residuals, 0.5).is_some_and(|median_m| median_m < shortest_m)
 }
@@ -138,10 +124,7 @@ fn is_consistent(problem: &Problem, site: &Site, fit: &Fit) -> bool {
 }
 
 fn angular_coverage_deg(places: &[(f64, f64)], fit: &Fit) -> f64 {
-    let mut bearings: Vec<f64> = places
-        .iter()
-        .map(|&(east, north)| bearing_deg(east - fit.east, north - fit.north))
-        .collect();
+    let mut bearings: Vec<f64> = places.iter().map(|&(east, north)| bearing_deg(east - fit.east, north - fit.north)).collect();
     if bearings.len() < 2 {
         return 0.0;
     }
@@ -152,26 +135,15 @@ fn angular_coverage_deg(places: &[(f64, f64)], fit: &Fit) -> f64 {
 }
 
 fn evidence_of(problem: &Problem, site: &Site, fit: &Fit) -> Evidence {
-    let squares: BTreeSet<u64> = site
-        .cells
-        .iter()
-        .flat_map(|cell| {
-            cell.bins
-                .iter()
-                .map(|bin| bin.square)
-                .chain(cell.timing_advance.iter().map(|row| row.square))
-        })
-        .collect();
+    let squares: BTreeSet<u64> =
+        site.cells.iter().flat_map(|cell| cell.bins.iter().map(|bin| bin.square).chain(cell.timing_advance.iter().map(|row| row.square))).collect();
     let places: Vec<(f64, f64)> = squares.iter().map(|&square| problem.plane.to_plane(square_centre(square))).collect();
 
     let days: BTreeSet<i32> = site
         .cells
         .iter()
         .flat_map(|cell| {
-            cell.bins
-                .iter()
-                .flat_map(|bin| [bin.first_seen_on, bin.last_seen_on])
-                .chain(cell.timing_advance.iter().map(|row| row.last_seen_on))
+            cell.bins.iter().flat_map(|bin| [bin.first_seen_on, bin.last_seen_on]).chain(cell.timing_advance.iter().map(|row| row.last_seen_on))
         })
         .collect();
 
@@ -180,12 +152,7 @@ fn evidence_of(problem: &Problem, site: &Site, fit: &Fit) -> Evidence {
         contributor_count: site.contributor_count,
         person_count: site.person_count,
         bin_count: squares.len() as i32,
-        ta_sample_count: site
-            .cells
-            .iter()
-            .flat_map(|cell| cell.timing_advance.iter())
-            .map(|row| row.sample_count)
-            .sum(),
+        ta_sample_count: site.cells.iter().flat_map(|cell| cell.timing_advance.iter()).map(|row| row.sample_count).sum(),
         gsm_ta_sample_count: site
             .cells
             .iter()
@@ -195,11 +162,7 @@ fn evidence_of(problem: &Problem, site: &Site, fit: &Fit) -> Evidence {
             .sum(),
         angular_coverage_deg: angular_coverage_deg(&places, fit).round() as i16,
         distinct_days: days.len() as i32,
-        max_distance_m: places
-            .iter()
-            .map(|&place| distance_between(place, (fit.east, fit.north)))
-            .fold(0.0, f64::max)
-            .round() as i32,
+        max_distance_m: places.iter().map(|&place| distance_between(place, (fit.east, fit.north))).fold(0.0, f64::max).round() as i32,
     }
 }
 
@@ -217,9 +180,7 @@ pub fn estimate(site: &Site, context: &Context) -> Option<Estimate> {
     let nominal = ellipse_of(profiled_curvature(&problem, best));
     let (major_m, minor_m) = (nominal.major_m * ellipse_scale, nominal.minor_m * ellipse_scale);
     let radius_m = circle_radius_95_m(major_m, minor_m);
-    let uncertainty_m = alternative.map_or(radius_m, |other| {
-        distance_between((other.east, other.north), (best.east, best.north)) + radius_m
-    });
+    let uncertainty_m = alternative.map_or(radius_m, |other| distance_between((other.east, other.north), (best.east, best.north)) + radius_m);
 
     Some(Estimate {
         point: problem.plane.to_point(best.east, best.north),
@@ -235,11 +196,7 @@ pub fn estimate(site: &Site, context: &Context) -> Option<Estimate> {
             .cells
             .iter()
             .zip(&best.parameters)
-            .map(|(cell, parameters)| CellFit {
-                key: cell.key,
-                azimuth_deg: parameters.azimuth_deg,
-                power_db: parameters.power_db,
-            })
+            .map(|(cell, parameters)| CellFit { key: cell.key, azimuth_deg: parameters.azimuth_deg, power_db: parameters.power_db })
             .collect(),
         evidence,
     })

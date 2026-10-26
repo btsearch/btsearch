@@ -10,11 +10,8 @@ const MUCH_TIMING_ADVANCE_SAMPLES: i64 = 50;
 const GSM_REACH_M: f64 = 35_000.0;
 const UMTS_REACH_M: f64 = 60_000.0;
 const LTE_AND_NR_REACH_M: f64 = 100_000.0;
-const UNCALIBRATED_ERROR_MODELS: [(Technology, ErrorModel); 3] = [
-    (Technology::Lte, ErrorModel::LTE_AND_NR_DEFAULT),
-    (Technology::Nr, ErrorModel::LTE_AND_NR_DEFAULT),
-    (Technology::Gsm, ErrorModel::GSM_DEFAULT),
-];
+const UNCALIBRATED_ERROR_MODELS: [(Technology, ErrorModel); 3] =
+    [(Technology::Lte, ErrorModel::LTE_AND_NR_DEFAULT), (Technology::Nr, ErrorModel::LTE_AND_NR_DEFAULT), (Technology::Gsm, ErrorModel::GSM_DEFAULT)];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Technology {
@@ -123,14 +120,8 @@ pub enum EvidenceClass {
 }
 
 impl EvidenceClass {
-    pub const ALL: [Self; 6] = [
-        Self::LittleTaOnePerson,
-        Self::LittleTaPeople,
-        Self::CoarseTaOnePerson,
-        Self::CoarseTaPeople,
-        Self::MuchTaOnePerson,
-        Self::MuchTaPeople,
-    ];
+    pub const ALL: [Self; 6] =
+        [Self::LittleTaOnePerson, Self::LittleTaPeople, Self::CoarseTaOnePerson, Self::CoarseTaPeople, Self::MuchTaOnePerson, Self::MuchTaPeople];
 
     pub fn of(ta_sample_count: i64, gsm_ta_sample_count: i64, person_count: i32) -> Self {
         let is_much = |sample_count: i64| sample_count >= MUCH_TIMING_ADVANCE_SAMPLES;
@@ -185,10 +176,7 @@ impl Context {
     }
 
     pub(crate) fn level_model(&self, technology: Technology, area_class: AreaClass) -> LevelModel {
-        self.level_models
-            .get(&(technology, area_class))
-            .copied()
-            .unwrap_or(LevelModel::UNCALIBRATED)
+        self.level_models.get(&(technology, area_class)).copied().unwrap_or(LevelModel::UNCALIBRATED)
     }
 }
 
@@ -200,11 +188,7 @@ mod tests {
     fn gsm_timing_advance_is_coarse_and_never_makes_the_evidence_much() {
         let much = MUCH_TIMING_ADVANCE_SAMPLES;
         assert_eq!(EvidenceClass::of(much, much, 2), EvidenceClass::CoarseTaPeople);
-        assert_eq!(
-            EvidenceClass::of(2 * much - 1, much, 1),
-            EvidenceClass::CoarseTaOnePerson,
-            "too few LTE and NR samples beside the GSM ones"
-        );
+        assert_eq!(EvidenceClass::of(2 * much - 1, much, 1), EvidenceClass::CoarseTaOnePerson, "too few LTE and NR samples beside the GSM ones");
         assert_eq!(EvidenceClass::of(2 * much, much, 2), EvidenceClass::MuchTaPeople);
         assert_eq!(EvidenceClass::of(much - 1, much - 1, 1), EvidenceClass::LittleTaOnePerson);
     }

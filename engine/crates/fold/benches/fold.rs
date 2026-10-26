@@ -12,7 +12,8 @@ const CELLS: i64 = 40;
 const CELLS_A_READING: i64 = 4;
 
 fn half_hour_drive() -> Batch {
-    let mut document = drive_document("01a12096-8da0-7c1d-9b2e-5f6a7b8c9f01", &[Leg { seconds: SECONDS, meters_per_second: 12.0 }], None, (Some(true), Some(true)));
+    let mut document =
+        drive_document("01a12096-8da0-7c1d-9b2e-5f6a7b8c9f01", &[Leg { seconds: SECONDS, meters_per_second: 12.0 }], None, (Some(true), Some(true)));
     document["cells"] = (0..CELLS)
         .map(|index| json!({ "rat": "lte", "plmn": "26006", "eci": 31_604_736 + index, "tac": 58_140, "earfcn": 1_300 + 100 * (index % 3), "pci": 300 + index }))
         .collect();

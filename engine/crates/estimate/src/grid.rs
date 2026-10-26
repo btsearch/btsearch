@@ -45,10 +45,7 @@ pub fn evidence_grid(site: &Site, estimate: &Estimate, context: &Context) -> Opt
         .filter(|&(row, column)| costs[row * side + column] < SHOWN_BELOW_COST)
         .collect();
     let (first_row, last_row) = (shown.iter().map(|&(row, _)| row).min()?, shown.iter().map(|&(row, _)| row).max()?);
-    let (first_column, last_column) = (
-        shown.iter().map(|&(_, column)| column).min()?,
-        shown.iter().map(|&(_, column)| column).max()?,
-    );
+    let (first_column, last_column) = (shown.iter().map(|&(_, column)| column).min()?, shown.iter().map(|&(_, column)| column).max()?);
 
     let cost = (first_row..=last_row)
         .flat_map(|row| (first_column..=last_column).map(move |column| (row, column)))

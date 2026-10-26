@@ -6,7 +6,8 @@ use engine_batch::document::Cell;
 
 #[test]
 fn drops_a_value_out_of_range_and_keeps_its_reading() {
-    let upload = read_appendix_a_changed(|document| document["snapshots"][0]["measurements"][0]["rsrpDbm"] = 2_147_483_647.into()).expect("the upload reads");
+    let upload =
+        read_appendix_a_changed(|document| document["snapshots"][0]["measurements"][0]["rsrpDbm"] = 2_147_483_647.into()).expect("the upload reads");
     let serving = &upload.batch.snapshots[0].measurements[0];
     assert_eq!((serving.rsrp_dbm, serving.rsrq_db, serving.timing_advance), (None, Some(-11), Some(12)));
     assert_eq!(upload.dropped_values.get(ValueField::RsrpDbm), 1);

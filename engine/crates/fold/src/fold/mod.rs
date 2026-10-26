@@ -34,11 +34,8 @@ pub struct Fold {
 pub fn fold(batch: &Batch, inputs: &FoldInputs) -> Fold {
     let mut skipped_rules = BTreeSet::new();
     let entries: Vec<CellEntry> = batch.cells.iter().map(|cell| CellEntry::of(cell, &inputs.blocked_quirk_rules, &mut skipped_rules)).collect();
-    let reader_versions: Vec<ReaderVersion> = batch
-        .readers
-        .iter()
-        .map(|reader| ReaderVersion { name: reader.name.trim().to_owned(), version: reader.version.trim().to_owned() })
-        .collect();
+    let reader_versions: Vec<ReaderVersion> =
+        batch.readers.iter().map(|reader| ReaderVersion { name: reader.name.trim().to_owned(), version: reader.version.trim().to_owned() }).collect();
     let mut blocks = inputs.reading_blocks.clone();
     blocks.sort_by_key(|block| block.id);
 
@@ -168,7 +165,14 @@ fn fold_snapshot(context: &Context, output: &mut Output, snapshot: &Snapshot, se
     let others = snapshot.measurements.iter().filter(|measurement| measurement.role != Role::NrSecondary);
     let nr_secondaries = snapshot.measurements.iter().filter(|measurement| measurement.role == Role::NrSecondary);
     for measurement in others.chain(nr_secondaries) {
-        let reading = Reading { snapshot, measurement, entry: &context.entries[measurement.cell], reader: reader_version, source: reader.source, registered_plmn };
+        let reading = Reading {
+            snapshot,
+            measurement,
+            entry: &context.entries[measurement.cell],
+            reader: reader_version,
+            source: reader.source,
+            registered_plmn,
+        };
         if let Some(cell) = fold_measurement(context, output, &reading, anchor.as_ref(), &mut checked_moments) {
             if measurement.role == Role::Serving && cell.identity.rat == Rat::Lte {
                 anchor.get_or_insert_with(|| cell.identity.clone());
@@ -255,7 +259,8 @@ fn note_kept(context: &Context, output: &mut Output, reading: &Reading, checked:
         },
     });
     let measurement_rules = reading.measurement.corrected.iter().flat_map(|corrected| corrected.values());
-    let applied_rules = reading.entry.applied_rules.iter().chain(measurement_rules.filter(|rule| !context.inputs.blocked_quirk_rules.contains(*rule)));
+    let applied_rules =
+        reading.entry.applied_rules.iter().chain(measurement_rules.filter(|rule| !context.inputs.blocked_quirk_rules.contains(*rule)));
     for rule in applied_rules {
         report.correct(rule, &reading.reader.name);
     }
@@ -307,7 +312,11 @@ fn collect_trail_reading(
 fn add_same_reading_pairs(kept: &[KeptCell], deltas: &mut Deltas) {
     for (index, first) in kept.iter().enumerate() {
         for second in &kept[index + 1..] {
-            let same_radio = first.identity.rat == second.identity.rat && first.channel.is_some() && first.code.is_some() && first.channel == second.channel && first.code == second.code;
+            let same_radio = first.identity.rat == second.identity.rat
+                && first.channel.is_some()
+                && first.code.is_some()
+                && first.channel == second.channel
+                && first.code == second.code;
             if !same_radio || first.identity.plmn == second.identity.plmn {
                 continue;
             }

@@ -45,10 +45,7 @@ mod tests {
         let shortest_m = shortest_plausible_residual_m(GSM_STEP_M);
         for distance_m in (0..=3_000).map(|tens| f64::from(tens) * 10.0) {
             let rounded_and_one_symbol_early = (distance_m / GSM_STEP_M).round() - 1.0;
-            assert!(
-                rounded_and_one_symbol_early * GSM_STEP_M - distance_m >= shortest_m - 1e-9,
-                "{distance_m} m"
-            );
+            assert!(rounded_and_one_symbol_early * GSM_STEP_M - distance_m >= shortest_m - 1e-9, "{distance_m} m");
         }
         assert!(-2.0 * GSM_STEP_M < shortest_m, "two symbols early is no longer plausible");
     }

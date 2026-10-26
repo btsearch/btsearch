@@ -24,11 +24,7 @@ fn without_squares(site: &Site, is_left_out: impl Fn(u64) -> bool) -> Site {
             ..*cell
         })
         .collect();
-    Site {
-        cells,
-        handovers: site.handovers.iter().filter(|row| !is_left_out(row.square)).copied().collect(),
-        ..*site
-    }
+    Site { cells, handovers: site.handovers.iter().filter(|row| !is_left_out(row.square)).copied().collect(), ..*site }
 }
 
 pub fn leave_out_shift_m(site: &Site, estimate: &Estimate, context: &Context) -> Option<i32> {
@@ -46,9 +42,7 @@ pub fn leave_out_shift_m(site: &Site, estimate: &Estimate, context: &Context) ->
         weights[sector_of_square(square)] += weight;
     }
     let total: f64 = weights.iter().sum();
-    let held: Vec<usize> = (0..BEARING_SECTORS)
-        .filter(|&sector| weights[sector] >= LEAST_SECTOR_SHARE * total)
-        .collect();
+    let held: Vec<usize> = (0..BEARING_SECTORS).filter(|&sector| weights[sector] >= LEAST_SECTOR_SHARE * total).collect();
     if held.len() < LEAST_SECTORS {
         return None;
     }

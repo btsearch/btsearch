@@ -47,11 +47,7 @@ impl SealKeys {
         let (key_id, rest) = rest.split_at(key_id_length);
         let (nonce, encrypted) = rest.split_first_chunk::<NONCE_BYTES>().ok_or_else(|| failed("the file ends inside its header"))?;
         let key_id = std::str::from_utf8(key_id).map_err(|_| failed("the key id is not text"))?;
-        let key = self
-            .keys
-            .iter()
-            .find(|key| key.id == key_id)
-            .ok_or_else(|| failed(format!("key {key_id} is not in OBSERVATIONS_SEAL_KEYS")))?;
+        let key = self.keys.iter().find(|key| key.id == key_id).ok_or_else(|| failed(format!("key {key_id} is not in OBSERVATIONS_SEAL_KEYS")))?;
         key.cipher
             .decrypt(nonce.into(), Payload { msg: encrypted, aad: upload_id.as_bytes() })
             .map_err(|_| failed("the body does not authenticate under this upload id"))

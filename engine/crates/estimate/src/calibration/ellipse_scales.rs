@@ -25,10 +25,8 @@ pub fn fit_ellipse_scales(misses: &[EllipseMiss]) -> BTreeMap<(EvidenceClass, bo
     let Some(overall) = ellipse_scale(misses.iter().map(|miss| miss.mahalanobis_squared).collect()) else {
         return BTreeMap::new();
     };
-    let mut groups: BTreeMap<(EvidenceClass, bool), Vec<f64>> = EvidenceClass::ALL
-        .into_iter()
-        .flat_map(|class| [false, true].map(|is_surrounded| ((class, is_surrounded), Vec::new())))
-        .collect();
+    let mut groups: BTreeMap<(EvidenceClass, bool), Vec<f64>> =
+        EvidenceClass::ALL.into_iter().flat_map(|class| [false, true].map(|is_surrounded| ((class, is_surrounded), Vec::new()))).collect();
     for miss in misses {
         groups.entry((miss.class, miss.is_surrounded)).or_default().push(miss.mahalanobis_squared);
     }
@@ -80,21 +78,9 @@ mod tests {
 
     #[test]
     fn errors_half_as_large_again_as_the_ellipse_give_a_scale_of_one_and_a_half_and_a_small_group_takes_the_overall_scale() {
-        let thin = Nominal {
-            major_m: 300.0,
-            minor_m: 60.0,
-            azimuth_deg: 30.0,
-        };
-        let round = Nominal {
-            major_m: 500.0,
-            minor_m: 450.0,
-            azimuth_deg: 100.0,
-        };
-        let small = Nominal {
-            major_m: 200.0,
-            minor_m: 100.0,
-            azimuth_deg: 75.0,
-        };
+        let thin = Nominal { major_m: 300.0, minor_m: 60.0, azimuth_deg: 30.0 };
+        let round = Nominal { major_m: 500.0, minor_m: 450.0, azimuth_deg: 100.0 };
+        let small = Nominal { major_m: 200.0, minor_m: 100.0, azimuth_deg: 75.0 };
         let mut misses = misses_of(EvidenceClass::MuchTaPeople, true, &errors_of(1.5, 400, &thin), &thin);
         misses.extend(misses_of(EvidenceClass::LittleTaOnePerson, false, &errors_of(1.2, 300, &round), &round));
         misses.extend(misses_of(EvidenceClass::CoarseTaPeople, true, &errors_of(3.0, 50, &small), &small));
@@ -104,28 +90,11 @@ mod tests {
         assert!((much - 1.5).abs() < 0.03 && much_sites == 400, "{scales:?}");
         assert!((scales[&(EvidenceClass::LittleTaOnePerson, false)].0 - 1.2).abs() < 0.03, "{scales:?}");
 
-        let pooled: Vec<EllipseMiss> = misses
-            .iter()
-            .map(|miss| EllipseMiss {
-                class: EvidenceClass::MuchTaPeople,
-                is_surrounded: true,
-                ..*miss
-            })
-            .collect();
+        let pooled: Vec<EllipseMiss> =
+            misses.iter().map(|miss| EllipseMiss { class: EvidenceClass::MuchTaPeople, is_surrounded: true, ..*miss }).collect();
         let overall = fit_ellipse_scales(&pooled)[&(EvidenceClass::MuchTaPeople, true)].0;
-        assert_eq!(
-            scales[&(EvidenceClass::CoarseTaPeople, true)],
-            (overall, 50),
-            "50 sites are too few for a scale of their own"
-        );
-        assert_eq!(
-            scales[&(EvidenceClass::LittleTaPeople, true)],
-            (overall, 0),
-            "a group no confirmed site fell in takes the overall scale too"
-        );
-        assert!(
-            fit_ellipse_scales(&misses[..LEAST_SCALE_SITES - 1]).is_empty(),
-            "too few sites in all leave every group uncalibrated"
-        );
+        assert_eq!(scales[&(EvidenceClass::CoarseTaPeople, true)], (overall, 50), "50 sites are too few for a scale of their own");
+        assert_eq!(scales[&(EvidenceClass::LittleTaPeople, true)], (overall, 0), "a group no confirmed site fell in takes the overall scale too");
+        assert!(fit_ellipse_scales(&misses[..LEAST_SCALE_SITES - 1]).is_empty(), "too few sites in all leave every group uncalibrated");
     }
 }

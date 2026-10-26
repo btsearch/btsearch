@@ -55,9 +55,8 @@ fn simplified_line(points: &[(f64, f64)], tolerance: f64) -> Vec<(f64, f64)> {
     let (Some(&first), Some(&last)) = (points.first(), points.last()) else {
         return Vec::new();
     };
-    let farthest = (1..points.len().saturating_sub(1))
-        .map(|index| (index, distance_to_segment(points[index], first, last)))
-        .max_by(|a, b| a.1.total_cmp(&b.1));
+    let farthest =
+        (1..points.len().saturating_sub(1)).map(|index| (index, distance_to_segment(points[index], first, last))).max_by(|a, b| a.1.total_cmp(&b.1));
     match farthest {
         Some((index, distance)) if distance > tolerance => {
             let mut kept = simplified_line(&points[..=index], tolerance);
@@ -74,9 +73,7 @@ fn simplified_ring(ring: &[(f64, f64)], tolerance: f64) -> Vec<(f64, f64)> {
     let Some(&first) = ring.first() else {
         return Vec::new();
     };
-    let far = (0..ring.len())
-        .max_by(|&a, &b| distance_between(ring[a], first).total_cmp(&distance_between(ring[b], first)))
-        .unwrap_or(0);
+    let far = (0..ring.len()).max_by(|&a, &b| distance_between(ring[a], first).total_cmp(&distance_between(ring[b], first))).unwrap_or(0);
     let mut kept = simplified_line(&ring[..=far], tolerance);
     kept.pop();
     let back: Vec<(f64, f64)> = ring[far..].iter().copied().chain(std::iter::once(first)).collect();
@@ -96,11 +93,7 @@ fn within_most_corners(hull: Vec<(f64, f64)>) -> Vec<(f64, f64)> {
 }
 
 pub(super) fn footprint_of(cell: &Cell, plane: &LocalPlane) -> Option<Vec<(f64, f64)>> {
-    let mut shown: Vec<&Bin> = cell
-        .bins
-        .iter()
-        .filter(|bin| bin.serving_weight_milli > 0 && bin.may_be_shown())
-        .collect();
+    let mut shown: Vec<&Bin> = cell.bins.iter().filter(|bin| bin.serving_weight_milli > 0 && bin.may_be_shown()).collect();
     shown.sort_by(|a, b| b.serving_weight_milli.cmp(&a.serving_weight_milli).then(a.square.cmp(&b.square)));
     let total: i64 = shown.iter().map(|bin| bin.serving_weight_milli).sum();
     let mut held: i64 = 0;
@@ -141,10 +134,8 @@ mod tests {
 
     #[test]
     fn a_hull_with_too_many_corners_is_simplified_and_stays_counter_clockwise() {
-        let circle: Vec<(f64, f64)> = (0..200)
-            .map(|step| f64::from(step) / 200.0 * std::f64::consts::TAU)
-            .map(|angle| (500.0 * angle.cos(), 500.0 * angle.sin()))
-            .collect();
+        let circle: Vec<(f64, f64)> =
+            (0..200).map(|step| f64::from(step) / 200.0 * std::f64::consts::TAU).map(|angle| (500.0 * angle.cos(), 500.0 * angle.sin())).collect();
         let ring = within_most_corners(convex_hull(circle));
         assert!(ring.len() >= 3 && ring.len() <= MOST_CORNERS);
         assert!(doubled_area(&ring) > 0.0);

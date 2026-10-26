@@ -62,7 +62,8 @@ impl Store {
             if !transaction.query_one("SELECT pg_try_advisory_xact_lock($1)", &[&PYRAMID_LOCK]).await?.get::<_, bool>(0) {
                 return Ok(rebuilt);
             }
-            let tiles: Vec<i64> = transaction.query(CLAIM_DIRTY_TILES, &[&(TILES_PER_TRANSACTION as i64)]).await?.iter().map(|row| row.get(0)).collect();
+            let tiles: Vec<i64> =
+                transaction.query(CLAIM_DIRTY_TILES, &[&(TILES_PER_TRANSACTION as i64)]).await?.iter().map(|row| row.get(0)).collect();
             if tiles.is_empty() {
                 return Ok(rebuilt);
             }

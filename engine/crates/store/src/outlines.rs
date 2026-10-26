@@ -45,7 +45,10 @@ impl OutlineVersions {
             return Ok(outlines.clone());
         }
         let rows = client
-            .query("SELECT country_code::text, ST_AsGeoJSON(outline) FROM observations.country_outlines WHERE version = $1 ORDER BY country_code", &[&version])
+            .query(
+                "SELECT country_code::text, ST_AsGeoJSON(outline) FROM observations.country_outlines WHERE version = $1 ORDER BY country_code",
+                &[&version],
+            )
             .await?;
         let outlines = rows
             .iter()

@@ -20,7 +20,8 @@ fn a_shadow_reader_counts_as_a_duplicate_unless_its_readings_are_blocked_whole()
 
     let shadow = ReaderVersion { name: "netmonsterCore".to_owned(), version: "1.2.9".to_owned() };
     let mut blocking = inputs(&outlines);
-    blocking.reading_blocks = vec![ReadingBlock { id: 3, reader_version: Some(shadow.clone()), rats: None, roles: None, fields: None, mode: BlockMode::Drop }];
+    blocking.reading_blocks =
+        vec![ReadingBlock { id: 3, reader_version: Some(shadow.clone()), rats: None, roles: None, fields: None, mode: BlockMode::Drop }];
     let blocked = fold(&batch, &blocking);
     assert_eq!(blocked.report.drops.get(&DropReason::ReadingBlock), Some(&1));
     assert_eq!(blocked.report.drops.get(&DropReason::Duplicate), None);

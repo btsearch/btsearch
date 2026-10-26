@@ -48,7 +48,9 @@ fn why_unreadable(document: &[u8], error: &serde_json::Error) -> Rejection {
 }
 
 fn check_limits(batch: &Batch) -> Result<(), Rejection> {
-    for (name, count, limit) in [("cells", batch.cells.len(), CELLS), ("fixes", batch.fixes.len(), FIXES), ("snapshots", batch.snapshots.len(), SNAPSHOTS)] {
+    for (name, count, limit) in
+        [("cells", batch.cells.len(), CELLS), ("fixes", batch.fixes.len(), FIXES), ("snapshots", batch.snapshots.len(), SNAPSHOTS)]
+    {
         if count > limit {
             return Err(Rejection::LimitExceeded(format!("{count} {name}, more than {limit}")));
         }
@@ -99,7 +101,8 @@ fn check_document(batch: &Batch) -> Result<(), String> {
     }
 
     for (index, fix) in batch.fixes.iter().enumerate() {
-        let accuracies = [Some(fix.accuracy_meters), fix.vertical_accuracy_meters, fix.speed_accuracy_meters_per_second, fix.bearing_accuracy_degrees];
+        let accuracies =
+            [Some(fix.accuracy_meters), fix.vertical_accuracy_meters, fix.speed_accuracy_meters_per_second, fix.bearing_accuracy_degrees];
         require(accuracies.into_iter().flatten().all(|accuracy| accuracy >= 0.0), format_args!("`fixes[{index}]` has a negative accuracy"))?;
     }
 

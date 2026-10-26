@@ -42,7 +42,8 @@ pub fn fixtures_directory() -> PathBuf {
 }
 
 pub fn corpus(uploads: usize, devices: usize, seed: u64) -> Vec<GeneratedUpload> {
-    let fixtures: Vec<Value> = read_fixtures(&fixtures_directory()).expect("the fixtures are readable").into_iter().map(|(_, document)| document).collect();
+    let fixtures: Vec<Value> =
+        read_fixtures(&fixtures_directory()).expect("the fixtures are readable").into_iter().map(|(_, document)| document).collect();
     generate(&fixtures, &Options { uploads, devices, seed })
 }
 
@@ -90,7 +91,8 @@ impl Harness {
 
     pub async fn reset(&self) {
         let client = self.store.database.pool.get().await.expect("the test database accepts connections");
-        let has_stations: bool = client.query_one("SELECT EXISTS (SELECT 1 FROM public.stations)", &[]).await.expect("stations can be counted").get(0);
+        let has_stations: bool =
+            client.query_one("SELECT EXISTS (SELECT 1 FROM public.stations)", &[]).await.expect("stations can be counted").get(0);
         assert!(!has_stations, "{DATABASE_URL_VARIABLE} names a database with stations; these tests empty tables and run only on an empty database");
         client.batch_execute(RESET).await.expect("the test database resets");
     }
@@ -217,7 +219,10 @@ impl Harness {
     pub async fn set_status(&self, upload_id: Uuid, status: &str) {
         let client = self.store.database.pool.get().await.expect("a connection");
         client
-            .execute("UPDATE observations.uploads SET status = $2::text::upload_status, status_changed_at = now() WHERE id = $1", &[&upload_id, &status])
+            .execute(
+                "UPDATE observations.uploads SET status = $2::text::upload_status, status_changed_at = now() WHERE id = $1",
+                &[&upload_id, &status],
+            )
             .await
             .expect("the status changes");
     }
@@ -286,7 +291,18 @@ impl Dump {
     }
 
     pub fn cell_tables(&self) -> Vec<String> {
-        let by_cell = ["cell_bins", "cell_ta_bins", "cell_values", "cell_networks", "cell_contributors", "cell_readers", "handover_bins", "cell_transitions", "nsa_links", "same_reading_pairs"];
+        let by_cell = [
+            "cell_bins",
+            "cell_ta_bins",
+            "cell_values",
+            "cell_networks",
+            "cell_contributors",
+            "cell_readers",
+            "handover_bins",
+            "cell_transitions",
+            "nsa_links",
+            "same_reading_pairs",
+        ];
         self.lines().into_iter().filter(|line| by_cell.iter().any(|table| line.starts_with(&format!("{table} ")))).collect()
     }
 }

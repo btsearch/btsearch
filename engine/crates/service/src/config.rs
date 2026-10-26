@@ -55,8 +55,5 @@ impl Config {
 }
 
 pub fn instance_name() -> String {
-    env::var("HOSTNAME")
-        .ok()
-        .filter(|name| !name.trim().is_empty())
-        .unwrap_or_else(|| "engine".to_owned())
+    env::var("HOSTNAME").ok().filter(|name| !name.trim().is_empty()).unwrap_or_else(|| "engine".to_owned())
 }

@@ -82,7 +82,11 @@ async fn a_subtraction_reads_only_what_its_fold_recorded() {
     build_outlines(&harness).await;
     harness.store_and_fold(&corpus(24, 4, 13), "samsung").await;
     let before = harness.digest().await.without(&DATES_AND_BITS);
-    let extras: Vec<GeneratedUpload> = ["appendix-a.json", "nr-standalone.json", "umts.json"].iter().enumerate().map(|(index, name)| fixture_upload(name, 300 + index as u64)).collect();
+    let extras: Vec<GeneratedUpload> = ["appendix-a.json", "nr-standalone.json", "umts.json"]
+        .iter()
+        .enumerate()
+        .map(|(index, name)| fixture_upload(name, 300 + index as u64))
+        .collect();
     for extra in &extras {
         assert!(add(&harness, extra, "samsung").await);
     }
@@ -137,9 +141,8 @@ async fn how_values_differed_from_our_station_stays_with_the_upload_after_a_subt
     let folded = add(&harness, &compared, "qualcomm").await;
     let patterns = format!("SELECT count(*) FROM observations.upload_value_patterns WHERE upload_id = '{}'", compared.upload_id);
     let written = harness.count(&patterns).await;
-    let swapped = harness
-        .count(&format!("{patterns} AND field = 'areaCode' AND pattern = 'bytesSwapped' AND value_count = 1 AND cell_count = 1"))
-        .await;
+    let swapped =
+        harness.count(&format!("{patterns} AND field = 'areaCode' AND pattern = 'bytesSwapped' AND value_count = 1 AND cell_count = 1")).await;
 
     harness.set_status(compared.upload_id, "withdrawn").await;
     let subtracted = matches!(harness.store.subtract_due(compared.upload_id).await.expect("the subtraction runs"), Done::Folded(_));

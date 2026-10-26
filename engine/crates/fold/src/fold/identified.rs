@@ -6,8 +6,8 @@ use engine_geo::square::offset_centimetres;
 use crate::blocks::BlockedFields;
 use crate::calendar::Day;
 use crate::deltas::{
-    CellBin, CellBinKey, CellContributorKey, CellNetworkKey, CellReaderKey, CellTaBin, CellTaBinKey, CellValueKey, Contribution, Count, Handover, HandoverKey,
-    Seen, Sighting, Transition, TransitionKey, ValueKind, absorb_into,
+    CellBin, CellBinKey, CellContributorKey, CellNetworkKey, CellReaderKey, CellTaBin, CellTaBinKey, CellValueKey, Contribution, Count, Handover,
+    HandoverKey, Seen, Sighting, Transition, TransitionKey, ValueKind, absorb_into,
 };
 use crate::identity::CellIdentity;
 use crate::report::DropReason;
@@ -32,7 +32,11 @@ pub(super) fn fold_identified(
     let grouped_timing_advance = context.inputs.ta_groups.get(&reading.source).copied().zip(signal.timing_advance);
     if let Some((ta_group_id, timing_advance)) = grouped_timing_advance {
         let key = CellTaBinKey { cell: identity.clone(), bin: checked.square, ta_group_id, timing_advance };
-        absorb_into(&mut output.deltas.cell_ta_bins, key, CellTaBin { sample_count: 1, weight_milli: checked.weight_milli, last_seen_on: checked.day });
+        absorb_into(
+            &mut output.deltas.cell_ta_bins,
+            key,
+            CellTaBin { sample_count: 1, weight_milli: checked.weight_milli, last_seen_on: checked.day },
+        );
     }
     let Some(level) = signal.level else {
         if grouped_timing_advance.is_none() {
@@ -115,7 +119,11 @@ fn add_cell_networks(context: &Context, output: &mut Output, reading: &Reading, 
     let named: BTreeSet<&String> = std::iter::once(&identity.plmn).chain(additional).collect();
     for plmn in named {
         let key = CellNetworkKey { cell: identity.clone(), plmn: plmn.clone() };
-        absorb_into(&mut output.deltas.cell_networks, key, Sighting { sample_count: 1, contributor_bits: context.contributor_bit, seen: Seen::on(day) });
+        absorb_into(
+            &mut output.deltas.cell_networks,
+            key,
+            Sighting { sample_count: 1, contributor_bits: context.contributor_bit, seen: Seen::on(day) },
+        );
     }
 }
 
@@ -132,7 +140,11 @@ fn note_handover(output: &mut Output, reading: &Reading, identity: &CellIdentity
     }
     if previous.cell.may_share_a_site_with(identity) {
         let key = HandoverKey { from: previous.cell, to: identity.clone(), bin: checked.square };
-        absorb_into(&mut output.deltas.handover_bins, key, Handover { handover_count: 1, weight_milli: checked.weight_milli, last_seen_on: checked.day });
+        absorb_into(
+            &mut output.deltas.handover_bins,
+            key,
+            Handover { handover_count: 1, weight_milli: checked.weight_milli, last_seen_on: checked.day },
+        );
     } else {
         let key = TransitionKey { from: previous.cell, to: identity.clone() };
         absorb_into(&mut output.deltas.cell_transitions, key, Transition { transition_count: 1, last_seen_on: checked.day });

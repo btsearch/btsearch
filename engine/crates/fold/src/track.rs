@@ -69,8 +69,17 @@ impl Track {
                     Some((previous, meters)) if fix.t > previous.t => meters / ((fix.t - previous.t) as f64 / 1_000.0),
                     _ => 0.0,
                 });
-                let bearing = fix.bearing_degrees.or_else(|| travelled.filter(|(_, meters)| *meters > 0.0).map(|(previous, _)| bearing_degrees(previous.point, point)));
-                kept.push(TrackFix { t: fix.t, point, accuracy_meters: fix.accuracy_meters, speed_meters_per_second: speed, bearing_degrees: bearing, is_standing_still: false });
+                let bearing = fix
+                    .bearing_degrees
+                    .or_else(|| travelled.filter(|(_, meters)| *meters > 0.0).map(|(previous, _)| bearing_degrees(previous.point, point)));
+                kept.push(TrackFix {
+                    t: fix.t,
+                    point,
+                    accuracy_meters: fix.accuracy_meters,
+                    speed_meters_per_second: speed,
+                    bearing_degrees: bearing,
+                    is_standing_still: false,
+                });
             }
         }
         mark_standing_still(&mut kept);
@@ -83,7 +92,12 @@ impl Track {
         let after = self.kept.get(after_index);
 
         if let Some(before) = before.filter(|before| before.t == t) {
-            return Ok(Placement { point: before.point, accuracy_meters: before.accuracy_meters, speed_meters_per_second: before.speed_meters_per_second, is_standing_still: before.is_standing_still });
+            return Ok(Placement {
+                point: before.point,
+                accuracy_meters: before.accuracy_meters,
+                speed_meters_per_second: before.speed_meters_per_second,
+                is_standing_still: before.is_standing_still,
+            });
         }
         if let (Some(before), Some(after)) = (before, after)
             && t - before.t <= MAX_FIX_DISTANCE_MILLIS
@@ -101,7 +115,8 @@ impl Track {
     fn why_unplaced(&self, t: u64) -> DropReason {
         let after_index = self.every_fix.partition_point(|(fix_t, _)| *fix_t <= t);
         let nearest = [after_index.checked_sub(1).map(|index| self.every_fix[index]), self.every_fix.get(after_index).copied()];
-        let nearby: Vec<FixQuality> = nearest.into_iter().flatten().filter(|(fix_t, _)| fix_t.abs_diff(t) <= MAX_FIX_DISTANCE_MILLIS).map(|(_, quality)| quality).collect();
+        let nearby: Vec<FixQuality> =
+            nearest.into_iter().flatten().filter(|(fix_t, _)| fix_t.abs_diff(t) <= MAX_FIX_DISTANCE_MILLIS).map(|(_, quality)| quality).collect();
         if nearby.iter().any(|quality| matches!(quality, FixQuality::Mock)) {
             DropReason::MockLocation
         } else if nearby.iter().any(|quality| matches!(quality, FixQuality::PoorAccuracy)) {

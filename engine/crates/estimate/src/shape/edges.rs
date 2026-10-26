@@ -117,9 +117,7 @@ pub fn edges_of(cell: &Cell, shape: &Shape, site: Point, surroundings: &impl Sur
     let faded_below = faded_below_dbm(cell.technology);
     let has_faded = |at: (f64, f64)| {
         let near = levels.iter().filter(|(place, _, _)| distance_between(*place, at) <= FADED_REACH_M);
-        let (sum, weight) = near.fold((0, 0), |(sum, weight), &(_, level_wsum, weight_milli)| {
-            (sum + level_wsum, weight + weight_milli)
-        });
+        let (sum, weight) = near.fold((0, 0), |(sum, weight), &(_, level_wsum, weight_milli)| (sum + level_wsum, weight + weight_milli));
         weight > 0 && (sum as f64 / weight as f64 / CENTI_PER_UNIT) < faded_below
     };
 
@@ -136,9 +134,7 @@ pub fn edges_of(cell: &Cell, shape: &Shape, site: Point, surroundings: &impl Sur
         })
         .collect();
 
-    let first_change = (0..parts.len())
-        .position(|index| parts[index].0 != parts[(index + parts.len() - 1) % parts.len()].0)
-        .unwrap_or(0);
+    let first_change = (0..parts.len()).position(|index| parts[index].0 != parts[(index + parts.len() - 1) % parts.len()].0).unwrap_or(0);
     parts.rotate_left(first_change);
     let mut by_kind: BTreeMap<EdgeKind, (Vec<Vec<Point>>, f64)> = BTreeMap::new();
     let mut previous: Option<EdgeKind> = None;
@@ -152,12 +148,5 @@ pub fn edges_of(cell: &Cell, shape: &Shape, site: Point, surroundings: &impl Sur
         *length += distance_between(start, end);
         previous = Some(kind);
     }
-    by_kind
-        .into_iter()
-        .map(|(kind, (pieces, length))| Edge {
-            kind,
-            pieces,
-            length_m: length.round() as i32,
-        })
-        .collect()
+    by_kind.into_iter().map(|(kind, (pieces, length))| Edge { kind, pieces, length_m: length.round() as i32 }).collect()
 }

@@ -119,9 +119,9 @@ impl CountryOutlines {
             Point::new(point.latitude + latitude_reach, point.longitude + longitude_reach),
         ];
         cells_covering(&corners).any(|cell| {
-            self.edges_by_cell.get(&cell).is_some_and(|edges| {
-                edges.iter().any(|edge| edge.outline == outline && distance_to_segment(&plane, edge.from, edge.to) <= meters)
-            })
+            self.edges_by_cell
+                .get(&cell)
+                .is_some_and(|edges| edges.iter().any(|edge| edge.outline == outline && distance_to_segment(&plane, edge.from, edge.to) <= meters))
         })
     }
 
@@ -152,7 +152,9 @@ fn ring_contains(ring: &[Point], point: Point) -> bool {
     for &current in ring {
         let crosses = (current.latitude > point.latitude) != (previous.latitude > point.latitude);
         if crosses {
-            let crossing_longitude = (previous.longitude - current.longitude) * (point.latitude - current.latitude) / (previous.latitude - current.latitude) + current.longitude;
+            let crossing_longitude = (previous.longitude - current.longitude) * (point.latitude - current.latitude)
+                / (previous.latitude - current.latitude)
+                + current.longitude;
             if point.longitude < crossing_longitude {
                 inside = !inside;
             }

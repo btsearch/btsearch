@@ -33,5 +33,8 @@ fn every_fixture_folds_to_its_pinned_deltas() {
             }
         }
     }
-    assert!(mismatches.is_empty(), "these fixtures fold differently from tests/golden; run with UPDATE_GOLDEN=1 once the change is meant: {mismatches:?}");
+    assert!(
+        mismatches.is_empty(),
+        "these fixtures fold differently from tests/golden; run with UPDATE_GOLDEN=1 once the change is meant: {mismatches:?}"
+    );
 }

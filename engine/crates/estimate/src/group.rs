@@ -78,11 +78,7 @@ pub fn form_groups(sites: &[(&Site, &Estimate)], context: &Context) -> Vec<Group
                 group.estimate = joint;
                 group.cost = cost;
             }
-            None => groups.push(Group {
-                members: vec![index],
-                estimate: own.clone(),
-                cost: own.cost,
-            }),
+            None => groups.push(Group { members: vec![index], estimate: own.clone(), cost: own.cost }),
         }
     }
     groups
@@ -96,9 +92,6 @@ mod tests {
     fn a_cost_that_keeps_sites_apart_at_the_nominal_ellipse_lets_them_join_when_the_ellipse_is_twice_as_wide() {
         let excess_cost = 3.0;
         assert!(!may_join(excess_cost, 1.0));
-        assert!(
-            may_join(excess_cost, 2.0),
-            "a fit that overstates its precision twice overstates its cost differences four times"
-        );
+        assert!(may_join(excess_cost, 2.0), "a fit that overstates its precision twice overstates its cost differences four times");
     }
 }

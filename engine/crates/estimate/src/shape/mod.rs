@@ -79,10 +79,7 @@ pub fn shape_of(cell: &Cell, estimate: &Estimate) -> Option<Shape> {
         .collect();
     let uncertainty = f64::from(estimate.uncertainty_m.max(1));
     let certainty = |served: &ServedSquare| served.distance_m.powi(2) / (served.distance_m.powi(2) + uncertainty.powi(2));
-    let bearings: Vec<(f64, f64)> = served
-        .iter()
-        .map(|square| (square.bearing_deg, square.weight * certainty(square)))
-        .collect();
+    let bearings: Vec<(f64, f64)> = served.iter().map(|square| (square.bearing_deg, square.weight * certainty(square))).collect();
     let bearing = circular_mean_deg(bearings.iter().copied())?;
     let footprint = footprint_of(cell, &plane)?;
 
@@ -90,11 +87,8 @@ pub fn shape_of(cell: &Cell, estimate: &Estimate) -> Option<Shape> {
         bearing_deg: bearing,
         spread_deg: narrowest_arc_deg(bearings, SPREAD_SHARE),
         reach_m: weighted_quantile(served.iter().map(|square| (square.distance_m, square.weight)).collect(), REACH_SHARE)?.round() as i32,
-        reach_ta_m: weighted_quantile(
-            cell.timing_advance.iter().map(|row| (row.distance_m, row.weight_milli as f64)).collect(),
-            REACH_SHARE,
-        )
-        .map(|reach| reach.round() as i32),
+        reach_ta_m: weighted_quantile(cell.timing_advance.iter().map(|row| (row.distance_m, row.weight_milli as f64)).collect(), REACH_SHARE)
+            .map(|reach| reach.round() as i32),
         mean_quality_centi_db: mean_centi(cell.bins.iter().map(|bin| (bin.quality_wsum, bin.quality_weight_milli))),
         mean_sinr_centi_db: mean_centi(cell.bins.iter().map(|bin| (bin.sinr_wsum, bin.sinr_weight_milli))),
         footprint: footprint.iter().map(|&(east, north)| plane.to_point(east, north)).collect(),
@@ -103,20 +97,14 @@ pub fn shape_of(cell: &Cell, estimate: &Estimate) -> Option<Shape> {
 }
 
 fn mean_centi(weighted_sums: impl Iterator<Item = (i64, i64)>) -> Option<i32> {
-    let (sum, weight) = weighted_sums.fold((0_i64, 0_i64), |(sum, weight), (bin_sum, bin_weight)| {
-        (sum + bin_sum, weight + bin_weight)
-    });
+    let (sum, weight) = weighted_sums.fold((0_i64, 0_i64), |(sum, weight), (bin_sum, bin_weight)| (sum + bin_sum, weight + bin_weight));
     (weight > 0).then(|| (sum as f64 / weight as f64).round() as i32)
 }
 
 fn narrowest_arc_deg(mut bearings: Vec<(f64, f64)>, share: f64) -> f64 {
     bearings.sort_by(|a, b| a.0.total_cmp(&b.0));
     let total: f64 = bearings.iter().map(|(_, weight)| weight).sum();
-    let around: Vec<(f64, f64)> = bearings
-        .iter()
-        .copied()
-        .chain(bearings.iter().map(|&(bearing, weight)| (bearing + 360.0, weight)))
-        .collect();
+    let around: Vec<(f64, f64)> = bearings.iter().copied().chain(bearings.iter().map(|&(bearing, weight)| (bearing + 360.0, weight))).collect();
     let mut narrowest: f64 = 360.0;
     let (mut end, mut held) = (0, 0.0);
     for start in 0..bearings.len() {

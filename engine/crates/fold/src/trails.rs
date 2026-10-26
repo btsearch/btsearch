@@ -138,11 +138,15 @@ fn add_to_trail(reading: &TrailReading, contributor_bit: u64, deltas: &mut Delta
     let Some(channel) = reading.channel else {
         return;
     };
-    let square = TrailSquareKey { plmn: reading.plmn.clone(), rat: reading.rat, channel, zoom: TRAIL_ZOOM, bin: reading.square, held: reading.channel_held };
+    let square =
+        TrailSquareKey { plmn: reading.plmn.clone(), rat: reading.rat, channel, zoom: TRAIL_ZOOM, bin: reading.square, held: reading.channel_held };
     if !square.held
         && let Some(country_code) = &reading.country_code
     {
-        report.trail_square_origins.entry(square.clone()).or_insert_with(|| SquareOrigin { country_code: country_code.clone(), month: reading.day.first_of_month() });
+        report
+            .trail_square_origins
+            .entry(square.clone())
+            .or_insert_with(|| SquareOrigin { country_code: country_code.clone(), month: reading.day.first_of_month() });
     }
     let level_bucket = level_bucket(reading.level_centi_db);
     absorb_into(&mut deltas.trail_squares, square.clone(), TrailSquare { contributor_bits: contributor_bit, last_seen_on: reading.day });

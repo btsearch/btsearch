@@ -11,11 +11,7 @@ const STALE_AFTER_DAYS: i32 = 365;
 const STALE_SHARE: f64 = 0.25;
 
 fn saturated(weight_milli: i64, last_seen_on: i32, site_last_seen_on: i32) -> f64 {
-    let recency = if site_last_seen_on - last_seen_on > STALE_AFTER_DAYS {
-        STALE_SHARE
-    } else {
-        1.0
-    };
+    let recency = if site_last_seen_on - last_seen_on > STALE_AFTER_DAYS { STALE_SHARE } else { 1.0 };
     saturated_weight(weight_milli) * recency
 }
 
@@ -37,9 +33,7 @@ fn sector_squares(site: &Site, site_last_seen_on: i32, place: &impl Fn(u64) -> (
     for (channel, cells) in cells_by_channel.iter().filter(|(_, cells)| cells.len() > 1) {
         for (slot, &cell) in cells.iter().enumerate() {
             for bin in site.cells[cell].bins.iter().filter(|bin| bin.serving_weight_milli > 0) {
-                let served = served_in_square
-                    .entry((*channel, bin.square))
-                    .or_insert_with(|| cells.iter().map(|&other| (other, 0.0)).collect());
+                let served = served_in_square.entry((*channel, bin.square)).or_insert_with(|| cells.iter().map(|&other| (other, 0.0)).collect());
                 served[slot].1 = saturated(bin.serving_weight_milli, bin.last_seen_on, site_last_seen_on);
             }
         }
@@ -67,18 +61,9 @@ impl<'a> Problem<'a> {
     pub fn new(site: &Site, context: &'a Context) -> Option<Self> {
         let site_last_seen_on = site.last_seen_on()?;
         let weighted_squares = site.cells.iter().flat_map(|cell| {
-            let bins = cell.bins.iter().map(|bin| {
-                (
-                    square_centre(bin.square),
-                    saturated(bin.weight_milli, bin.last_seen_on, site_last_seen_on),
-                )
-            });
-            let timing_advance = cell.timing_advance.iter().map(|row| {
-                (
-                    square_centre(row.square),
-                    saturated(row.weight_milli, row.last_seen_on, site_last_seen_on),
-                )
-            });
+            let bins = cell.bins.iter().map(|bin| (square_centre(bin.square), saturated(bin.weight_milli, bin.last_seen_on, site_last_seen_on)));
+            let timing_advance =
+                cell.timing_advance.iter().map(|row| (square_centre(row.square), saturated(row.weight_milli, row.last_seen_on, site_last_seen_on)));
             bins.chain(timing_advance)
         });
         let plane = LocalPlane::around(weighted_centre(weighted_squares)?);
@@ -143,10 +128,8 @@ impl<'a> Problem<'a> {
             .filter(|row| row.weight > 0.0)
             .collect::<Vec<_>>();
 
-        let prior_points = levels
-            .iter()
-            .map(|row| (row.east, row.north, row.weight))
-            .chain(timing_advance.iter().map(|row| (row.east, row.north, row.weight)));
+        let prior_points =
+            levels.iter().map(|row| (row.east, row.north, row.weight)).chain(timing_advance.iter().map(|row| (row.east, row.north, row.weight)));
         let (east_sum, north_sum, total) = prior_points.fold((0.0, 0.0, 0.0), |(east, north, total), (row_east, row_north, weight)| {
             (east + row_east * weight, north + row_north * weight, total + weight)
         });
@@ -168,11 +151,7 @@ impl<'a> Problem<'a> {
             handovers,
             prior_centre: (east_sum / total, north_sum / total),
             error_tables: &context.error_tables,
-            level_models: site
-                .cells
-                .iter()
-                .map(|cell| context.level_model(cell.technology, cell.area_class))
-                .collect(),
+            level_models: site.cells.iter().map(|cell| context.level_model(cell.technology, cell.area_class)).collect(),
             levels_of_cell,
             sectors_of_cell,
             handovers_of_cell,

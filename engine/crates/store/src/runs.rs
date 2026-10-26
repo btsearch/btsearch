@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use engine_fold::identity::CellIdentity;
 use engine_fold::memory::Direction;
-use engine_geo::square::square_centre;
+use engine_geo::Point;
+use engine_geo::square::{SQUARE_ZOOM, Tile};
 use serde_json::Value;
 use tokio_postgres::{GenericClient, Transaction};
 use uuid::Uuid;
@@ -115,7 +116,9 @@ async fn reject_with_no_samples(transaction: &Transaction<'_>, upload_id: Uuid) 
 }
 
 async fn note_file_gone(transaction: &Transaction<'_>, upload_id: Uuid) -> Result<(), StoreError> {
-    transaction.execute("UPDATE observations.uploads SET object_deleted_at = now() WHERE id = $1 AND object_deleted_at IS NULL", &[&upload_id]).await?;
+    transaction
+        .execute("UPDATE observations.uploads SET object_deleted_at = now() WHERE id = $1 AND object_deleted_at IS NULL", &[&upload_id])
+        .await?;
     transaction
         .execute(
             "INSERT INTO observations.engine_runs (kind, params)
@@ -216,7 +219,8 @@ impl Store {
     }
 
     pub async fn refold_candidates(&self, params: &Value) -> Result<Vec<Uuid>, StoreError> {
-        let user_id = params.get("userId").and_then(Value::as_str).map(Uuid::parse_str).transpose().map_err(|_| StoreError::data("userId is not a uuid"))?;
+        let user_id =
+            params.get("userId").and_then(Value::as_str).map(Uuid::parse_str).transpose().map_err(|_| StoreError::data("userId is not a uuid"))?;
         let device_model_id: Option<i32> = id_param(params, "deviceModelId")?;
         let reading_block_id: Option<i16> = id_param(params, "readingBlockId")?;
         let quirk_rule_id = params.get("quirkRuleId").and_then(Value::as_str);
@@ -275,11 +279,12 @@ impl Store {
         let Some(excluded) = lock_folded(&transaction, upload_id, EXCLUDED_BUT_FOLDED).await? else {
             return Ok(Done::NotDue);
         };
-        let bounds = transaction
-            .query_one("SELECT west, south, east, north FROM observations.upload_folds WHERE upload_id = $1", &[&upload_id])
-            .await?;
+        let bounds =
+            transaction.query_one("SELECT west, south, east, north FROM observations.upload_folds WHERE upload_id = $1", &[&upload_id]).await?;
         let (west, south, east, north): (f64, f64, f64, f64) = (bounds.get(0), bounds.get(1), bounds.get(2), bounds.get(3));
         let tiles = tiles_covering(west, south, east, north);
+        let north_west = Tile::at(Point::new(north, west), SQUARE_ZOOM);
+        let south_east = Tile::at(Point::new(south, east), SQUARE_ZOOM);
         let rows = transaction
             .query(
                 "SELECT DISTINCT b.observed_cell_id, b.bin, c.plmn, c.rat::text, c.cell_key, c.observed_site_id
@@ -294,8 +299,8 @@ impl Store {
         let mut site_ids = BTreeSet::new();
         let mut identities = BTreeSet::new();
         for row in &rows {
-            let centre = square_centre(row.get::<_, i64>(1) as u64);
-            if (west..=east).contains(&centre.longitude) && (south..=north).contains(&centre.latitude) {
+            let square = Tile::from_quadkey(row.get::<_, i64>(1) as u64, SQUARE_ZOOM);
+            if (north_west.x..=south_east.x).contains(&square.x) && (north_west.y..=south_east.y).contains(&square.y) {
                 cell_ids.insert(row.get::<_, i32>(0));
                 site_ids.extend(row.get::<_, Option<i32>>(5));
                 identities.insert(CellIdentity { plmn: row.get(2), rat: rat_of_label(row.get(3))?, cell_key: row.get(4) });

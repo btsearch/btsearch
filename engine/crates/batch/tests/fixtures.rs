@@ -30,7 +30,8 @@ fn every_fixture_reads_and_keeps_every_value() {
     for path in paths {
         let document = fs::read(&path).expect("a fixture is readable");
         let (upload_id, device_id) = own_ids(&document);
-        let upload = read_document(&document, &upload_id, &device_id).unwrap_or_else(|rejection| panic!("{} is rejected: {rejection}", path.display()));
+        let upload =
+            read_document(&document, &upload_id, &device_id).unwrap_or_else(|rejection| panic!("{} is rejected: {rejection}", path.display()));
         assert!(upload.dropped_values.is_empty(), "{} drops {:?}", path.display(), upload.dropped_values);
     }
 }

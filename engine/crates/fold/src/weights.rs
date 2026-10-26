@@ -11,11 +11,7 @@ pub fn reading_weight_milli(device_weight_milli: i64, accuracy_meters: f64, spee
 }
 
 fn accuracy_factor(accuracy_meters: f64) -> f64 {
-    if accuracy_meters <= FULL_WEIGHT_ACCURACY_METERS {
-        1.0
-    } else {
-        (FULL_WEIGHT_ACCURACY_METERS / accuracy_meters).max(LOWEST_ACCURACY_FACTOR)
-    }
+    if accuracy_meters <= FULL_WEIGHT_ACCURACY_METERS { 1.0 } else { (FULL_WEIGHT_ACCURACY_METERS / accuracy_meters).max(LOWEST_ACCURACY_FACTOR) }
 }
 
 fn speed_factor(speed_meters_per_second: f64) -> f64 {

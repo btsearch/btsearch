@@ -50,10 +50,10 @@ fn search_area(problem: &Problem) -> (f64, f64, f64, f64) {
         .map(|row| (row.east, row.north))
         .chain(problem.levels.iter().map(|row| (row.east, row.north)))
         .chain(problem.sectors.iter().map(|square| (square.east, square.north)));
-    let (west, south, east, north) = points.fold(
-        (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY),
-        |(west, south, east, north), (x, y)| (west.min(x), south.min(y), east.max(x), north.max(y)),
-    );
+    let (west, south, east, north) = points
+        .fold((f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY), |(west, south, east, north), (x, y)| {
+            (west.min(x), south.min(y), east.max(x), north.max(y))
+        });
     let farthest = problem.timing_advance.iter().map(|row| row.distance_m).fold(0.0, f64::max);
     let padding = farthest.clamp(LEAST_PADDING_M, MOST_PADDING_M);
     (west - padding, south - padding, east + padding, north + padding)
@@ -62,9 +62,7 @@ fn search_area(problem: &Problem) -> (f64, f64, f64, f64) {
 fn grid_points(west: f64, south: f64, east: f64, north: f64, step: f64) -> (Vec<(f64, f64)>, usize) {
     let columns = ((east - west) / step).floor() as usize + 1;
     let rows = ((north - south) / step).floor() as usize + 1;
-    let points = (0..rows)
-        .flat_map(|row| (0..columns).map(move |column| (west + column as f64 * step, south + row as f64 * step)))
-        .collect();
+    let points = (0..rows).flat_map(|row| (0..columns).map(move |column| (west + column as f64 * step, south + row as f64 * step))).collect();
     (points, columns)
 }
 
@@ -183,10 +181,7 @@ fn derivatives(cost: &impl Fn(f64, f64) -> f64, east: f64, north: f64, centre_co
 fn solve(matrix: [[f64; 2]; 2], right: [f64; 2]) -> Option<[f64; 2]> {
     let determinant = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
     (determinant.abs() > f64::EPSILON).then(|| {
-        [
-            (right[0] * matrix[1][1] - right[1] * matrix[0][1]) / determinant,
-            (matrix[0][0] * right[1] - matrix[1][0] * right[0]) / determinant,
-        ]
+        [(right[0] * matrix[1][1] - right[1] * matrix[0][1]) / determinant, (matrix[0][0] * right[1] - matrix[1][0] * right[0]) / determinant]
     })
 }
 
@@ -198,10 +193,7 @@ fn minimise_position(cost: &impl Fn(f64, f64) -> f64, start: (f64, f64)) -> (f64
         let Derivatives { gradient, hessian } =
             *derivatives_at_position.get_or_insert_with(|| derivatives(cost, position.0, position.1, current, DERIVATIVE_STEP_M));
         let scale = hessian[0][0].abs() + hessian[1][1].abs() + 1e-9;
-        let damped = [
-            [hessian[0][0] + damping * scale, hessian[0][1]],
-            [hessian[1][0], hessian[1][1] + damping * scale],
-        ];
+        let damped = [[hessian[0][0] + damping * scale, hessian[0][1]], [hessian[1][0], hessian[1][1] + damping * scale]];
         let Some(step) = solve(damped, [-gradient[0], -gradient[1]]) else {
             damping *= DAMPING_FACTOR;
             continue;
@@ -239,12 +231,7 @@ pub(crate) fn refine(problem: &Problem, start: (f64, f64), start_parameters: &[C
             break;
         }
     }
-    Fit {
-        east: position.0,
-        north: position.1,
-        cost: problem.total_cost(position.0, position.1, &parameters),
-        parameters,
-    }
+    Fit { east: position.0, north: position.1, cost: problem.total_cost(position.0, position.1, &parameters), parameters }
 }
 
 pub(crate) fn best_fits(problem: &Problem) -> Vec<Fit> {
@@ -252,12 +239,7 @@ pub(crate) fn best_fits(problem: &Problem) -> Vec<Fit> {
         .into_iter()
         .map(|(east, north)| refine(problem, (east, north), &problem.likely_parameters(&problem.sightlines(east, north))))
         .collect();
-    fits.sort_by(|a, b| {
-        a.cost
-            .total_cmp(&b.cost)
-            .then(a.east.total_cmp(&b.east))
-            .then(a.north.total_cmp(&b.north))
-    });
+    fits.sort_by(|a, b| a.cost.total_cmp(&b.cost).then(a.east.total_cmp(&b.east)).then(a.north.total_cmp(&b.north)));
     fits
 }
 

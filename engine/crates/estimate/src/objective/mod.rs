@@ -141,10 +141,7 @@ impl Problem<'_> {
     }
 
     pub(crate) fn timing_advance_cost(&self, east: f64, north: f64) -> f64 {
-        self.timing_advance
-            .iter()
-            .map(|row| row.weight * self.error_tables[row.error_table].cost(row.residual_m(east, north)))
-            .sum()
+        self.timing_advance.iter().map(|row| row.weight * self.error_tables[row.error_table].cost(row.residual_m(east, north))).sum()
     }
 
     fn power_towards_db(parameters: &CellParameters, bearing: f64) -> f64 {
@@ -161,20 +158,10 @@ impl Problem<'_> {
 
     fn sector_cost(&self, square: &SectorSquare, bearing: f64, parameters: &[CellParameters], scaled_powers: &mut Vec<f64>) -> f64 {
         scaled_powers.clear();
-        scaled_powers.extend(
-            square
-                .served
-                .iter()
-                .map(|&(cell, _)| Self::power_towards_db(&parameters[cell], bearing) / SOFTMAX_TEMPERATURE_DB),
-        );
+        scaled_powers.extend(square.served.iter().map(|&(cell, _)| Self::power_towards_db(&parameters[cell], bearing) / SOFTMAX_TEMPERATURE_DB));
         let highest = scaled_powers.iter().copied().fold(f64::NEG_INFINITY, f64::max);
         let normaliser = highest + scaled_powers.iter().map(|power| (power - highest).exp()).sum::<f64>().ln();
-        square
-            .served
-            .iter()
-            .zip(scaled_powers.iter())
-            .map(|(&(_, weight), power)| -weight * (power - normaliser))
-            .sum()
+        square.served.iter().zip(scaled_powers.iter()).map(|(&(_, weight), power)| -weight * (power - normaliser)).sum()
     }
 
     fn handover_cost(&self, row: &HandoverRow, bearing: f64, parameters: &[CellParameters]) -> f64 {
@@ -220,12 +207,7 @@ impl Problem<'_> {
                 .zip(&sightlines.handover_bearings_deg)
                 .map(|(row, &bearing)| self.handover_cost(row, bearing, parameters))
                 .sum(),
-            levels: self
-                .levels
-                .iter()
-                .zip(&sightlines.levels)
-                .map(|(row, &sightline)| self.level_cost(row, sightline, parameters))
-                .sum(),
+            levels: self.levels.iter().zip(&sightlines.levels).map(|(row, &sightline)| self.level_cost(row, sightline, parameters)).sum(),
             prior: self.prior_cost(east, north),
         }
     }
@@ -242,23 +224,14 @@ impl Problem<'_> {
         let mut scaled_powers = Vec::new();
         let sectors: f64 = self.sectors_of_cell[cell]
             .iter()
-            .map(|&index| {
-                self.sector_cost(
-                    &self.sectors[index],
-                    sightlines.sector_bearings_deg[index],
-                    parameters,
-                    &mut scaled_powers,
-                )
-            })
+            .map(|&index| self.sector_cost(&self.sectors[index], sightlines.sector_bearings_deg[index], parameters, &mut scaled_powers))
             .sum();
         let handovers: f64 = self.handovers_of_cell[cell]
             .iter()
             .map(|&index| self.handover_cost(&self.handovers[index], sightlines.handover_bearings_deg[index], parameters))
             .sum();
-        let levels: f64 = self.levels_of_cell[cell]
-            .iter()
-            .map(|&index| self.level_cost(&self.levels[index], sightlines.levels[index], parameters))
-            .sum();
+        let levels: f64 =
+            self.levels_of_cell[cell].iter().map(|&index| self.level_cost(&self.levels[index], sightlines.levels[index], parameters)).sum();
         sectors + handovers + levels
     }
 
@@ -266,10 +239,7 @@ impl Problem<'_> {
         let at_zero = CellParameters { azimuth_deg, power_db: 0.0 };
         let (sum, total) = self.levels_of_cell[cell].iter().fold((0.0, 0.0), |(sum, total), &index| {
             let row = &self.levels[index];
-            (
-                sum + row.weight * (row.level_db - self.predicted_level_db(row, sightlines.levels[index], &at_zero)),
-                total + row.weight,
-            )
+            (sum + row.weight * (row.level_db - self.predicted_level_db(row, sightlines.levels[index], &at_zero)), total + row.weight)
         });
         if total > 0.0 { sum / total } else { 0.0 }
     }
@@ -277,14 +247,9 @@ impl Problem<'_> {
     pub(crate) fn likely_parameters(&self, sightlines: &Sightlines) -> Vec<CellParameters> {
         (0..self.cell_count)
             .map(|cell| {
-                let bearings = self.levels_of_cell[cell]
-                    .iter()
-                    .map(|&index| (sightlines.levels[index].bearing_deg, self.levels[index].weight));
+                let bearings = self.levels_of_cell[cell].iter().map(|&index| (sightlines.levels[index].bearing_deg, self.levels[index].weight));
                 let azimuth_deg = circular_mean_deg(bearings).unwrap_or(0.0);
-                CellParameters {
-                    azimuth_deg,
-                    power_db: self.fitted_power_db(cell, sightlines, azimuth_deg),
-                }
+                CellParameters { azimuth_deg, power_db: self.fitted_power_db(cell, sightlines, azimuth_deg) }
             })
             .collect()
     }
@@ -318,29 +283,14 @@ mod tests {
     }
 
     fn cell(key: i64, channel: Option<i32>, bins: Vec<Bin>, timing_advance: Vec<TimingAdvance>) -> Cell {
-        Cell {
-            key,
-            technology: Technology::Lte,
-            area_class: AreaClass::Town,
-            channel,
-            bins,
-            timing_advance,
-        }
+        Cell { key, technology: Technology::Lte, area_class: AreaClass::Town, channel, bins, timing_advance }
     }
 
     fn site(cells: Vec<Cell>) -> Site {
-        Site {
-            cells,
-            handovers: Vec::new(),
-            contributor_count: 2,
-            person_count: 2,
-        }
+        Site { cells, handovers: Vec::new(), contributor_count: 2, person_count: 2 }
     }
 
-    const ORIGIN: Point = Point {
-        latitude: 52.0,
-        longitude: 21.0,
-    };
+    const ORIGIN: Point = Point { latitude: 52.0, longitude: 21.0 };
 
     fn square_from_origin(east: f64, north: f64) -> u64 {
         square_at(LocalPlane::around(ORIGIN).to_point(east, north))
@@ -349,14 +299,7 @@ mod tests {
     #[test]
     fn the_timing_advance_term_is_lowest_at_the_distance_the_rows_give() {
         let square = square_from_origin(1_000.0, 0.0);
-        let row = TimingAdvance {
-            square,
-            distance_m: 1_000.0,
-            sample_count: 20,
-            weight_milli: 20_000,
-            last_seen_on: 20_000,
-            error_model: 0,
-        };
+        let row = TimingAdvance { square, distance_m: 1_000.0, sample_count: 20, weight_milli: 20_000, last_seen_on: 20_000, error_model: 0 };
         let context = Context::uncalibrated();
         let site = site(vec![cell(1, None, vec![bin(square, 20_000, -90.0, true)], vec![row])]);
         let problem = Problem::new(&site, &context).expect("a problem");
@@ -364,10 +307,7 @@ mod tests {
         let cost_at = |distance: f64| problem.timing_advance_cost(square_east - distance, square_north);
         assert!(cost_at(1_000.0) < cost_at(1_200.0));
         assert!(cost_at(1_000.0) < cost_at(800.0));
-        assert!(
-            cost_at(1_200.0) > cost_at(800.0),
-            "rows that say closer than the site cost more than rows that say farther"
-        );
+        assert!(cost_at(1_200.0) > cost_at(800.0), "rows that say closer than the site cost more than rows that say farther");
     }
 
     #[test]
@@ -376,41 +316,13 @@ mod tests {
         let south_square = square_from_origin(0.0, -800.0);
         let context = Context::uncalibrated();
         let site = site(vec![
-            cell(
-                1,
-                Some(100),
-                vec![bin(north_square, 30_000, -80.0, true), bin(south_square, 30_000, -95.0, false)],
-                Vec::new(),
-            ),
-            cell(
-                2,
-                Some(100),
-                vec![bin(north_square, 30_000, -95.0, false), bin(south_square, 30_000, -80.0, true)],
-                Vec::new(),
-            ),
+            cell(1, Some(100), vec![bin(north_square, 30_000, -80.0, true), bin(south_square, 30_000, -95.0, false)], Vec::new()),
+            cell(2, Some(100), vec![bin(north_square, 30_000, -95.0, false), bin(south_square, 30_000, -80.0, true)], Vec::new()),
         ]);
         let problem = Problem::new(&site, &context).expect("a problem");
         let (east, north) = problem.plane.to_plane(ORIGIN);
-        let facing = [
-            CellParameters {
-                azimuth_deg: 0.0,
-                power_db: 40.0,
-            },
-            CellParameters {
-                azimuth_deg: 180.0,
-                power_db: 40.0,
-            },
-        ];
-        let swapped = [
-            CellParameters {
-                azimuth_deg: 180.0,
-                power_db: 40.0,
-            },
-            CellParameters {
-                azimuth_deg: 0.0,
-                power_db: 40.0,
-            },
-        ];
+        let facing = [CellParameters { azimuth_deg: 0.0, power_db: 40.0 }, CellParameters { azimuth_deg: 180.0, power_db: 40.0 }];
+        let swapped = [CellParameters { azimuth_deg: 180.0, power_db: 40.0 }, CellParameters { azimuth_deg: 0.0, power_db: 40.0 }];
         let sector_cost = |parameters: &[CellParameters]| problem.terms(east, north, parameters).sectors;
         assert!(sector_cost(&facing) < sector_cost(&swapped));
     }
@@ -424,90 +336,37 @@ mod tests {
         let (east, north) = problem.plane.to_plane(ORIGIN);
         let sightlines = problem.sightlines(east, north);
         let power = problem.fitted_power_db(0, &sightlines, 90.0);
-        let fitted = [CellParameters {
-            azimuth_deg: 90.0,
-            power_db: power,
-        }];
+        let fitted = [CellParameters { azimuth_deg: 90.0, power_db: power }];
         assert!(problem.cell_cost(0, &sightlines, &fitted) < 1e-9);
-        assert!(
-            problem.cell_cost(
-                0,
-                &sightlines,
-                &[CellParameters {
-                    azimuth_deg: 90.0,
-                    power_db: power + 9.0
-                }]
-            ) > 0.0
-        );
+        assert!(problem.cell_cost(0, &sightlines, &[CellParameters { azimuth_deg: 90.0, power_db: power + 9.0 }]) > 0.0);
     }
 
     #[test]
     fn a_fitted_level_model_changes_only_the_level_term_of_its_own_technology() {
         let east_square = square_from_origin(1_000.0, 0.0);
         let north_square = square_from_origin(0.0, 600.0);
-        let row = TimingAdvance {
-            square: east_square,
-            distance_m: 1_000.0,
-            sample_count: 20,
-            weight_milli: 20_000,
-            last_seen_on: 20_000,
-            error_model: 0,
-        };
-        let gsm = Cell {
-            technology: Technology::Gsm,
-            ..cell(3, None, vec![bin(north_square, 20_000, -75.0, true)], Vec::new())
-        };
+        let row =
+            TimingAdvance { square: east_square, distance_m: 1_000.0, sample_count: 20, weight_milli: 20_000, last_seen_on: 20_000, error_model: 0 };
+        let gsm = Cell { technology: Technology::Gsm, ..cell(3, None, vec![bin(north_square, 20_000, -75.0, true)], Vec::new()) };
         let site = site(vec![
-            cell(
-                1,
-                Some(100),
-                vec![bin(east_square, 20_000, -85.0, true), bin(north_square, 20_000, -95.0, false)],
-                vec![row],
-            ),
-            cell(
-                2,
-                Some(100),
-                vec![bin(east_square, 20_000, -97.0, false), bin(north_square, 20_000, -80.0, true)],
-                Vec::new(),
-            ),
+            cell(1, Some(100), vec![bin(east_square, 20_000, -85.0, true), bin(north_square, 20_000, -95.0, false)], vec![row]),
+            cell(2, Some(100), vec![bin(east_square, 20_000, -97.0, false), bin(north_square, 20_000, -80.0, true)], Vec::new()),
             gsm,
         ]);
         let uncalibrated = Context::uncalibrated();
         let mut calibrated = Context::uncalibrated();
-        calibrated.level_models.insert(
-            (Technology::Lte, AreaClass::Town),
-            LevelModel {
-                slope_db_per_decade: 40.0,
-                scatter_db: 7.0,
-            },
-        );
+        calibrated.level_models.insert((Technology::Lte, AreaClass::Town), LevelModel { slope_db_per_decade: 40.0, scatter_db: 7.0 });
         let by_default = Problem::new(&site, &uncalibrated).expect("a problem");
         let fitted = Problem::new(&site, &calibrated).expect("a problem");
         let (east, north) = by_default.plane.to_plane(ORIGIN);
         let parameters = [
-            CellParameters {
-                azimuth_deg: 90.0,
-                power_db: 30.0,
-            },
-            CellParameters {
-                azimuth_deg: 0.0,
-                power_db: 30.0,
-            },
-            CellParameters {
-                azimuth_deg: 0.0,
-                power_db: 20.0,
-            },
+            CellParameters { azimuth_deg: 90.0, power_db: 30.0 },
+            CellParameters { azimuth_deg: 0.0, power_db: 30.0 },
+            CellParameters { azimuth_deg: 0.0, power_db: 20.0 },
         ];
         let (default_terms, fitted_terms) = (by_default.terms(east, north, &parameters), fitted.terms(east, north, &parameters));
         assert_ne!(fitted_terms.levels, default_terms.levels);
-        assert_eq!(
-            Terms {
-                levels: fitted_terms.levels,
-                ..default_terms
-            },
-            fitted_terms,
-            "every other term stays as it was"
-        );
+        assert_eq!(Terms { levels: fitted_terms.levels, ..default_terms }, fitted_terms, "every other term stays as it was");
         let gsm_cell_cost = |problem: &Problem| problem.cell_cost(2, &problem.sightlines(east, north), &parameters);
         assert_eq!(gsm_cell_cost(&by_default), gsm_cell_cost(&fitted), "the GSM cell keeps the default model");
     }

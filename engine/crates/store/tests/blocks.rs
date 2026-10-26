@@ -120,7 +120,10 @@ async fn a_new_whole_reading_block_on_a_reader_version_refolds_the_uploads_read_
         .map(|row| row.get(0))
         .collect();
     let block: i16 = client
-        .query_one("INSERT INTO observations.reading_blocks (reader_version_id, mode, reason) VALUES ($1, 'drop', 'engine test') RETURNING id", &[&version])
+        .query_one(
+            "INSERT INTO observations.reading_blocks (reader_version_id, mode, reason) VALUES ($1, 'drop', 'engine test') RETURNING id",
+            &[&version],
+        )
         .await
         .expect("a whole-reading block")
         .get(0);

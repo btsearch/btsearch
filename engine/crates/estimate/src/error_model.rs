@@ -11,16 +11,8 @@ pub struct ErrorModel {
 }
 
 impl ErrorModel {
-    pub(crate) const LTE_AND_NR_DEFAULT: Self = Self {
-        sigma_m: 40.0,
-        tail_mean_m: 80.0,
-        outlier_share: 0.02,
-    };
-    pub(crate) const GSM_DEFAULT: Self = Self {
-        sigma_m: 300.0,
-        tail_mean_m: 600.0,
-        outlier_share: 0.02,
-    };
+    pub(crate) const LTE_AND_NR_DEFAULT: Self = Self { sigma_m: 40.0, tail_mean_m: 80.0, outlier_share: 0.02 };
+    pub(crate) const GSM_DEFAULT: Self = Self { sigma_m: 300.0, tail_mean_m: 600.0, outlier_share: 0.02 };
 
     fn negative_log_likelihood(&self, residual_m: f64) -> f64 {
         let delayed = (1.0 - self.outlier_share).ln() + log_delayed_gaussian(residual_m, self.sigma_m, self.tail_mean_m);
@@ -40,13 +32,8 @@ pub struct ErrorTable {
 impl ErrorTable {
     pub fn new(model: ErrorModel) -> Self {
         let count = ((TABLE_TO_M - TABLE_FROM_M) / TABLE_STEP_M) as usize + 1;
-        let costs = (0..count)
-            .map(|index| model.negative_log_likelihood(TABLE_FROM_M + index as f64 * TABLE_STEP_M))
-            .collect();
-        Self {
-            costs,
-            outlier_cost: -model.log_outlier_density(),
-        }
+        let costs = (0..count).map(|index| model.negative_log_likelihood(TABLE_FROM_M + index as f64 * TABLE_STEP_M)).collect();
+        Self { costs, outlier_cost: -model.log_outlier_density() }
     }
 
     pub fn cost(&self, residual_m: f64) -> f64 {
@@ -72,11 +59,7 @@ fn log_delayed_gaussian(residual_m: f64, sigma_m: f64, tail_mean_m: f64) -> f64 
 
 fn log_normal_cdf(z: f64) -> f64 {
     let x = -z / std::f64::consts::SQRT_2;
-    if x >= 0.0 {
-        (0.5f64).ln() + log_erfc(x)
-    } else {
-        (1.0 - 0.5 * log_erfc(-x).exp()).ln()
-    }
+    if x >= 0.0 { (0.5f64).ln() + log_erfc(x) } else { (1.0 - 0.5 * log_erfc(-x).exp()).ln() }
 }
 
 fn log_erfc(x: f64) -> f64 {
@@ -95,13 +78,7 @@ mod tests {
 
     #[test]
     fn the_error_function_matches_known_values() {
-        for (x, erfc) in [
-            (0.0, 1.0),
-            (0.5, 0.479_500_122),
-            (1.0, 0.157_299_207),
-            (2.0, 0.004_677_735),
-            (3.0, 0.000_022_090_5),
-        ] {
+        for (x, erfc) in [(0.0, 1.0), (0.5, 0.479_500_122), (1.0, 0.157_299_207), (2.0, 0.004_677_735), (3.0, 0.000_022_090_5)] {
             assert!((log_erfc(x).exp() - erfc).abs() < 1e-6 * erfc.max(1.0), "erfc({x})");
         }
     }
@@ -109,25 +86,17 @@ mod tests {
     #[test]
     fn a_reading_closer_than_possible_costs_more_than_one_as_far_beyond() {
         let model = ErrorModel::LTE_AND_NR_DEFAULT;
-        let best = (-200..=400)
-            .map(|r| model.negative_log_likelihood(f64::from(r)))
-            .fold(f64::INFINITY, f64::min);
+        let best = (-200..=400).map(|r| model.negative_log_likelihood(f64::from(r))).fold(f64::INFINITY, f64::min);
         assert!(model.negative_log_likelihood(-150.0) > model.negative_log_likelihood(150.0) + 2.0);
         assert!(model.negative_log_likelihood(0.0) < best + 1.0);
-        assert!(
-            model.negative_log_likelihood(-5_000.0) <= -model.log_outlier_density() + 1e-9,
-            "outliers cap the cost"
-        );
+        assert!(model.negative_log_likelihood(-5_000.0) <= -model.log_outlier_density() + 1e-9, "outliers cap the cost");
     }
 
     #[test]
     fn the_table_follows_the_model() {
         let table = ErrorTable::new(ErrorModel::LTE_AND_NR_DEFAULT);
         for residual in [-2_500.5, -120.25, 0.0, 33.3, 900.0, 14_000.0] {
-            assert!(
-                (table.cost(residual) - ErrorModel::LTE_AND_NR_DEFAULT.negative_log_likelihood(residual)).abs() < 1e-3,
-                "{residual}"
-            );
+            assert!((table.cost(residual) - ErrorModel::LTE_AND_NR_DEFAULT.negative_log_likelihood(residual)).abs() < 1e-3, "{residual}");
         }
         assert_eq!(table.cost(-50_000.0), table.cost(80_000.0));
     }

@@ -11,10 +11,7 @@ use engine_geo::Point;
 use engine_geo::plane::LocalPlane;
 use engine_geo::square::{offset_centimetres, square_at};
 
-pub const SITE: Point = Point {
-    latitude: 52.2297,
-    longitude: 21.0122,
-};
+pub const SITE: Point = Point { latitude: 52.2297, longitude: 21.0122 };
 pub const DAY: i32 = 20_400;
 const READING_WEIGHT_MILLI: i64 = 1_000;
 const CHANNEL: i32 = 1_300;
@@ -30,11 +27,7 @@ pub fn three_sectors() -> Vec<Sector> {
     [0.0, 120.0, 240.0]
         .into_iter()
         .enumerate()
-        .map(|(index, azimuth_deg)| Sector {
-            key: 31_604_736 + index as i64 + 1,
-            azimuth_deg,
-            power_db: 40.0,
-        })
+        .map(|(index, azimuth_deg)| Sector { key: 31_604_736 + index as i64 + 1, azimuth_deg, power_db: 40.0 })
         .collect()
 }
 
@@ -160,12 +153,7 @@ pub fn site_of(technology: Technology, sectors: &[Sector], readings: &[(f64, f64
             timing_advance,
         })
         .collect();
-    Site {
-        cells,
-        handovers: Vec::new(),
-        contributor_count: 3,
-        person_count: 2,
-    }
+    Site { cells, handovers: Vec::new(), contributor_count: 3, person_count: 2 }
 }
 
 pub fn timing_advance_only(key: i64, readings: &[(f64, f64)], site_at: (f64, f64)) -> Cell {
@@ -182,14 +170,7 @@ pub fn timing_advance_only(key: i64, readings: &[(f64, f64)], site_at: (f64, f64
             error_model: uncalibrated_error_table(Technology::Lte),
         })
         .collect();
-    Cell {
-        key,
-        technology: Technology::Lte,
-        area_class: AreaClass::Town,
-        channel: None,
-        bins: Vec::new(),
-        timing_advance,
-    }
+    Cell { key, technology: Technology::Lte, area_class: AreaClass::Town, channel: None, bins: Vec::new(), timing_advance }
 }
 
 pub fn metres_from_site(point: Point) -> f64 {

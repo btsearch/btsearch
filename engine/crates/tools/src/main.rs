@@ -87,7 +87,14 @@ fn run_async(task: impl Future<Output = anyhow::Result<()>>) -> anyhow::Result<(
 }
 
 fn launch_block() -> ReadingBlock {
-    ReadingBlock { id: 1, reader_version: None, rats: None, roles: None, fields: Some(vec![BlockField::Pci, BlockField::Channel]), mode: BlockMode::Corroborate }
+    ReadingBlock {
+        id: 1,
+        reader_version: None,
+        rats: None,
+        roles: None,
+        fields: Some(vec![BlockField::Pci, BlockField::Channel]),
+        mode: BlockMode::Corroborate,
+    }
 }
 
 fn standalone_inputs<'a>(outlines: &'a CountryOutlines, received_at_millis: i64, device_id: &str, with_launch_block: bool) -> FoldInputs<'a> {
@@ -114,7 +121,8 @@ fn fold_file(file: &Path, received_at: Option<i64>, with_launch_block: bool) -> 
     let ids: serde_json::Value = serde_json::from_slice(&document).context("the file is not JSON")?;
     let id = |name: &str| ids[name].as_str().map(str::to_owned).with_context(|| format!("the document has no {name}"));
     let (upload_id, device_id) = (id("uploadId")?, id("deviceId")?);
-    let read = read_document(&document, &upload_id, &device_id).map_err(|rejection| anyhow::anyhow!("rejected as {}: {rejection}", rejection.reason()))?;
+    let read =
+        read_document(&document, &upload_id, &device_id).map_err(|rejection| anyhow::anyhow!("rejected as {}: {rejection}", rejection.reason()))?;
     let outlines = CountryOutlines::new(Vec::new());
     let received_at_millis = received_at.unwrap_or_else(|| an_hour_after_clock(&read.batch));
     let folded = fold(&read.batch, &standalone_inputs(&outlines, received_at_millis, &device_id, with_launch_block));

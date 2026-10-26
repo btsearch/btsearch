@@ -74,12 +74,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
 
     let mut tasks = JoinSet::new();
     tasks.spawn(wake::listen(store.clone(), wake.clone(), shutdown.clone()));
-    tasks.spawn(upkeep::heartbeat(
-        store.clone(),
-        config.instance.clone(),
-        Timestamp::now(),
-        shutdown.clone(),
-    ));
+    tasks.spawn(upkeep::heartbeat(store.clone(), config.instance.clone(), Timestamp::now(), shutdown.clone()));
     tasks.spawn(upkeep::country_outlines(store.clone(), shutdown.clone()));
     tasks.spawn(upkeep::trail_pyramid(store.clone(), shutdown.clone()));
     for _ in 0..config.fold_workers {

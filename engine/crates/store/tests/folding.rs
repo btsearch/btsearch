@@ -28,7 +28,11 @@ async fn an_upload_is_folded_once_with_its_own_rows() {
     let id = upload.upload_id;
     assert_eq!(harness.count(&format!("SELECT count(*) FROM observations.upload_folds WHERE upload_id = '{id}'")).await, 1);
     assert_eq!(harness.count(&format!("SELECT count(*) FROM observations.upload_ta_groups WHERE upload_id = '{id}'")).await, 1);
-    assert_eq!(harness.count("SELECT count(*) FROM observations.cell_values WHERE held").await, 2, "the Samsung modem's serving PCI and channel are held");
+    assert_eq!(
+        harness.count("SELECT count(*) FROM observations.cell_values WHERE held").await,
+        2,
+        "the Samsung modem's serving PCI and channel are held"
+    );
     assert_eq!(harness.count(&format!("SELECT sum(held_count) FROM observations.upload_blocked_values WHERE upload_id = '{id}'")).await, 6);
     assert_eq!(harness.count("SELECT count(*) FROM observations.observed_sites WHERE node_id = 123456").await, 1, "eNB 123456 is a site at once");
     assert_eq!(harness.count("SELECT count(*) FROM observations.match_queue").await, 1);
@@ -137,7 +141,9 @@ async fn a_withdrawal_during_a_fold_never_waits_and_the_fold_writes_nothing() {
 
     let mut blocker = harness.store.database.pool.get().await.expect("a connection");
     let held = blocker.transaction().await.expect("a transaction");
-    held.execute("INSERT INTO observations.dirty_sites (observed_site_id) VALUES ($1)", &[&i32::try_from(site_id).expect("a site id")]).await.expect("the site is held");
+    held.execute("INSERT INTO observations.dirty_sites (observed_site_id) VALUES ($1)", &[&i32::try_from(site_id).expect("a site id")])
+        .await
+        .expect("the site is held");
 
     let claim = harness.claim(upload.upload_id).await;
     let store = harness.store.clone();
@@ -197,10 +203,14 @@ async fn an_upload_that_failed_five_times_is_rejected() {
     let upload = fixture_upload("appendix-a.json", 7);
     harness.seed_phone(upload.device_id, "samsung").await;
     harness.store_upload(&upload).await;
-    harness.execute(&format!("UPDATE observations.uploads SET attempts = 5, last_error = 'the fold stopped' WHERE id = '{}'", upload.upload_id)).await;
+    harness
+        .execute(&format!("UPDATE observations.uploads SET attempts = 5, last_error = 'the fold stopped' WHERE id = '{}'", upload.upload_id))
+        .await;
 
     let mut client = harness.store.database.pool.get().await.expect("a connection");
-    assert!(matches!(queue::claim_upload(&mut client).await.expect("the queue reads"), Claimed::GaveUp { upload_id } if upload_id == upload.upload_id));
+    assert!(
+        matches!(queue::claim_upload(&mut client).await.expect("the queue reads"), Claimed::GaveUp { upload_id } if upload_id == upload.upload_id)
+    );
     assert_eq!(harness.status(upload.upload_id).await, ("rejected".to_owned(), Some("processingFailed".to_owned())));
 }
 

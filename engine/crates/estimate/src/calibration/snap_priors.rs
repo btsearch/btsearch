@@ -15,11 +15,7 @@ pub fn fit_snap_priors(cases: &[SnapCase], kinds: usize) -> Vec<f64> {
         let mut gradients: Vec<f64> = log_priors.iter().map(|log_prior| -PRIOR_PULL * log_prior).collect();
         let mut curvatures = vec![PRIOR_PULL; kinds];
         for case in cases {
-            let weights: Vec<f64> = case
-                .tested
-                .iter()
-                .map(|&(kind, difference)| (-difference + log_priors[kind]).exp())
-                .collect();
+            let weights: Vec<f64> = case.tested.iter().map(|&(kind, difference)| (-difference + log_priors[kind]).exp()).collect();
             let total = 1.0 + weights.iter().sum::<f64>();
             let mut share_of_kind = vec![0.0; kinds];
             for (&(kind, _), weight) in case.tested.iter().zip(&weights) {
@@ -47,12 +43,7 @@ mod tests {
 
     #[test]
     fn a_kind_that_is_always_right_earns_a_larger_prior() {
-        let cases: Vec<SnapCase> = (0..200)
-            .map(|_| SnapCase {
-                tested: vec![(0, 0.5), (1, 0.5)],
-                right: Some(0),
-            })
-            .collect();
+        let cases: Vec<SnapCase> = (0..200).map(|_| SnapCase { tested: vec![(0, 0.5), (1, 0.5)], right: Some(0) }).collect();
         let priors = fit_snap_priors(&cases, 2);
         assert!(priors[0] > 3.0 && priors[1] < 1.0, "{priors:?}");
     }

@@ -34,10 +34,7 @@ pub fn decide(tested: &[Tested], none_prior: f64) -> Snap {
     let mut order: Vec<usize> = (0..tested.len()).collect();
     order.sort_by(|&a, &b| tested[a].difference.total_cmp(&tested[b].difference).then(a.cmp(&b)));
     let snapped = order.first().copied().filter(|&best| {
-        tested[best].difference <= SNAP_THRESHOLD
-            && order
-                .get(1)
-                .is_none_or(|&next| tested[next].difference >= tested[best].difference + SNAP_MARGIN)
+        tested[best].difference <= SNAP_THRESHOLD && order.get(1).is_none_or(|&next| tested[next].difference >= tested[best].difference + SNAP_MARGIN)
     });
     Snap { snapped, probabilities }
 }

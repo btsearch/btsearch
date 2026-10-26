@@ -86,7 +86,14 @@ pub fn inputs(outlines: &CountryOutlines) -> FoldInputs<'_> {
 }
 
 pub fn launch_block() -> ReadingBlock {
-    ReadingBlock { id: 1, reader_version: None, rats: None, roles: None, fields: Some(vec![BlockField::Pci, BlockField::Channel]), mode: BlockMode::Corroborate }
+    ReadingBlock {
+        id: 1,
+        reader_version: None,
+        rats: None,
+        roles: None,
+        fields: Some(vec![BlockField::Pci, BlockField::Channel]),
+        mode: BlockMode::Corroborate,
+    }
 }
 
 pub struct Leg {

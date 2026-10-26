@@ -116,7 +116,16 @@ pub async fn test_lengths(client: &Client, run_id: i32) -> Result<usize, StoreEr
                 .execute(
                     "INSERT INTO observations.gnb_length_tests (evaluation_run_id, plmn, length, is_cut_length, cells, together, apart, sites)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-                    &[&run_id, plmn, &(result.length as i16), &(cut == Some(result.length)), &result.cells, &result.together, &result.apart, &result.sites],
+                    &[
+                        &run_id,
+                        plmn,
+                        &(result.length as i16),
+                        &(cut == Some(result.length)),
+                        &result.cells,
+                        &result.together,
+                        &result.apart,
+                        &result.sites,
+                    ],
                 )
                 .await?;
         }

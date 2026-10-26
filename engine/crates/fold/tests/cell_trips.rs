@@ -84,7 +84,10 @@ fn trips_are_counted_per_cell_and_per_device() {
     let digest = digest_of(&[&phone, &other_phone]);
     let counts: Vec<(i64, &str, i64)> =
         digest.tables.cell_contributors.iter().map(|(key, row)| (key.cell.cell_key, key.device_id.as_str(), row.trip_count)).collect();
-    assert_eq!(counts, [(31_604_747, DEVICE_ID, 2), (31_604_747, SECOND_DEVICE_ID, 2), (31_604_748, DEVICE_ID, 1), (31_604_748, SECOND_DEVICE_ID, 1)]);
+    assert_eq!(
+        counts,
+        [(31_604_747, DEVICE_ID, 2), (31_604_747, SECOND_DEVICE_ID, 2), (31_604_748, DEVICE_ID, 1), (31_604_748, SECOND_DEVICE_ID, 1)]
+    );
 }
 
 #[test]

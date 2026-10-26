@@ -476,7 +476,7 @@ export const deviceScores = ObservationsSchema.table(
       "device_scores_counts_nonnegative",
       sql`${t.readings} >= 0 AND ${t.taOnConfirmed} >= 0 AND ${t.taWithinTolerance} BETWEEN 0 AND ${t.taOnConfirmed} AND ${t.droppedImplausible} >= 0 AND ${t.mockReadings} >= 0 AND ${t.phantomCells} >= 0`,
     ),
-    check("device_scores_factor_range", sql`${t.factor} BETWEEN 0.2 AND 1.2`),
+    check("device_scores_factor_range", sql`${t.factor} BETWEEN 0.2::real AND 1.2::real`),
   ],
 );
 

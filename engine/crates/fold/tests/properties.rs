@@ -16,7 +16,12 @@ struct Variation {
 }
 
 fn variation() -> impl Strategy<Value = Variation> {
-    (0..8_usize, -2_000.0..2_000.0, -2_000.0..2_000.0, -10..10_i64).prop_map(|(fixture, north_meters, east_meters, level_shift)| Variation { fixture, north_meters, east_meters, level_shift })
+    (0..8_usize, -2_000.0..2_000.0, -2_000.0..2_000.0, -10..10_i64).prop_map(|(fixture, north_meters, east_meters, level_shift)| Variation {
+        fixture,
+        north_meters,
+        east_meters,
+        level_shift,
+    })
 }
 
 fn uploads(variations: &[Variation]) -> Vec<Batch> {
@@ -98,7 +103,11 @@ proptest! {
 fn counts_of(digest: &MemoryDigest) -> String {
     let tables = &digest.tables;
     let mut lines = Vec::new();
-    lines.extend(tables.cell_bins.iter().map(|(key, row)| format!("{key:?} {} {} {} {} {}", row.sample_count, row.weight_milli, row.level_wsum, row.level_wsq, row.offset_x_wsum)));
+    lines.extend(
+        tables.cell_bins.iter().map(|(key, row)| {
+            format!("{key:?} {} {} {} {} {}", row.sample_count, row.weight_milli, row.level_wsum, row.level_wsq, row.offset_x_wsum)
+        }),
+    );
     lines.extend(tables.cell_ta_bins.iter().map(|(key, row)| format!("{key:?} {} {}", row.sample_count, row.weight_milli)));
     lines.extend(tables.cell_values.iter().map(|(key, row)| format!("{key:?} {}", row.sample_count)));
     lines.extend(tables.cell_networks.iter().map(|(key, row)| format!("{key:?} {}", row.sample_count)));

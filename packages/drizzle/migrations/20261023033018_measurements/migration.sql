@@ -708,7 +708,7 @@ CREATE TABLE "observations"."device_scores" (
 	"factor" real NOT NULL,
 	CONSTRAINT "device_scores_pkey" PRIMARY KEY("device_id","scored_on"),
 	CONSTRAINT "device_scores_counts_nonnegative" CHECK ("readings" >= 0 AND "ta_on_confirmed" >= 0 AND "ta_within_tolerance" BETWEEN 0 AND "ta_on_confirmed" AND "dropped_implausible" >= 0 AND "mock_readings" >= 0 AND "phantom_cells" >= 0),
-	CONSTRAINT "device_scores_factor_range" CHECK ("factor" BETWEEN 0.2 AND 1.2)
+	CONSTRAINT "device_scores_factor_range" CHECK ("factor" BETWEEN 0.2::real AND 1.2::real)
 );
 --> statement-breakpoint
 CREATE TABLE "observations"."calibration_runs" (

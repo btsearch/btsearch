@@ -82,9 +82,7 @@ fn most_sampled_technology(site: &Site) -> Option<Technology> {
 }
 
 async fn site_rats(client: &impl GenericClient, site_ids: &[i32]) -> Result<BTreeMap<i32, String>, StoreError> {
-    let rows = client
-        .query("SELECT id, rat::text FROM observations.observed_sites WHERE id = ANY($1) AND rat IS NOT NULL", &[&site_ids])
-        .await?;
+    let rows = client.query("SELECT id, rat::text FROM observations.observed_sites WHERE id = ANY($1) AND rat IS NOT NULL", &[&site_ids]).await?;
     Ok(rows.iter().map(|row| (row.get(0), row.get(1))).collect())
 }
 
@@ -102,7 +100,13 @@ async fn scoring_sites(client: &impl GenericClient, stations: &BTreeMap<i32, Gro
     Ok(rows.iter().map(|row| (row.get(0), row.get(1))).collect())
 }
 
-async fn dominant(client: &impl GenericClient, site_ids: &[i32], table: &str, column: &str, weight: &str) -> Result<BTreeMap<i32, String>, StoreError> {
+async fn dominant(
+    client: &impl GenericClient,
+    site_ids: &[i32],
+    table: &str,
+    column: &str,
+    weight: &str,
+) -> Result<BTreeMap<i32, String>, StoreError> {
     let rows = client
         .query(
             &format!(
@@ -207,7 +211,9 @@ async fn score_snaps(client: &Client, calibrated: &Calibrated, scored: &[Scored<
         let candidates = candidates_for(shown, &near);
         let is_right = |candidate: &Candidate| match candidate.target {
             Target::Location(id) => id == site.station.location_id,
-            Target::OfficialSite(id) => permitted.contains(&(site.station_id, id)) || distance_meters(candidate.point, site.station.point) <= RIGHT_WITHIN_M,
+            Target::OfficialSite(id) => {
+                permitted.contains(&(site.station_id, id)) || distance_meters(candidate.point, site.station.point) <= RIGHT_WITHIN_M
+            }
             Target::OtherSite(id) => other_locations.get(&id).copied().flatten() == Some(site.station.location_id),
             Target::Candidate(_) => distance_meters(candidate.point, site.station.point) <= RIGHT_WITHIN_M,
         };

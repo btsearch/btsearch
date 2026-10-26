@@ -94,7 +94,10 @@ async fn the_corpus_gets_estimates_and_confirmations() {
     assert!(estimated > 0);
     assert_eq!(harness.count("SELECT count(*) FROM observations.site_estimates").await as usize, estimated);
     assert_eq!(harness.count("SELECT count(*) FROM observations.dirty_sites WHERE dirty_since <= now() - interval '2 minutes'").await, 0);
-    assert!(harness.count("SELECT count(*) FROM observations.site_confirmations").await > 0, "four devices of four people on several days confirm sites");
+    assert!(
+        harness.count("SELECT count(*) FROM observations.site_confirmations").await > 0,
+        "four devices of four people on several days confirm sites"
+    );
     assert!(harness.count("SELECT count(*) FROM observations.match_queue").await > 0, "estimated sites go back to the matcher");
 
     harness
@@ -150,7 +153,10 @@ async fn the_rows_around_the_sites_do_not_depend_on_the_order() {
     }
     settle(&harness).await;
     let (forward_estimates, forward) = (estimates(&harness).await, rows_around_the_sites(&harness).await);
-    assert!(harness.count("SELECT count(*) FROM observations.snap_tests WHERE candidate_id IS NOT NULL AND is_snap").await > 0, "a mast where the site stands is snapped to");
+    assert!(
+        harness.count("SELECT count(*) FROM observations.snap_tests WHERE candidate_id IS NOT NULL AND is_snap").await > 0,
+        "a mast where the site stands is snapped to"
+    );
 
     harness.execute(FORGET_THE_SITES).await;
     harness.store.estimate_sites(&ids.iter().rev().copied().collect::<Vec<_>>()).await.expect("the sites are estimated");
@@ -173,7 +179,7 @@ const REGION_UNDER_THE_CORPUS: &str = "
     ),
     outline AS (
       INSERT INTO public.region_boundaries (region_id, geom, source)
-      SELECT id, ST_Multi(ST_MakeEnvelope(14, 49, 24.5, 55, 4326)), 'engine test' FROM region
+      SELECT id, ST_Multi(ST_MakeEnvelope(13, 49, 24.5, 55, 4326)), 'engine test' FROM region
       RETURNING region_id, geom
     )
     INSERT INTO public.region_lookup (region_id, geom) SELECT region_id, (ST_Dump(geom)).geom FROM outline";

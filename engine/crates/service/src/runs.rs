@@ -63,20 +63,11 @@ struct Progress {
 
 impl Progress {
     fn without_run() -> Self {
-        Self {
-            run_id: None,
-            total: None,
-            done: 0,
-            failed: Vec::new(),
-            written_at: Instant::now(),
-        }
+        Self { run_id: None, total: None, done: 0, failed: Vec::new(), written_at: Instant::now() }
     }
 
     fn of(run: &Run) -> Self {
-        Self {
-            run_id: Some(run.id),
-            ..Self::without_run()
-        }
+        Self { run_id: Some(run.id), ..Self::without_run() }
     }
 
     async fn note(&mut self, store: &Store, upload_id: Uuid, result: &Result<Done, StoreError>) {
@@ -237,14 +228,9 @@ async fn reestimate(store: &Store) -> Result<usize, StoreError> {
 
 async fn rebuild_trails(store: &Store, run: &Run, progress: &mut Progress) -> Result<(), StoreError> {
     let bound = |name: &str| {
-        run.params
-            .get(name)
-            .and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| StoreError::data(format!("rebuildTrails names its area with {name}")))
+        run.params.get(name).and_then(serde_json::Value::as_f64).ok_or_else(|| StoreError::data(format!("rebuildTrails names its area with {name}")))
     };
-    let tiles = store
-        .rebuild_trails_in(bound("west")?, bound("south")?, bound("east")?, bound("north")?)
-        .await?;
+    let tiles = store.rebuild_trails_in(bound("west")?, bound("south")?, bound("east")?, bound("north")?).await?;
     progress.done = tiles;
     Ok(())
 }

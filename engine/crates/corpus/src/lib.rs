@@ -104,7 +104,8 @@ fn moved(fixture: &Value, upload_id: Uuid, device_id: Uuid, east_meters: f64, no
 fn last_reading_millis(document: &Value) -> i64 {
     let elapsed_at_clock = document["clock"]["elapsedRealtimeMillis"].as_i64().unwrap_or_default();
     let epoch_at_clock = document["clock"]["epochMillis"].as_i64().unwrap_or_default();
-    let times = ["fixes", "snapshots"].into_iter().flat_map(|list| document[list].as_array().into_iter().flatten()).filter_map(|item| item["t"].as_i64());
+    let times =
+        ["fixes", "snapshots"].into_iter().flat_map(|list| document[list].as_array().into_iter().flatten()).filter_map(|item| item["t"].as_i64());
     let latest = times.fold(elapsed_at_clock, i64::max);
     epoch_at_clock + (latest - elapsed_at_clock)
 }

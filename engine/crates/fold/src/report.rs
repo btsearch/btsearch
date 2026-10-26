@@ -221,7 +221,8 @@ impl FoldReport {
     }
 
     pub(crate) fn correct(&mut self, rule: &str, reader_name: &str) {
-        let correction = self.corrections.entry(rule.to_owned()).or_insert_with(|| Correction { reader_name: reader_name.to_owned(), value_count: 0 });
+        let correction =
+            self.corrections.entry(rule.to_owned()).or_insert_with(|| Correction { reader_name: reader_name.to_owned(), value_count: 0 });
         correction.value_count += 1;
     }
 

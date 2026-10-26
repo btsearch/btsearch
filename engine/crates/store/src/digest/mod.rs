@@ -74,6 +74,12 @@ pub async fn prepare_session(client: &Client) -> Result<(), StoreError> {
     Ok(())
 }
 
+async fn empty_delta_tables(transaction: &Transaction<'_>) -> Result<(), StoreError> {
+    let digest_tables: Vec<String> = DIGEST.iter().map(|table| table.delta_table()).collect();
+    transaction.batch_execute(&format!("TRUNCATE {DELTA_SITES}, {DELTA_CELLS}, {}", digest_tables.join(", "))).await?;
+    Ok(())
+}
+
 pub async fn apply(
     transaction: &Transaction<'_>,
     types: &CopyTypes,
@@ -81,6 +87,7 @@ pub async fn apply(
     upload: &Upload<'_>,
     direction: Direction,
 ) -> Result<Touched, StoreError> {
+    empty_delta_tables(transaction).await?;
     let writer = Writer { transaction, types, direction };
     let cells = writer.observed_cells(&deltas.cells(), upload.id).await?;
 

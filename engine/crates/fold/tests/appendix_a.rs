@@ -64,7 +64,10 @@ fn a_samsung_modem_folds_appendix_a_as_the_plan_shows_it() {
     assert_eq!(links, [&NsaKey { anchor: serving(), nr_arfcn: 636_666, nr_pci: 512, held: true }]);
 
     let [(person_key, person)] = deltas.person_trail_bins.iter().collect::<Vec<_>>()[..] else { panic!("one square of the person's trail") };
-    assert_eq!((person_key.user_id.as_str(), person_key.plmn.as_str(), person_key.rat, person_key.bin, person.sample_count), (USER_ID, "26006", Rat::Lte, neighbour_bin, 1));
+    assert_eq!(
+        (person_key.user_id.as_str(), person_key.plmn.as_str(), person_key.rat, person_key.bin, person.sample_count),
+        (USER_ID, "26006", Rat::Lte, neighbour_bin, 1)
+    );
     assert!(deltas.trail_squares.is_empty(), "the reading lies in the first and last 100 m of a trip");
     assert_eq!(fold.report.blocked_values.get(&1).map(|counts| (counts.held, counts.dropped)), Some((6, 0)));
 }
@@ -73,7 +76,8 @@ fn a_samsung_modem_folds_appendix_a_as_the_plan_shows_it() {
 fn a_drop_block_on_the_pci_drops_neighbours_whole() {
     let outlines = no_outlines();
     let mut inputs = inputs(&outlines);
-    inputs.reading_blocks = vec![ReadingBlock { id: 2, reader_version: None, rats: None, roles: None, fields: Some(vec![BlockField::Pci]), mode: BlockMode::Drop }];
+    inputs.reading_blocks =
+        vec![ReadingBlock { id: 2, reader_version: None, rats: None, roles: None, fields: Some(vec![BlockField::Pci]), mode: BlockMode::Drop }];
     let fold = fold(&fixture("appendix-a.json"), &inputs);
 
     assert_eq!(fold.report.drops.get(&DropReason::ReadingBlock), Some(&2));
@@ -96,7 +100,9 @@ fn the_comparison_with_our_station_is_kept_with_the_upload_and_changes_no_digest
     let as_json = |fold: &engine_fold::Fold| serde_json::to_value(&fold.deltas).expect("the deltas serialize");
     assert_eq!(as_json(&checked), as_json(&plain));
 
-    let [(key, samples)] = checked.report.ta_residuals.iter().collect::<Vec<_>>()[..] else { panic!("one residual: {:?}", checked.report.ta_residuals) };
+    let [(key, samples)] = checked.report.ta_residuals.iter().collect::<Vec<_>>()[..] else {
+        panic!("one residual: {:?}", checked.report.ta_residuals)
+    };
     assert_eq!((key.station_id, key.timing_advance, *samples), (7, 12, 1));
     assert!((f64::from(key.distance_bucket) * 10.0 - 900.0).abs() <= 20.0, "{}", key.distance_bucket);
     let reader = checked.report.readers.values().next().expect("one reader");

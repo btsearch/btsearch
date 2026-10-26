@@ -16,22 +16,12 @@ use engine_geo::square::Tile;
 const OTHER_CHANNEL: i32 = 6_200;
 
 fn sectors_from(first_key: i64, azimuths: [f64; 3]) -> Vec<Sector> {
-    azimuths
-        .into_iter()
-        .enumerate()
-        .map(|(index, azimuth_deg)| Sector {
-            key: first_key + index as i64,
-            azimuth_deg,
-            power_db: 40.0,
-        })
-        .collect()
+    azimuths.into_iter().enumerate().map(|(index, azimuth_deg)| Sector { key: first_key + index as i64, azimuth_deg, power_db: 40.0 }).collect()
 }
 
 fn measured_site(sectors: &[Sector], at: (f64, f64)) -> Site {
-    let readings: Vec<(f64, f64)> = ring_of_readings(300.0, 3_000.0, 300.0, 6.0)
-        .into_iter()
-        .map(|(east, north)| (east + at.0, north + at.1))
-        .collect();
+    let readings: Vec<(f64, f64)> =
+        ring_of_readings(300.0, 3_000.0, 300.0, 6.0).into_iter().map(|(east, north)| (east + at.0, north + at.1)).collect();
     site_from_readings(sectors, &readings, at, true)
 }
 
@@ -47,10 +37,7 @@ fn two_sites_on_one_mast_are_a_group_and_a_mast_beside_them_is_not() {
     let enb = measured_site(&three_sectors(), (0.0, 0.0));
     let gnb = on_channel(measured_site(&sectors_from(41_000_001, [60.0, 180.0, 300.0]), (0.0, 0.0)), OTHER_CHANNEL);
     let beside = measured_site(&sectors_from(51_000_001, [0.0, 120.0, 240.0]), (700.0, 0.0));
-    let estimates: Vec<Estimate> = [&enb, &gnb, &beside]
-        .iter()
-        .map(|site| estimate(site, &context()).expect("an estimate"))
-        .collect();
+    let estimates: Vec<Estimate> = [&enb, &gnb, &beside].iter().map(|site| estimate(site, &context()).expect("an estimate")).collect();
 
     let sites = [(&enb, &estimates[0]), (&gnb, &estimates[1]), (&beside, &estimates[2])];
     let groups = form_groups(&sites, &context());
@@ -68,11 +55,7 @@ fn two_sites_on_one_mast_are_a_group_and_a_mast_beside_them_is_not() {
 
     let reversed = form_groups(&[sites[2], sites[1], sites[0]], &context());
     let reversed_members: Vec<Vec<usize>> = reversed.iter().map(|group| group.members.clone()).collect();
-    assert_eq!(
-        reversed_members,
-        vec![vec![0], vec![1, 2]],
-        "the same sites in another order group the same way"
-    );
+    assert_eq!(reversed_members, vec![vec![0], vec![1, 2]], "the same sites in another order group the same way");
 }
 
 #[test]
@@ -91,20 +74,7 @@ fn an_estimate_snaps_to_the_mast_it_stands_on_and_not_between_two() {
     let near = difference_at(&site, &fit, &context(), plane().to_point(east + 5.0, north)).expect("a difference");
     let far = difference_at(&site, &fit, &context(), plane().to_point(2_000.0, 0.0)).expect("a difference");
     assert!(near <= SNAP_THRESHOLD && far > 100.0, "{near} near, {far} far");
-    assert_eq!(
-        decide(
-            &[
-                Tested { difference: far, prior: 1.0 },
-                Tested {
-                    difference: near,
-                    prior: 1.0
-                }
-            ],
-            1.0
-        )
-        .snapped,
-        Some(1)
-    );
+    assert_eq!(decide(&[Tested { difference: far, prior: 1.0 }, Tested { difference: near, prior: 1.0 }], 1.0).snapped, Some(1));
 
     let either_side: Vec<Tested> = [-15.0, 15.0]
         .into_iter()
@@ -138,11 +108,7 @@ struct NetworkWithin {
 impl Surroundings for NetworkWithin {
     fn beyond(&self, square: u64, _: &Cell) -> Beyond {
         let centre = Tile::from_quadkey(square, EDGE_ZOOM).centre();
-        if distance_meters(centre, self.site) <= self.metres {
-            Beyond::SameLayer
-        } else {
-            Beyond::Nobody
-        }
+        if distance_meters(centre, self.site) <= self.metres { Beyond::SameLayer } else { Beyond::Nobody }
     }
 }
 
@@ -196,37 +162,18 @@ fn three_sectors_give_three_shapes_whose_edges_meet() {
     let shapes: Vec<_> = site.cells.iter().map(|cell| shape_of(cell, &fit).expect("a shape")).collect();
     let mut borders = Vec::new();
     for ((shape, cell), sector) in shapes.iter().zip(&site.cells).zip(&sectors) {
-        assert!(
-            angle_between_deg(shape.bearing_deg, sector.azimuth_deg) < 15.0,
-            "{} for {}",
-            shape.bearing_deg,
-            sector.azimuth_deg
-        );
-        assert!(
-            shape.spread_deg < 180.0 && shape.reach_m > 800 && shape.reach_m <= 1_000,
-            "{} deg, {} m",
-            shape.spread_deg,
-            shape.reach_m
-        );
+        assert!(angle_between_deg(shape.bearing_deg, sector.azimuth_deg) < 15.0, "{} for {}", shape.bearing_deg, sector.azimuth_deg);
+        assert!(shape.spread_deg < 180.0 && shape.reach_m > 800 && shape.reach_m <= 1_000, "{} deg, {} m", shape.spread_deg, shape.reach_m);
         assert!(shape.footprint.len() >= 3 && shape.footprint.len() <= 64);
         assert!(!shape.profile.is_empty());
         let edges = edges_of(cell, shape, fit.point, &network);
-        assert!(
-            edges.iter().any(|edge| edge.kind == EdgeKind::Unmeasured),
-            "the outer arc is where people stopped"
-        );
-        let handed_over = edges
-            .iter()
-            .find(|edge| edge.kind == EdgeKind::HandedOver)
-            .expect("a border with the other sectors");
+        assert!(edges.iter().any(|edge| edge.kind == EdgeKind::Unmeasured), "the outer arc is where people stopped");
+        let handed_over = edges.iter().find(|edge| edge.kind == EdgeKind::HandedOver).expect("a border with the other sectors");
         borders.push(handed_over.pieces.iter().flatten().copied().collect::<Vec<Point>>());
     }
     for (index, border) in borders.iter().enumerate() {
         let next = &borders[(index + 1) % borders.len()];
-        let closest = border
-            .iter()
-            .flat_map(|a| next.iter().map(move |b| distance_meters(*a, *b)))
-            .fold(f64::INFINITY, f64::min);
+        let closest = border.iter().flat_map(|a| next.iter().map(move |b| distance_meters(*a, *b))).fold(f64::INFINITY, f64::min);
         assert!(closest < 75.0, "sectors {index} and the next meet; {closest} m apart");
     }
 }
@@ -239,8 +186,5 @@ fn a_cell_measured_mostly_standing_still_gets_no_shape() {
     for bin in &mut cell.bins {
         bin.stationary_count = (bin.sample_count + 1) / 2;
     }
-    assert!(
-        shape_of(cell, &known_estimate()).is_none(),
-        "a square where at least half the samples stood still is never shown"
-    );
+    assert!(shape_of(cell, &known_estimate()).is_none(), "a square where at least half the samples stood still is never shown");
 }

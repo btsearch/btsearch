@@ -28,7 +28,8 @@ pub struct DeviceRecord {
 }
 
 pub fn population_agreement(records: &[DeviceRecord]) -> f64 {
-    let (within, on): (i64, i64) = records.iter().fold((0, 0), |(within, on), record| (within + record.ta_within_tolerance, on + record.ta_on_confirmed));
+    let (within, on): (i64, i64) =
+        records.iter().fold((0, 0), |(within, on), record| (within + record.ta_within_tolerance, on + record.ta_on_confirmed));
     if on > 0 { within as f64 / on as f64 } else { AGREEMENT_WITHOUT_DATA }
 }
 
@@ -37,7 +38,9 @@ pub fn factor_of(record: &DeviceRecord, population_agreement: f64) -> f64 {
     let agreement = (record.ta_within_tolerance as f64 + POPULATION_READINGS * population) / (record.ta_on_confirmed as f64 + POPULATION_READINGS);
     let readings = record.readings.max(1) as f64;
     let share = |count: i64, of: f64| (count as f64 / of).min(1.0);
-    let kept = (1.0 - share(record.dropped_implausible, readings)) * (1.0 - share(record.mock_readings, readings)) * (1.0 - share(record.phantom_cells, record.cells.max(1) as f64));
+    let kept = (1.0 - share(record.dropped_implausible, readings))
+        * (1.0 - share(record.mock_readings, readings))
+        * (1.0 - share(record.phantom_cells, record.cells.max(1) as f64));
     (agreement / population * kept).clamp(LEAST_FACTOR, MOST_FACTOR)
 }
 
@@ -105,7 +108,9 @@ pub async fn score_devices(client: &impl GenericClient) -> Result<usize, StoreEr
         .collect();
     let population = population_agreement(&records.iter().map(|(_, record)| *record).collect::<Vec<_>>());
     let device_ids: Vec<Uuid> = records.iter().map(|(device_id, _)| *device_id).collect();
-    let column = |count: fn(&DeviceRecord) -> i64| -> Vec<i32> { records.iter().map(|(_, record)| i32::try_from(count(record)).unwrap_or(i32::MAX)).collect() };
+    let column = |count: fn(&DeviceRecord) -> i64| -> Vec<i32> {
+        records.iter().map(|(_, record)| i32::try_from(count(record)).unwrap_or(i32::MAX)).collect()
+    };
     let factors: Vec<f32> = records.iter().map(|(_, record)| factor_of(record, population) as f32).collect();
     client
         .execute(

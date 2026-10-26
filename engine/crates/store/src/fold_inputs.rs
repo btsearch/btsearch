@@ -92,7 +92,11 @@ pub fn source_of_label(label: &str) -> Result<ReaderSource, StoreError> {
     }
 }
 
-pub async fn ta_groups(client: &impl GenericClient, sources: &BTreeSet<ReaderSource>, phone: &Phone) -> Result<BTreeMap<ReaderSource, i16>, StoreError> {
+pub async fn ta_groups(
+    client: &impl GenericClient,
+    sources: &BTreeSet<ReaderSource>,
+    phone: &Phone,
+) -> Result<BTreeMap<ReaderSource, i16>, StoreError> {
     let labels: Vec<&str> = sources.iter().map(|&source| source_label(source)).collect();
     let modem_family = phone.modem_family.as_deref().unwrap_or(UNKNOWN_MODEM_FAMILY);
     client
@@ -156,7 +160,13 @@ pub async fn confirmed_cells(client: &impl GenericClient, batch: &Batch) -> Resu
         .map(|row| {
             let identity = CellIdentity { plmn: row.get(0), rat: rat_of_label(row.get(1))?, cell_key: row.get(2) };
             let curated = |index: usize| row.get::<_, Option<i32>>(index).map(i64::from);
-            let cell = ConfirmedCell { station_id: row.get(3), station: Point::new(row.get(4), row.get(5)), pci: curated(6), channel: curated(7), area_code: curated(8) };
+            let cell = ConfirmedCell {
+                station_id: row.get(3),
+                station: Point::new(row.get(4), row.get(5)),
+                pci: curated(6),
+                channel: curated(7),
+                area_code: curated(8),
+            };
             Ok((identity, cell))
         })
         .collect()

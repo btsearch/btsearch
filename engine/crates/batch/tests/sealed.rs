@@ -114,7 +114,8 @@ fn refuses_a_body_its_row_does_not_describe() {
 fn reads_the_key_list_as_seal_ts_does() {
     let key = STANDARD.encode([7_u8; 32]);
     assert!(SealKeys::parse(&format!(" a:{key} , b:{} ", key.trim_end_matches('='))).is_ok());
-    for value in [String::new(), "a".to_owned(), format!(":{key}"), format!("a:{}", STANDARD.encode([7_u8; 16])), format!("{}:{key}", "k".repeat(17))] {
+    for value in [String::new(), "a".to_owned(), format!(":{key}"), format!("a:{}", STANDARD.encode([7_u8; 16])), format!("{}:{key}", "k".repeat(17))]
+    {
         assert!(SealKeys::parse(&value).is_err(), "{value:?} parses");
     }
 }

@@ -16,10 +16,7 @@ pub struct LevelModel {
 }
 
 impl LevelModel {
-    pub const UNCALIBRATED: Self = Self {
-        slope_db_per_decade: 35.0,
-        scatter_db: 9.0,
-    };
+    pub const UNCALIBRATED: Self = Self { slope_db_per_decade: 35.0, scatter_db: 9.0 };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -42,26 +39,15 @@ fn gain_corrected_db(square: &LevelSquare, azimuth_deg: f64) -> f64 {
 
 impl<'a> LevelCell<'a> {
     fn new(squares: &'a [LevelSquare]) -> Self {
-        Self {
-            squares,
-            log_distances: squares.iter().map(|square| square.distance_m.log10()).collect(),
-            azimuth_deg: 0.0,
-        }
+        Self { squares, log_distances: squares.iter().map(|square| square.distance_m.log10()).collect(), azimuth_deg: 0.0 }
     }
 
     fn residual_spread(&self, slope_db_per_decade: f64, azimuth_deg: f64) -> f64 {
         let (total, sum, sum_of_squares) =
-            self.squares
-                .iter()
-                .zip(&self.log_distances)
-                .fold((0.0, 0.0, 0.0), |(total, sum, sum_of_squares), (square, log_distance)| {
-                    let reference_db = gain_corrected_db(square, azimuth_deg) + slope_db_per_decade * log_distance;
-                    (
-                        total + square.weight,
-                        sum + square.weight * reference_db,
-                        sum_of_squares + square.weight * reference_db * reference_db,
-                    )
-                });
+            self.squares.iter().zip(&self.log_distances).fold((0.0, 0.0, 0.0), |(total, sum, sum_of_squares), (square, log_distance)| {
+                let reference_db = gain_corrected_db(square, azimuth_deg) + slope_db_per_decade * log_distance;
+                (total + square.weight, sum + square.weight * reference_db, sum_of_squares + square.weight * reference_db * reference_db)
+            });
         if total > 0.0 { sum_of_squares - sum * sum / total } else { 0.0 }
     }
 
@@ -78,20 +64,9 @@ fn pooled_slope(cells: &[LevelCell]) -> Option<f64> {
             continue;
         }
         let corrected: Vec<f64> = cell.squares.iter().map(|square| gain_corrected_db(square, cell.azimuth_deg)).collect();
-        let mean_log_distance = cell
-            .squares
-            .iter()
-            .zip(&cell.log_distances)
-            .map(|(square, log_distance)| square.weight * log_distance)
-            .sum::<f64>()
-            / total;
-        let mean_level_db = cell
-            .squares
-            .iter()
-            .zip(&corrected)
-            .map(|(square, level_db)| square.weight * level_db)
-            .sum::<f64>()
-            / total;
+        let mean_log_distance =
+            cell.squares.iter().zip(&cell.log_distances).map(|(square, log_distance)| square.weight * log_distance).sum::<f64>() / total;
+        let mean_level_db = cell.squares.iter().zip(&corrected).map(|(square, level_db)| square.weight * level_db).sum::<f64>() / total;
         for ((square, log_distance), level_db) in cell.squares.iter().zip(&cell.log_distances).zip(&corrected) {
             joint += square.weight * (log_distance - mean_log_distance) * (level_db - mean_level_db);
             spread += square.weight * (log_distance - mean_log_distance).powi(2);
@@ -131,10 +106,7 @@ pub fn fit_level_model(cells: &[&[LevelSquare]]) -> Option<LevelModel> {
     let scatter_db = fitted_scatter_db(&cells, slope_db_per_decade)?;
     let is_plausible = (LEAST_SLOPE_DB_PER_DECADE..=MOST_SLOPE_DB_PER_DECADE).contains(&slope_db_per_decade)
         && (LEAST_SCATTER_DB..=MOST_SCATTER_DB).contains(&scatter_db);
-    is_plausible.then_some(LevelModel {
-        slope_db_per_decade,
-        scatter_db,
-    })
+    is_plausible.then_some(LevelModel { slope_db_per_decade, scatter_db })
 }
 
 #[cfg(test)]
@@ -175,12 +147,7 @@ mod tests {
                         }
                         let shadowing_db = shadowing.draw_db(scatter_db);
                         let level_db = reference_db + gain_db(off_axis_deg) - slope_db_per_decade * distance_m.log10() + shadowing_db;
-                        squares.push(LevelSquare {
-                            distance_m,
-                            bearing_deg,
-                            level_db,
-                            weight: 1.0,
-                        });
+                        squares.push(LevelSquare { distance_m, bearing_deg, level_db, weight: 1.0 });
                     }
                 }
                 cells.push(squares);
@@ -196,10 +163,7 @@ mod tests {
     #[test]
     fn the_level_fit_sees_through_each_cells_power_pattern_and_reach() {
         let model = fitted(&matched_cells(30, 38.0, 7.0)).expect("a model");
-        assert!(
-            (model.slope_db_per_decade - 38.0).abs() < 1.0 && (model.scatter_db - 7.0).abs() < 0.4,
-            "{model:?}"
-        );
+        assert!((model.slope_db_per_decade - 38.0).abs() < 1.0 && (model.scatter_db - 7.0).abs() < 0.4, "{model:?}");
     }
 
     #[test]

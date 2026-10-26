@@ -5,7 +5,8 @@ use engine_corpus::GeneratedUpload;
 use engine_store::runs::Done;
 use uuid::Uuid;
 
-const VOUCH_FOR_EVERYONE: &str = "INSERT INTO observations.vouches (user_id, weight, reason) SELECT user_id, 1.5, 'engine test' FROM observations.contributors";
+const VOUCH_FOR_EVERYONE: &str =
+    "INSERT INTO observations.vouches (user_id, weight, reason) SELECT user_id, 1.5, 'engine test' FROM observations.contributors";
 
 async fn weight_of(harness: &Harness, device_id: Uuid) -> (f32, String) {
     let client = harness.store.database.pool.get().await.expect("a connection");
@@ -84,7 +85,11 @@ async fn a_vouch_refolded_gives_what_folding_with_it_gives_and_a_withdrawal_stil
         let done = harness.store.refold(upload.upload_id).await.expect("the refold runs");
         assert_eq!(matches!(done, Done::Folded(_)), harness.status(upload.upload_id).await.0 == "processed");
     }
-    assert_eq!(harness.count("SELECT count(*) FROM observations.upload_folds WHERE weight_milli <> 1500").await, 0, "every refold weighs with the vouch");
+    assert_eq!(
+        harness.count("SELECT count(*) FROM observations.upload_folds WHERE weight_milli <> 1500").await,
+        0,
+        "every refold weighs with the vouch"
+    );
     let refolded = harness.digest().await.without(&["new_squares"]);
 
     let mut withdrawn = None;
