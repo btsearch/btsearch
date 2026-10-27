@@ -12,14 +12,7 @@ import { z } from "zod/v4";
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
 import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
-import {
-  assertStationPhotoQuality,
-  decodeHeicToRaw,
-  isHeic,
-  isUntouchedFileInput,
-  readUploadedFile,
-  refusingUnreadableImage,
-} from "../../utils/image.js";
+import { decodeHeicToRaw, isHeic, isUntouchedFileInput, readUploadedFile, refusingUnreadableImage } from "../../utils/image.js";
 import { logger } from "../../utils/logger.js";
 import { UPLOAD_DIR } from "../../utils/photoFiles.js";
 import { requestCovers } from "../access/scope.js";
@@ -86,7 +79,6 @@ export async function createStationComment(req: FastifyRequest, stationId: numbe
             .webp({ quality: 75 })
             .toBuffer(),
         );
-        await assertStationPhotoQuality(outputBuffer);
         await fs.writeFile(filePath, outputBuffer);
         const stats = await fs.stat(filePath);
 

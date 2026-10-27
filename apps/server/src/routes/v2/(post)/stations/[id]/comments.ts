@@ -26,9 +26,7 @@ const schemaRoute = {
   },
 };
 const errorReasons = {
-  400:
-    "The request is not `multipart/form-data`, or a file was rejected. " +
-    "An image that is smaller than 640 by 480 pixels or too blurry is rejected with `PHOTO_TOO_SMALL` or `PHOTO_TOO_BLURRY`.",
+  400: "The request is not `multipart/form-data`, or a file was rejected.",
   403: "Comments are disabled.",
 };
 type ReqParams = { Params: z.infer<typeof stationCommentsParamsSchema> };

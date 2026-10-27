@@ -1,4 +1,6 @@
+import type { Stats } from "node:fs";
 import fs from "node:fs/promises";
+import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../../src/lib/runtimeSettings.js";
@@ -63,6 +65,37 @@ describe("POST /stations/:id/comments", () => {
     );
     expect(dbMock.calls.some((call) => call.operation === "insert")).toBe(false);
   });
+
+  it("accepts a screenshot below the station photo size and sharpness bars", async () => {
+    getRuntimeSettings().enableStationComments = true;
+    getRuntimeSettings().commentQueueEnabled = false;
+    vi.spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    vi.spyOn(fs, "writeFile").mockResolvedValue(undefined);
+    vi.spyOn(fs, "stat").mockResolvedValue({ size: 1234 } as unknown as Stats);
+    scriptAudit();
+    dbMock.enqueueFor("select", "stations", [{ station: { id: 12 }, countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("insert", "attachments", []);
+    dbMock.enqueueFor("insert", "station_comments", [commentRow]);
+    dbMock.enqueueFor("select", "station_comments", [commentView]);
+    dbMock.enqueueFor("select", "users", [{ role: "user" }]);
+    dbMock.enqueueFor("select", "role_grants", []);
+    const screenshot = await sharp({ create: { width: 750, height: 400, channels: 3, background: "#141526" } })
+      .png()
+      .toBuffer();
+    const body = multipartPayload([
+      { name: "content", content: "Speedtest from the site" },
+      { name: "attachments", filename: "speedtest.png", contentType: "image/png", content: screenshot },
+    ]);
+
+    const response = await injectMutation(route, { method: "POST", url: "/stations/12/comments", ...body }, { session: userSession(commenterId) });
+
+    expect(response.statusCode).toBe(201);
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "attachments")?.values).toMatchObject([
+      { name: "speedtest.png", mime_type: "image/webp", size: 1234 },
+    ]);
+  });
+
   it("requires an authenticated author", async () => {
     const response = await injectMutation(route, { method: "POST", url: "/stations/12/comments" });
     expectError(response, 401, "UNAUTHORIZED");

@@ -12,7 +12,6 @@ import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiResponseError } from "@/lib/api";
-import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
 type ImagePreview = {
@@ -147,10 +146,7 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
 
   const isDisabled = mutation.isPending || !hasContent;
   const requiresCommentText = images.length > 0 && !hasContent;
-  const qualityErrorKey = photoQualityErrorKey(mutation.error);
-  let postErrorDescription: string | null = null;
-  if (qualityErrorKey) postErrorDescription = t(`submissions:${qualityErrorKey}`);
-  else if (mutation.error instanceof ApiResponseError) postErrorDescription = mutation.error.message;
+  const postErrorDescription = mutation.error instanceof ApiResponseError ? mutation.error.message : null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
