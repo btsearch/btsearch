@@ -117,7 +117,9 @@ pub fn drive_document(upload_id: &str, legs: &[Leg], gap_after_leg: Option<(usiz
             }));
             snapshots.push(json!({
                 "t": t + 100, "simSlot": 0, "reader": 0,
-                "measurements": [{ "cell": 0, "role": "serving", "rsrpDbm": -95, "rsrqDb": -11, "timingAdvance": 3 }]
+                "measurements": [{
+                    "cell": 0, "role": "serving", "connectionStatus": "primaryServing", "rsrpDbm": -95, "rsrqDb": -11, "timingAdvance": 3
+                }]
             }));
             t += 1_000;
             north_meters += leg.meters_per_second;

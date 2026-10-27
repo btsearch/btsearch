@@ -1,4 +1,4 @@
-use engine_batch::document::{Measurement, ReaderSource};
+use engine_batch::document::{ConnectionStatus, DataActivity, Measurement, ReaderSource, Role};
 
 use crate::blocks::BlockedFields;
 use crate::identity::Rat;
@@ -29,7 +29,9 @@ pub(super) fn signal_of(context: &Context, output: &mut Output, reading: &Readin
     let level = reported(level).filter(|&level| !is_censored(reading, level) && !may_be_power_controlled(reading));
     let quality = quality.and_then(&mut reported);
     let sinr = sinr.and_then(&mut reported);
-    let timing_advance = reported(("timingAdvance", measurement.timing_advance)).and_then(|value| timing_advance_in_steps(reading, value));
+    let timing_advance = reported(("timingAdvance", measurement.timing_advance))
+        .filter(|_| has_a_current_timing_advance(reading))
+        .and_then(|value| timing_advance_in_steps(reading, value));
 
     blocked.signal.count(level.is_some(), &mut output.report.blocked_values);
     blocked.timing_advance.count(timing_advance.is_some(), &mut output.report.blocked_values);
@@ -60,6 +62,20 @@ fn is_censored(reading: &Reading, level: i64) -> bool {
 
 fn may_be_power_controlled(reading: &Reading) -> bool {
     reading.entry.rat == Rat::Gsm && reading.measurement.timing_advance.is_some()
+}
+
+fn has_a_current_timing_advance(reading: &Reading) -> bool {
+    let measurement = reading.measurement;
+    if !matches!(measurement.role, Role::Serving | Role::NrSecondary) {
+        return false;
+    }
+    if reading.source == ReaderSource::ModemLog {
+        return true;
+    }
+    match measurement.connection_status {
+        Some(status) => matches!(status, ConnectionStatus::PrimaryServing | ConnectionStatus::SecondaryServing),
+        None => matches!(reading.snapshot.data_activity, Some(DataActivity::In | DataActivity::Out | DataActivity::InOut)),
+    }
 }
 
 fn timing_advance_in_steps(reading: &Reading, value: i64) -> Option<i64> {
