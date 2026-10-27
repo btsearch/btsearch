@@ -9,6 +9,7 @@ import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { ProfileComments } from "@/features/user-profile/components/profileComments";
 import { ProfileHero } from "@/features/user-profile/components/profileHero";
+import { ProfilePhotos } from "@/features/user-profile/components/profilePhotos";
 import { PROFILE_GRID_CLASS, ProfileAbout, ProfileContact, ProfileHunter } from "@/features/user-profile/components/profileSections";
 import { EmptyProfile, PrivateProfileNotice, ProfileSkeleton } from "@/features/user-profile/components/profileStates";
 import { type UserProfile, userProfileQueryOptions } from "@/features/user-profile/queries";
@@ -40,7 +41,8 @@ function ProfileBody({
   viewerId: string | null;
 }) {
   const { bio, contact, isContactHidden, hunterRegionIds, comments } = profile;
-  const hasContent = Boolean(bio) || isContactHidden || contact !== null || hunterRegionIds !== null || (comments?.total ?? 0) > 0;
+  const photoCount = profile.photoCount ?? 0;
+  const hasContent = Boolean(bio) || isContactHidden || contact !== null || hunterRegionIds !== null || (comments?.total ?? 0) > 0 || photoCount > 0;
   if (!hasContent && !isOwner) return <EmptyProfile />;
 
   const sections = (
@@ -51,12 +53,15 @@ function ProfileBody({
     </>
   );
 
-  if (comments === null) return <div className="grid items-start gap-8 @4xl:grid-cols-2 @4xl:gap-x-6">{sections}</div>;
+  if (comments === null && photoCount === 0) return <div className="grid items-start gap-8 @4xl:grid-cols-2 @4xl:gap-x-6">{sections}</div>;
 
   return (
     <div className={PROFILE_GRID_CLASS}>
       <div className="flex min-w-0 flex-col gap-8">{sections}</div>
-      <ProfileComments username={username} viewerId={viewerId} summary={comments} />
+      <div className="flex min-w-0 flex-col gap-8">
+        {photoCount > 0 ? <ProfilePhotos username={username} viewerId={viewerId} photoCount={photoCount} /> : null}
+        {comments !== null ? <ProfileComments username={username} viewerId={viewerId} summary={comments} /> : null}
+      </div>
     </div>
   );
 }

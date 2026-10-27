@@ -144,7 +144,7 @@ function ProfileCard({ profile, username, onNavigate }: { profile: UserProfile; 
       <ProfileHeaderLink identity={identity} onNavigate={onNavigate} />
       <div className="flex flex-col gap-2 px-3 py-2.5">
         {user.bio ? (
-          <p className="line-clamp-3 text-[0.8125rem] leading-[1.125rem] whitespace-pre-line text-foreground/90 wrap-break-word">{user.bio}</p>
+          <p className="line-clamp-3 text-[0.8125rem] leading-4.5 whitespace-pre-line text-foreground/90 wrap-break-word">{user.bio}</p>
         ) : null}
         <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <Fact icon={Calendar03Icon}>{t("common:labels.memberSince", { date: memberSince })}</Fact>

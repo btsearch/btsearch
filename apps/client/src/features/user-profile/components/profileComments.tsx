@@ -1,4 +1,4 @@
-import { ArrowDown01Icon, ArrowUpRight01Icon, Message01Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowUpRight01Icon, Image01Icon, Message01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { Brand, Comment, Operator, UserCommentSummary } from "@openbts/shared/contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -6,7 +6,7 @@ import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { PROFILE_COMMENT_PAGE_SIZE, isUserCommentsUnavailable, userCommentsQueryOptions } from "../queries";
-import { PROFILE_SECTION_IDS } from "./profileSections";
+import { PROFILE_SECTION_IDS, ProfileSectionBadge } from "./profileSections";
 import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
 import { ClampedText } from "@/components/ui/clamped-text";
@@ -135,6 +135,8 @@ function CommentRow({
   const stationId = station ? getStationNumber(station) : String(comment.stationId);
   const stationLabel = operator ? `${operator.name} ${stationId}` : stationId;
   const city = station?.location?.city;
+  const photoCount = comment.attachments.length;
+  const photoCountLabel = t("photos.stationPhotoCount", { count: photoCount });
 
   return (
     <article className="border-t px-4 py-3.5 first:border-t-0 sm:px-5 sm:py-4">
@@ -155,9 +157,23 @@ function CommentRow({
           <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
         {city ? <span className="text-[0.8125rem] leading-4.5 text-muted-foreground">{city}</span> : null}
-        <time dateTime={comment.createdAt} title={fullDate} className="ml-auto text-xs whitespace-nowrap text-muted-foreground">
-          <RelativeTime date={comment.createdAt} />
-        </time>
+        <span className="ml-auto flex items-center gap-2.5">
+          {photoCount > 0 ? (
+            <>
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums" title={photoCountLabel}>
+                <HugeiconsIcon icon={Image01Icon} className="size-3.5" aria-hidden="true" />
+                <span aria-hidden="true">{photoCount}</span>
+                <span className="sr-only">{photoCountLabel}</span>
+              </span>
+              <span aria-hidden="true" className="text-xs text-muted-foreground">
+                /
+              </span>
+            </>
+          ) : null}
+          <time dateTime={comment.createdAt} title={fullDate} className="text-xs whitespace-nowrap text-muted-foreground">
+            <RelativeTime date={comment.createdAt} />
+          </time>
+        </span>
       </div>
       <ClampedText
         text={comment.content}
@@ -228,17 +244,7 @@ export function ProfileComments({ username, viewerId, summary }: { username: str
     });
 
   return (
-    <SettingsSection
-      id={PROFILE_SECTION_IDS.comments}
-      title={tCommon("labels.comments")}
-      badge={
-        summary.total > 0 ? (
-          <span className="inline-flex h-4.5 items-center rounded-md bg-muted px-1.5 text-[0.6875rem] font-semibold text-muted-foreground tabular-nums">
-            {summary.total}
-          </span>
-        ) : null
-      }
-    >
+    <SettingsSection id={PROFILE_SECTION_IDS.comments} title={tCommon("labels.comments")} badge={<ProfileSectionBadge count={summary.total} />}>
       <SettingsCard>
         {operatorOptions.length > 1 ? (
           <OperatorFilter options={operatorOptions} total={summary.total} value={filter} onValueChange={changeFilter} />

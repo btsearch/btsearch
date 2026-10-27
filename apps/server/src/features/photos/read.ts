@@ -1,12 +1,13 @@
 import { attachments, locationPhotos, locations, regions, stationPhotoSelections, stations, structureOwners, users } from "@openbts/drizzle";
+import { DEFAULT_STATION_STATUSES } from "@openbts/shared/contract";
 import type { Photo, PhotoInclude, PhotoSelection, Station, StationLocation, photoDetailsShape } from "@openbts/shared/contract";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, countDistinct, desc, eq, exists, inArray, notInArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
 
 import db from "../../database/psql.js";
 import { locationColumns, serializeStations } from "../stations/read.js";
-import { toStationLocation } from "../stations/serialize.js";
+import { DATABASE_STATUSES, toStationLocation } from "../stations/serialize.js";
 import { type UserRefViewer, toPublicUserRef } from "../users/userRef.js";
 
 const locationPhotoSelectSchema = createSelectSchema(locationPhotos);
@@ -135,6 +136,65 @@ export async function findLocationPhotoIds(fileId: string): Promise<number[]> {
     .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
     .where(eq(attachments.uuid, fileId));
   return rows.map((row) => row.id);
+}
+
+const shownByStation = exists(
+  db
+    .select({ id: stationPhotoSelections.id })
+    .from(stationPhotoSelections)
+    .innerJoin(stations, eq(stations.id, stationPhotoSelections.station_id))
+    .where(
+      and(
+        eq(stationPhotoSelections.location_photo_id, locationPhotos.id),
+        inArray(
+          stations.status,
+          DEFAULT_STATION_STATUSES.map((status) => DATABASE_STATUSES[status]),
+        ),
+      ),
+    ),
+);
+
+function userPhotoConditions(userId: string, hiddenCodes: readonly string[]) {
+  return and(
+    eq(locationPhotos.uploaded_by, userId),
+    shownByStation,
+    hiddenCodes.length > 0 ? notInArray(regions.countryCode, [...hiddenCodes]) : undefined,
+  );
+}
+
+export async function loadUserPhotoRows(userId: string, hiddenCodes: readonly string[], limit: number, offset: number): Promise<PhotoRow[]> {
+  const newestPlacements = db
+    .selectDistinctOn([attachments.id], {
+      ...photoColumns,
+      locationPhotoId: sql<number>`${locationPhotos.id}`.as("location_photo_id"),
+      authorId: sql<string | null>`${users.id}`.as("author_id"),
+    })
+    .from(locationPhotos)
+    .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
+    .innerJoin(locations, eq(locations.id, locationPhotos.location_id))
+    .innerJoin(regions, eq(regions.id, locations.region_id))
+    .leftJoin(users, eq(locationPhotos.uploaded_by, users.id))
+    .where(userPhotoConditions(userId, hiddenCodes))
+    .orderBy(asc(attachments.id), desc(locationPhotos.createdAt), desc(locationPhotos.id))
+    .as("newest_placements");
+
+  return await db
+    .select()
+    .from(newestPlacements)
+    .orderBy(desc(newestPlacements.createdAt), desc(newestPlacements.locationPhotoId))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function countUserPhotos(userId: string, hiddenCodes: readonly string[]): Promise<number> {
+  const [row] = await db
+    .select({ total: countDistinct(attachments.id) })
+    .from(locationPhotos)
+    .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
+    .innerJoin(locations, eq(locations.id, locationPhotos.location_id))
+    .innerJoin(regions, eq(regions.id, locations.region_id))
+    .where(userPhotoConditions(userId, hiddenCodes));
+  return row?.total ?? 0;
 }
 
 async function loadSelectionStations(stationIds: readonly number[]): Promise<Map<number, Station>> {

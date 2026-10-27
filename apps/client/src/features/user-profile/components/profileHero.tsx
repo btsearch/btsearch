@@ -1,4 +1,4 @@
-import { Link01Icon, LockKeyIcon, Message01Icon, PencilEdit02Icon, Radar01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { LockKeyIcon, Message01Icon, PencilEdit02Icon, Radar01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -11,29 +11,8 @@ import { roleWashClassName } from "@/components/app/roleTone";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { scrollToSettingsSection } from "@/features/settings/components/settingsPrimitives";
-import { useCopyText } from "@/features/settings/copyText";
 import { getInitials, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-function CopyLinkButton({ iconOnly = false, className }: { iconOnly?: boolean; className?: string }) {
-  const { t } = useTranslation("main");
-  const { copied, copy } = useCopyText();
-  const label = copied ? t("common:actions.linkCopied") : t("common:actions.copyLink");
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size={iconOnly ? "icon-lg" : "default"}
-      aria-label={iconOnly ? t("userProfile.copyLinkLabel") : undefined}
-      className={cn("cursor-pointer", copied && "text-emerald-600 dark:text-emerald-400", className)}
-      onClick={() => copy(`${window.location.origin}${window.location.pathname}`)}
-    >
-      <HugeiconsIcon icon={copied ? Tick02Icon : Link01Icon} data-icon={iconOnly ? undefined : "inline-start"} aria-hidden="true" />
-      {iconOnly ? null : label}
-    </Button>
-  );
-}
 
 function EditProfileLink({ className }: { className?: string }) {
   const { t } = useTranslation("main");
@@ -85,7 +64,7 @@ function OwnerPrivateNotice() {
 
   return (
     <div className="flex flex-col items-start gap-2.5 border-t border-amber-500/20 bg-amber-500/6 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-7">
-      <p className="flex flex-1 gap-2.5 text-[0.8125rem] leading-[1.125rem]">
+      <p className="flex flex-1 gap-2.5 text-[0.8125rem] leading-4.5">
         <HugeiconsIcon icon={LockKeyIcon} className="mt-px size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
         {t("userProfile.ownerPrivateNotice")}
       </p>
@@ -134,16 +113,11 @@ export function ProfileHero({ profile, isOwner }: { profile: UserProfile; isOwne
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2 max-sm:hidden">
-            {isOwner ? <EditProfileLink /> : null}
-            <CopyLinkButton />
-          </div>
-          {isOwner ? null : <CopyLinkButton iconOnly className="sm:hidden" />}
+          <div className="flex shrink-0 items-center gap-2 max-sm:hidden">{isOwner ? <EditProfileLink /> : null}</div>
         </div>
         {isOwner ? (
           <div className="mt-4 flex gap-2 sm:hidden">
             <EditProfileLink className="h-10 flex-1" />
-            <CopyLinkButton iconOnly className="size-10" />
           </div>
         ) : null}
       </div>

@@ -10,6 +10,7 @@ import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
 import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
+import { countUserPhotos } from "../photos/read.js";
 import { stationAreaConditions } from "../stations/read.js";
 import { loadUserRefViewer } from "./userRef.js";
 
@@ -78,6 +79,10 @@ async function loadCommentSummary(req: FastifyRequest, userId: string): Promise<
   return { total: operatorCounts.reduce((total, row) => total + row.count, 0), operatorCounts };
 }
 
+async function loadPhotoCount(req: FastifyRequest, userId: string): Promise<number> {
+  return countUserPhotos(userId, await loadHiddenCountryCodes(req));
+}
+
 export async function loadUserProfile(req: FastifyRequest, username: string): Promise<UserProfile> {
   const [user, viewer] = await Promise.all([findProfileUser(username), loadUserRefViewer(req)]);
 
@@ -90,6 +95,10 @@ export async function loadUserProfile(req: FastifyRequest, username: string): Pr
   const hunterRegionIds = user.hunterRegions.map(({ regionId }) => regionId);
   const isHunter = user.profileVisibility === "public" && user.hunterListing && hunterRegionIds.length > 0;
   const showsComments = !isRestricted && getRuntimeSettings().enableStationComments;
+  const [comments, photoCount] = await Promise.all([
+    showsComments ? loadCommentSummary(req, user.id) : null,
+    isRestricted ? null : loadPhotoCount(req, user.id),
+  ]);
 
   return {
     id: user.id,
@@ -103,7 +112,8 @@ export async function loadUserProfile(req: FastifyRequest, username: string): Pr
     contact: showsContact ? contact : null,
     isContactHidden: !showsContact && contact !== null,
     hunterRegionIds: isHunter ? hunterRegionIds : null,
-    comments: showsComments ? await loadCommentSummary(req, user.id) : null,
+    comments,
+    photoCount,
     createdAt: user.createdAt.toISOString(),
   };
 }

@@ -30,6 +30,7 @@ type GalleryPhotoTileProps = {
   locale: string;
   labels: GalleryPhotoTileLabels;
   compact: boolean;
+  hideAuthor?: boolean;
   onOpen: (slideIndex: number, tileIndex: number) => void;
 };
 
@@ -54,6 +55,7 @@ function GalleryPhotoTileInner({
   locale,
   labels,
   compact,
+  hideAuthor,
   onOpen,
 }: GalleryPhotoTileProps) {
   const reduceMotion = useReducedMotion();
@@ -103,7 +105,7 @@ function GalleryPhotoTileInner({
         ) : null}
       </span>
       <span className={CAPTION_CLASS}>
-        {username === null ? (
+        {hideAuthor ? null : username === null ? (
           <span className={AUTHOR_CLASS}>{getAuthorName(photo.author) ?? labels.unknownAuthor}</span>
         ) : (
           <UserLink user={photo.author} className={AUTHOR_LINK_CLASS}>

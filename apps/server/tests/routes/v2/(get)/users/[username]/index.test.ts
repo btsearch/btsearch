@@ -27,6 +27,10 @@ describe("getUserProfile", () => {
   it.each(["public", "private"])("applies %s profile privacy to a guest", async (visibility) => {
     getRuntimeSettings().enableStationComments = false;
     dbMock.query.users.findFirst.mockResolvedValue({ ...profile, profileVisibility: visibility });
+    if (visibility === "public") {
+      dbMock.enqueueFor("select", "countries", []);
+      dbMock.enqueueFor("select", "location_photos", [{ total: 2 }]);
+    }
     const app = await createRouteHarness(getUserProfile);
     const response = await app.inject({ url: "/users/TESTER" });
     expect(response.statusCode).toBe(200);
@@ -37,6 +41,7 @@ describe("getUserProfile", () => {
         ? { name: "Test User", bio: "Bio", role: "editor", isRestricted: false, contact: null, isContactHidden: true, hunterRegionIds: [1] }
         : { name: null, bio: null, role: null, isRestricted: true, contact: null, isContactHidden: false, hunterRegionIds: null },
     );
+    expect(response.json().data.photoCount).toBe(visibility === "public" ? 2 : null);
   });
 
   it("shows the owner's private profile with normalized contact details", async () => {
@@ -44,6 +49,8 @@ describe("getUserProfile", () => {
     dbMock.query.users.findFirst.mockResolvedValue({ ...profile, profileVisibility: "private" });
     dbMock.enqueueFor("select", "users", [{ role: "user" }]);
     dbMock.enqueueFor("select", "role_grants", []);
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "location_photos", [{ total: 0 }]);
     const app = await createRouteHarness(getUserProfile, { session: userSession(readUserId) });
     const response = await app.inject({ url: "/users/tester" });
     expect(response.statusCode).toBe(200);
@@ -52,17 +59,19 @@ describe("getUserProfile", () => {
       bio: "Bio",
       contact: { instagram: "tester", facebook: null, email: "tester@example.com" },
       hunterRegionIds: null,
+      photoCount: 0,
     });
   });
 
   it("sums approved visible-country comment counts", async () => {
     getRuntimeSettings().enableStationComments = true;
     dbMock.query.users.findFirst.mockResolvedValue(profile);
-    dbMock.enqueueFor("select", "countries", [{ code: "US" }]);
+    dbMock.enqueueFor("select", "countries", [{ code: "US", isVisible: false }], [{ code: "US", isVisible: false }]);
     dbMock.enqueueFor("select", "station_comments", [
       { operatorId: 1, count: 2 },
       { operatorId: null, count: 3 },
     ]);
+    dbMock.enqueueFor("select", "location_photos", [{ total: 3 }]);
     const app = await createRouteHarness(getUserProfile);
     const response = await app.inject({ url: "/users/tester" });
     expect(response.statusCode).toBe(200);
@@ -73,6 +82,7 @@ describe("getUserProfile", () => {
         { operatorId: null, count: 3 },
       ],
     });
+    expect(response.json().data.photoCount).toBe(3);
   });
 
   it("reports an unknown username as missing", async () => {

@@ -36,6 +36,7 @@ export const PROFILE_SECTION_IDS = {
   about: "profile-about",
   contact: "profile-contact",
   hunters: "profile-hunters",
+  photos: "profile-photos",
   comments: "profile-comments",
 } as const;
 
@@ -44,6 +45,16 @@ export const PROFILE_GRID_CLASS = "grid items-start gap-8 @4xl:grid-cols-[minmax
 export const EDIT_PROFILE_SEARCH = { tab: "profile" } as const;
 
 const FACEBOOK_URL_PREFIX = /^https:\/\/(www\.)?/;
+
+export function ProfileSectionBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+
+  return (
+    <span className="inline-flex h-4.5 items-center rounded-md bg-muted px-1.5 text-[0.6875rem] font-semibold text-muted-foreground tabular-nums">
+      {count}
+    </span>
+  );
+}
 
 function OwnerPrompt({ title, description, action }: { title: string; description: string; action: string }) {
   return (

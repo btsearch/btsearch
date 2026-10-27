@@ -16,6 +16,7 @@ import {
 } from "./common.ts";
 import { HUNTER_REGIONS_MAX } from "./constants.ts";
 import { USER_ROLES } from "./me.ts";
+import { PHOTO_INCLUDES } from "./photos.ts";
 
 export const PROFILE_VISIBILITIES = ["public", "private"] as const;
 export type ProfileVisibility = (typeof PROFILE_VISIBILITIES)[number];
@@ -110,6 +111,12 @@ export const userProfileSchema = z.object({
         "`null` if the user is not listed there, has chosen no regions, or has a private profile",
     ),
   comments: userCommentSummarySchema.nullable().describe("`null` if comments are disabled or the profile is restricted"),
+  photoCount: z
+    .number()
+    .int()
+    .nonnegative()
+    .nullable()
+    .describe("The number of distinct photos the user uploaded that at least one station shows. `null` if the profile is restricted"),
   createdAt: z.iso.datetime(),
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
@@ -129,6 +136,18 @@ export const userCommentListQuerySchema = z
   .strict()
   .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
 export type UserCommentListQuery = z.infer<typeof userCommentListQuerySchema>;
+
+export const userPhotoListQuerySchema = z
+  .object({
+    include: csvEnumSchema(PHOTO_INCLUDES).optional(),
+    limit: limitSchema,
+    cursor: cursorSchema.optional(),
+    offset: offsetSchema.optional(),
+    includeTotal: booleanQuerySchema.optional(),
+  })
+  .strict()
+  .refine(usesCursorOrOffset, CURSOR_OR_OFFSET_ISSUE);
+export type UserPhotoListQuery = z.infer<typeof userPhotoListQuerySchema>;
 
 export const userAccountSchema = z.object({
   email: z.string(),
