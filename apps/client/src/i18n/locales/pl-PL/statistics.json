@@ -147,7 +147,7 @@
     "capacityDescription": "Liczona z szerokości kanału i modulacji",
     "unknownCapacity": "Nieznana",
     "vendors": "Producenci urządzeń",
-    "vendorsDescription": "Producent radiolinii dodanych po tej dacie jest nieznany",
+    "vendorsDescription": "Producent radiolinii dodany po tej dacie jest nieznany",
     "otherVendors": "Inni",
     "otherOperators": "Pozostali",
     "specsAsOf": "Dane techniczne z {{date}}",
