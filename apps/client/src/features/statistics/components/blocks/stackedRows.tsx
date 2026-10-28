@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { type CSSProperties, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { StackedRow } from "../../lib/chartData";
+import type { OperatorCount, StackedRow } from "../../lib/chartData";
 import { toPercent } from "../../lib/format";
 import { listOperators } from "../../lib/operators";
 import { BlockHeader, EmptyBlock } from "../card/statisticsCard";
 import { OperatorLegend } from "./operatorLegend";
 import { type BreakdownHandles, BreakdownPopup, BreakdownTrigger, createBreakdownHandles } from "./rowBreakdown";
+import { BrandMark } from "@/components/cellular/brandMark";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatBandMhzLabel } from "@/features/station-details/station/utils/bands";
 import { useIsCoarsePointer } from "@/hooks/useCoarsePointer";
@@ -14,6 +15,15 @@ import { cn } from "@/lib/utils";
 
 type RowGroup = { key: string; title: string | null; rows: StackedRow[] };
 type LabelWidth = "band" | "region";
+type StackedRowsProps = {
+  title: string;
+  description?: string;
+  note?: ReactNode;
+  legend?: ReactNode;
+  rows: readonly StackedRow[];
+  labelWidth: LabelWidth;
+  fillsWidth?: boolean;
+};
 
 const ROW_TRIGGER_CLASS =
   "-mx-2 grid min-h-7 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-md px-2 pt-1.5 pb-2 outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-muted/50 @md:py-0";
@@ -22,6 +32,16 @@ const ROW_GRID_CLASSES: Record<LabelWidth, string> = {
   region: "@md:grid-cols-[11rem_minmax(0,1fr)_4rem]",
 };
 const SKELETON_BAR_WIDTHS = ["w-[92%]", "w-[74%]", "w-full", "w-[58%]", "w-[81%]", "w-[43%]", "w-[66%]"];
+const FULL_WIDTH = 100;
+
+export function toFillStyle(color: string, isHatched: boolean): CSSProperties {
+  if (!isHatched) return { backgroundColor: color };
+  return { backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 2px, transparent 2px 5px)`, boxShadow: `inset 0 0 0 1px ${color}` };
+}
+
+function toSegmentStyle({ operator, value }: OperatorCount, isHatched: boolean): CSSProperties {
+  return { flex: `${value} 1 0px`, ...toFillStyle(operator.color, isHatched) };
+}
 
 function splitByGroup(rows: readonly StackedRow[]): RowGroup[] {
   const groups: RowGroup[] = [];
@@ -36,7 +56,17 @@ function splitByGroup(rows: readonly StackedRow[]): RowGroup[] {
 function RowLabel({ row }: { row: StackedRow }) {
   const { i18n } = useTranslation();
 
-  if (row.mhz === null) return <span className="truncate">{row.name}</span>;
+  if (row.operator !== undefined) {
+    return (
+      <>
+        <BrandMark brand={row.operator.brand} />
+        <span className="truncate">{row.name}</span>
+      </>
+    );
+  }
+  if (row.mhz === null) {
+    return <span className={cn("truncate", row.isMono && "font-mono", row.isUnknown && "text-muted-foreground")}>{row.name}</span>;
+  }
   return (
     <>
       <span className="truncate font-mono">{formatBandMhzLabel(row.mhz, i18n.language)}</span>
@@ -45,17 +75,16 @@ function RowLabel({ row }: { row: StackedRow }) {
   );
 }
 
-type StackedRowItemProps = { row: StackedRow; maxTotal: number; labelWidth: LabelWidth; handles: BreakdownHandles; isCoarsePointer: boolean };
+type StackedRowItemProps = { row: StackedRow; width: number; labelWidth: LabelWidth; handles: BreakdownHandles; isCoarsePointer: boolean };
 
-function StackedRowItem({ row, maxTotal, labelWidth, handles, isCoarsePointer }: StackedRowItemProps) {
+function StackedRowItem({ row, width, labelWidth, handles, isCoarsePointer }: StackedRowItemProps) {
   const { i18n } = useTranslation();
-  const width = toPercent(row.total, maxTotal);
   const breakdown = row.parts.map((part) => `${part.operator.name} ${part.value.toLocaleString(i18n.language)}`).join(", ");
 
   return (
-    <li>
+    <li className={cn(row.isUnknown && "not-first:mt-3")}>
       <BreakdownTrigger row={row} handles={handles} isCoarsePointer={isCoarsePointer} className={cn(ROW_TRIGGER_CLASS, ROW_GRID_CLASSES[labelWidth])}>
-        <span className="flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-5">
+        <span className={cn("flex min-w-0 gap-1.5 text-[0.8125rem] leading-5", row.operator === undefined ? "items-baseline" : "items-center")}>
           <RowLabel row={row} />
           <span className="sr-only">{breakdown}</span>
         </span>
@@ -64,7 +93,7 @@ function StackedRowItem({ row, maxTotal, labelWidth, handles, isCoarsePointer }:
             {row.parts.map((part) => (
               <span
                 key={part.operator.id}
-                style={{ flex: `${part.value} 1 0px`, backgroundColor: part.operator.color }}
+                style={toSegmentStyle(part, row.isUnknown === true || part.isUnknown === true)}
                 className="min-w-0.5 rounded-[3px]"
               />
             ))}
@@ -78,21 +107,20 @@ function StackedRowItem({ row, maxTotal, labelWidth, handles, isCoarsePointer }:
   );
 }
 
-export function StackedRows({ title, rows, labelWidth }: { title: string; rows: readonly StackedRow[]; labelWidth: LabelWidth }) {
+export function StackedRows({ title, description, note, legend, rows, labelWidth, fillsWidth = false }: StackedRowsProps) {
   const maxTotal = Math.max(0, ...rows.map((row) => row.total));
-  const operators = listOperators(rows.flatMap((row) => row.parts.map((part) => part.operator)));
   const isCoarsePointer = useIsCoarsePointer();
   const [handles] = useState(createBreakdownHandles);
 
   return (
     <div className="@container">
-      <BlockHeader title={title} />
+      <BlockHeader title={title} description={description} note={note} />
       {rows.length === 0 ? (
         <EmptyBlock />
       ) : (
         <>
           <div className="mt-2">
-            <OperatorLegend operators={operators} />
+            {legend ?? <OperatorLegend operators={listOperators(rows.flatMap((row) => row.parts.map((part) => part.operator)))} />}
           </div>
           <div className="mt-2">
             {splitByGroup(rows).map((group) => (
@@ -105,7 +133,7 @@ export function StackedRows({ title, rows, labelWidth }: { title: string; rows: 
                     <StackedRowItem
                       key={row.key}
                       row={row}
-                      maxTotal={maxTotal}
+                      width={fillsWidth ? FULL_WIDTH : toPercent(row.total, maxTotal)}
                       labelWidth={labelWidth}
                       handles={handles}
                       isCoarsePointer={isCoarsePointer}

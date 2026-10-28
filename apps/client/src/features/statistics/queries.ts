@@ -5,6 +5,8 @@ import {
   fetchAnalyzerUsage,
   fetchCompleteness,
   fetchLeaderboards,
+  fetchMicrowaveLinkBreakdown,
+  fetchMicrowaveLinkHistory,
   fetchObservationStatistics,
   fetchPermitBreakdown,
   fetchPermitHistory,
@@ -26,8 +28,9 @@ import {
   summarizeStations,
   toUsagePoints,
 } from "./lib/chartData";
-import { type OperatorLookup, toStatisticsOperators } from "./lib/operators";
-import { INTERVALS, type Period, findPeriodStart, toPeriodKey, toSnapshotRange } from "./lib/periods";
+import { type LicenseeLookups, summarizeMicrowaveLinkHistory, summarizeMicrowaveLinks } from "./lib/microwaveLinks";
+import { type OperatorLookup, toBrandSortPriorities, toStatisticsOperators } from "./lib/operators";
+import { INTERVALS, type Period, defaultPeriod, findPeriodStart, toPeriodKey, toSnapshotRange } from "./lib/periods";
 import { countryStatisticsQueryOptions } from "@/features/map/statsApi";
 import { officialSourcesQueryOptions } from "@/features/official/queries";
 import { bandsQueryOptions, brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
@@ -53,6 +56,15 @@ async function loadOperators(): Promise<OperatorLookup> {
     queryClient.ensureQueryData(brandsQueryOptions()),
   ]);
   return toStatisticsOperators(operators, brands);
+}
+
+async function loadLicenseeLookups(countryCode: string): Promise<LicenseeLookups> {
+  const [operators, brands] = await Promise.all([
+    queryClient.ensureQueryData(operatorsQueryOptions()),
+    queryClient.ensureQueryData(brandsQueryOptions()),
+  ]);
+  const countryOperators = operators.filter((operator) => operator.countryCode === countryCode);
+  return { operators: toStatisticsOperators(operators, brands), brands, brandSortPriorities: toBrandSortPriorities(countryOperators) };
 }
 
 export function databaseSummaryQueryOptions(countryCode: string) {
@@ -224,6 +236,29 @@ export function permitSnapshotQueryOptions(countryCode: string, month: string) {
   });
 }
 
+export function microwaveLinksQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "microwave-links", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [breakdowns, lookups] = await Promise.all([fetchMicrowaveLinkBreakdown(countryCode, signal), loadLicenseeLookups(countryCode)]);
+      return summarizeMicrowaveLinks(breakdowns, lookups);
+    },
+    staleTime: STATS_STALE_TIME,
+  });
+}
+
+export function microwaveLinkHistoryQueryOptions(countryCode: string, period: Period) {
+  const takenAfter = findPeriodStart(period, new Date());
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "microwave-link-history", countryCode, takenAfter ?? WHOLE_HISTORY] as const,
+    queryFn: async ({ signal }) => {
+      const [histories, lookups] = await Promise.all([fetchMicrowaveLinkHistory(countryCode, takenAfter, signal), loadLicenseeLookups(countryCode)]);
+      return summarizeMicrowaveLinkHistory(histories, lookups);
+    },
+    staleTime: STATS_STALE_TIME,
+  });
+}
+
 export function completenessQueryOptions(countryCode: string) {
   return queryOptions({
     queryKey: [STATISTICS_ROOT, "completeness", countryCode] as const,
@@ -296,14 +331,19 @@ export function useStatisticsRefetchError() {
   return { hasRefetchError, isRetrying, retry: () => queryClient.refetchQueries(FAILED_REFETCH_FILTERS) };
 }
 
-async function prefetchRegisterStatistics(countryCode: string): Promise<void> {
+async function prefetchOfficialStatistics(countryCode: string): Promise<void> {
   await queryClient.prefetchQuery(countriesQueryOptions());
   const country = queryClient.getQueryData(countriesQueryOptions().queryKey)?.find((entry) => entry.code === countryCode);
-  if (country?.capabilities.official !== true) return;
 
-  void queryClient.prefetchQuery(registerSummaryQueryOptions(countryCode));
-  void queryClient.prefetchQuery(registerBandsQueryOptions(countryCode));
-  void queryClient.prefetchQuery(registerRegionsQueryOptions(countryCode));
+  if (country?.capabilities.official === true) {
+    void queryClient.prefetchQuery(registerSummaryQueryOptions(countryCode));
+    void queryClient.prefetchQuery(registerBandsQueryOptions(countryCode));
+    void queryClient.prefetchQuery(registerRegionsQueryOptions(countryCode));
+  }
+  if (country?.capabilities.microwaveLinks === true) {
+    void queryClient.prefetchQuery(microwaveLinksQueryOptions(countryCode));
+    void queryClient.prefetchQuery(microwaveLinkHistoryQueryOptions(countryCode, defaultPeriod("monthly")));
+  }
 }
 
 export function prefetchStatistics(requestedCountryCode: string | undefined): void {
@@ -321,5 +361,5 @@ export function prefetchStatistics(requestedCountryCode: string | undefined): vo
   void queryClient.prefetchQuery(databaseRegionsQueryOptions(requestedCountryCode));
   void queryClient.prefetchQuery(completenessQueryOptions(requestedCountryCode));
   void queryClient.prefetchQuery(photoSummaryQueryOptions(requestedCountryCode));
-  void prefetchRegisterStatistics(requestedCountryCode);
+  void prefetchOfficialStatistics(requestedCountryCode);
 }

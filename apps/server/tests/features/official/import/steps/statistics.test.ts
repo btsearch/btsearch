@@ -1,8 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type DatasetOutcome, datasetOutcomesOf, takesStatsSnapshot } from "../../../../../src/features/official/import/steps/datasetOutcomes.js";
+import {
+  type DatasetOutcome,
+  datasetOutcomesOf,
+  takesMicrowaveLinkSnapshot,
+  takesStatsSnapshot,
+} from "../../../../../src/features/official/import/steps/datasetOutcomes.js";
 import { purgesStatisticsCache, statistics } from "../../../../../src/features/official/import/steps/statistics.js";
-import { dbMock, redisMock } from "../../../../helpers/boundaries.js";
+import { dbMock, queryOf, redisMock } from "../../../../helpers/boundaries.js";
 import {
   UKE_DATASETS,
   change,
@@ -20,6 +25,17 @@ import {
 
 const CACHED = ["statistics:v2:countries", "official:v2:band-labels"];
 const KEPT = ["stats:contributions:v1", "official:v3:source-visibility", "geocode:v1:x"];
+const LINK_DIRECTION = {
+  licenseeId: 12,
+  permit: { number: "P/1" },
+  tx: { latitude: 52, longitude: 21 },
+  rx: { latitude: 52.018, longitude: 21 },
+  frequencyMhz: 18_000,
+  polarization: "H",
+  channelWidthMhz: 56,
+  modulation: "256QAM",
+  vendor: "Huawei",
+};
 
 function outcomes(changed: { permits?: boolean; registry?: boolean; links?: boolean }, failed: readonly number[] = []): DatasetOutcome[] {
   const applied = [changed.permits ? 1 : 0, changed.registry ? 2 : 0, changed.links ? 3 : 0].filter((datasetId) => datasetId > 0);
@@ -56,18 +72,42 @@ beforeEach(recordTransactions);
 
 describe("what the statistics step does for a run", () => {
   it.each([
-    { case: "the permits changed", changed: { permits: true }, failed: [], snapshot: true, purge: true },
-    { case: "the registry changed", changed: { registry: true }, failed: [], snapshot: true, purge: true },
-    { case: "only the microwave links changed", changed: { links: true }, failed: [], snapshot: false, purge: true },
-    { case: "the permits changed and the registry failed", changed: { permits: true }, failed: [2], snapshot: false, purge: true },
-    { case: "a sites dataset failed and nothing changed", changed: {}, failed: [1], snapshot: false, purge: true },
-    { case: "the permits changed and the microwave links failed", changed: { permits: true }, failed: [3], snapshot: true, purge: true },
-    { case: "only the microwave links failed", changed: {}, failed: [3], snapshot: false, purge: false },
-    { case: "nothing changed", changed: {}, failed: [], snapshot: false, purge: false },
-  ])("when $case: snapshot $snapshot, cache purge $purge", ({ changed, failed, snapshot, purge }) => {
+    { case: "the permits changed", changed: { permits: true }, failed: [], snapshot: true, linkSnapshot: false, purge: true },
+    { case: "the registry changed", changed: { registry: true }, failed: [], snapshot: true, linkSnapshot: false, purge: true },
+    { case: "only the microwave links changed", changed: { links: true }, failed: [], snapshot: false, linkSnapshot: true, purge: true },
+    {
+      case: "the microwave links changed and a sites dataset failed",
+      changed: { links: true },
+      failed: [1],
+      snapshot: false,
+      linkSnapshot: true,
+      purge: true,
+    },
+    { case: "the microwave links changed and failed", changed: { links: true }, failed: [3], snapshot: false, linkSnapshot: false, purge: true },
+    {
+      case: "the permits changed and the registry failed",
+      changed: { permits: true },
+      failed: [2],
+      snapshot: false,
+      linkSnapshot: false,
+      purge: true,
+    },
+    { case: "a sites dataset failed and nothing changed", changed: {}, failed: [1], snapshot: false, linkSnapshot: false, purge: true },
+    {
+      case: "the permits changed and the microwave links failed",
+      changed: { permits: true },
+      failed: [3],
+      snapshot: true,
+      linkSnapshot: false,
+      purge: true,
+    },
+    { case: "only the microwave links failed", changed: {}, failed: [3], snapshot: false, linkSnapshot: false, purge: false },
+    { case: "nothing changed", changed: {}, failed: [], snapshot: false, linkSnapshot: false, purge: false },
+  ])("when $case: snapshot $snapshot, link snapshot $linkSnapshot, cache purge $purge", ({ changed, failed, snapshot, linkSnapshot, purge }) => {
     const datasets = outcomes(changed, failed);
 
     expect(takesStatsSnapshot(datasets)).toBe(snapshot);
+    expect(takesMicrowaveLinkSnapshot(datasets)).toBe(linkSnapshot);
     expect(purgesStatisticsCache(datasets)).toBe(purge);
   });
 
@@ -118,6 +158,42 @@ describe("the statistics step", () => {
     ]);
     expect(await cachedKeys()).toEqual(KEPT);
     expect(redisMock.scanIterator.mock.calls.map(([options]) => options?.MATCH)).toEqual(["statistics:v2:*", "official:v2:band-labels*"]);
+  });
+
+  it("takes the microwave link snapshot of the run's source for this month, in a transaction of its own", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-28T12:00:00.000Z"));
+    scriptStepStart();
+    ownRun(2);
+    scriptDatasetOutcomes([{ datasetId: 3, error: null }], [{ datasetId: 3, slice: "links", outcome: "applied" }]);
+    dbMock.enqueueFor("select", "official.microwave_links", [LINK_DIRECTION], [{ specsDate: new Date("2026-07-27T09:31:41.141Z") }]);
+    dbMock.enqueueFor("delete", "microwave_link_snapshots", undefined);
+    dbMock.enqueueFor("insert", "microwave_link_snapshots", [{ id: 5 }]);
+    dbMock.enqueueFor("insert", "microwave_link_snapshot_counts", undefined);
+    scriptStepFinish();
+
+    await runStep(statistics, { run: claimedRun({ sourceId: 7 }) });
+
+    expect(dbMock.pendingResults()).toBe(0);
+    const [, , snapshot] = transactionsOf(trace());
+    expect(snapshot).toEqual([
+      "select official.import_runs",
+      "select official.microwave_links",
+      "select official.microwave_links",
+      "delete microwave_link_snapshots",
+      "insert microwave_link_snapshots",
+      "insert microwave_link_snapshot_counts",
+      "commit",
+    ]);
+    const linkReads = dbMock.calls.filter((call) => call.table === "official.microwave_links");
+    expect(linkReads.map((call) => queryOf(call.clauses.where?.[0]).params)).toEqual([[7], [7]]);
+    expect(queryOf(dbMock.calls.find((call) => call.operation === "delete")?.clauses.where?.[0]).params).toEqual([7, "2026-10-01"]);
+    expect(valuesOf("insert", "microwave_link_snapshots")).toEqual([
+      { sourceId: 7, startsOn: "2026-10-01", takenAt: new Date("2026-10-28T12:00:00.000Z"), specsDate: new Date("2026-07-27T09:31:41.141Z") },
+    ]);
+    expect(valuesOf("insert", "microwave_link_snapshot_counts").flat()).toContainEqual(
+      expect.objectContaining({ snapshotId: 5, dimension: "total", linksCount: 1 }),
+    );
   });
 
   it("records a failed snapshot on the step, still purges the cache and lets the run go on", async () => {

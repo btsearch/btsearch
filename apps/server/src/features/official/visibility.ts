@@ -80,6 +80,10 @@ export async function loadPublicSiteSourceNames(countryCode: string | null): Pro
     .map((source) => source.shortName);
 }
 
+export function isPublicSource(sourceId: number, { sourceIds }: OfficialVisibility): boolean {
+  return sourceIds === null || sourceIds.includes(sourceId);
+}
+
 export function officialSourceIsPublic(sourceId: SQLWrapper, { sourceIds }: OfficialVisibility): SQL | undefined {
   return sourceIds === null ? undefined : inArray(sourceId, sourceIds);
 }

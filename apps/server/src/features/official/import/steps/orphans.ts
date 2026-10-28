@@ -1,5 +1,6 @@
 import {
   licensees,
+  microwaveLinkSnapshotCounts,
   microwaveLinks,
   officialLocations,
   officialPermitListings,
@@ -62,6 +63,12 @@ async function deleteUnmappedLicenseesWithoutReferences(tx: DbTx, sourceId: numb
             .where(eq(officialPermitListings.licenseeId, licensees.id)),
         ),
         notExists(tx.select({ runId: officialRemapRuns.runId }).from(officialRemapRuns).where(eq(officialRemapRuns.licenseeId, licensees.id))),
+        notExists(
+          tx
+            .select({ snapshotId: microwaveLinkSnapshotCounts.snapshotId })
+            .from(microwaveLinkSnapshotCounts)
+            .where(eq(microwaveLinkSnapshotCounts.licenseeId, licensees.id)),
+        ),
       ),
     )
     .returning({ id: licensees.id });

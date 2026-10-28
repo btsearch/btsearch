@@ -1148,6 +1148,45 @@ export const statsSnapshots = StatisticsSchema.table(
   ],
 );
 
+export const microwaveLinkSnapshots = StatisticsSchema.table(
+  "microwave_link_snapshots",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => officialSources.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    startsOn: date("starts_on", { mode: "string" }).notNull(),
+    takenAt: timestamp("taken_at", { withTimezone: true }).notNull(),
+    specsDate: timestamp("specs_date", { withTimezone: true }),
+  },
+  (t) => [
+    unique("microwave_link_snapshots_source_starts_on_unique").on(t.sourceId, t.startsOn),
+    check("microwave_link_snapshots_starts_on_month_start", sql`extract(day from ${t.startsOn}) = 1`),
+  ],
+);
+
+export const microwaveLinkSnapshotCounts = StatisticsSchema.table(
+  "microwave_link_snapshot_counts",
+  {
+    snapshotId: integer("snapshot_id")
+      .notNull()
+      .references(() => microwaveLinkSnapshots.id, {
+        name: "microwave_link_snapshot_counts_snapshot_fkey",
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    licenseeId: integer("licensee_id").references(() => licensees.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    dimension: varchar("dimension", { length: 32 }).notNull(),
+    bucket: varchar("bucket", { length: 100 }),
+    linksCount: integer("links_count").notNull(),
+    lengthSumMeters: bigint("length_sum_m", { mode: "number" }).notNull(),
+  },
+  (t) => [
+    unique("microwave_link_snapshot_counts_group_unique").on(t.snapshotId, t.licenseeId, t.dimension, t.bucket).nullsNotDistinct(),
+    index("microwave_link_snapshot_counts_licensee_id_idx").on(t.licenseeId),
+  ],
+);
+
 export const analyzerUsage = StatisticsSchema.table("analyzer_usage", {
   date: date("date").primaryKey(),
   count: integer("count").notNull().default(0),

@@ -10,7 +10,7 @@ import test from "node:test";
 import type { KmzExportContext } from "../../core/sources.ts";
 import { type KmzDocument, writeDocuments } from "../sources/uke/kmz/documents.ts";
 import { exportKmz } from "../sources/uke/kmz/index.ts";
-import { classifyLinkType, groupIntoLinks, linkDocuments, linksKml } from "../sources/uke/kmz/microwaveLinks.ts";
+import { groupIntoLinks, linkDocuments, linksKml } from "../sources/uke/kmz/microwaveLinks.ts";
 import { type KmzLink, type KmzPermit, readLinks, readPermits } from "../sources/uke/kmz/read.ts";
 import { groupBySite, siteDocuments, sitesKml } from "../sources/uke/kmz/sites.ts";
 import { rowsCreatedOnNewestDay } from "../sources/uke/shared/dates.ts";
@@ -283,15 +283,15 @@ void test("classifies a link by the entries of its busiest direction", () => {
     ["XPIC", [hop("back", 22000, "V"), hop("there", 23000, "V"), hop("there", 23000, null)]],
     ["SD", [hop("there", 23000, "V"), hop("there", 23000, "V")]],
     ["SD", [hop("there", 23000, null), hop("there", 23000, null), hop("back", 22000, "H"), hop("back", 22028, "V")]],
-    ["UNKNOWN", [hop("there", 23000, "V"), hop("there", 23028, "H")]],
+    ["2+0 FDD", [hop("there", 23000, "V"), hop("there", 23028, "H")]],
     ["UNKNOWN", [hop("there", 23000, "V"), hop("there", 23000, "H"), hop("there", 23028, "H")]],
+    ["2+0 XPIC", [hop("there", 23000, "V"), hop("there", 23000, "H"), hop("there", 23028, "V"), hop("there", 23028, "H")]],
     ["2+0 FDD", [hop("there", 23000, "V"), hop("back", 22000, "V"), hop("there", 23028, "V"), hop("back", 22000, "H")]],
     ["XPIC", [hop("back", 22000, "V"), hop("there", 23000, "V"), hop("there", 23028, "V"), hop("back", 22000, "H")]],
   ];
 
   for (const [linkType, entries] of cases) {
     const summary = entries.map((entry) => `${entry.txLatitude}:${entry.freqKhz}:${entry.polarization}`).join(" ");
-    assert.equal(classifyLinkType(entries), linkType, summary);
     assert.deepEqual(
       groupIntoLinks(entries).map((group) => group.linkType),
       [linkType],

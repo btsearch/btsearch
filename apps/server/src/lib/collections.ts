@@ -7,3 +7,12 @@ export function chunks<T>(items: readonly T[], size: number): T[][] {
   for (let start = 0; start < items.length; start += size) result.push(items.slice(start, start + size));
   return result;
 }
+
+export function getOrCreate<T>(byKey: Map<string, T>, key: string, createEmpty: (key: string) => T): T {
+  const existing = byKey.get(key);
+  if (existing !== undefined) return existing;
+
+  const created = createEmpty(key);
+  byKey.set(key, created);
+  return created;
+}

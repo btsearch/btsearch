@@ -1,4 +1,4 @@
-import NumberFlow, { continuous } from "@number-flow/react";
+import NumberFlow, { type Format, continuous } from "@number-flow/react";
 import { type CSSProperties, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -6,7 +6,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { cn } from "@/lib/utils";
 
-export type NumberTile = { key: string; label: string; generation?: string; value: number | null; hint?: string; isPrimary?: boolean };
+export type NumberTile = {
+  key: string;
+  label: string;
+  generation?: string;
+  value: number | string | null;
+  isSigned?: boolean;
+  hint?: string;
+  isPrimary?: boolean;
+};
 
 type StripStyle = CSSProperties & Record<"--tiles", number>;
 
@@ -21,6 +29,7 @@ const FLOW_PROPS = {
   spinTiming: { duration: 1200, easing: "ease-out" },
   opacityTiming: { duration: 400, easing: "ease-out" },
 };
+const SIGNED_FORMAT: Format = { signDisplay: "exceptZero" };
 
 function roundDownToPowerOfTen(value: number): number {
   if (value <= 0) return 0;
@@ -62,10 +71,15 @@ export function NumberStrip({ tiles }: { tiles: readonly NumberTile[] }) {
             <span className="min-w-0 truncate">{tile.label}</span>
           </dt>
           <dd className={cn("mt-1 truncate leading-8 font-bold tabular-nums", tile.isPrimary ? "text-2xl" : "text-lg")}>
-            {tile.value === null ? (
-              "-"
+            {typeof tile.value === "number" ? (
+              <NumberFlow
+                {...FLOW_PROPS}
+                value={isScrolledIntoView ? tile.value : roundDownToPowerOfTen(tile.value)}
+                format={tile.isSigned ? SIGNED_FORMAT : undefined}
+                locales={i18n.language}
+              />
             ) : (
-              <NumberFlow {...FLOW_PROPS} value={isScrolledIntoView ? tile.value : roundDownToPowerOfTen(tile.value)} locales={i18n.language} />
+              (tile.value ?? "-")
             )}
           </dd>
           {tile.hint === undefined ? null : (

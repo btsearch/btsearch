@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { startTransition, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { BandHistory, OperatorPoint, Series } from "../../lib/chartData";
-import { listOperators, operatorDataKey, operatorSeries } from "../../lib/operators";
+import { type BandHistory, type ChartData, buildChartData, keepSelectedOperators } from "../../lib/chartData";
 import { type Period, defaultPeriod } from "../../lib/periods";
 import { permitHistoryByBandQueryOptions, permitHistoryByOperatorQueryOptions } from "../../queries";
 import { STATISTICS_SECTION_IDS } from "../../sections";
@@ -16,13 +15,11 @@ import { IconToggleGroup } from "../controls/iconToggleGroup";
 import { PeriodSelects } from "../controls/periodSelects";
 import { ToolbarSelect } from "../controls/toolbarSelect";
 import { OperatorFilterMenu } from "./operatorFilterMenu";
+import { useOperatorFilter } from "./useOperatorFilter";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toggleValue } from "@/lib/utils";
 
 type ViewMode = "by-band" | "by-operator";
-type ChartRow = Record<string, string | number>;
-type ChartData = { chartData: ChartRow[]; series: Series[] };
 type BandChartData = ChartData & { key: string; bandName: string };
 
 const VIEW_MODES: readonly ViewMode[] = ["by-band", "by-operator"];
@@ -32,38 +29,6 @@ const CHART_TYPES: readonly { value: ChartType; icon: IconSvgElement }[] = [
   { value: "bar", icon: ChartHistogramIcon },
 ];
 const SKELETON_BAND_COUNT = 3;
-
-function keepSelectedOperators(points: readonly OperatorPoint[], operatorIds: readonly number[]): readonly OperatorPoint[] {
-  if (operatorIds.length === 0) return points;
-  return points.filter((point) => operatorIds.includes(point.operator.id));
-}
-
-function buildChartData(points: readonly OperatorPoint[]): ChartData {
-  const rowsByDate = new Map<string, ChartRow>();
-  for (const point of points) {
-    const row = rowsByDate.get(point.date) ?? { date: point.date };
-    row[operatorDataKey(point.operator)] = point.value;
-    rowsByDate.set(point.date, row);
-  }
-
-  const series = operatorSeries(points.map((point) => point.operator));
-  const chartData = [...rowsByDate].sort(([left], [right]) => left.localeCompare(right)).map(([, row]) => row);
-
-  for (let index = 1; index < chartData.length; index++) {
-    const row = chartData[index];
-    const previousRow = chartData[index - 1];
-    for (const { key } of series) {
-      const value = row[key];
-      const previousValue = previousRow[key];
-      if (typeof value !== "number" || typeof previousValue !== "number" || previousValue === 0) continue;
-
-      row[`${key}_change`] = ((value - previousValue) / previousValue) * 100;
-      row[`${key}_delta`] = value - previousValue;
-    }
-  }
-
-  return { chartData, series };
-}
 
 function listBandCharts(bands: readonly BandHistory[], operatorIds: readonly number[]): BandChartData[] {
   return bands.flatMap((band) => {
@@ -95,25 +60,17 @@ function HistorySkeleton({ viewMode }: { viewMode: ViewMode }) {
 
 export function HistoryCard({ countryCode }: { countryCode: string }) {
   const { t } = useTranslation("statistics");
-  const [selectedOperatorIds, setSelectedOperatorIds] = useState<number[]>([]);
   const [period, setPeriod] = useState<Period>(() => defaultPeriod("monthly"));
   const [viewMode, setViewMode] = useState<ViewMode>("by-band");
   const [chartType, setChartType] = useState<ChartType>("line");
-  const [isolatedId, setIsolatedId] = useState<number | null>(null);
   const bandQuery = useQuery({ ...permitHistoryByBandQueryOptions(countryCode, period), enabled: viewMode === "by-band" });
   const operatorQuery = useQuery({ ...permitHistoryByOperatorQueryOptions(countryCode, period), enabled: viewMode === "by-operator" });
   const activeQuery = viewMode === "by-band" ? bandQuery : operatorQuery;
   const historyPoints = viewMode === "by-band" ? bandQuery.data?.flatMap((band) => band.points) : operatorQuery.data;
-  const menuOperators = listOperators((historyPoints ?? []).map((point) => point.operator));
-  const selectedIds =
-    historyPoints === undefined
-      ? selectedOperatorIds
-      : selectedOperatorIds.filter((operatorId) => menuOperators.some((operator) => operator.id === operatorId));
+  const { menuOperators, selectedIds, legendOperators, isolatedId, isolatedKey, toggleOperator, isolateOperator, isolateSeries } =
+    useOperatorFilter(historyPoints);
   const bandCharts = viewMode === "by-band" ? listBandCharts(bandQuery.data ?? [], selectedIds) : [];
   const operatorChart = buildChartData(viewMode === "by-operator" ? keepSelectedOperators(operatorQuery.data ?? [], selectedIds) : []);
-  const legendOperators = selectedIds.length === 0 ? menuOperators : menuOperators.filter((operator) => selectedIds.includes(operator.id));
-  const isolatedOperator = legendOperators.find((operator) => operator.id === isolatedId);
-  const isolatedKey = isolatedOperator === undefined ? null : operatorDataKey(isolatedOperator);
   const showDots = period.granularity !== "daily";
 
   const viewItems = VIEW_MODES.map((mode) => ({ value: mode, label: t(mode === "by-band" ? "filters.byBand" : "filters.byOperator") }));
@@ -123,16 +80,6 @@ export function HistoryCard({ countryCode }: { countryCode: string }) {
   function changeViewMode(next: unknown) {
     const mode = VIEW_MODES.find((candidate) => candidate === next);
     if (mode !== undefined) startTransition(() => setViewMode(mode));
-  }
-
-  function toggleOperator(operatorId: number) {
-    const nextIds = toggleValue(selectedIds, operatorId);
-    if (isolatedId !== null && nextIds.length > 0 && !nextIds.includes(isolatedId)) setIsolatedId(null);
-    startTransition(() => setSelectedOperatorIds(nextIds));
-  }
-
-  function isolateSeries(key: string | null) {
-    setIsolatedId(legendOperators.find((operator) => operatorDataKey(operator) === key)?.id ?? null);
   }
 
   function renderContent() {
@@ -175,7 +122,7 @@ export function HistoryCard({ countryCode }: { countryCode: string }) {
     return (
       <>
         <div className="px-4 pb-3 sm:px-5">
-          <OperatorLegend operators={legendOperators} selectedId={isolatedOperator?.id ?? null} onSelect={setIsolatedId} />
+          <OperatorLegend operators={legendOperators} selectedId={isolatedId} onSelect={isolateOperator} />
         </div>
         <DividedGrid>
           {bandCharts.map((band) => (

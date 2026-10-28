@@ -62,3 +62,7 @@ export function hasChangedNothing(datasets: readonly DatasetOutcome[]): boolean 
 export function takesStatsSnapshot(datasets: readonly DatasetOutcome[]): boolean {
   return hasAppliedSlice(datasets, "sites") && !hasFailedDataset(datasets, "sites");
 }
+
+export function takesMicrowaveLinkSnapshot(datasets: readonly DatasetOutcome[]): boolean {
+  return hasAppliedSlice(datasets, "microwave_links") && !hasFailedDataset(datasets, "microwave_links");
+}

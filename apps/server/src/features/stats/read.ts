@@ -44,13 +44,12 @@ import type {
 import { type SQL, type SQLWrapper, and, asc, count, countDistinct, eq, gte, inArray, isNotNull, lt, lte, max, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
-import redis from "../../database/redis.js";
-import { unique } from "../../lib/collections.js";
-import { withRedisStaleCache } from "../../lib/redisCache.js";
+import { getOrCreate, unique } from "../../lib/collections.js";
 import { loadSourceCapabilities } from "../official/capabilities.js";
-import type { OfficialVisibility } from "../official/visibility.js";
+import { type OfficialVisibility, isPublicSource } from "../official/visibility.js";
 import { stationCountries } from "../stations/country.js";
 import { CONTRACT_RATS, type CellRow, toStationStatus } from "../stations/serialize.js";
+import { cachedStatistics } from "./cache.js";
 
 type HistoryTotals = Omit<StatisticsHistoryPoint, "added">;
 type PermitHistoryTotals = Omit<PermitHistoryPoint, "added">;
@@ -60,7 +59,6 @@ type OfficialRows = { locations: SourceCount[]; permits: SourceCount[]; microwav
 type SourcePermitRow = PermitBreakdownRow & { sourceId: number };
 
 const DAY_MS = 86_400_000;
-const STATISTICS_CACHE = { freshTtlSeconds: 600, staleTtlSeconds: 86_400 };
 const DIMENSIONS: Record<StatisticsDimension, SQLWrapper> = {
   region: locations.region_id,
   operator: stations.operator_id,
@@ -78,13 +76,6 @@ const PERMIT_DIMENSIONS: Record<PermitStatisticsDimension, SQLWrapper[]> = {
 const isActive = eq(stations.status, "published");
 const ofStation = eq(stations.id, stationCountries.stationId);
 
-async function cachedStatistics<T>(name: string, load: () => Promise<T>): Promise<T> {
-  if (!redis.isReady) return load();
-
-  const { value } = await withRedisStaleCache(`statistics:v2:${name}`, STATISTICS_CACHE, load);
-  return value;
-}
-
 export function emptyCountryStatistics(countryCode: string): CountryStatistics {
   return { countryCode, stations: { active: 0, awaitingCells: 0, inactive: 0 }, cells: 0, locations: 0, updatedAt: null, official: null };
 }
@@ -99,15 +90,6 @@ export function emptyCountryCompleteness(countryCode: string): CountryCompletene
     stations: { total: 0, withSectors: 0, withIdentifiers: 0 },
     cells: { lte: { total: 0, withPci: 0 }, nr: { total: 0, withPci: 0 } },
   };
-}
-
-function getOrCreate<T>(byKey: Map<string, T>, key: string, createEmpty: (key: string) => T): T {
-  const existing = byKey.get(key);
-  if (existing !== undefined) return existing;
-
-  const created = createEmpty(key);
-  byKey.set(key, created);
-  return created;
 }
 
 function nullUnless<T>(isGrouped: boolean, column: SQLWrapper): SQL<T | null> {
@@ -189,10 +171,6 @@ function loadOfficialRows(): Promise<OfficialRows> {
     const imports = importRows.map((row) => ({ ...row, importedAt: row.importedAt ? new Date(row.importedAt).toISOString() : null }));
     return { locations: locationRows, permits: permitRows, microwaveLinks: linkRows, imports };
   });
-}
-
-function isPublicSource(sourceId: number, { sourceIds }: OfficialVisibility): boolean {
-  return sourceIds === null || sourceIds.includes(sourceId);
 }
 
 function latest(current: string | null, candidate: string | null): string | null {

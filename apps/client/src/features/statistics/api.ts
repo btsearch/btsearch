@@ -2,6 +2,8 @@ import type {
   AnalyzerUsagePoint,
   ContributorLeaderboard,
   CountryCompleteness,
+  MicrowaveLinkBreakdown,
+  MicrowaveLinkHistory,
   ObservationStatistics,
   PermitBreakdownRow,
   PermitHistoryDimension,
@@ -66,6 +68,20 @@ export function fetchPermitHistory(
   if (takenAfter !== undefined) params.set("takenAfter", takenAfter);
   if (takenBefore !== undefined) params.set("takenBefore", takenBefore);
   return fetchV2Data<PermitHistoryPoint[]>(`statistics/permits/history?${params.toString()}`, { signal });
+}
+
+export function fetchMicrowaveLinkBreakdown(countryCode: string, signal?: AbortSignal): Promise<MicrowaveLinkBreakdown[]> {
+  return fetchV2Data<MicrowaveLinkBreakdown[]>(`statistics/microwave-links?${countryParams(countryCode).toString()}`, { signal });
+}
+
+export function fetchMicrowaveLinkHistory(
+  countryCode: string,
+  takenAfter: string | undefined,
+  signal?: AbortSignal,
+): Promise<MicrowaveLinkHistory[]> {
+  const params = countryParams(countryCode);
+  if (takenAfter !== undefined) params.set("takenAfter", takenAfter);
+  return fetchV2Data<MicrowaveLinkHistory[]>(`statistics/microwave-links/history?${params.toString()}`, { signal });
 }
 
 export function fetchCompleteness(countryCode: string, signal?: AbortSignal): Promise<CountryCompleteness[]> {

@@ -1,4 +1,4 @@
-import type { OfficialSource } from "@openbts/shared/contract";
+import type { OfficialLayer, OfficialSource } from "@openbts/shared/contract";
 import { OFFICIAL_SITE_INCLUDES, type OfficialSiteInclude } from "@openbts/shared/contract/constants";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
@@ -81,7 +81,7 @@ export function useSiteSources(countryCode: string | null): readonly OfficialSou
   return data ?? NO_SOURCES;
 }
 
-export function useCountrySourceName(countryCode: string | null): string | null {
-  const { data } = useQuery({ ...officialSourcesQueryOptions(), select: (sources) => findCountrySourceName(sources, countryCode) });
+export function useCountrySourceName(countryCode: string | null, layer: OfficialLayer = "sites"): string | null {
+  const { data } = useQuery({ ...officialSourcesQueryOptions(), select: (sources) => findCountrySourceName(sources, countryCode, layer) });
   return data ?? null;
 }

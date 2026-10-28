@@ -109,7 +109,8 @@ describe("the orphans step", () => {
         '(("official"."licensees"."source_id" = $1) and (("official"."licensees"."operator_id" is null)) ' +
         'and (not exists select "official"."microwave_links"."id" from "official"."microwave_links" where "official"."microwave_links"."licensee_id" = "official"."licensees"."id") ' +
         'and (not exists select "official"."permit_listings"."permit_id" from "official"."permit_listings" where "official"."permit_listings"."licensee_id" = "official"."licensees"."id") ' +
-        'and (not exists select "official"."remap_runs"."run_id" from "official"."remap_runs" where "official"."remap_runs"."licensee_id" = "official"."licensees"."id"))',
+        'and (not exists select "official"."remap_runs"."run_id" from "official"."remap_runs" where "official"."remap_runs"."licensee_id" = "official"."licensees"."id") ' +
+        'and (not exists select "statistics"."microwave_link_snapshot_counts"."snapshot_id" from "statistics"."microwave_link_snapshot_counts" where "statistics"."microwave_link_snapshot_counts"."licensee_id" = "official"."licensees"."id"))',
       params: [7],
     });
   });

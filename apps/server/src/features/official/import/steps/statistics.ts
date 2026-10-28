@@ -2,13 +2,21 @@ import { OfficialChange } from "@openbts/drizzle";
 
 import redis from "../../../../database/redis.js";
 import type { DbTx } from "../../../../types/global.js";
+import { takeMicrowaveLinkSnapshot } from "../../../stats/microwaveLinks/store.js";
 import { takeStatsSnapshot } from "../../../stats/permitsSnapshot.js";
 import { BAND_LABEL_CACHE_KEY } from "../../bandLabels.js";
 import { readChanges } from "../changes.js";
 import type { AfterStep, AfterStepContext, ClaimedRun } from "../types.js";
-import { type DatasetOutcome, hasAppliedSlice, hasFailedDataset, readDatasetOutcomes, takesStatsSnapshot } from "./datasetOutcomes.js";
+import {
+  type DatasetOutcome,
+  hasAppliedSlice,
+  hasFailedDataset,
+  readDatasetOutcomes,
+  takesMicrowaveLinkSnapshot,
+  takesStatsSnapshot,
+} from "./datasetOutcomes.js";
 
-type StatisticsWork = { takesSnapshot: boolean; purgesCache: boolean };
+type StatisticsWork = { takesStatsSnapshot: boolean; takesMicrowaveLinkSnapshot: boolean; purgesCache: boolean };
 
 const STATISTICS_CACHE_PATTERNS = ["statistics:v2:*", `${BAND_LABEL_CACHE_KEY}*`];
 
@@ -35,24 +43,31 @@ async function readWork(tx: DbTx, run: Pick<ClaimedRun, "id" | "sourceId" | "kin
   if (run.kind === "remap") {
     const [firstChange] = await readChanges(tx, run.id, { afterSeq: null, kinds: OfficialChange.enumValues, limit: 1 });
     const hasChanges = firstChange !== undefined;
-    return { takesSnapshot: hasChanges, purgesCache: hasChanges };
+    return { takesStatsSnapshot: hasChanges, takesMicrowaveLinkSnapshot: false, purgesCache: hasChanges };
   }
 
   const datasets = await readDatasetOutcomes(tx, run);
-  return { takesSnapshot: takesStatsSnapshot(datasets), purgesCache: purgesStatisticsCache(datasets) };
+  return {
+    takesStatsSnapshot: takesStatsSnapshot(datasets),
+    takesMicrowaveLinkSnapshot: takesMicrowaveLinkSnapshot(datasets),
+    purgesCache: purgesStatisticsCache(datasets),
+  };
+}
+
+async function takeSnapshot(context: AfterStepContext, take: (tx: DbTx) => Promise<unknown>): Promise<void> {
+  try {
+    await context.transaction(take);
+  } catch (error) {
+    await context.recordError(error);
+  }
 }
 
 async function perform(context: AfterStepContext): Promise<void> {
   if (context.run.kind === "relink") return;
 
   const work = await context.transaction((tx) => readWork(tx, context.run));
-  if (work.takesSnapshot) {
-    try {
-      await context.transaction((tx) => takeStatsSnapshot(tx));
-    } catch (error) {
-      await context.recordError(error);
-    }
-  }
+  if (work.takesStatsSnapshot) await takeSnapshot(context, (tx) => takeStatsSnapshot(tx));
+  if (work.takesMicrowaveLinkSnapshot) await takeSnapshot(context, (tx) => takeMicrowaveLinkSnapshot(tx, context.run.sourceId));
 
   if (work.purgesCache) await purgeStatisticsCache();
 }

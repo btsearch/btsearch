@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 
 const FILE_NAME_DATE = /\d{4}-\d{2}-\d{2}/;
 
+export type LocalRelease = Release & { files: readonly LocalFile[] };
+
 export function publishedOnOf(fileName: string): string | null {
   const [day] = fileName.match(FILE_NAME_DATE) ?? [];
   if (day === undefined) return null;
@@ -12,7 +14,7 @@ export function publishedOnOf(fileName: string): string | null {
   return !Number.isNaN(midnight.getTime()) && midnight.toISOString().startsWith(day) ? day : null;
 }
 
-export function localReleaseOf(filePath: string, slice: string): Release {
+export function localReleaseOf(filePath: string, slice: string): LocalRelease {
   const absolutePath = path.resolve(filePath);
   const file: LocalFile = { url: pathToFileURL(absolutePath).href, fileName: path.basename(absolutePath), path: absolutePath };
 

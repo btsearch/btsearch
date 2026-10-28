@@ -4,7 +4,8 @@
     "photos": "Photos",
     "register": "{{source}} register",
     "permitSnapshot": "{{source}} by month",
-    "registerSnapshot": "Register by month"
+    "registerSnapshot": "Register by month",
+    "microwaveLinks": "{{source}} microwave links"
   },
   "chartType": {
     "label": "Chart type",
@@ -116,6 +117,33 @@
       "imageTitle": "{{source}} in {{month}} {{year}}",
       "registerImageTitle": "Permit register in {{month}} {{year}}"
     }
+  },
+  "microwaveLinks": {
+    "description": "A link between two points counts once, however many channels it has",
+    "registerEntries_one": "{{count, number}} register entry",
+    "registerEntries_other": "{{count, number}} register entries",
+    "change": "Change this month",
+    "comparedWith": "Compared with {{date}}",
+    "noPreviousMonth": "No data from the previous month",
+    "eBand": "E-band (70/80 GHz)",
+    "links_one": "{{count, number}} link",
+    "links_other": "{{count, number}} links",
+    "averageLength": "Average length",
+    "byOperator": "Microwave links per operator",
+    "byBand": "Microwave links per band",
+    "byLength": "Microwave links by length",
+    "byType": "Microwave links by type",
+    "byCapacity": "Microwave links by capacity",
+    "capacityDescription": "Calculated from channel width and modulation",
+    "unknownCapacity": "Unknown",
+    "vendors": "Equipment vendors",
+    "vendorsDescription": "The vendor is unknown for links added after this date",
+    "otherVendors": "Others",
+    "otherOperators": "Others",
+    "specsAsOf": "Technical data from {{date}}",
+    "history": "Microwave links over time",
+    "historyStartsOn": "History starts on {{date}}",
+    "historyAfterImport": "The chart fills in after the next import"
   },
   "filters": {
     "granularity": "Period",

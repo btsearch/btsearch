@@ -4,7 +4,8 @@
     "photos": "Zdjęcia",
     "register": "Rejestr {{source}}",
     "permitSnapshot": "{{source}} wg miesiąca",
-    "registerSnapshot": "Rejestr wg miesiąca"
+    "registerSnapshot": "Rejestr wg miesiąca",
+    "microwaveLinks": "Radiolinie {{source}}"
   },
   "chartType": {
     "label": "Typ wykresu",
@@ -122,6 +123,37 @@
       "imageTitle": "{{source}} - {{month}} {{year}}",
       "registerImageTitle": "Rejestr pozwoleń - {{month}} {{year}}"
     }
+  },
+  "microwaveLinks": {
+    "description": "Połączenie między dwoma punktami jest liczone raz, niezależnie od liczby kanałów",
+    "registerEntries_one": "{{count, number}} wpis w rejestrze",
+    "registerEntries_few": "{{count, number}} wpisy w rejestrze",
+    "registerEntries_many": "{{count, number}} wpisów w rejestrze",
+    "registerEntries_other": "{{count, number}} wpisu w rejestrze",
+    "change": "Zmiana w tym miesiącu",
+    "comparedWith": "Względem {{date}}",
+    "noPreviousMonth": "Brak danych z poprzedniego miesiąca",
+    "eBand": "E-band (70/80 GHz)",
+    "links_one": "{{count, number}} radiolinia",
+    "links_few": "{{count, number}} radiolinie",
+    "links_many": "{{count, number}} radiolinii",
+    "links_other": "{{count, number}} radiolinii",
+    "averageLength": "Średnia długość",
+    "byOperator": "Radiolinie wg operatora",
+    "byBand": "Radiolinie wg pasma",
+    "byLength": "Radiolinie wg długości",
+    "byType": "Radiolinie wg typu",
+    "byCapacity": "Radiolinie wg przepustowości",
+    "capacityDescription": "Liczona z szerokości kanału i modulacji",
+    "unknownCapacity": "Nieznana",
+    "vendors": "Producenci urządzeń",
+    "vendorsDescription": "Producent radiolinii dodanych po tej dacie jest nieznany",
+    "otherVendors": "Inni",
+    "otherOperators": "Pozostali",
+    "specsAsOf": "Dane techniczne z {{date}}",
+    "history": "Radiolinie w czasie",
+    "historyStartsOn": "Historia zaczyna się {{date}}",
+    "historyAfterImport": "Wykres uzupełni się po kolejnym imporcie"
   },
   "filters": {
     "granularity": "Okres",

@@ -15,12 +15,14 @@ import type {
 import { formatPermitLabel } from "@openbts/shared/permitLabel";
 
 import { toPercent } from "./format";
-import { type OperatorLookup, type StatisticsOperator, compareOperators } from "./operators";
+import { type OperatorLookup, type StatisticsOperator, compareOperators, operatorDataKey, operatorSeries } from "./operators";
 import { toPeriodKey } from "./periods";
 import { type OfficialLabelParts, toOfficialLabelKey, toOfficialRatOption } from "@/features/official/labels";
 import { getBandCode } from "@/features/station-details/station/utils/bands";
 
 export type Series = { key: string; label: string; color: string };
+export type ChartRow = Record<string, string | number>;
+export type ChartData = { chartData: ChartRow[]; series: Series[] };
 type PermitCounts = Pick<PermitBreakdownRow, "sites" | "permits">;
 type StationCounts = Pick<StationBreakdownRow, "stations" | "cells">;
 type WithOperator<T> = T & { operator: StatisticsOperator };
@@ -30,7 +32,7 @@ type PermitBreakdowns = Record<"totals" | "byRat" | "byOperator", readonly Permi
 type StationBreakdowns = Record<"totals" | "byRat" | "byOperator", readonly StationBreakdownRow[]>;
 type RowLabel = Pick<StackedRow, "key" | "group" | "name" | "mhz" | "code">;
 type BandParts = { rat: string | null; labelMhz?: number | null; variant?: string | null };
-export type OperatorCount = { operator: StatisticsOperator; value: number };
+export type OperatorCount = { operator: StatisticsOperator; value: number; isUnknown?: boolean };
 export type StackedRow = {
   key: string;
   group: string | null;
@@ -39,6 +41,9 @@ export type StackedRow = {
   code: string | null;
   total: number;
   parts: OperatorCount[];
+  operator?: StatisticsOperator;
+  isMono?: boolean;
+  isUnknown?: boolean;
 };
 type RegisterRatShare = PermitCounts & { rat: OfficialRat; label: string; sharePct: number };
 export type RegisterSummary = PermitCounts & { rats: RegisterRatShare[]; operators: WithOperator<PermitCounts>[] };
@@ -251,6 +256,38 @@ export function groupHistoryByLabel(points: readonly PermitHistoryPoint[], opera
 export function listOperatorHistory(points: readonly PermitHistoryPoint[], operators: OperatorLookup): OperatorPoint[] {
   const drawablePoints = listDrawableRows(points, operators, (point) => point.snapshotOn);
   return drawablePoints.map(({ row, category: date, operator }) => ({ date, operator, value: row.sites }));
+}
+
+export function keepSelectedOperators(points: readonly OperatorPoint[], operatorIds: readonly number[]): readonly OperatorPoint[] {
+  if (operatorIds.length === 0) return points;
+  return points.filter((point) => operatorIds.includes(point.operator.id));
+}
+
+export function buildChartData(points: readonly OperatorPoint[]): ChartData {
+  const rowsByDate = new Map<string, ChartRow>();
+  for (const point of points) {
+    const row = rowsByDate.get(point.date) ?? { date: point.date };
+    row[operatorDataKey(point.operator)] = point.value;
+    rowsByDate.set(point.date, row);
+  }
+
+  const series = operatorSeries(points.map((point) => point.operator));
+  const chartData = [...rowsByDate].sort(([left], [right]) => left.localeCompare(right)).map(([, row]) => row);
+
+  for (let index = 1; index < chartData.length; index++) {
+    const row = chartData[index];
+    const previousRow = chartData[index - 1];
+    for (const { key } of series) {
+      const value = row[key];
+      const previousValue = previousRow[key];
+      if (typeof value !== "number" || typeof previousValue !== "number" || previousValue === 0) continue;
+
+      row[`${key}_change`] = ((value - previousValue) / previousValue) * 100;
+      row[`${key}_delta`] = value - previousValue;
+    }
+  }
+
+  return { chartData, series };
 }
 
 export function buildPermitSnapshot(points: readonly PermitHistoryPoint[], month: string, operators: OperatorLookup): PermitSnapshot {

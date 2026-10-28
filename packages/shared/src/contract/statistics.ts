@@ -1,9 +1,11 @@
 import { z } from "zod/v4";
 
+import { MICROWAVE_LINK_BUCKETS } from "../microwaveLinkUtils.ts";
 import { BAND_VARIANTS } from "./bands.ts";
-import { countryCodeSchema, csvCountryCodesSchema, csvEnumSchema, daySchema, userRefSchema } from "./common.ts";
+import { countryCodeSchema, csvCountryCodesSchema, csvEnumSchema, daySchema, idSchema, userRefSchema } from "./common.ts";
 import { CELL_RATS } from "./constants.ts";
 import { OFFICIAL_RATS } from "./officialSites.ts";
+import { licenseeSchema } from "./officialSources.ts";
 
 export const STATISTICS_DIMENSIONS = ["region", "operator", "rat", "band"] as const;
 export type StatisticsDimension = (typeof STATISTICS_DIMENSIONS)[number];
@@ -20,7 +22,11 @@ export type PermitHistoryDimension = (typeof PERMIT_HISTORY_DIMENSIONS)[number];
 export const PHOTO_STATISTICS_DIMENSIONS = ["operator", "region"] as const;
 export type PhotoStatisticsDimension = (typeof PHOTO_STATISTICS_DIMENSIONS)[number];
 
+export const MICROWAVE_LINK_STATISTICS_DIMENSIONS = ["total", "band", "length", "type", "capacity", "vendor"] as const;
+export type MicrowaveLinkStatisticsDimension = (typeof MICROWAVE_LINK_STATISTICS_DIMENSIONS)[number];
+
 const countSchema = z.number().int().nonnegative();
+const monthStartSchema = daySchema.refine((value) => value.endsWith("-01"), { message: "Must be the first day of a month" });
 
 function groupBySchema<const T extends readonly [string, ...string[]]>(dimensions: T) {
   return csvEnumSchema(dimensions)
@@ -213,6 +219,92 @@ export const permitHistoryQuerySchema = z
   .strict();
 export type PermitHistoryQuery = z.infer<typeof permitHistoryQuerySchema>;
 
+function codeList(values: readonly string[]): string {
+  return `\`${values.join("`, `")}\``;
+}
+
+const MICROWAVE_LINK_BUCKET_NOTE =
+  "Depends on `dimension`. Always `null` for `total`. " +
+  `For \`band\`, the band in GHz, one of ${codeList(MICROWAVE_LINK_BUCKETS.band)}, ` +
+  "with `70/80` for the E-band and `other` for any other frequency. " +
+  `For \`length\`, the distance between the two ends in km, one of ${codeList(MICROWAVE_LINK_BUCKETS.length)}. ` +
+  `For \`type\`, one of ${codeList(MICROWAVE_LINK_BUCKETS.type)}, with \`other\` for channels that fit none of the others. ` +
+  `For \`capacity\`, the faster direction in Mbps, one of ${codeList(MICROWAVE_LINK_BUCKETS.capacity)}. ` +
+  "It comes from the width and modulation of each channel and counts the second path of an `SD` link once. " +
+  "For `vendor`, the maker of most of the link's transmitters in a short form such as `Huawei`. " +
+  "Each range includes its lower end. In `capacity` and `vendor`, `null` means the source does not say.";
+
+const LINK_LICENSEE_NOTE = "One of `licensees`, or `null` for links published without a licensee";
+const LINK_SOURCE_NOTE = "The source, as in `GET /official/sources`";
+const TOTAL_LENGTH_NOTE = "The lengths of these links added up";
+
+export const microwaveLinkBreakdownRowSchema = z.object({
+  licenseeId: idSchema.nullable().describe(LINK_LICENSEE_NOTE),
+  dimension: z.enum(MICROWAVE_LINK_STATISTICS_DIMENSIONS),
+  bucket: z.string().nullable().describe(MICROWAVE_LINK_BUCKET_NOTE),
+  links: countSchema,
+  totalLengthMeters: countSchema.describe(TOTAL_LENGTH_NOTE),
+});
+export type MicrowaveLinkBreakdownRow = z.infer<typeof microwaveLinkBreakdownRowSchema>;
+
+export const microwaveLinkBreakdownSchema = z.object({
+  sourceKey: z.string().describe(LINK_SOURCE_NOTE),
+  countryCode: countryCodeSchema,
+  startsOn: daySchema.describe("The first day of the month the snapshot is for"),
+  takenAt: z.iso.datetime(),
+  specsAsOf: z.iso
+    .datetime()
+    .nullable()
+    .describe("The publication date of the technical details that `capacity` and `vendor` were counted from. `null` without any"),
+  attribution: z.string().describe("The credit to show wherever these numbers are shown"),
+  licensees: z.array(licenseeSchema).describe("The licensees named in `rows`"),
+  rows: z
+    .array(microwaveLinkBreakdownRowSchema)
+    .describe(
+      "Every link is counted once in each dimension, so the rows of one licensee in one dimension add up to its `total`. " +
+        "Sorted by `dimension` and then by `bucket`, in the order their values are listed, with vendors by name and `null` last",
+    ),
+});
+export type MicrowaveLinkBreakdown = z.infer<typeof microwaveLinkBreakdownSchema>;
+
+export const microwaveLinkBreakdownQuerySchema = z
+  .object({
+    countryCodes: csvCountryCodesSchema.optional(),
+    startsOn: monthStartSchema
+      .optional()
+      .describe("The first day of the month whose snapshots you want. The newest snapshot of each source when left out"),
+  })
+  .strict();
+export type MicrowaveLinkBreakdownQuery = z.infer<typeof microwaveLinkBreakdownQuerySchema>;
+
+export const microwaveLinkHistoryPointSchema = z.object({
+  startsOn: daySchema.describe("The first day of the month"),
+  licenseeId: idSchema.nullable().describe(LINK_LICENSEE_NOTE),
+  links: countSchema,
+  totalLengthMeters: countSchema.describe(TOTAL_LENGTH_NOTE),
+});
+export type MicrowaveLinkHistoryPoint = z.infer<typeof microwaveLinkHistoryPointSchema>;
+
+export const microwaveLinkHistorySchema = z.object({
+  sourceKey: z.string().describe(LINK_SOURCE_NOTE),
+  countryCode: countryCodeSchema,
+  licensees: z.array(licenseeSchema).describe("The licensees named in `points`"),
+  months: z
+    .array(daySchema)
+    .describe("The first day of each month with a snapshot, sorted. A licensee missing from one of these months had no links that month"),
+  points: z.array(microwaveLinkHistoryPointSchema).describe("Sorted by month"),
+});
+export type MicrowaveLinkHistory = z.infer<typeof microwaveLinkHistorySchema>;
+
+export const microwaveLinkHistoryQuerySchema = z
+  .object({
+    countryCodes: csvCountryCodesSchema.optional(),
+    takenAfter: daySchema.optional().describe("Returns only months that end on or after this day"),
+    takenBefore: daySchema.optional().describe("Returns only months that start on or before this day"),
+  })
+  .strict();
+export type MicrowaveLinkHistoryQuery = z.infer<typeof microwaveLinkHistoryQuerySchema>;
+
 export const observationStatisticsSchema = z.object({
   countryCode: countryCodeSchema.describe("The country of the networks"),
   sites: z
@@ -235,10 +327,7 @@ export const contributorLeaderboardQuerySchema = z
     countryCodes: csvCountryCodesSchema
       .optional()
       .describe("Comma-separated two-letter country codes. Every country whose measurements are public when left out"),
-    startsOn: daySchema
-      .refine((value) => value.endsWith("-01"), { message: "Must be the first day of a month" })
-      .optional()
-      .describe("The first day of the month whose board you want. All time when left out"),
+    startsOn: monthStartSchema.optional().describe("The first day of the month whose board you want. All time when left out"),
     limit: z.coerce.number<number>().int().min(1).max(100).default(25).describe("People per board"),
   })
   .strict();

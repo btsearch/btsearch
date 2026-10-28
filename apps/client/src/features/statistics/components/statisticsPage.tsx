@@ -41,9 +41,10 @@ type StatisticsPageProps = {
 
 const PermitSnapshotCard = lazy(() => import("./snapshot/permitSnapshotCard").then((m) => ({ default: m.PermitSnapshotCard })));
 const HistoryCard = lazy(() => import("./history/historyCard").then((m) => ({ default: m.HistoryCard })));
+const MicrowaveLinksCard = lazy(() => import("./microwaveLinks/microwaveLinksCard").then((m) => ({ default: m.MicrowaveLinksCard })));
 
 function countStatisticsData({ stations, official }: CountryStatistics): number {
-  return stations.active + stations.awaitingCells + stations.inactive + (official?.permits ?? 0);
+  return stations.active + stations.awaitingCells + stations.inactive + (official?.permits ?? 0) + (official?.microwaveLinks ?? 0);
 }
 
 function indexCountriesWithData(statistics: readonly CountryStatistics[]): Map<string, number> {
@@ -68,6 +69,7 @@ export function StatisticsPage({ requestedCountryCode, onCountryChange }: Statis
   const country = countries?.find((entry) => entry.code === countryCode);
   const hasCountry = countryCode !== null;
   const hasRegister = country?.capabilities.official === true;
+  const hasMicrowaveLinks = country?.capabilities.microwaveLinks === true;
   const areObservationsOn = settings?.features.observations === true;
 
   const databaseSummaryQuery = useQuery({ ...databaseSummaryQueryOptions(countryCode ?? ""), enabled: hasCountry });
@@ -80,12 +82,14 @@ export function StatisticsPage({ requestedCountryCode, onCountryChange }: Statis
   const registerRegionsQuery = useQuery({ ...registerRegionsQueryOptions(countryCode ?? ""), enabled: hasRegister });
   const observationsQuery = useQuery({ ...observationStatisticsQueryOptions(countryCode ?? ""), enabled: hasCountry && areObservationsOn });
   const sourceName = useCountrySourceName(countryCode);
+  const linksSourceName = useCountrySourceName(countryCode, "microwaveLinks");
 
   const isObservationsCountry =
     observationsQuery.data === undefined ? country?.features.observationsPublic === true : observationsQuery.data !== null;
   const showsMeasurements = hasCountry && areObservationsOn && isObservationsCountry;
   const registerTitle = sourceName === null ? t("common:labels.permitRegister") : t("sections.register", { source: sourceName });
   const snapshotTitle = sourceName === null ? t("sections.registerSnapshot") : t("sections.permitSnapshot", { source: sourceName });
+  const linksTitle = linksSourceName === null ? t("common:labels.radiolines") : t("sections.microwaveLinks", { source: linksSourceName });
   const refetchError = useStatisticsRefetchError();
 
   const sections: PageSection[] = [
@@ -94,12 +98,10 @@ export function StatisticsPage({ requestedCountryCode, onCountryChange }: Statis
     { id: STATISTICS_SECTION_IDS.photos, title: t("sections.photos") },
   ];
   if (showsMeasurements) sections.push({ id: STATISTICS_SECTION_IDS.measurements, title: t("settings:sections.measurements") });
+  if (hasRegister) sections.push({ id: STATISTICS_SECTION_IDS.register, title: registerTitle });
+  if (hasMicrowaveLinks) sections.push({ id: STATISTICS_SECTION_IDS.microwaveLinks, title: linksTitle });
   if (hasRegister) {
-    sections.push(
-      { id: STATISTICS_SECTION_IDS.register, title: registerTitle },
-      { id: STATISTICS_SECTION_IDS.snapshot, title: snapshotTitle },
-      { id: STATISTICS_SECTION_IDS.history, title: t("charts.history") },
-    );
+    sections.push({ id: STATISTICS_SECTION_IDS.snapshot, title: snapshotTitle }, { id: STATISTICS_SECTION_IDS.history, title: t("charts.history") });
   }
   useRegisterPageSections(sections);
 
@@ -129,14 +131,21 @@ export function StatisticsPage({ requestedCountryCode, onCountryChange }: Statis
         <PhotosCard summaryQuery={photoSummaryQuery} regionsQuery={photoRegionsQuery} />
         {showsMeasurements ? <MeasurementsCard countryCode={countryCode} observationsQuery={observationsQuery} /> : null}
         {hasRegister ? (
+          <RegisterCard
+            title={registerTitle}
+            statistics={statistics}
+            summaryQuery={registerSummaryQuery}
+            bandsQuery={registerBandsQuery}
+            regionsQuery={registerRegionsQuery}
+          />
+        ) : null}
+        {hasMicrowaveLinks ? (
+          <LazyMount fallback={<StatisticsCardSkeleton id={STATISTICS_SECTION_IDS.microwaveLinks} title={linksTitle} />}>
+            <MicrowaveLinksCard countryCode={countryCode} title={linksTitle} statistics={statistics} />
+          </LazyMount>
+        ) : null}
+        {hasRegister ? (
           <>
-            <RegisterCard
-              title={registerTitle}
-              statistics={statistics}
-              summaryQuery={registerSummaryQuery}
-              bandsQuery={registerBandsQuery}
-              regionsQuery={registerRegionsQuery}
-            />
             <LazyMount fallback={<StatisticsCardSkeleton id={STATISTICS_SECTION_IDS.snapshot} title={snapshotTitle} />}>
               <PermitSnapshotCard countryCode={countryCode} title={snapshotTitle} sourceName={sourceName} />
             </LazyMount>

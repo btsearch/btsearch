@@ -1,5 +1,15 @@
 import { calculateDistance, formatDistance } from "@openbts/shared/geo";
-import { calculateMicrowaveLinkSpeed, formatBandwidth, formatFrequency, formatSpeed } from "@openbts/shared/microwaveLinkUtils";
+import {
+  type MicrowaveLinkDirection,
+  type MicrowaveLinkSpeeds,
+  type MicrowaveLinkType,
+  calculateLinkDirectionalSpeeds,
+  calculateMicrowaveLinkSpeed,
+  formatBandwidth,
+  formatFrequency,
+  formatSpeed,
+  groupMicrowaveLinks,
+} from "@openbts/shared/microwaveLinkUtils";
 import { DEFAULT_OPERATOR_COLOR } from "@openbts/shared/operatorUtils";
 
 import { bucketOf, entriesSortedByKey } from "../shared/collections.ts";
@@ -27,8 +37,8 @@ const REGION_CODE_BY_PROVINCE: ReadonlyMap<string, string> = new Map([
   ["zachodniopomorskie", "ZPM"],
 ]);
 
-type LinkType = "FDD" | "2+0 FDD" | "XPIC" | "SD" | "UNKNOWN";
-type KmzLinkGroup = { first: KmzLink; entries: KmzLink[]; linkType: LinkType };
+type KmzLinkDirection = MicrowaveLinkDirection & { entry: KmzLink; position: number };
+type KmzLinkGroup = { first: KmzLink; entries: KmzLink[]; linkType: MicrowaveLinkType; speeds: MicrowaveLinkSpeeds };
 
 function txPosition(link: KmzLink): string {
   return `${link.txLatitude},${link.txLongitude}`;
@@ -38,48 +48,45 @@ function rxPosition(link: KmzLink): string {
   return `${link.rxLatitude},${link.rxLongitude}`;
 }
 
-function linkGroupKey(link: KmzLink): string {
-  const licenseeName = link.licenseeName ?? "unknown";
-  if (link.permitNumber) return `permit:${licenseeName}::${link.permitNumber}`;
+function licenseeKeyOf(licenseeName: string | null, licenseeKeys: Map<string, number>): number | null {
+  if (licenseeName === null) return null;
 
-  const endsInFixedOrder = [txPosition(link), rxPosition(link)].sort();
-  return `coords:${licenseeName}::${endsInFixedOrder.join("|")}`;
+  const key = licenseeKeys.get(licenseeName) ?? licenseeKeys.size + 1;
+  licenseeKeys.set(licenseeName, key);
+  return key;
 }
 
-export function classifyLinkType(entries: readonly KmzLink[]): LinkType {
-  const entriesByDirection = new Map<string, KmzLink[]>();
-  for (const entry of entries) bucketOf(entriesByDirection, `${txPosition(entry)}->${rxPosition(entry)}`).push(entry);
-
-  const busiestDirection = [...entriesByDirection.values()].reduce((busiest, direction) => (direction.length > busiest.length ? direction : busiest));
-  if (busiestDirection.length === 1) return "FDD";
-
-  const frequencies = new Set(busiestDirection.map((entry) => entry.freqKhz));
-  const polarizations = new Set(busiestDirection.map((entry) => entry.polarization));
-  if (frequencies.size === 1 && polarizations.size > 1) return "XPIC";
-  if (frequencies.size > 1 && polarizations.size === 1) return "2+0 FDD";
-  if (frequencies.size === 1 && polarizations.size === 1) return "SD";
-  return "UNKNOWN";
+function toLinkDirection(entry: KmzLink, position: number, licenseeKeys: Map<string, number>): KmzLinkDirection {
+  return {
+    entry,
+    position,
+    licenseeId: licenseeKeyOf(entry.licenseeName, licenseeKeys),
+    permit: { number: entry.permitNumber },
+    tx: { latitude: entry.txLatitude, longitude: entry.txLongitude },
+    rx: { latitude: entry.rxLatitude, longitude: entry.rxLongitude },
+    frequencyMhz: entry.freqKhz / 1000,
+    polarization: entry.polarization,
+    channelWidthMhz: entry.channelWidth,
+    modulation: entry.modulationType,
+  };
 }
 
 export function groupIntoLinks(links: readonly KmzLink[]): KmzLinkGroup[] {
-  const groups = new Map<string, { first: KmzLink; entries: KmzLink[] }>();
-  for (const link of links) {
-    const key = linkGroupKey(link);
-    const group = groups.get(key);
-    if (group) group.entries.push(link);
-    else groups.set(key, { first: link, entries: [link] });
-  }
+  const licenseeKeys = new Map<string, number>();
+  const directions = links.map((entry, position) => toLinkDirection(entry, position, licenseeKeys));
 
-  return [...groups.values()].map((group) => ({ ...group, linkType: classifyLinkType(group.entries) }));
+  return groupMicrowaveLinks(directions).map((link) => {
+    const entries = [...link.directions].sort((a, b) => a.position - b.position).map(({ entry }) => entry);
+    return { first: entries[0]!, entries, linkType: link.linkType, speeds: calculateLinkDirectionalSpeeds(link) };
+  });
 }
 
 function regionCodeOf(link: KmzLink): string {
   return REGION_CODE_BY_PROVINCE.get(link.txProvince?.toLowerCase().trim() ?? "") ?? "UNKNOWN";
 }
 
-function speedTotal(direction: string, speeds: readonly number[]): string[] {
-  if (speeds.length === 0) return [];
-  return [`<b>${direction}:</b> ${formatSpeed(speeds.reduce((total, speed) => total + speed, 0))}`];
+function speedTotal(direction: string, speed: number | null): string[] {
+  return speed === null ? [] : [`<b>${direction}:</b> ${formatSpeed(speed)}`];
 }
 
 function equipmentLine(role: string, type: string | null, manufacturer: string | null): string[] {
@@ -91,12 +98,10 @@ function endLine(role: string, city: string | null, street: string | null, latit
   return `<b>${role}:</b> ${city ?? ""} ${street ?? ""} (${latitude.toFixed(6)}, ${longitude.toFixed(6)}) H: ${height === null ? "-" : `${height}m`}`;
 }
 
-function linkDescription({ first, entries, linkType }: KmzLinkGroup): string {
+function linkDescription({ first, entries, linkType, speeds }: KmzLinkGroup): string {
   const distance = calculateDistance(first.txLatitude, first.txLongitude, first.rxLatitude, first.rxLongitude);
   const [forwardStart] = [txPosition(first), rxPosition(first)].sort();
   const directions: string[] = [];
-  const forwardSpeeds: number[] = [];
-  const backwardSpeeds: number[] = [];
 
   for (const entry of entries) {
     const isForward = txPosition(entry) === forwardStart;
@@ -107,17 +112,14 @@ function linkDescription({ first, entries, linkType }: KmzLinkGroup): string {
 
     if (entry.channelWidth && entry.modulationType) {
       const speed = calculateMicrowaveLinkSpeed(entry.channelWidth, entry.modulationType);
-      if (speed !== null) {
-        parts.push(formatSpeed(speed));
-        (isForward ? forwardSpeeds : backwardSpeeds).push(speed);
-      }
+      if (speed !== null) parts.push(formatSpeed(speed));
     } else if (entry.bandwidth) parts.push(formatBandwidth(entry.bandwidth));
 
     if (entry.eirp !== null) parts.push(`EIRP: ${entry.eirp} dBm`);
     directions.push(parts.join(" | "));
   }
 
-  const speedTotals = [...speedTotal("Downlink", forwardSpeeds), ...speedTotal("Uplink", backwardSpeeds)];
+  const speedTotals = [...speedTotal("Downlink", speeds.dl), ...speedTotal("Uplink", speeds.ul)];
   const equipment = [
     ...equipmentLine("TX Radio", first.transmitterType, first.transmitterManufacturer),
     ...equipmentLine("TX Antenna", first.txAntennaType, first.txAntennaManufacturer),
@@ -155,7 +157,7 @@ function licenseeStyleId(licenseeName: string): string {
 }
 
 export function linksKml(groups: readonly KmzLinkGroup[], title: string): string {
-  const placemarksByLicensee = new Map<string, Map<LinkType, string[]>>();
+  const placemarksByLicensee = new Map<string, Map<MicrowaveLinkType, string[]>>();
   const colorByStyleId = new Map<string, string>();
 
   for (const group of groups) {
@@ -164,7 +166,7 @@ export function linksKml(groups: readonly KmzLinkGroup[], title: string): string
     const styleId = licenseeStyleId(licenseeName);
     if (!colorByStyleId.has(styleId)) colorByStyleId.set(styleId, first.color ?? DEFAULT_OPERATOR_COLOR);
 
-    const placemarksByType = placemarksByLicensee.get(licenseeName) ?? new Map<LinkType, string[]>();
+    const placemarksByType = placemarksByLicensee.get(licenseeName) ?? new Map<MicrowaveLinkType, string[]>();
     placemarksByLicensee.set(licenseeName, placemarksByType);
     bucketOf(placemarksByType, linkType).push(
       placemark(

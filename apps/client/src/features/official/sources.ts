@@ -6,8 +6,8 @@ type ListedSource = Pick<OfficialSource, "countryCode" | "shortName" | "datasets
 type PublicListedSource = ListedSource & Pick<OfficialSource, "isVisible">;
 type CapableCountry = Pick<Country, "code" | "capabilities">;
 
-function publishesSites(source: Pick<OfficialSource, "datasets">): boolean {
-  return source.datasets.some((dataset) => dataset.layer === "sites");
+function publishesLayer(source: Pick<OfficialSource, "datasets">, layer: OfficialLayer): boolean {
+  return source.datasets.some((dataset) => dataset.layer === layer);
 }
 
 function isInCountry(countryCode: string | null, sourceCountryCode: string): boolean {
@@ -21,14 +21,18 @@ export function listOfficialAttributions(sources: readonly OfficialAttributionSo
   return [...new Set(attributions)];
 }
 
-export function findSiteSourceName(sources: readonly NamedSource[]): string | null {
-  const shortNames = new Set(sources.filter(publishesSites).map((source) => source.shortName));
+function findLayerSourceName(sources: readonly NamedSource[], layer: OfficialLayer): string | null {
+  const shortNames = new Set(sources.filter((source) => publishesLayer(source, layer)).map((source) => source.shortName));
   const [onlyName] = shortNames;
   return shortNames.size === 1 ? onlyName : null;
 }
 
+export function findSiteSourceName(sources: readonly NamedSource[]): string | null {
+  return findLayerSourceName(sources, "sites");
+}
+
 export function listSiteSources<Source extends ListedSource>(sources: readonly Source[], countryCode: string | null): Source[] {
-  return sources.filter((source) => publishesSites(source) && isInCountry(countryCode, source.countryCode));
+  return sources.filter((source) => publishesLayer(source, "sites") && isInCountry(countryCode, source.countryCode));
 }
 
 export function listPublicSiteSourceNames(sources: readonly PublicListedSource[], countryCode: string | null): string[] {
@@ -38,8 +42,11 @@ export function listPublicSiteSourceNames(sources: readonly PublicListedSource[]
     .map((source) => source.shortName);
 }
 
-export function findCountrySourceName(sources: readonly ListedSource[], countryCode: string | null): string | null {
-  return findSiteSourceName(sources.filter((source) => isInCountry(countryCode, source.countryCode)));
+export function findCountrySourceName(sources: readonly ListedSource[], countryCode: string | null, layer: OfficialLayer = "sites"): string | null {
+  return findLayerSourceName(
+    sources.filter((source) => isInCountry(countryCode, source.countryCode)),
+    layer,
+  );
 }
 
 export function hasOfficialData(countries: readonly CapableCountry[] | undefined, countryCode: string | null): boolean {

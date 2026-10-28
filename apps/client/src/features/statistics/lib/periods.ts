@@ -44,9 +44,13 @@ export function findPeriodStart({ granularity, span }: Period, today: Date, earl
   return toDay(new Date(Date.UTC(year, month, today.getUTCDate() - periodsBack)));
 }
 
+export function toMonthEnd(month: string): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return toDay(new Date(Date.UTC(year, monthNumber, 0)));
+}
+
 export function toSnapshotRange(month: string): { takenAfter: string; takenBefore: string } {
   const [year, monthNumber] = month.split("-").map(Number);
   const previousMonthStart = new Date(Date.UTC(year, monthNumber - 2, 1));
-  const monthEnd = new Date(Date.UTC(year, monthNumber, 0));
-  return { takenAfter: toDay(previousMonthStart), takenBefore: toDay(monthEnd) };
+  return { takenAfter: toDay(previousMonthStart), takenBefore: toMonthEnd(month) };
 }

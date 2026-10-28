@@ -1,6 +1,8 @@
 import type { LinkValues, StoredLink } from "./values.js";
 
 export type LinkChange = { id: number; values: LinkValues };
+type RenewalCandidate = Pick<LinkValues, (typeof RENEWAL_KEY_COLUMNS)[number] | "ch_width">;
+export type LinkIdentity = RenewalCandidate & Pick<LinkValues, "permit_number">;
 type LinkDecision = {
   inserts: LinkValues[];
   updates: LinkChange[];
@@ -56,32 +58,39 @@ function keyOf<Column extends keyof LinkValues>(link: Pick<LinkValues, Column>, 
   return JSON.stringify(columns.map((column) => link[column]));
 }
 
+export function linkKeyOf(link: LinkIdentity): string {
+  return keyOf(link, KEY_COLUMNS);
+}
+
 function differs(stored: StoredLink, values: LinkValues): boolean {
   return COMPARED_COLUMNS.some((column) => values[column] !== undefined && stored[column] !== values[column]);
 }
 
-function groupByRenewalKey<Link extends Pick<LinkValues, (typeof RENEWAL_KEY_COLUMNS)[number]>>(links: readonly Link[]): Map<string, Link[]> {
+function groupByRenewalKey<Link extends RenewalCandidate>(links: readonly Link[]): Map<string, Link[]> {
   return Map.groupBy(links, (link) => keyOf(link, RENEWAL_KEY_COLUMNS));
 }
 
-function matchRenewals(unmatchedValues: readonly LinkValues[], unlistedLinks: readonly StoredLink[]): LinkChange[] {
-  const unlistedByRenewalKey = groupByRenewalKey(unlistedLinks);
-  const renewals: LinkChange[] = [];
+export function matchRenewals<Published extends RenewalCandidate, Stored extends RenewalCandidate>(
+  unmatched: readonly Published[],
+  unlisted: readonly Stored[],
+): [Published, Stored][] {
+  const unlistedByRenewalKey = groupByRenewalKey(unlisted);
+  const renewals: [Published, Stored][] = [];
 
-  for (const [renewalKey, sameKeyValues] of groupByRenewalKey(unmatchedValues)) {
-    const sameKeyLinks = unlistedByRenewalKey.get(renewalKey) ?? [];
-    const [values] = sameKeyValues;
-    const [stored] = sameKeyLinks;
-    if (sameKeyValues.length !== 1 || sameKeyLinks.length !== 1 || !values || !stored) continue;
-    if (values.ch_width === stored.ch_width) renewals.push({ id: stored.id, values });
+  for (const [renewalKey, sameKeyPublished] of groupByRenewalKey(unmatched)) {
+    const sameKeyStored = unlistedByRenewalKey.get(renewalKey) ?? [];
+    const [published] = sameKeyPublished;
+    const [stored] = sameKeyStored;
+    if (sameKeyPublished.length !== 1 || sameKeyStored.length !== 1 || !published || !stored) continue;
+    if (published.ch_width === stored.ch_width) renewals.push([published, stored]);
   }
 
   return renewals;
 }
 
 export function decideLinks(storedLinks: readonly StoredLink[], publishedValues: readonly LinkValues[]): LinkDecision {
-  const valuesByKey = new Map(publishedValues.map((values) => [keyOf(values, KEY_COLUMNS), values]));
-  const storedByKey = new Map(storedLinks.map((link) => [keyOf(link, KEY_COLUMNS), link]));
+  const valuesByKey = new Map(publishedValues.map((values) => [linkKeyOf(values), values]));
+  const storedByKey = new Map(storedLinks.map((link) => [linkKeyOf(link), link]));
 
   const listedIds = new Set<number>();
   const unmatchedValues: LinkValues[] = [];
@@ -100,7 +109,7 @@ export function decideLinks(storedLinks: readonly StoredLink[], publishedValues:
   const renewals = matchRenewals(
     unmatchedValues,
     storedLinks.filter((link) => !listedIds.has(link.id)),
-  );
+  ).map(([values, stored]): LinkChange => ({ id: stored.id, values }));
   const renewedIds = new Set(renewals.map((renewal) => renewal.id));
   const renewedValues = new Set(renewals.map((renewal) => renewal.values));
 
