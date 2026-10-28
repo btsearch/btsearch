@@ -1,9 +1,10 @@
-import { type ReactNode, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useEffectEvent, useLayoutEffect, useMemo, useState } from "react";
 
 export type PageSection = { id: string; title: string };
 
 const SectionsContext = createContext<PageSection[]>([]);
 const ActiveIdContext = createContext<string | null>(null);
+const SECTION_ID_SEPARATOR = " ";
 
 interface WriteContextValue {
   register: (sections: PageSection[]) => void;
@@ -40,16 +41,19 @@ export function PageSectionsProvider({ children }: { children: ReactNode }) {
 
 export function useRegisterPageSections(sections: PageSection[]): void {
   const { register, unregister, setActiveId } = useContext(WriteContext);
-  const sectionsRef = useRef(sections);
+  const sectionsKey = JSON.stringify(sections);
+  const sectionIds = sections.map((section) => section.id).join(SECTION_ID_SEPARATOR);
+  const registerSections = useEffectEvent(() => register(sections));
 
   useLayoutEffect(() => {
-    register(sectionsRef.current);
-    return () => unregister();
-  }, [register, unregister]);
+    registerSections();
+  }, [sectionsKey]);
+
+  useLayoutEffect(() => unregister, [unregister]);
 
   useEffect(() => {
-    const ids = sectionsRef.current.map((s) => s.id);
-    if (ids.length === 0) return;
+    if (sectionIds === "") return;
+    const ids = sectionIds.split(SECTION_ID_SEPARATOR);
 
     setActiveId(ids[0]);
 
@@ -83,7 +87,7 @@ export function useRegisterPageSections(sections: PageSection[]): void {
     update();
 
     return () => target.removeEventListener("scroll", update);
-  }, [setActiveId]);
+  }, [sectionIds, setActiveId]);
 }
 
 export function usePageSectionsList(): PageSection[] {

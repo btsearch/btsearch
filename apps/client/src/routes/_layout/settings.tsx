@@ -35,7 +35,6 @@ function SettingsPageSections({ hasMeasurements }: { hasMeasurements: boolean })
 }
 
 function SignedInSettings({ user, section }: { user: SettingsUser; section: SettingsSectionKey | undefined }) {
-  const { i18n } = useTranslation();
   const { data: measurementTerms } = useQuery(measurementTermsQueryOptions(user.id));
   const hasMeasurements = measurementTerms !== undefined && measurementTerms.acceptedVersion !== null;
   const isSectionShown = section !== "measurements" || hasMeasurements;
@@ -56,7 +55,7 @@ function SignedInSettings({ user, section }: { user: SettingsUser; section: Sett
         {hasMeasurements ? <MeasurementsSection user={user} terms={measurementTerms} /> : null}
         <PreferencesSection />
       </div>
-      <SettingsPageSections key={`${i18n.language}-${hasMeasurements}`} hasMeasurements={hasMeasurements} />
+      <SettingsPageSections hasMeasurements={hasMeasurements} />
     </>
   );
 }

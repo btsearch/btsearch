@@ -17,11 +17,12 @@ import {
   togglePhotosGalleryOrder,
   togglePhotosGalleryStatus,
 } from "../galleryFilters";
-import { FilterMenuTrigger, PhotosOperatorMenu } from "./photosOperatorMenu";
+import { PhotosOperatorMenu } from "./photosOperatorMenu";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { FilterMenuTrigger } from "@/features/shared/filterMenu";
 import { ClearFiltersButton } from "@/features/shared/filterPanel";
 import { ListSearchField } from "@/features/stations/list/components/frame/listSearchField";
 import { ListFacetCombobox } from "@/features/stations/list/components/panel/listFacetCombobox";
@@ -195,8 +196,8 @@ export function PhotosFilterBar({ filters, scope, onFiltersChange, onPickCountri
               pickedKeys={countries.picked}
               icon={Globe02Icon}
               label={t("main:filters.country")}
-              placeholder={t("admin:auditLogs.filters.allCountries")}
-              emptyText={t("admin:reference.countries.addDialog.noMatches")}
+              placeholder={t("common:labels.allCountries")}
+              emptyText={t("common:placeholder.noCountriesFound")}
               hasChips
               showPickedNames={false}
               getCountText={(shownCount, optionCount) => t("main:filters.countriesShown", { shown: shownCount, count: optionCount })}

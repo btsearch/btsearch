@@ -32,6 +32,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { showApiError } from "@/lib/api";
+import { downloadBlob } from "@/lib/dom/download";
 import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg-parser/model";
 import { parseNsgTimestampMs } from "@/lib/nsg-parser/values";
 import { cn } from "@/lib/utils";
@@ -272,12 +273,8 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     setIsExporting(true);
     try {
       const { createCellsCsv } = await import("@/features/nsg-explorer/export/cellsCsv");
-      const url = URL.createObjectURL(new Blob([createCellsCsv(log, cells)], { type: "text/csv;charset=utf-8" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = log.sourceName.replace(/\.(?:log(?:\.gz)?|gz)$/i, "") + "-cells.csv";
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const csv = new Blob([createCellsCsv(log, cells)], { type: "text/csv;charset=utf-8" });
+      downloadBlob(csv, log.sourceName.replace(/\.(?:log(?:\.gz)?|gz)$/i, "") + "-cells.csv");
     } catch {
       toast.error(t("export.failed"));
     } finally {

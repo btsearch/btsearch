@@ -168,7 +168,7 @@
     "recentDaysValue_one": "{{count, number}} day",
     "recentDaysValue_other": "{{count, number}} days",
     "layers": "Layers",
-    "operator": "BTS operator",
+    "operator": "Station operator",
     "showPlannedPem": "Planned EMF",
     "radiolineOperator": "Microwave link operator",
     "searchRadiolineOperators": "Search microwave link operators...",

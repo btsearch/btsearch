@@ -429,6 +429,13 @@
       "accept": "Zaakceptuj wersję {{version}}",
       "acceptSuccess": "Warunki zaakceptowane"
     },
+    "leaderboard": {
+      "title": "Pokaż mnie w rankingu",
+      "description": "Ranking jest na stronie Statystyki. Widać w nim tylko osoby z publicznym profilem. Po włączeniu pojawisz się w nim w ciągu doby",
+      "privateProfile": "Nie ma Cię w rankingu, bo masz prywatny profil",
+      "profileSettings": "Ustawienia profilu",
+      "loadFailed": "Nie udało się wczytać ustawienia rankingu"
+    },
     "uploads": {
       "title": "Przesłane pomiary",
       "description": "Aplikacja przesyła pomiary w plikach. Każdy z nich możesz pobrać albo wycofać",

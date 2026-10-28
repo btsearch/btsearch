@@ -45,7 +45,7 @@ function AreaLine({ access, lookups, haveLookupsFailed }: AreaLineProps) {
   if (area === undefined || (lookups === undefined && !haveLookupsFailed && hasRegionLimits(area))) {
     return <Skeleton className="mt-1 h-5 w-56" aria-hidden="true" />;
   }
-  if (area.coversEverything) return <p className={AREA_LINE_CLASS}>{t("auditLogs.filters.allCountries")}</p>;
+  if (area.coversEverything) return <p className={AREA_LINE_CLASS}>{t("common:labels.allCountries")}</p>;
   if (area.regionIdsByCountry.size === 0) return <p className={AREA_LINE_CLASS}>{t("dashboard.noArea")}</p>;
   return <p className={AREA_LINE_CLASS}>{t("dashboard.area", { area: describeArea(area, lookups, i18n.language) })}</p>;
 }

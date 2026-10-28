@@ -4,6 +4,8 @@ import type {
   MeasurementDevice,
   MeasurementDeviceList,
   MeasurementDeviceUpdate,
+  MeasurementListing,
+  MeasurementListingUpdate,
   MeasurementSummary,
   MeasurementTerms,
   MeasurementTermsAccept,
@@ -18,6 +20,7 @@ import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import { API_V2_BASE, ApiResponseError, JSON_HEADERS, fetchJson, fetchV2Data } from "@/lib/api";
 import { meQueryOptions } from "@/lib/auth/me";
+import { downloadBlob } from "@/lib/dom/download";
 
 const DEVICES_LIMIT = 50;
 const UPLOADS_PAGE_SIZE = 10;
@@ -82,6 +85,13 @@ export function measurementSummaryQueryOptions(userId: string) {
   });
 }
 
+export function measurementListingQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: ["measurements", "listing", userId] as const,
+    queryFn: ({ signal }) => fetchV2Data<MeasurementListing>("measurements/listing", { signal }),
+  });
+}
+
 export function measurementUploadsLimitQueryOptions(userId: string) {
   return queryOptions({ ...meQueryOptions(userId), select: readMeasurementUploadsLimit });
 }
@@ -111,6 +121,11 @@ export function acceptMeasurementTerms(version: number): Promise<MeasurementTerm
   return fetchV2Data<MeasurementTerms>("measurements/terms", { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(accept) });
 }
 
+export function updateMeasurementListing(isListed: boolean): Promise<MeasurementListing> {
+  const update: MeasurementListingUpdate = { isListed };
+  return fetchV2Data<MeasurementListing>("measurements/listing", { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(update) });
+}
+
 export async function downloadMeasurementUploadFile(upload: MeasurementUpload): Promise<void> {
   const response = await fetch(`${API_V2_BASE}/measurements/uploads/${upload.id}/file`, { credentials: "include" });
   if (!response.ok) {
@@ -119,12 +134,5 @@ export async function downloadMeasurementUploadFile(upload: MeasurementUpload): 
     throw new Error(`Download failed: ${response.status}`);
   }
 
-  const downloadUrl = URL.createObjectURL(await response.blob());
-  const link = document.createElement("a");
-  link.href = downloadUrl;
-  link.download = `${upload.id}.${UPLOAD_FILE_EXTENSIONS[upload.contentType]}`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(downloadUrl);
+  downloadBlob(await response.blob(), `${upload.id}.${UPLOAD_FILE_EXTENSIONS[upload.contentType]}`);
 }

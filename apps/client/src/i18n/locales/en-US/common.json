@@ -84,6 +84,8 @@
     "operator": "Operator",
     "allOperators": "All operators",
     "region": "Region",
+    "country": "Country",
+    "allCountries": "All countries",
     "allRegions": "All regions",
     "allStatuses": "All statuses",
     "allBands": "All bands",
@@ -203,6 +205,8 @@
     "selectOperators": "Select operators...",
     "noOperatorsFound": "No operators found",
     "noRegionsFound": "No regions found",
+    "searchCountries": "Search countries",
+    "noCountriesFound": "No countries found",
     "optional": "Optional",
     "email": "name@example.com"
   },

@@ -112,6 +112,7 @@ type EvilLineChartBaseProps<TData extends Record<string, unknown>, TConfig exten
   curveType?: CurveType; // default curve interpolation for every <Line />
   animationType?: LineAnimationType; // default intro reveal for every <Line />
   defaultSelectedDataKey?: string | null; // series selected on first render
+  selectedDataKey?: string | null;
   onSelectionChange?: (selectedDataKey: string | null) => void; // fires when the selected series changes
   isLoading?: boolean; // shows the animated loading skeleton
   loadingPoints?: number; // number of points in the loading skeleton
@@ -142,6 +143,7 @@ export function EvilLineChart<TData extends Record<string, unknown>, TConfig ext
   curveType = "linear",
   animationType = "left-to-right",
   defaultSelectedDataKey = null,
+  selectedDataKey: controlledSelectedDataKey,
   onSelectionChange,
   isLoading = false,
   loadingPoints,
@@ -152,7 +154,8 @@ export function EvilLineChart<TData extends Record<string, unknown>, TConfig ext
   onBrushChange,
 }: EvilLineChartProps<TData, TConfig>) {
   const chartId = useId().replace(/:/g, ""); // colon-free id keeps CSS/SVG selectors valid
-  const [selectedDataKey, setSelectedDataKey] = useState<string | null>(defaultSelectedDataKey);
+  const [ownSelectedDataKey, setOwnSelectedDataKey] = useState<string | null>(defaultSelectedDataKey);
+  const selectedDataKey = controlledSelectedDataKey === undefined ? ownSelectedDataKey : controlledSelectedDataKey;
   const { loadingData, onShimmerExit } = useLoadingData(isLoading, loadingPoints);
   const { visibleData, brushProps } = useEvilBrush({ data });
 
@@ -161,7 +164,7 @@ export function EvilLineChart<TData extends Record<string, unknown>, TConfig ext
   // Updates selection state and notifies the parent
   const selectDataKey = useCallback(
     (newSelectedDataKey: string | null) => {
-      setSelectedDataKey(newSelectedDataKey);
+      setOwnSelectedDataKey(newSelectedDataKey);
       onSelectionChange?.(newSelectedDataKey);
     },
     [onSelectionChange],

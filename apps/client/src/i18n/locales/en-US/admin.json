@@ -849,8 +849,7 @@
       "allKinds": "All operations",
       "kindsCount_one": "{{count, number}} operation",
       "kindsCount_other": "{{count, number}} operations",
-      "recordId": "Record ID",
-      "allCountries": "All countries"
+      "recordId": "Record ID"
     },
     "empty": {
       "title": "No logs found",
@@ -3487,8 +3486,6 @@
         "codeHint": "The country code can't be changed later",
         "startsHidden": "It starts hidden, with submissions closed",
         "emptyPlanNote": "While the band plan is empty, stations in this country won't accept any cells",
-        "searchLabel": "Search countries",
-        "noMatches": "No countries found",
         "success": "Country added",
         "failed": "Couldn't add the country"
       }

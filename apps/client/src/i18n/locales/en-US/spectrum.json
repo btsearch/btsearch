@@ -1,8 +1,5 @@
 {
   "description": "Which frequencies each mobile operator holds",
-  "country": "Country",
-  "searchCountry": "Search countries",
-  "noCountryMatches": "No matching countries",
   "loadFailed": "Couldn't load spectrum data",
   "sources": "Sources:",
   "range": "{{low}}-{{high}} MHz",

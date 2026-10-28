@@ -112,6 +112,7 @@ type EvilBarChartBaseProps<TData extends Record<string, unknown>, TConfig extend
   barCategoryGap?: number; // gap between categories of bars
   backgroundVariant?: BackgroundVariant; // background pattern drawn behind the chart
   defaultSelectedDataKey?: string | null; // series selected on first render
+  selectedDataKey?: string | null;
   onSelectionChange?: (selectedDataKey: string | null) => void; // fires when the selected series changes
   isLoading?: boolean; // shows the animated loading skeleton
   loadingBars?: number; // number of bars in the loading skeleton
@@ -147,6 +148,7 @@ export function EvilBarChart<TData extends Record<string, unknown>, TConfig exte
   barCategoryGap,
   backgroundVariant,
   defaultSelectedDataKey = null,
+  selectedDataKey: controlledSelectedDataKey,
   onSelectionChange,
   isLoading = false,
   loadingBars,
@@ -161,7 +163,8 @@ export function EvilBarChart<TData extends Record<string, unknown>, TConfig exte
   // and Recharts' bar remounts read elapsed time from here instead of replaying.
   // Lazy useState stamps the time once, on the initial render only.
   const [introStartedAt] = useState(() => Date.now());
-  const [selectedDataKey, setSelectedDataKey] = useState<string | null>(defaultSelectedDataKey);
+  const [ownSelectedDataKey, setOwnSelectedDataKey] = useState<string | null>(defaultSelectedDataKey);
+  const selectedDataKey = controlledSelectedDataKey === undefined ? ownSelectedDataKey : controlledSelectedDataKey;
   const [isMouseInChart, setIsMouseInChart] = useState(false);
   const { loadingData, onShimmerExit } = useLoadingData(isLoading, loadingBars, 20, 80);
   const { visibleData, brushProps } = useEvilBrush({ data });
@@ -173,7 +176,7 @@ export function EvilBarChart<TData extends Record<string, unknown>, TConfig exte
   // Updates selection state and notifies the parent
   const selectDataKey = useCallback(
     (newSelectedDataKey: string | null) => {
-      setSelectedDataKey(newSelectedDataKey);
+      setOwnSelectedDataKey(newSelectedDataKey);
       onSelectionChange?.(newSelectedDataKey);
     },
     [onSelectionChange],
@@ -459,10 +462,11 @@ type TooltipProps = {
   roundness?: TooltipRoundness;
   defaultIndex?: number;
   valueFormatter?: React.ComponentProps<typeof ChartTooltipContent>["valueFormatter"];
+  renderIndicator?: React.ComponentProps<typeof ChartTooltipContent>["renderIndicator"];
   locale?: string;
 };
 
-export function Tooltip({ variant, roundness, defaultIndex, valueFormatter, locale }: TooltipProps) {
+export function Tooltip({ variant, roundness, defaultIndex, valueFormatter, renderIndicator, locale }: TooltipProps) {
   const { isLoading, selectedDataKey } = useBarChart();
 
   if (isLoading) return null;
@@ -472,7 +476,14 @@ export function Tooltip({ variant, roundness, defaultIndex, valueFormatter, loca
       cursor={false}
       defaultIndex={defaultIndex}
       content={
-        <ChartTooltipContent selected={selectedDataKey} roundness={roundness} variant={variant} valueFormatter={valueFormatter} locale={locale} />
+        <ChartTooltipContent
+          selected={selectedDataKey}
+          roundness={roundness}
+          variant={variant}
+          valueFormatter={valueFormatter}
+          renderIndicator={renderIndicator}
+          locale={locale}
+        />
       }
     />
   );

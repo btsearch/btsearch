@@ -140,7 +140,7 @@ function CommentRow({
 
   return (
     <article className="border-t px-4 py-3.5 first:border-t-0 sm:px-5 sm:py-4">
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+      <div className="flex items-center gap-x-2.5">
         <button
           type="button"
           aria-label={t("userProfile.comments.openStation", { station: stationLabel })}
@@ -156,8 +156,12 @@ function CommentRow({
           <span className="font-semibold tabular-nums">{stationId}</span>
           <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
-        {city ? <span className="text-[0.8125rem] leading-4.5 text-muted-foreground">{city}</span> : null}
-        <span className="ml-auto flex items-center gap-2.5">
+        {city ? (
+          <span title={city} className="min-w-0 truncate text-[0.8125rem] leading-4.5 text-muted-foreground">
+            {city}
+          </span>
+        ) : null}
+        <span className="ml-auto flex shrink-0 items-center gap-2.5">
           {photoCount > 0 ? (
             <>
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums" title={photoCountLabel}>

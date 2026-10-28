@@ -7,6 +7,7 @@ import { SETTINGS_SECTION_IDS } from "../../sections";
 import type { SettingsUser } from "../identityBanner";
 import { SETTINGS_DESCRIPTION_CLASS, SETTINGS_TWO_COLUMN_CLASS, SettingsSection, SettingsStack } from "../settingsPrimitives";
 import { DevicesCard } from "./devicesCard";
+import { LeaderboardCard } from "./leaderboardCard";
 import { MeasurementSummaryCard } from "./measurementSummaryCard";
 import { MeasurementUploadsCard } from "./measurementUploadsCard";
 import { TermsCard } from "./termsCard";
@@ -34,6 +35,7 @@ export function MeasurementsSection({ user, terms }: { user: SettingsUser; terms
           <SettingsStack>
             <UploadLimitCard userId={user.id} />
             <TermsCard userId={user.id} terms={terms} canAccept={!isUploadingOff} />
+            <LeaderboardCard userId={user.id} />
           </SettingsStack>
         </div>
         <MeasurementUploadsCard userId={user.id} />

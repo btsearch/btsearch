@@ -1,8 +1,5 @@
 {
   "description": "Częstotliwości, które mają operatorzy komórkowi",
-  "country": "Kraj",
-  "searchCountry": "Szukaj kraju",
-  "noCountryMatches": "Brak pasujących krajów",
   "loadFailed": "Nie udało się wczytać danych o widmie",
   "sources": "Źródła:",
   "range": "{{low}}-{{high}} MHz",

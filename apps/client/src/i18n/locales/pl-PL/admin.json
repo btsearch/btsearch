@@ -891,8 +891,7 @@
       "kindsCount_few": "{{count, number}} operacje",
       "kindsCount_many": "{{count, number}} operacji",
       "kindsCount_other": "{{count, number}} operacji",
-      "recordId": "ID rekordu",
-      "allCountries": "Wszystkie kraje"
+      "recordId": "ID rekordu"
     },
     "empty": {
       "title": "Nie znaleziono logów",
@@ -3759,8 +3758,6 @@
         "codeHint": "Kodu kraju nie da się później zmienić",
         "startsHidden": "Zaczyna jako ukryty, z zamkniętymi zgłoszeniami",
         "emptyPlanNote": "Dopóki plan pasm jest pusty, stacje w tym kraju nie przyjmą żadnej komórki",
-        "searchLabel": "Szukaj kraju",
-        "noMatches": "Nie znaleziono krajów",
         "success": "Kraj dodany",
         "failed": "Nie udało się dodać kraju"
       }

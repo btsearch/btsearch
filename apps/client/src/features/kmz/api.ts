@@ -1,4 +1,5 @@
 import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
+import { downloadBlob } from "@/lib/dom/download";
 import type { Region } from "@/types/station";
 
 export const KMZ_TYPES = ["stations", "radiolines"] as const;
@@ -61,15 +62,7 @@ export async function downloadKmzFile(file: KmzFile): Promise<boolean> {
     const response = await fetch(`${API_BASE}/kmz/download?${params.toString()}`);
     if (!response.ok) return false;
 
-    const blob = await response.blob();
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = file.filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(downloadUrl);
+    downloadBlob(await response.blob(), file.filename);
     return true;
   } catch {
     return false;

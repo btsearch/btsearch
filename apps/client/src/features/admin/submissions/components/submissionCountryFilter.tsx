@@ -23,8 +23,8 @@ export function SubmissionCountryFilter({ countryCodes, options, onChange, isInl
         pickedKeys={countryCodes}
         icon={Globe02Icon}
         label={t("main:filters.country")}
-        placeholder={t("admin:auditLogs.filters.allCountries")}
-        emptyText={t("admin:reference.countries.addDialog.noMatches")}
+        placeholder={t("common:labels.allCountries")}
+        emptyText={t("common:placeholder.noCountriesFound")}
         hasChips
         showPickedNames={isInline}
         isInline={isInline}

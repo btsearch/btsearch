@@ -8,14 +8,12 @@ import { sourceLink } from "../format";
 import { type SpectrumGroup, buildCountrySpectrum, countHoldingsByCountry, getLocalDay } from "../model";
 import { spectrumHoldingsWithOperatorQueryOptions } from "../queries";
 import { SpectrumBandCard } from "./spectrumBandCard";
-import { type SpectrumCountry, SpectrumCountryPicker } from "./spectrumCountryPicker";
 import { SpectrumSummary } from "./spectrumSummary";
-import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CountryPicker, pickCountry } from "@/features/shared/countryPicker";
 import { bandsQueryOptions, brandsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { useRememberedListCountries } from "@/features/stations/list/data/listCountryMemory";
-import { getCountryName } from "@/lib/geo/countryName";
 
 type SpectrumPageProps = {
   requestedCountryCode: string | null;
@@ -56,13 +54,6 @@ function SpectrumSkeleton() {
   );
 }
 
-function pickCountry(counts: ReadonlyMap<string, number>, requested: string | null, remembered: readonly string[]): string | null {
-  if (requested !== null && counts.has(requested)) return requested;
-  const rememberedCountry = remembered.find((countryCode) => counts.has(countryCode));
-  if (rememberedCountry !== undefined) return rememberedCountry;
-  return [...counts].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
-}
-
 function SourceList({ sources }: { sources: readonly string[] }) {
   const { t } = useTranslation("spectrum");
 
@@ -95,7 +86,7 @@ function SourceList({ sources }: { sources: readonly string[] }) {
 }
 
 export function SpectrumPage({ requestedCountryCode, onCountryChange }: SpectrumPageProps) {
-  const { t, i18n } = useTranslation("spectrum");
+  const { t } = useTranslation("spectrum");
   const [today] = useState(() => getLocalDay(new Date()));
   const [highlightedOperatorId, setHighlightedOperatorId] = useState<number | null>(null);
   const rememberedCountryCodes = useRememberedListCountries();
@@ -113,24 +104,10 @@ export function SpectrumPage({ requestedCountryCode, onCountryChange }: Spectrum
 
   const queries = [holdingsQuery, brandsQuery, planBandsQuery];
   const failedQueries = queries.filter((query) => query.isError);
-  const countries: SpectrumCountry[] = [...(counts?.keys() ?? [])]
-    .map((code) => ({ code, name: getCountryName(code, i18n.language) }))
-    .sort((left, right) => left.name.localeCompare(right.name, i18n.language));
 
   function changeCountry(nextCountryCode: string) {
     setHighlightedOperatorId(null);
     onCountryChange(nextCountryCode);
-  }
-
-  function renderCountry() {
-    if (countryCode === null) return null;
-    if (countries.length > 1) return <SpectrumCountryPicker countries={countries} value={countryCode} onChange={changeCountry} />;
-    return (
-      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <CountryCodeTile code={countryCode} size="xs" />
-        {getCountryName(countryCode, i18n.language)}
-      </span>
-    );
   }
 
   function renderContent() {
@@ -183,7 +160,7 @@ export function SpectrumPage({ requestedCountryCode, onCountryChange }: Spectrum
             <h1 className="text-2xl font-bold">{t("nav:items.spectrum")}</h1>
             <p className="text-sm text-muted-foreground">{t("description")}</p>
           </div>
-          {renderCountry()}
+          {countryCode === null ? null : <CountryPicker countryCodes={[...(counts?.keys() ?? [])]} value={countryCode} onChange={changeCountry} />}
         </header>
         {renderContent()}
       </div>

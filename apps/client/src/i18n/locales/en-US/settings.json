@@ -421,6 +421,13 @@
       "accept": "Accept version {{version}}",
       "acceptSuccess": "Terms accepted"
     },
+    "leaderboard": {
+      "title": "Show me on the leaderboard",
+      "description": "The leaderboard is on the Statistics page. Only people with a public profile appear on it. After you turn this on, you'll show up within a day",
+      "privateProfile": "You're not on the leaderboard because your profile is private",
+      "profileSettings": "Profile settings",
+      "loadFailed": "Couldn't load the leaderboard setting"
+    },
     "uploads": {
       "title": "Uploaded measurements",
       "description": "Each upload is one file from the app. You can download or withdraw it",

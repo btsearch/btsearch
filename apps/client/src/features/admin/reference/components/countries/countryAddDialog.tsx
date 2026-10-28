@@ -93,8 +93,8 @@ function CountryPicker({ options, value, labelledBy, disabled, onChange }: Count
         )}
       </ComboboxTrigger>
       <ComboboxContent>
-        <ComboboxInput showTrigger={false} placeholder={t("common:placeholder.search")} aria-label={t("reference.countries.addDialog.searchLabel")} />
-        <ComboboxEmpty>{t("reference.countries.addDialog.noMatches")}</ComboboxEmpty>
+        <ComboboxInput showTrigger={false} placeholder={t("common:placeholder.search")} aria-label={t("common:placeholder.searchCountries")} />
+        <ComboboxEmpty>{t("common:placeholder.noCountriesFound")}</ComboboxEmpty>
         <ComboboxList>
           {(country: CountryOption) => (
             <ComboboxItem key={country.code} value={country} className="cursor-pointer">

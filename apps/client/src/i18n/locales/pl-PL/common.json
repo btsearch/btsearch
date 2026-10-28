@@ -84,6 +84,8 @@
     "operator": "Operator",
     "allOperators": "Wszyscy operatorzy",
     "region": "Województwo",
+    "country": "Kraj",
+    "allCountries": "Wszystkie kraje",
     "allRegions": "Wszystkie województwa",
     "allStatuses": "Wszystkie statusy",
     "allBands": "Wszystkie pasma",
@@ -204,6 +206,8 @@
     "selectOperators": "Wybierz operatorów...",
     "noOperatorsFound": "Nie znaleziono operatorów",
     "noRegionsFound": "Nie znaleziono województw",
+    "searchCountries": "Szukaj kraju",
+    "noCountriesFound": "Nie znaleziono krajów",
     "optional": "Opcjonalnie",
     "email": "nazwa@example.com"
   },

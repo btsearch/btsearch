@@ -172,7 +172,7 @@
     "recentDaysValue_many": "{{count, number}} dni",
     "recentDaysValue_other": "{{count, number}} dni",
     "layers": "Warstwy",
-    "operator": "Operator BTS",
+    "operator": "Operator stacji",
     "showPlannedPem": "Planowane PEM",
     "radiolineOperator": "Operator radiolinii",
     "searchRadiolineOperators": "Szukaj operatorów radiolinii...",

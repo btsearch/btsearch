@@ -1,4 +1,5 @@
 import type { CLFExportFormat } from "@/hooks/usePreferences";
+import { downloadBlob } from "@/lib/dom/download";
 
 const FILE_EXTENSION_BY_FORMAT: Record<CLFExportFormat, string> = {
   "2.0": "clf",
@@ -41,20 +42,6 @@ export async function chooseExportFile(format: CLFExportFormat): Promise<ExportF
     suggestedName: getExportFilename(format),
     types: [{ accept: { "text/plain": [`.${FILE_EXTENSION_BY_FORMAT[format]}`] } }],
   });
-}
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const downloadUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  try {
-    link.href = downloadUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-  } finally {
-    link.remove();
-    URL.revokeObjectURL(downloadUrl);
-  }
 }
 
 export async function downloadExport(url: string, format: CLFExportFormat, options: DownloadOptions): Promise<DownloadResult> {

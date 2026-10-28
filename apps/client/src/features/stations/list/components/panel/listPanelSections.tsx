@@ -136,9 +136,9 @@ export function ListCountrySection({ countries, isInline = false, onPickCountrie
         pickedKeys={picked}
         icon={Globe02Icon}
         label={t("main:filters.country")}
-        placeholder={t("admin:auditLogs.filters.allCountries")}
+        placeholder={t("common:labels.allCountries")}
         addPlaceholder={t("main:filters.addCountry")}
-        emptyText={t("admin:reference.countries.addDialog.noMatches")}
+        emptyText={t("common:placeholder.noCountriesFound")}
         isInline={isInline}
         getCountText={(shownCount, optionCount) => t("main:filters.countriesShown", { shown: shownCount, count: optionCount })}
         onChange={onPickCountries}

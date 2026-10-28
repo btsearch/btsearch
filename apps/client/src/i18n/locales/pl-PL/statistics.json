@@ -1,7 +1,7 @@
 {
-  "description": "Statystyki pozwoleń, kompletności bazy, wkładu użytkowników i trendów historycznych w podziale na operatorów i pasma",
   "sections": {
     "quality": "Jakość danych",
+    "register": "Rejestr {{source}}",
     "permitSnapshot": "{{source}} wg miesiąca",
     "registerSnapshot": "Rejestr wg miesiąca"
   },
@@ -15,64 +15,122 @@
     "totalPermits": "Pozwolenia",
     "totalStations": "Unikalne stacje",
     "totalInternalStations": "Stacje",
-    "totalCells": "Komórki"
+    "totalCells": "Komórki",
+    "locations": "Lokalizacje"
+  },
+  "database": {
+    "updatedAt": "Ostatnia zmiana {{date}}",
+    "withoutCells": "{{count, number}} bez komórek",
+    "inactive_one": "{{count, number}} nieaktywna",
+    "inactive_few": "{{count, number}} nieaktywne",
+    "inactive_many": "{{count, number}} nieaktywnych",
+    "inactive_other": "{{count, number}} nieaktywnych"
+  },
+  "register": {
+    "dataFrom": "Dane z {{date}}",
+    "source": "Źródło rejestru:"
   },
   "charts": {
-    "byRat": "Rozkład wg technologii",
-    "byOperator": "Rozkład wg operatora",
+    "total": "Razem {{count, number}}",
     "byBand": "Unikalne stacje wg pasma",
+    "byOperator": "Unikalne stacje wg operatora",
+    "byRegion": "Unikalne stacje wg regionu",
     "internalStationsByBand": "Stacje wg pasma",
     "internalStationsPerOperator": "Stacje wg operatora",
-    "byVoivodeship": "Unikalne stacje wg województwa",
-    "internalByVoivodeship": "Stacje wg województwa",
+    "internalByRegion": "Stacje wg regionu",
     "history": "Trendy historyczne",
-    "noHistoryData": "Brak danych historycznych. Trendy pojawią się, gdy dane zostaną zebrane"
+    "noHistoryData": "Nie ma jeszcze danych historycznych"
   },
   "completeness": {
-    "stationTitle": "Kompletność dokumentacji stacji",
-    "stationDescription": "Opublikowane stacje z azymutami i dodatkowymi identyfikatorami",
-    "pciTitle": "Kompletność PCI",
-    "pciDescription": "Komórki LTE i NR z udokumentowanym lub brakującym PCI",
+    "title": "Kompletność",
+    "stationsWithSectors": "Stacje z azymutami",
+    "stationsWithExtraIds": "Stacje z dodatkowymi ID",
+    "lteCellsWithPci": "Komórki LTE z PCI",
+    "nrCellsWithPci": "Komórki NR z PCI",
     "withSectors": "Z azymutami",
-    "withoutSectors": "Bez azymutów",
     "withExtraIds": "Z dodatkowymi ID",
-    "withoutExtraIds": "Bez dodatkowych ID",
-    "documented": "Udokumentowane",
-    "missing": "Brakujące",
+    "withoutSectors": "Bez azymutów",
+    "lteWithPci": "LTE z PCI",
+    "nrWithPci": "NR z PCI",
+    "stationsOf_one": "{{part, number}} z {{count, number}} stacji",
+    "stationsOf_few": "{{part, number}} z {{count, number}} stacji",
+    "stationsOf_many": "{{part, number}} z {{count, number}} stacji",
+    "stationsOf_other": "{{part, number}} z {{count, number}} stacji",
+    "cellsOf_one": "{{part, number}} z {{count, number}} komórki",
+    "cellsOf_few": "{{part, number}} z {{count, number}} komórek",
+    "cellsOf_many": "{{part, number}} z {{count, number}} komórek",
+    "cellsOf_other": "{{part, number}} z {{count, number}} komórek",
     "analyzerUsage": "Użycie analizatora"
   },
   "contributions": {
     "title": "Historia uzupełnień",
-    "description": "Różnice dla azymutów, dodatkowych identyfikatorów i komórek z PCI",
-    "addedSectors": "Dodane azymuty",
-    "addedExtraIds": "Dodane dodatkowe ID",
-    "addedCellsWithPCI": "Dodane komórki z PCI"
+    "extraIds": "Dodatkowe ID",
+    "cellsWithPci": "Komórki z PCI"
+  },
+  "measurements": {
+    "lastMeasuredOn": "Ostatni pomiar {{date}}",
+    "squares": "Zmierzone miejsca",
+    "area": "{{area}} km²",
+    "cells": "Zmierzone komórki",
+    "sites": "Stacje z pomiarów",
+    "unmatchedCount": "{{count, number}} spoza bazy",
+    "readingsThisMonth": "Odczyty w tym miesiącu",
+    "fewPeople": "Mniej niż 3 osoby",
+    "readingsTitle": "Odczyty w ostatnich 12 miesiącach",
+    "readingsDescription": "Odczyty z miesięcy, w których mierzyły mniej niż 3 osoby, są ukryte",
+    "people": "Osoby",
+    "sitesDescription": "Publiczne stacje wyznaczone z pomiarów",
+    "matched": "Przypisane do stacji w bazie",
+    "suggested": "Z propozycją przypisania",
+    "unmatched": "Spoza bazy",
+    "emptyTitle": "Brak pomiarów w tym kraju",
+    "emptyDescription": "Ranking i liczby pojawią się po pierwszych odczytach z aplikacji"
+  },
+  "leaderboard": {
+    "title": "Ranking",
+    "description": "Kto zmierzył najwięcej nowych miejsc",
+    "period": "Okres rankingu",
+    "allTime": "Od początku",
+    "person": "Osoba",
+    "you": "Ty",
+    "onlyListed": "Tylko osoby z publicznym profilem, które się na to zgodziły",
+    "refreshedOn": "Odświeżono {{date}}",
+    "rankThisMonth": "Twoja pozycja w tym miesiącu:",
+    "rankAllTime": "Twoja pozycja od początku:",
+    "notListed": "Nie ma Cię w rankingu. Możesz to włączyć w ustawieniach pomiarów",
+    "measurementSettings": "Ustawienia pomiarów",
+    "emptyMonth": "W wybranym miesiącu ranking jest pusty",
+    "emptyAllTime": "W rankingu nie ma jeszcze nikogo"
   },
   "permitsByMonth": {
-    "title": "Stacje i pozwolenia {{source}} wg miesiąca",
-    "registerTitle": "Stacje i pozwolenia z rejestru wg miesiąca",
     "description": "Wybierz miesiąc, aby sprawdzić liczbę stacji i pozwoleń {{source}}",
     "registerDescription": "Wybierz miesiąc, aby sprawdzić liczbę stacji i pozwoleń z rejestru",
+    "summary": "Stacje i pozwolenia. {{dates}}",
     "snapshotDate": "Dane z {{date}} względem {{previousDate}}",
-    "month": "Miesiąc",
-    "view": "Widok",
     "views": {
       "stations": "Stacje",
       "permits": "Pozwolenia"
     },
-    "noPreviousSnapshot": "brak poprzednich danych",
     "export": {
       "button": "Pobierz PNG",
       "generating": "Generowanie PNG...",
       "error": "Nie udało się wygenerować obrazu. Spróbuj ponownie",
-      "imageTitle": "{{source}} w miesiącu {{month}} {{year}}",
-      "registerImageTitle": "Rejestr pozwoleń w miesiącu {{month}} {{year}}"
+      "imageTitle": "{{source}} - {{month}} {{year}}",
+      "registerImageTitle": "Rejestr pozwoleń - {{month}} {{year}}"
     }
   },
   "filters": {
     "granularity": "Okres",
+    "range": "Zakres",
+    "month": "Miesiąc",
+    "view": "Widok",
     "monthly": "Miesięczne",
-    "daily": "Dziennie",
+    "daily": "Dzienne",
+    "months_one": "{{count, number}} miesiąc",
+    "months_few": "{{count, number}} miesiące",
+    "months_many": "{{count, number}} miesięcy",
+    "months_other": "{{count, number}} miesiąca",
+    "everything": "Wszystko",
     "byBand": "Wg pasma",
     "byOperator": "Wg operatora"
   }

@@ -1,26 +1,23 @@
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Fragment, type ReactNode, useState } from "react";
+import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { BrandMark } from "@/components/cellular/brandMark";
-import { Button } from "@/components/ui/button";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { ROW_PILL_COUNT_CLASS } from "@/features/map/components/search-overlay/mapFilterOperatorRows";
 import { type OperatorRow, type OperatorRowFilters, listOperatorRows } from "@/features/map/components/search-overlay/mapFilterPanelRules";
 import type { MapOperator } from "@/features/map/data/mapLookups";
+import { FilterMenuTrigger, OperatorCheckboxItem, OperatorFilterLabel } from "@/features/shared/filterMenu";
 import type { ListPanelScope } from "@/features/stations/list/data/listPanel";
 import { getCountryName } from "@/lib/geo/countryName";
 import { cn, toggleValue } from "@/lib/utils";
@@ -51,40 +48,18 @@ type CountryRowItemProps = {
   onToggleOpen: (countryCode: string) => void;
 };
 
-const NAME_SEPARATOR = ", ";
 const CHEVRON_CLASS = "absolute right-2 size-3.5 text-muted-foreground transition-transform motion-reduce:transition-none";
-const TRIGGER_CLASS = "h-8 w-full cursor-pointer justify-between font-normal";
 const TICKED_COUNT_CLASS = cn(ROW_PILL_COUNT_CLASS, "shrink-0 !text-primary-foreground");
-
-export function FilterMenuTrigger({ children }: { children: ReactNode }) {
-  return (
-    <DropdownMenuTrigger render={<Button type="button" variant="outline" size="sm" className={TRIGGER_CLASS} />}>
-      {children}
-      <HugeiconsIcon icon={ArrowDown01Icon} className="size-4 shrink-0 opacity-50" aria-hidden="true" />
-    </DropdownMenuTrigger>
-  );
-}
-
-function OperatorName({ entry }: { entry: MapOperator }) {
-  return (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <BrandMark brand={entry.brand} size={16} />
-      <span className="truncate">{entry.operator.name}</span>
-    </span>
-  );
-}
 
 function OperatorItems({ entries, tickedOperatorIds, onToggleOperator }: OperatorItemsProps) {
   return entries.map((entry) => (
-    <DropdownMenuCheckboxItem
+    <OperatorCheckboxItem
       key={entry.operator.id}
+      name={entry.operator.name}
+      brand={entry.brand}
       checked={tickedOperatorIds.includes(entry.operator.id)}
-      closeOnClick={false}
-      className="cursor-pointer"
-      onCheckedChange={() => onToggleOperator(entry.operator.id)}
-    >
-      <OperatorName entry={entry} />
-    </DropdownMenuCheckboxItem>
+      onToggle={() => onToggleOperator(entry.operator.id)}
+    />
   ));
 }
 
@@ -137,7 +112,7 @@ function CountryRowItem({ row, isOpen, onToggleOpen }: CountryRowItemProps) {
 }
 
 export function PhotosOperatorMenu({ operatorIds, scope, onToggleOperator }: PhotosOperatorMenuProps) {
-  const { t, i18n } = useTranslation("common");
+  const { i18n } = useTranslation();
   const [foldOpenCountryCodes, setFoldOpenCountryCodes] = useState<string[]>([]);
   const [openRowCountryCodes, setOpenRowCountryCodes] = useState<string[]>([]);
   const { lookups, countries } = scope;
@@ -146,8 +121,11 @@ export function PhotosOperatorMenu({ operatorIds, scope, onToggleOperator }: Pho
   const rowFilters: OperatorRowFilters = { operatorIds: [...operatorIds], countryCodes: [...countries.picked], source: "internal" };
   const { rows, hasRowPills: hasFoldedCountries } = listOperatorRows(rowFilters, countries.mapCountries, lookups, language);
   const singleCountryGroup = rows.length === 1 ? lookups?.operatorGroups.get(rows[0].countryCode) : undefined;
-  const tickedEntries = rows.flatMap((row) => row.pinnedOperators.filter((entry) => operatorIds.includes(entry.operator.id)));
-  const [onlyTickedEntry] = tickedEntries;
+  const tickedOperators = rows.flatMap((row) =>
+    row.pinnedOperators
+      .filter((entry) => operatorIds.includes(entry.operator.id))
+      .map((entry) => ({ name: entry.operator.name, brand: entry.brand })),
+  );
   const isLoadingLookups = lookups === undefined && !scope.hasLookupsError;
 
   function toggleFold(countryCode: string) {
@@ -157,11 +135,6 @@ export function PhotosOperatorMenu({ operatorIds, scope, onToggleOperator }: Pho
   function toggleOpenRow(countryCode: string) {
     setOpenRowCountryCodes((current) => toggleValue(current, countryCode));
   }
-
-  let triggerContent = <span className="truncate">{tickedEntries.map((entry) => entry.operator.name).join(NAME_SEPARATOR)}</span>;
-  if (operatorIds.length === 0) triggerContent = <span className="truncate">{t("labels.allOperators")}</span>;
-  else if (isLoadingLookups) triggerContent = <span className="truncate">{t("actions.loading")}</span>;
-  else if (tickedEntries.length === 1) triggerContent = <OperatorName entry={onlyTickedEntry} />;
 
   const countryItems = rows.map((row, index) => {
     const operatorItems = (
@@ -201,7 +174,7 @@ export function PhotosOperatorMenu({ operatorIds, scope, onToggleOperator }: Pho
   return (
     <DropdownMenu>
       <FilterMenuTrigger>
-        <span className="flex min-w-0 items-center">{triggerContent}</span>
+        <OperatorFilterLabel tickedCount={operatorIds.length} tickedOperators={tickedOperators} isLoading={isLoadingLookups} />
       </FilterMenuTrigger>
       <DropdownMenuContent align="start">
         {scope.hasLookupsError ? <InlineError size="sm" onRetry={scope.retryLookups} isRetrying={scope.isRetryingLookups} /> : null}

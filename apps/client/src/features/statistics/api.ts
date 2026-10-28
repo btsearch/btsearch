@@ -1,6 +1,8 @@
 import type {
   AnalyzerUsagePoint,
+  ContributorLeaderboard,
   CountryCompleteness,
+  ObservationStatistics,
   PermitBreakdownRow,
   PermitHistoryDimension,
   PermitHistoryPoint,
@@ -20,44 +22,75 @@ type PermitHistoryParams = {
   takenBefore?: string;
 };
 
-function withParams(path: string, params: URLSearchParams): string {
-  const search = params.toString();
-  return search === "" ? path : `${path}?${search}`;
-}
+type LeaderboardParams = { startsOn: string | null; limit: number };
 
-function withGroupBy(path: string, groupBy: readonly string[]): string {
-  const params = new URLSearchParams();
+function countryParams(countryCode: string, groupBy: readonly string[] = []): URLSearchParams {
+  const params = new URLSearchParams({ countryCodes: countryCode });
   appendList(params, "groupBy", groupBy);
-  return withParams(path, params);
+  return params;
 }
 
-export function fetchStationBreakdown(groupBy: readonly StatisticsDimension[], signal?: AbortSignal): Promise<StationBreakdownRow[]> {
-  return fetchV2Data<StationBreakdownRow[]>(withGroupBy("statistics/stations", groupBy), { signal });
+export function fetchStationBreakdown(
+  countryCode: string,
+  groupBy: readonly StatisticsDimension[],
+  signal?: AbortSignal,
+): Promise<StationBreakdownRow[]> {
+  return fetchV2Data<StationBreakdownRow[]>(`statistics/stations?${countryParams(countryCode, groupBy).toString()}`, { signal });
 }
 
-export function fetchPermitBreakdown(groupBy: readonly PermitStatisticsDimension[], signal?: AbortSignal): Promise<PermitBreakdownRow[]> {
-  return fetchV2Data<PermitBreakdownRow[]>(withGroupBy("statistics/permits", groupBy), { signal });
+export function fetchPermitBreakdown(
+  countryCode: string,
+  groupBy: readonly PermitStatisticsDimension[],
+  signal?: AbortSignal,
+): Promise<PermitBreakdownRow[]> {
+  return fetchV2Data<PermitBreakdownRow[]>(`statistics/permits?${countryParams(countryCode, groupBy).toString()}`, { signal });
 }
 
 export function fetchPermitHistory(
+  countryCode: string,
   { groupBy, interval, takenAfter, takenBefore }: PermitHistoryParams,
   signal?: AbortSignal,
 ): Promise<PermitHistoryPoint[]> {
-  const params = new URLSearchParams({ interval });
-  appendList(params, "groupBy", groupBy);
+  const params = countryParams(countryCode, groupBy);
+  params.set("interval", interval);
   if (takenAfter !== undefined) params.set("takenAfter", takenAfter);
   if (takenBefore !== undefined) params.set("takenBefore", takenBefore);
-  return fetchV2Data<PermitHistoryPoint[]>(withParams("statistics/permits/history", params), { signal });
+  return fetchV2Data<PermitHistoryPoint[]>(`statistics/permits/history?${params.toString()}`, { signal });
 }
 
-export function fetchCompleteness(signal?: AbortSignal): Promise<CountryCompleteness[]> {
-  return fetchV2Data<CountryCompleteness[]>("statistics/completeness", { signal });
+export function fetchCompleteness(countryCode: string, signal?: AbortSignal): Promise<CountryCompleteness[]> {
+  return fetchV2Data<CountryCompleteness[]>(`statistics/completeness?${countryParams(countryCode).toString()}`, { signal });
 }
 
-export function fetchStatisticsHistory(interval: StatisticsInterval, signal?: AbortSignal): Promise<StatisticsHistoryPoint[]> {
-  return fetchV2Data<StatisticsHistoryPoint[]>(`statistics/history?interval=${interval}`, { signal });
+export function fetchStatisticsHistory(
+  countryCode: string,
+  interval: StatisticsInterval,
+  takenAfter: string | undefined,
+  signal?: AbortSignal,
+): Promise<StatisticsHistoryPoint[]> {
+  const params = countryParams(countryCode);
+  params.set("interval", interval);
+  if (takenAfter !== undefined) params.set("takenAfter", takenAfter);
+  return fetchV2Data<StatisticsHistoryPoint[]>(`statistics/history?${params.toString()}`, { signal });
 }
 
-export function fetchAnalyzerUsage(interval: StatisticsInterval, signal?: AbortSignal): Promise<AnalyzerUsagePoint[]> {
-  return fetchV2Data<AnalyzerUsagePoint[]>(`statistics/analyzer-usage?interval=${interval}`, { signal });
+export function fetchAnalyzerUsage(interval: StatisticsInterval, usedAfter: string | undefined, signal?: AbortSignal): Promise<AnalyzerUsagePoint[]> {
+  const params = new URLSearchParams({ interval });
+  if (usedAfter !== undefined) params.set("usedAfter", usedAfter);
+  return fetchV2Data<AnalyzerUsagePoint[]>(`statistics/analyzer-usage?${params.toString()}`, { signal });
+}
+
+export function fetchObservationStatistics(countryCode: string, signal?: AbortSignal): Promise<ObservationStatistics[]> {
+  return fetchV2Data<ObservationStatistics[]>(`statistics/observations?${countryParams(countryCode).toString()}`, { signal });
+}
+
+export function fetchLeaderboards(
+  countryCode: string,
+  { startsOn, limit }: LeaderboardParams,
+  signal?: AbortSignal,
+): Promise<ContributorLeaderboard[]> {
+  const params = countryParams(countryCode);
+  if (startsOn !== null) params.set("startsOn", startsOn);
+  params.set("limit", String(limit));
+  return fetchV2Data<ContributorLeaderboard[]>(`statistics/leaderboards?${params.toString()}`, { signal });
 }

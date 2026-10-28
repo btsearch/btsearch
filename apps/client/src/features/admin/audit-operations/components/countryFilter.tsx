@@ -54,7 +54,7 @@ function CountryFilterLabel({ countryCodes }: CountryFilterLabelProps) {
 
   return (
     <span className="truncate">
-      {countryCodes.length === 0 ? t("auditLogs.filters.allCountries") : t("auditLogs.counts.countries", { count: countryCodes.length })}
+      {countryCodes.length === 0 ? t("common:labels.allCountries") : t("auditLogs.counts.countries", { count: countryCodes.length })}
     </span>
   );
 }

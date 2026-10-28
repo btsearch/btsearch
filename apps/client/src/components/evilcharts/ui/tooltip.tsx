@@ -42,6 +42,7 @@ function ChartTooltipContent({
   roundness = "lg",
   variant = "default",
   valueFormatter,
+  renderIndicator,
   locale,
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
@@ -54,6 +55,7 @@ function ChartTooltipContent({
     roundness?: TooltipRoundness;
     variant?: TooltipVariant;
     valueFormatter?: (value: number, dataKey: string, payload: Record<string, unknown>) => React.ReactNode;
+    renderIndicator?: (dataKey: string, payload: Record<string, unknown>) => React.ReactNode;
     locale?: string;
   } & Omit<RechartsPrimitive.DefaultTooltipContentProps<ValueType, NameType>, "accessibilityLayer">) {
   const { config } = useChart();
@@ -109,6 +111,10 @@ function ChartTooltipContent({
 
             // Get colors count for this item to determine gradient vs solid
             const colorsCount = itemConfig ? getColorsCount(itemConfig) : 1;
+            const customIndicator =
+              renderIndicator !== undefined && item.dataKey !== undefined
+                ? renderIndicator(String(item.dataKey), item.payload as Record<string, unknown>)
+                : null;
 
             return (
               <div
@@ -126,7 +132,8 @@ function ChartTooltipContent({
                     {itemConfig?.icon ? (
                       <itemConfig.icon />
                     ) : (
-                      !hideIndicator && (
+                      (customIndicator ??
+                      (!hideIndicator && (
                         <div
                           className={cn("shrink-0 rounded-[2px]", {
                             "h-2.5 w-2.5": indicator === "dot",
@@ -136,7 +143,7 @@ function ChartTooltipContent({
                           })}
                           style={getIndicatorColorStyle(key, colorsCount)}
                         />
-                      )
+                      )))
                     )}
                     <div className={cn("flex min-w-0 flex-1 justify-between gap-4 leading-none", nestLabel ? "items-end" : "items-center")}>
                       <div className="grid min-w-0 gap-1.5">

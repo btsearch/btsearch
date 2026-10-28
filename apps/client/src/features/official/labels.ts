@@ -1,8 +1,7 @@
-import type { OfficialPermitLabel, OfficialRat, OfficialRatFilter } from "@openbts/shared/contract";
+import type { OfficialPermitLabel, OfficialRatFilter } from "@openbts/shared/contract";
 
 type OfficialRatOption = { value: OfficialRatFilter; label: string; gen: string };
 export type OfficialLabelParts = Pick<OfficialPermitLabel, "rat" | "labelMhz" | "variant">;
-export type OfficialRatComparator = (left: OfficialRat | null, right: OfficialRat | null) => number;
 export type OfficialLabelComparator = (left: OfficialLabelParts, right: OfficialLabelParts) => number;
 
 const UNLISTED_POSITION = Number.MAX_SAFE_INTEGER;
@@ -26,11 +25,6 @@ function comparePositions<T>(positions: ReadonlyMap<T, number>, left: T, right: 
 
 function compareText(left: string, right: string): number {
   return left.localeCompare(right, undefined, { numeric: true });
-}
-
-function compareRatNames(left: OfficialRat | null, right: OfficialRat | null): number {
-  if (left === null || right === null) return Number(left === null) - Number(right === null);
-  return compareText(left, right);
 }
 
 export function toOfficialRatFilter(label: Pick<OfficialPermitLabel, "rat" | "variant">): OfficialRatFilter | null {
@@ -57,11 +51,6 @@ export function listOfficialLabelMhz(labels: readonly Pick<OfficialPermitLabel, 
 
 export function toOfficialLabelKey({ rat, labelMhz, variant }: OfficialLabelParts): string {
   return `${rat}:${labelMhz}:${variant}`;
-}
-
-export function toOfficialRatComparator(labels: readonly Pick<OfficialPermitLabel, "rat">[]): OfficialRatComparator {
-  const positions = listPositions(labels.map(({ rat }) => rat));
-  return (left, right) => comparePositions(positions, left, right) || compareRatNames(left, right);
 }
 
 export function toOfficialLabelComparator(labels: readonly OfficialLabelParts[]): OfficialLabelComparator {

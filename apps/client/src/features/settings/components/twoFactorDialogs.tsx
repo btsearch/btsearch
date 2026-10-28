@@ -26,6 +26,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth/client";
+import { downloadBlob } from "@/lib/dom/download";
 
 const TOTP_CODE_LENGTH = 6;
 
@@ -64,24 +65,12 @@ function readSetupKey(totpUri: string): string | null {
   }
 }
 
-function createTextFileUrl(text: string) {
-  return URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
-}
-
-function downloadTextFile(text: string, fileName: string) {
-  const url = createTextFileUrl(text);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.hidden = true;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+function createTextFile(text: string): Blob {
+  return new Blob([text], { type: "text/plain;charset=utf-8" });
 }
 
 function printTextFile(text: string) {
-  const url = createTextFileUrl(text);
+  const url = URL.createObjectURL(createTextFile(text));
   const frame = document.createElement("iframe");
   const { clientWidth, clientHeight } = document.documentElement;
   let cleanedUp = false;
@@ -150,7 +139,7 @@ function BackupCodesPanel({ codes }: { codes: string[] }) {
           <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} data-icon="inline-start" aria-hidden="true" />
           {copied ? t("common:actions.copied") : t("common:actions.copy")}
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => downloadTextFile(buildText(), "backup-codes.txt")}>
+        <Button type="button" variant="outline" size="sm" onClick={() => downloadBlob(createTextFile(buildText()), "backup-codes.txt")}>
           <HugeiconsIcon icon={Download01Icon} data-icon="inline-start" aria-hidden="true" />
           {t("security.twoFactor.download")}
         </Button>

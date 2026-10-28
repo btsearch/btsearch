@@ -1,43 +1,49 @@
-import type { OfficialBandLabel, StatisticsInterval } from "@openbts/shared/contract";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { type QueryFilters, queryOptions, useIsFetching } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 import {
   fetchAnalyzerUsage,
   fetchCompleteness,
+  fetchLeaderboards,
+  fetchObservationStatistics,
   fetchPermitBreakdown,
   fetchPermitHistory,
   fetchStationBreakdown,
   fetchStatisticsHistory,
 } from "./api";
 import {
-  type DatabaseSummary,
-  type RegisterSummary,
   buildPermitSnapshot,
   groupHistoryByLabel,
-  listBandValues,
-  listLabelValues,
+  listBandRows,
+  listLabelRows,
   listOperatorHistory,
-  listRegionValues,
+  listRegionRows,
   sumCompleteness,
   sumContributions,
   summarizePermits,
   summarizeStations,
-  toSnapshotRange,
   toUsagePoints,
 } from "./lib/chartData";
-import { type OperatorLookup, type OperatorValue, toStatisticsOperators } from "./lib/series";
-import { officialBandLabelsQueryOptions, officialSourcesQueryOptions } from "@/features/official/queries";
-import { findSiteSourceName } from "@/features/official/sources";
-import { bandsQueryOptions, brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { type OperatorLookup, toStatisticsOperators } from "./lib/operators";
+import { INTERVALS, type Period, findPeriodStart, toPeriodKey, toSnapshotRange } from "./lib/periods";
+import { countryStatisticsQueryOptions } from "@/features/map/statsApi";
+import { officialSourcesQueryOptions } from "@/features/official/queries";
+import { bandsQueryOptions, brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { queryClient } from "@/lib/queryClient";
 
-export type Granularity = "daily" | "monthly";
-type RegisterAndDatabase<Register, Database = Register> = { register: Register; database: Database };
-
 const STATISTICS_ROOT = "stats";
+const WHOLE_HISTORY = "all";
 const STATS_STALE_TIME = 1000 * 60 * 5;
 const STATS_FRESHNESS_REFETCH_INTERVAL = 1000 * 60 * 5;
-const INTERVALS: Record<Granularity, StatisticsInterval> = { daily: "day", monthly: "month" };
+const LEADERBOARD_SIZE = 25;
+
+export const STATISTICS_LEADERBOARDS_KEY = [STATISTICS_ROOT, "leaderboards"] as const;
+
+const FAILED_REFETCH_FILTERS: QueryFilters = {
+  queryKey: [STATISTICS_ROOT],
+  type: "active",
+  predicate: (query) => query.state.status === "error" && query.state.data !== undefined,
+};
 
 async function loadOperators(): Promise<OperatorLookup> {
   const [operators, brands] = await Promise.all([
@@ -47,101 +53,122 @@ async function loadOperators(): Promise<OperatorLookup> {
   return toStatisticsOperators(operators, brands);
 }
 
-function loadBandLabels(): Promise<OfficialBandLabel[]> {
-  return queryClient.ensureQueryData(officialBandLabelsQueryOptions());
-}
-
-async function loadSummary(signal: AbortSignal): Promise<RegisterAndDatabase<RegisterSummary, DatabaseSummary>> {
-  const [permitTotals, permitsByRat, permitsByOperator, stationTotals, stationsByRat, stationsByOperator, operators, bandLabels] = await Promise.all([
-    fetchPermitBreakdown([], signal),
-    fetchPermitBreakdown(["rat"], signal),
-    fetchPermitBreakdown(["operator"], signal),
-    fetchStationBreakdown([], signal),
-    fetchStationBreakdown(["rat"], signal),
-    fetchStationBreakdown(["operator"], signal),
-    loadOperators(),
-    loadBandLabels(),
-  ]);
-
-  return {
-    register: summarizePermits({ totals: permitTotals, byRat: permitsByRat, byOperator: permitsByOperator }, operators, bandLabels),
-    database: summarizeStations({ totals: stationTotals, byRat: stationsByRat, byOperator: stationsByOperator }, operators),
-  };
-}
-
-async function loadBandValues(signal: AbortSignal): Promise<RegisterAndDatabase<OperatorValue[]>> {
-  const [permitRows, stationRows, operators, bandLabels, bands] = await Promise.all([
-    fetchPermitBreakdown(["operator", "label"], signal),
-    fetchStationBreakdown(["operator", "band"], signal),
-    loadOperators(),
-    loadBandLabels(),
-    queryClient.ensureQueryData(bandsQueryOptions()),
-  ]);
-
-  return { register: listLabelValues(permitRows, operators, bandLabels), database: listBandValues(stationRows, operators, bands) };
-}
-
-async function loadRegionValues(signal: AbortSignal): Promise<RegisterAndDatabase<OperatorValue[]>> {
-  const [permitRows, stationRows, operators, regions] = await Promise.all([
-    fetchPermitBreakdown(["region", "operator"], signal),
-    fetchStationBreakdown(["region", "operator"], signal),
-    loadOperators(),
-    queryClient.ensureQueryData(regionsQueryOptions()),
-  ]);
-
-  return {
-    register: listRegionValues(permitRows, (row) => row.sites, operators, regions),
-    database: listRegionValues(stationRows, (row) => row.stations, operators, regions),
-  };
-}
-
-export function statisticsSummaryQueryOptions() {
+export function databaseSummaryQueryOptions(countryCode: string) {
   return queryOptions({
-    queryKey: [STATISTICS_ROOT, "summary"] as const,
-    queryFn: ({ signal }) => loadSummary(signal),
-    staleTime: STATS_STALE_TIME,
-    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
-  });
-}
-
-export function statisticsByBandQueryOptions() {
-  return queryOptions({
-    queryKey: [STATISTICS_ROOT, "bands"] as const,
-    queryFn: ({ signal }) => loadBandValues(signal),
-    staleTime: STATS_STALE_TIME,
-    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
-  });
-}
-
-export function statisticsByRegionQueryOptions() {
-  return queryOptions({
-    queryKey: [STATISTICS_ROOT, "regions"] as const,
-    queryFn: ({ signal }) => loadRegionValues(signal),
-    staleTime: STATS_STALE_TIME,
-  });
-}
-
-export function permitHistoryByBandQueryOptions(granularity: Granularity) {
-  return queryOptions({
-    queryKey: [STATISTICS_ROOT, "permit-history", "bands", granularity] as const,
+    queryKey: [STATISTICS_ROOT, "summary", "database", countryCode] as const,
     queryFn: async ({ signal }) => {
-      const [points, operators, bandLabels] = await Promise.all([
-        fetchPermitHistory({ groupBy: ["operator", "label"], interval: INTERVALS[granularity] }, signal),
+      const [totals, byRat, byOperator, operators] = await Promise.all([
+        fetchStationBreakdown(countryCode, [], signal),
+        fetchStationBreakdown(countryCode, ["rat"], signal),
+        fetchStationBreakdown(countryCode, ["operator"], signal),
         loadOperators(),
-        loadBandLabels(),
       ]);
-      return groupHistoryByLabel(points, operators, bandLabels);
+      return summarizeStations({ totals, byRat, byOperator }, operators);
+    },
+    staleTime: STATS_STALE_TIME,
+    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
+  });
+}
+
+export function registerSummaryQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "summary", "register", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [totals, byRat, byOperator, operators] = await Promise.all([
+        fetchPermitBreakdown(countryCode, [], signal),
+        fetchPermitBreakdown(countryCode, ["rat"], signal),
+        fetchPermitBreakdown(countryCode, ["operator"], signal),
+        loadOperators(),
+      ]);
+      return summarizePermits({ totals, byRat, byOperator }, operators);
+    },
+    staleTime: STATS_STALE_TIME,
+    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
+  });
+}
+
+export function databaseBandsQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "bands", "database", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [rows, operators, bands] = await Promise.all([
+        fetchStationBreakdown(countryCode, ["operator", "band"], signal),
+        loadOperators(),
+        queryClient.ensureQueryData(bandsQueryOptions()),
+      ]);
+      return listBandRows(rows, operators, bands);
+    },
+    staleTime: STATS_STALE_TIME,
+    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
+  });
+}
+
+export function registerBandsQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "bands", "register", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [rows, operators] = await Promise.all([fetchPermitBreakdown(countryCode, ["operator", "label"], signal), loadOperators()]);
+      return listLabelRows(rows, operators);
+    },
+    staleTime: STATS_STALE_TIME,
+    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
+  });
+}
+
+export function databaseRegionsQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "regions", "database", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [rows, operators, regions] = await Promise.all([
+        fetchStationBreakdown(countryCode, ["region", "operator"], signal),
+        loadOperators(),
+        queryClient.ensureQueryData(regionsQueryOptions()),
+      ]);
+      return listRegionRows(rows, (row) => row.stations, operators, regions);
     },
     staleTime: STATS_STALE_TIME,
   });
 }
 
-export function permitHistoryByOperatorQueryOptions(granularity: Granularity) {
+export function registerRegionsQueryOptions(countryCode: string) {
   return queryOptions({
-    queryKey: [STATISTICS_ROOT, "permit-history", "operators", granularity] as const,
+    queryKey: [STATISTICS_ROOT, "regions", "register", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [rows, operators, regions] = await Promise.all([
+        fetchPermitBreakdown(countryCode, ["region", "operator"], signal),
+        loadOperators(),
+        queryClient.ensureQueryData(regionsQueryOptions()),
+      ]);
+      return listRegionRows(rows, (row) => row.sites, operators, regions);
+    },
+    staleTime: STATS_STALE_TIME,
+  });
+}
+
+export function permitHistoryByBandQueryOptions(countryCode: string, period: Period) {
+  const interval = INTERVALS[period.granularity];
+  const takenAfter = findPeriodStart(period, new Date());
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "permit-history", "bands", countryCode, interval, takenAfter ?? WHOLE_HISTORY] as const,
     queryFn: async ({ signal }) => {
       const [points, operators] = await Promise.all([
-        fetchPermitHistory({ groupBy: ["operator"], interval: INTERVALS[granularity] }, signal),
+        fetchPermitHistory(countryCode, { groupBy: ["operator", "label"], interval, takenAfter }, signal),
+        loadOperators(),
+      ]);
+      return groupHistoryByLabel(points, operators);
+    },
+    staleTime: STATS_STALE_TIME,
+  });
+}
+
+export function permitHistoryByOperatorQueryOptions(countryCode: string, period: Period) {
+  const interval = INTERVALS[period.granularity];
+  const takenAfter = findPeriodStart(period, new Date());
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "permit-history", "operators", countryCode, interval, takenAfter ?? WHOLE_HISTORY] as const,
+    queryFn: async ({ signal }) => {
+      const [points, operators] = await Promise.all([
+        fetchPermitHistory(countryCode, { groupBy: ["operator"], interval, takenAfter }, signal),
         loadOperators(),
       ]);
       return listOperatorHistory(points, operators);
@@ -150,46 +177,115 @@ export function permitHistoryByOperatorQueryOptions(granularity: Granularity) {
   });
 }
 
-export function permitSnapshotQueryOptions(month: string) {
+export function permitSnapshotQueryOptions(countryCode: string, month: string) {
   return queryOptions({
-    queryKey: [STATISTICS_ROOT, "permit-snapshot", month] as const,
+    queryKey: [STATISTICS_ROOT, "permit-snapshot", countryCode, month] as const,
     queryFn: async ({ signal }) => {
-      const [points, operators, bandLabels] = await Promise.all([
-        fetchPermitHistory({ groupBy: ["operator", "label"], interval: "month", ...toSnapshotRange(month) }, signal),
+      const [points, operators] = await Promise.all([
+        fetchPermitHistory(countryCode, { groupBy: ["operator", "label"], interval: "month", ...toSnapshotRange(month) }, signal),
         loadOperators(),
-        loadBandLabels(),
       ]);
-      return buildPermitSnapshot(points, month, operators, bandLabels);
+      return buildPermitSnapshot(points, month, operators);
     },
     staleTime: STATS_STALE_TIME,
   });
 }
 
-export function completenessQueryOptions() {
+export function completenessQueryOptions(countryCode: string) {
   return queryOptions({
-    queryKey: [STATISTICS_ROOT, "completeness"] as const,
-    queryFn: async ({ signal }) => sumCompleteness(await fetchCompleteness(signal)),
+    queryKey: [STATISTICS_ROOT, "completeness", countryCode] as const,
+    queryFn: async ({ signal }) => sumCompleteness(await fetchCompleteness(countryCode, signal)),
     staleTime: STATS_STALE_TIME,
   });
 }
 
-export function contributionsQueryOptions(granularity: Granularity) {
+export function contributionsQueryOptions(countryCode: string, period: Period) {
+  const today = new Date();
+  const interval = INTERVALS[period.granularity];
+  const shownFrom = findPeriodStart(period, today);
   return queryOptions({
-    queryKey: [STATISTICS_ROOT, "contributions", granularity] as const,
-    queryFn: async ({ signal }) => sumContributions(await fetchStatisticsHistory(INTERVALS[granularity], signal), INTERVALS[granularity]),
+    queryKey: [STATISTICS_ROOT, "contributions", countryCode, interval, shownFrom ?? WHOLE_HISTORY] as const,
+    queryFn: async ({ signal }) => {
+      const points = await fetchStatisticsHistory(countryCode, interval, findPeriodStart(period, today, 1), signal);
+      const contributions = sumContributions(points, interval);
+      if (shownFrom === undefined) return contributions;
+
+      const firstShownPeriod = toPeriodKey(shownFrom, interval);
+      return contributions.filter((point) => point.date >= firstShownPeriod);
+    },
     staleTime: STATS_STALE_TIME,
   });
 }
 
-export function analyzerUsageQueryOptions(granularity: Granularity) {
+export function analyzerUsageQueryOptions(period: Period) {
+  const interval = INTERVALS[period.granularity];
+  const usedAfter = findPeriodStart(period, new Date());
   return queryOptions({
-    queryKey: [STATISTICS_ROOT, "analyzer-usage", granularity] as const,
-    queryFn: async ({ signal }) => toUsagePoints(await fetchAnalyzerUsage(INTERVALS[granularity], signal), INTERVALS[granularity]),
+    queryKey: [STATISTICS_ROOT, "analyzer-usage", interval, usedAfter ?? WHOLE_HISTORY] as const,
+    queryFn: async ({ signal }) => toUsagePoints(await fetchAnalyzerUsage(interval, usedAfter, signal), interval),
     staleTime: STATS_STALE_TIME,
   });
 }
 
-export function useRegisterSourceName(): string | null {
-  const { data = null } = useQuery({ ...officialSourcesQueryOptions(), select: findSiteSourceName });
-  return data;
+export function observationStatisticsQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "observations", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const entries = await fetchObservationStatistics(countryCode, signal);
+      return entries.find((entry) => entry.countryCode === countryCode) ?? null;
+    },
+    staleTime: STATS_STALE_TIME,
+  });
+}
+
+export function leaderboardQueryOptions(countryCode: string, startsOn: string | null) {
+  return queryOptions({
+    queryKey: [...STATISTICS_LEADERBOARDS_KEY, countryCode, startsOn ?? WHOLE_HISTORY] as const,
+    queryFn: async ({ signal }) => {
+      const boards = await fetchLeaderboards(countryCode, { startsOn, limit: LEADERBOARD_SIZE }, signal);
+      return boards.find((board) => board.countryCode === countryCode) ?? null;
+    },
+    staleTime: STATS_STALE_TIME,
+  });
+}
+
+function subscribeToQueryCache(onChange: () => void): () => void {
+  return queryClient.getQueryCache().subscribe(onChange);
+}
+
+function hasFailedRefetch(): boolean {
+  return queryClient.getQueryCache().findAll(FAILED_REFETCH_FILTERS).length > 0;
+}
+
+export function useStatisticsRefetchError() {
+  const hasRefetchError = useSyncExternalStore(subscribeToQueryCache, hasFailedRefetch);
+  const isRetrying = useIsFetching(FAILED_REFETCH_FILTERS) > 0;
+  return { hasRefetchError, isRetrying, retry: () => queryClient.refetchQueries(FAILED_REFETCH_FILTERS) };
+}
+
+async function prefetchRegisterStatistics(countryCode: string): Promise<void> {
+  await queryClient.prefetchQuery(countriesQueryOptions());
+  const country = queryClient.getQueryData(countriesQueryOptions().queryKey)?.find((entry) => entry.code === countryCode);
+  if (country?.capabilities.official !== true) return;
+
+  void queryClient.prefetchQuery(registerSummaryQueryOptions(countryCode));
+  void queryClient.prefetchQuery(registerBandsQueryOptions(countryCode));
+  void queryClient.prefetchQuery(registerRegionsQueryOptions(countryCode));
+}
+
+export function prefetchStatistics(requestedCountryCode: string | undefined): void {
+  void queryClient.prefetchQuery(countryStatisticsQueryOptions());
+  void queryClient.prefetchQuery(countriesQueryOptions());
+  void queryClient.prefetchQuery(officialSourcesQueryOptions());
+  void queryClient.prefetchQuery(operatorsQueryOptions());
+  void queryClient.prefetchQuery(brandsQueryOptions());
+  void queryClient.prefetchQuery(bandsQueryOptions());
+  void queryClient.prefetchQuery(regionsQueryOptions());
+  if (requestedCountryCode === undefined) return;
+
+  void queryClient.prefetchQuery(databaseSummaryQueryOptions(requestedCountryCode));
+  void queryClient.prefetchQuery(databaseBandsQueryOptions(requestedCountryCode));
+  void queryClient.prefetchQuery(databaseRegionsQueryOptions(requestedCountryCode));
+  void queryClient.prefetchQuery(completenessQueryOptions(requestedCountryCode));
+  void prefetchRegisterStatistics(requestedCountryCode);
 }
