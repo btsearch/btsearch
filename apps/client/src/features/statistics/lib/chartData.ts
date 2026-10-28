@@ -52,7 +52,7 @@ export type CompletenessTotals = Omit<CountryCompleteness, "countryCode">;
 type ContributionPoint = { date: string; sectors: number; identifiers: number; cellsWithPci: number };
 type UsagePoint = { date: string; count: number };
 
-const RAT_ORDER: readonly string[] = ["nr", "lte", "umts", "gsm", "cdma", "iot"];
+const RAT_ORDER: readonly string[] = ["nr", "lte", "umts", "cdma", "gsm", "iot"];
 const RAILWAY_CODE = toOfficialRatOption("gsmR").label;
 
 function toRatRank(rat: string | null): number {

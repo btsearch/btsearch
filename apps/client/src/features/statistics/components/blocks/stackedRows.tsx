@@ -1,24 +1,27 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { StackedRow } from "../../lib/chartData";
 import { toPercent } from "../../lib/format";
 import { listOperators } from "../../lib/operators";
 import { BlockHeader, EmptyBlock } from "../card/statisticsCard";
-import { ColorBar } from "./colorBar";
 import { OperatorLegend } from "./operatorLegend";
-import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { type BreakdownHandles, BreakdownPopup, BreakdownTrigger, createBreakdownHandles } from "./rowBreakdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatBandMhzLabel } from "@/features/station-details/station/utils/bands";
+import { useIsCoarsePointer } from "@/hooks/useCoarsePointer";
 import { cn } from "@/lib/utils";
 
 type RowGroup = { key: string; title: string | null; rows: StackedRow[] };
 type LabelWidth = "band" | "region";
 
-const SKELETON_BAR_WIDTHS = ["w-[92%]", "w-[74%]", "w-full", "w-[58%]", "w-[81%]", "w-[43%]", "w-[66%]"];
+const ROW_TRIGGER_CLASS =
+  "-mx-2 grid min-h-7 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-md px-2 pt-1.5 pb-2 outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-muted/50 @md:py-0";
 const ROW_GRID_CLASSES: Record<LabelWidth, string> = {
   band: "@md:grid-cols-[6rem_minmax(0,1fr)_4rem]",
   region: "@md:grid-cols-[11rem_minmax(0,1fr)_4rem]",
 };
+const SKELETON_BAR_WIDTHS = ["w-[92%]", "w-[74%]", "w-full", "w-[58%]", "w-[81%]", "w-[43%]", "w-[66%]"];
 
 function splitByGroup(rows: readonly StackedRow[]): RowGroup[] {
   const groups: RowGroup[] = [];
@@ -42,56 +45,35 @@ function RowLabel({ row }: { row: StackedRow }) {
   );
 }
 
-function StackedRowItem({ row, maxTotal, labelWidth }: { row: StackedRow; maxTotal: number; labelWidth: LabelWidth }) {
+type StackedRowItemProps = { row: StackedRow; maxTotal: number; labelWidth: LabelWidth; handles: BreakdownHandles; isCoarsePointer: boolean };
+
+function StackedRowItem({ row, maxTotal, labelWidth, handles, isCoarsePointer }: StackedRowItemProps) {
   const { i18n } = useTranslation();
   const width = toPercent(row.total, maxTotal);
   const breakdown = row.parts.map((part) => `${part.operator.name} ${part.value.toLocaleString(i18n.language)}`).join(", ");
 
   return (
     <li>
-      <Popover>
-        <PopoverTrigger
-          openOnHover
-          delay={0}
-          nativeButton={false}
-          render={<div />}
-          className={cn(
-            "-mx-2 grid min-h-7 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-md px-2 pt-1.5 pb-2 outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-muted/50 @md:py-0",
-            ROW_GRID_CLASSES[labelWidth],
-          )}
-        >
-          <span className="flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-5">
-            <RowLabel row={row} />
-            <span className="sr-only">{breakdown}</span>
-          </span>
-          <span className="order-last col-span-2 flex h-3 min-w-0 items-center @md:order-none @md:col-span-1">
-            <span className="flex h-3 gap-0.5" style={{ width: `${width}%` }}>
-              {row.parts.map((part) => (
-                <span
-                  key={part.operator.id}
-                  style={{ flex: `${part.value} 1 0px`, backgroundColor: part.operator.color }}
-                  className="min-w-0.5 rounded-[3px]"
-                />
-              ))}
-            </span>
-          </span>
-          <span className="text-right text-[0.8125rem] leading-5 font-semibold whitespace-nowrap tabular-nums">
-            {row.total.toLocaleString(i18n.language)}
-          </span>
-        </PopoverTrigger>
-        <PopoverContent side="top" align="start" className="w-fit max-w-xs gap-1 p-2.5 text-xs">
-          <PopoverTitle>{row.name}</PopoverTitle>
-          <ul className="space-y-0.5">
+      <BreakdownTrigger row={row} handles={handles} isCoarsePointer={isCoarsePointer} className={cn(ROW_TRIGGER_CLASS, ROW_GRID_CLASSES[labelWidth])}>
+        <span className="flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-5">
+          <RowLabel row={row} />
+          <span className="sr-only">{breakdown}</span>
+        </span>
+        <span className="order-last col-span-2 flex h-3 min-w-0 items-center @md:order-none @md:col-span-1">
+          <span className="flex h-3 gap-0.5" style={{ width: `${width}%` }}>
             {row.parts.map((part) => (
-              <li key={part.operator.id} className="flex items-center gap-1.5">
-                <ColorBar color={part.operator.color} className="h-2.5" />
-                <span className="min-w-0 flex-1">{part.operator.name}</span>
-                <span className="font-medium tabular-nums">{part.value.toLocaleString(i18n.language)}</span>
-              </li>
+              <span
+                key={part.operator.id}
+                style={{ flex: `${part.value} 1 0px`, backgroundColor: part.operator.color }}
+                className="min-w-0.5 rounded-[3px]"
+              />
             ))}
-          </ul>
-        </PopoverContent>
-      </Popover>
+          </span>
+        </span>
+        <span className="text-right text-[0.8125rem] leading-5 font-semibold whitespace-nowrap tabular-nums">
+          {row.total.toLocaleString(i18n.language)}
+        </span>
+      </BreakdownTrigger>
     </li>
   );
 }
@@ -99,6 +81,8 @@ function StackedRowItem({ row, maxTotal, labelWidth }: { row: StackedRow; maxTot
 export function StackedRows({ title, rows, labelWidth }: { title: string; rows: readonly StackedRow[]; labelWidth: LabelWidth }) {
   const maxTotal = Math.max(0, ...rows.map((row) => row.total));
   const operators = listOperators(rows.flatMap((row) => row.parts.map((part) => part.operator)));
+  const isCoarsePointer = useIsCoarsePointer();
+  const [handles] = useState(createBreakdownHandles);
 
   return (
     <div className="@container">
@@ -118,12 +102,20 @@ export function StackedRows({ title, rows, labelWidth }: { title: string; rows: 
                 )}
                 <ul aria-label={group.title ?? title}>
                   {group.rows.map((row) => (
-                    <StackedRowItem key={row.key} row={row} maxTotal={maxTotal} labelWidth={labelWidth} />
+                    <StackedRowItem
+                      key={row.key}
+                      row={row}
+                      maxTotal={maxTotal}
+                      labelWidth={labelWidth}
+                      handles={handles}
+                      isCoarsePointer={isCoarsePointer}
+                    />
                   ))}
                 </ul>
               </div>
             ))}
           </div>
+          <BreakdownPopup handles={handles} isCoarsePointer={isCoarsePointer} />
         </>
       )}
     </div>
