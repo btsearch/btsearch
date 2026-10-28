@@ -4,6 +4,7 @@ import {
   cells,
   contributionSnapshots,
   extraIdentificators,
+  locationPhotos,
   locations,
   lteCells,
   microwaveLinks,
@@ -16,11 +17,12 @@ import {
   officialSources,
   operators,
   regions,
+  stationPhotoSelections,
   stationSectors,
   stations,
   statsSnapshots,
 } from "@openbts/drizzle";
-import { PERMIT_STATISTICS_DIMENSIONS, STATISTICS_DIMENSIONS } from "@openbts/shared/contract";
+import { PERMIT_STATISTICS_DIMENSIONS, PHOTO_STATISTICS_DIMENSIONS, STATISTICS_DIMENSIONS } from "@openbts/shared/contract";
 import type {
   AnalyzerUsagePoint,
   AnalyzerUsageQuery,
@@ -32,6 +34,8 @@ import type {
   PermitHistoryPoint,
   PermitHistoryQuery,
   PermitStatisticsDimension,
+  PhotoBreakdownRow,
+  PhotoStatisticsDimension,
   StationBreakdownRow,
   StatisticsDimension,
   StatisticsHistoryPoint,
@@ -253,6 +257,33 @@ export function loadStationBreakdown(groupBy: readonly StatisticsDimension[]): P
       const rat = group.rat === null ? null : CONTRACT_RATS[group.rat];
       return countryCode === null || rat === undefined ? [] : [{ countryCode, ...group, rat }];
     });
+  });
+}
+
+export function loadPhotoBreakdown(groupBy: readonly PhotoStatisticsDimension[]): Promise<PhotoBreakdownRow[]> {
+  const dimensions = PHOTO_STATISTICS_DIMENSIONS.filter((dimension) => groupBy.includes(dimension));
+  const groupsOperator = dimensions.includes("operator");
+  const groupsRegion = dimensions.includes("region");
+
+  return cachedStatistics(`photos:${dimensions.join("+")}`, async () => {
+    const rows = await db
+      .select({
+        countryCode: stationCountries.countryCode,
+        operatorId: nullUnless<number>(groupsOperator, stations.operator_id),
+        regionId: nullUnless<number>(groupsRegion, locations.region_id),
+        photos: countDistinct(locationPhotos.attachment_id),
+      })
+      .from(stationPhotoSelections)
+      .innerJoin(stations, eq(stations.id, stationPhotoSelections.station_id))
+      .innerJoin(stationCountries.table, ofStation)
+      .innerJoin(locationPhotos, eq(locationPhotos.id, stationPhotoSelections.location_photo_id))
+      .leftJoin(locations, eq(locations.id, stations.location_id))
+      .where(isActive)
+      .groupBy(stationCountries.countryCode, ...(groupsOperator ? [stations.operator_id] : []), ...(groupsRegion ? [locations.region_id] : []));
+
+    return rows.flatMap(({ countryCode, operatorId, regionId, photos }) =>
+      countryCode === null ? [] : [{ countryCode, operatorId: operatorId ?? null, regionId: regionId ?? null, photos }],
+    );
   });
 }
 

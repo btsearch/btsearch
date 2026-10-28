@@ -6,6 +6,7 @@ import type {
   OfficialRat,
   PermitBreakdownRow,
   PermitHistoryPoint,
+  PhotoBreakdownRow,
   Region,
   StationBreakdownRow,
   StatisticsHistoryPoint,
@@ -143,6 +144,18 @@ function findLatestDay(points: readonly Pick<PermitHistoryPoint, "snapshotOn">[]
 function toLabelName({ rat, labelMhz, variant }: OfficialLabelParts): string | null {
   if (rat === null || labelMhz === null) return null;
   return formatPermitLabel({ rat: rat.toUpperCase(), mhz: labelMhz, variant: variant ?? "commercial" });
+}
+
+export type PhotoSummary = { photos: number; operators: OperatorCount[] };
+
+export function summarizePhotos(
+  breakdowns: { totals: readonly PhotoBreakdownRow[]; byOperator: readonly PhotoBreakdownRow[] },
+  operators: OperatorLookup,
+): PhotoSummary {
+  return {
+    photos: sum(breakdowns.totals, (row) => row.photos),
+    operators: listOperatorCounts(breakdowns.byOperator, operators, (rows) => ({ value: sum(rows, (row) => row.photos) })),
+  };
 }
 
 export function summarizePermits(breakdowns: PermitBreakdowns, operators: OperatorLookup): RegisterSummary {

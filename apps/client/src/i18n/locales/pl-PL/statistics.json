@@ -1,6 +1,7 @@
 {
   "sections": {
     "quality": "Jakość danych",
+    "photos": "Zdjęcia",
     "register": "Rejestr {{source}}",
     "permitSnapshot": "{{source}} wg miesiąca",
     "registerSnapshot": "Rejestr wg miesiąca"
@@ -16,7 +17,8 @@
     "totalStations": "Unikalne stacje",
     "totalInternalStations": "Stacje",
     "totalCells": "Komórki",
-    "locations": "Lokalizacje"
+    "locations": "Lokalizacje",
+    "totalPhotos": "Zdjęcia"
   },
   "database": {
     "updatedAt": "Ostatnia zmiana {{date}}",
@@ -38,6 +40,8 @@
     "internalStationsByBand": "Stacje wg pasma",
     "internalStationsPerOperator": "Stacje wg operatora",
     "internalByRegion": "Stacje wg regionu",
+    "photosPerOperator": "Zdjęcia wg operatora",
+    "photosByRegion": "Zdjęcia wg regionu",
     "history": "Trendy historyczne",
     "noHistoryData": "Nie ma jeszcze danych historycznych"
   },

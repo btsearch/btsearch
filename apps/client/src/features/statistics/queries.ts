@@ -8,6 +8,7 @@ import {
   fetchObservationStatistics,
   fetchPermitBreakdown,
   fetchPermitHistory,
+  fetchPhotoBreakdown,
   fetchStationBreakdown,
   fetchStatisticsHistory,
 } from "./api";
@@ -21,6 +22,7 @@ import {
   sumCompleteness,
   sumContributions,
   summarizePermits,
+  summarizePhotos,
   summarizeStations,
   toUsagePoints,
 } from "./lib/chartData";
@@ -84,6 +86,37 @@ export function registerSummaryQueryOptions(countryCode: string) {
     },
     staleTime: STATS_STALE_TIME,
     refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
+  });
+}
+
+export function photoSummaryQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "summary", "photos", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [totals, byOperator, operators] = await Promise.all([
+        fetchPhotoBreakdown(countryCode, [], signal),
+        fetchPhotoBreakdown(countryCode, ["operator"], signal),
+        loadOperators(),
+      ]);
+      return summarizePhotos({ totals, byOperator }, operators);
+    },
+    staleTime: STATS_STALE_TIME,
+    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
+  });
+}
+
+export function photoRegionsQueryOptions(countryCode: string) {
+  return queryOptions({
+    queryKey: [STATISTICS_ROOT, "regions", "photos", countryCode] as const,
+    queryFn: async ({ signal }) => {
+      const [rows, operators, regions] = await Promise.all([
+        fetchPhotoBreakdown(countryCode, ["region", "operator"], signal),
+        loadOperators(),
+        queryClient.ensureQueryData(regionsQueryOptions()),
+      ]);
+      return listRegionRows(rows, (row) => row.photos, operators, regions);
+    },
+    staleTime: STATS_STALE_TIME,
   });
 }
 
@@ -287,5 +320,6 @@ export function prefetchStatistics(requestedCountryCode: string | undefined): vo
   void queryClient.prefetchQuery(databaseBandsQueryOptions(requestedCountryCode));
   void queryClient.prefetchQuery(databaseRegionsQueryOptions(requestedCountryCode));
   void queryClient.prefetchQuery(completenessQueryOptions(requestedCountryCode));
+  void queryClient.prefetchQuery(photoSummaryQueryOptions(requestedCountryCode));
   void prefetchRegisterStatistics(requestedCountryCode);
 }

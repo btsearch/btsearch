@@ -17,6 +17,9 @@ export type PermitStatisticsDimension = (typeof PERMIT_STATISTICS_DIMENSIONS)[nu
 export const PERMIT_HISTORY_DIMENSIONS = ["operator", "label"] as const;
 export type PermitHistoryDimension = (typeof PERMIT_HISTORY_DIMENSIONS)[number];
 
+export const PHOTO_STATISTICS_DIMENSIONS = ["operator", "region"] as const;
+export type PhotoStatisticsDimension = (typeof PHOTO_STATISTICS_DIMENSIONS)[number];
+
 const countSchema = z.number().int().nonnegative();
 
 function groupBySchema<const T extends readonly [string, ...string[]]>(dimensions: T) {
@@ -72,6 +75,22 @@ export const stationBreakdownQuerySchema = z
   })
   .strict();
 export type StationBreakdownQuery = z.infer<typeof stationBreakdownQuerySchema>;
+
+export const photoBreakdownRowSchema = z.object({
+  countryCode: countryCodeSchema,
+  operatorId: z.number().int().nullable().describe("`null` if `groupBy` does not include `operator`, or for photos on stations without an operator"),
+  regionId: z.number().int().nullable().describe("`null` if `groupBy` does not include `region`, or for photos on stations without a location"),
+  photos: countSchema.describe("The number of unique photos in the group"),
+});
+export type PhotoBreakdownRow = z.infer<typeof photoBreakdownRowSchema>;
+
+export const photoBreakdownQuerySchema = z
+  .object({
+    countryCodes: csvCountryCodesSchema.optional(),
+    groupBy: groupBySchema(PHOTO_STATISTICS_DIMENSIONS),
+  })
+  .strict();
+export type PhotoBreakdownQuery = z.infer<typeof photoBreakdownQuerySchema>;
 
 const documentedCellsSchema = z.object({
   total: countSchema.describe("The number of cells on active stations"),

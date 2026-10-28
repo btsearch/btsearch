@@ -7,6 +7,8 @@ import type {
   PermitHistoryDimension,
   PermitHistoryPoint,
   PermitStatisticsDimension,
+  PhotoBreakdownRow,
+  PhotoStatisticsDimension,
   StationBreakdownRow,
   StatisticsDimension,
   StatisticsHistoryPoint,
@@ -36,6 +38,14 @@ export function fetchStationBreakdown(
   signal?: AbortSignal,
 ): Promise<StationBreakdownRow[]> {
   return fetchV2Data<StationBreakdownRow[]>(`statistics/stations?${countryParams(countryCode, groupBy).toString()}`, { signal });
+}
+
+export function fetchPhotoBreakdown(
+  countryCode: string,
+  groupBy: readonly PhotoStatisticsDimension[],
+  signal?: AbortSignal,
+): Promise<PhotoBreakdownRow[]> {
+  return fetchV2Data<PhotoBreakdownRow[]>(`statistics/photos?${countryParams(countryCode, groupBy).toString()}`, { signal });
 }
 
 export function fetchPermitBreakdown(

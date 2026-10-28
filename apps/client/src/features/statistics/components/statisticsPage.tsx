@@ -8,6 +8,8 @@ import {
   databaseRegionsQueryOptions,
   databaseSummaryQueryOptions,
   observationStatisticsQueryOptions,
+  photoRegionsQueryOptions,
+  photoSummaryQueryOptions,
   registerBandsQueryOptions,
   registerRegionsQueryOptions,
   registerSummaryQueryOptions,
@@ -19,6 +21,7 @@ import { LazyMount } from "./card/lazyMount";
 import { StatisticsCardSkeleton } from "./card/statisticsCard";
 import { DatabaseCard } from "./database/databaseCard";
 import { MeasurementsCard } from "./measurements/measurementsCard";
+import { PhotosCard } from "./photos/photosCard";
 import { QualityCard } from "./quality/qualityCard";
 import { RegisterCard } from "./register/registerCard";
 import { RegisterSources } from "./register/registerSources";
@@ -70,6 +73,8 @@ export function StatisticsPage({ requestedCountryCode, onCountryChange }: Statis
   const databaseSummaryQuery = useQuery({ ...databaseSummaryQueryOptions(countryCode ?? ""), enabled: hasCountry });
   const databaseBandsQuery = useQuery({ ...databaseBandsQueryOptions(countryCode ?? ""), enabled: hasCountry });
   const databaseRegionsQuery = useQuery({ ...databaseRegionsQueryOptions(countryCode ?? ""), enabled: hasCountry });
+  const photoSummaryQuery = useQuery({ ...photoSummaryQueryOptions(countryCode ?? ""), enabled: hasCountry });
+  const photoRegionsQuery = useQuery({ ...photoRegionsQueryOptions(countryCode ?? ""), enabled: hasCountry });
   const registerSummaryQuery = useQuery({ ...registerSummaryQueryOptions(countryCode ?? ""), enabled: hasRegister });
   const registerBandsQuery = useQuery({ ...registerBandsQueryOptions(countryCode ?? ""), enabled: hasRegister });
   const registerRegionsQuery = useQuery({ ...registerRegionsQueryOptions(countryCode ?? ""), enabled: hasRegister });
@@ -86,6 +91,7 @@ export function StatisticsPage({ requestedCountryCode, onCountryChange }: Statis
   const sections: PageSection[] = [
     { id: STATISTICS_SECTION_IDS.database, title: t("main:stats.internalData") },
     { id: STATISTICS_SECTION_IDS.quality, title: t("sections.quality") },
+    { id: STATISTICS_SECTION_IDS.photos, title: t("sections.photos") },
   ];
   if (showsMeasurements) sections.push({ id: STATISTICS_SECTION_IDS.measurements, title: t("settings:sections.measurements") });
   if (hasRegister) {
@@ -120,6 +126,7 @@ export function StatisticsPage({ requestedCountryCode, onCountryChange }: Statis
           regionsQuery={databaseRegionsQuery}
         />
         <QualityCard countryCode={countryCode} />
+        <PhotosCard summaryQuery={photoSummaryQuery} regionsQuery={photoRegionsQuery} />
         {showsMeasurements ? <MeasurementsCard countryCode={countryCode} observationsQuery={observationsQuery} /> : null}
         {hasRegister ? (
           <>
