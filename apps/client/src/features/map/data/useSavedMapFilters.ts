@@ -21,7 +21,7 @@ const NO_LEGACY_OPERATORS: readonly number[] = [];
 const appliedCloudMapFilters = new WeakSet<object>();
 
 type MapFiltersOrigin = "load" | "local" | "cloud" | "url";
-type SavedMapFiltersState = SavedMapFilters & { origin: MapFiltersOrigin };
+type SavedMapFiltersState = SavedMapFilters & { origin: MapFiltersOrigin; cloudSnapshot: object | null };
 
 function listRegisterRatValues(labels: readonly OfficialBandLabel[]): string[] {
   return listMapRegisterRatOptions(labels).map((option) => option.value);
@@ -30,7 +30,7 @@ function listRegisterRatValues(labels: readonly OfficialBandLabel[]): string[] {
 export function useSavedMapFilters(scope: MapFiltersScope = "map", loadOverrides: Partial<MapFilters> = NO_OVERRIDES) {
   const [state, setState] = useState<SavedMapFiltersState>(() => {
     const stored = readSavedMapFilters(scope);
-    return { ...stored, filters: { ...stored.filters, ...loadOverrides }, origin: "load" };
+    return { ...stored, filters: { ...stored.filters, ...loadOverrides }, origin: "load", cloudSnapshot: null };
   });
   const mountFiltersRef = useRef(state.filters);
   const { cloudFilters, queueFilters } = useCloudMapFilters(scope);
@@ -53,17 +53,14 @@ export function useSavedMapFilters(scope: MapFiltersScope = "map", loadOverrides
     setState((previous) => ({ ...previous, filters: { ...previous.filters, operatorIds }, legacyOperatorMncs: NO_LEGACY_OPERATORS }));
   }
 
-  useEffect(() => {
-    if (cloudFilters === null || appliedCloudMapFilters.has(cloudFilters)) return;
-    appliedCloudMapFilters.add(cloudFilters);
-    setState((previous) =>
-      previous.origin === "url"
-        ? previous
-        : { filters: readStoredMapFilters(cloudFilters), legacyOperatorMncs: NO_LEGACY_OPERATORS, origin: "cloud" },
-    );
-  }, [cloudFilters]);
+  if (cloudFilters !== null && cloudFilters !== state.cloudSnapshot && !appliedCloudMapFilters.has(cloudFilters)) {
+    const cloudState: SavedMapFilters & { origin: MapFiltersOrigin } =
+      state.origin === "url" ? state : { filters: readStoredMapFilters(cloudFilters), legacyOperatorMncs: NO_LEGACY_OPERATORS, origin: "cloud" };
+    setState({ ...cloudState, cloudSnapshot: cloudFilters });
+  }
 
   useEffect(() => {
+    if (state.cloudSnapshot !== null) appliedCloudMapFilters.add(state.cloudSnapshot);
     if (state.origin === "url") return;
     writeSavedMapFilters(scope, state);
     if (state.origin === "local" && state.legacyOperatorMncs.length === 0) queueFilters(state.filters);
@@ -73,13 +70,18 @@ export function useSavedMapFilters(scope: MapFiltersScope = "map", loadOverrides
     setState((previous) => {
       const filters = typeof change === "function" ? change(previous.filters) : change;
       const keepsOperatorChoice = filters.operatorIds === previous.filters.operatorIds;
-      return { filters, legacyOperatorMncs: keepsOperatorChoice ? previous.legacyOperatorMncs : NO_LEGACY_OPERATORS, origin: "local" };
+      return {
+        filters,
+        legacyOperatorMncs: keepsOperatorChoice ? previous.legacyOperatorMncs : NO_LEGACY_OPERATORS,
+        origin: "local",
+        cloudSnapshot: previous.cloudSnapshot,
+      };
     });
   }, []);
 
   const setFiltersFromUrl = useCallback((filters: MapFilters) => {
     if (areMapFiltersUrlEquivalent(filters, mountFiltersRef.current)) return;
-    setState({ filters, legacyOperatorMncs: NO_LEGACY_OPERATORS, origin: "url" });
+    setState((previous) => ({ filters, legacyOperatorMncs: NO_LEGACY_OPERATORS, origin: "url", cloudSnapshot: previous.cloudSnapshot }));
   }, []);
 
   return [state.filters, setFilters, registerRats !== undefined || hasRegisterRatListFailed, setFiltersFromUrl] as const;
