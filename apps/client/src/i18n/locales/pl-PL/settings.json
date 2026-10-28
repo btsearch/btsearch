@@ -8,6 +8,8 @@
     "profileMobile": "Telefon",
     "profileHint": "Wybierz profil ustawień synchronizowany przez tę przeglądarkę",
     "loginToSync": "Zaloguj się, aby używać synchronizacji w chmurze",
+    "syncMapFilters": "Synchronizacja filtrów mapy",
+    "syncMapFiltersHint": "Zapisuj filtry mapy na swoim koncie",
     "themeHint": "Wygląd aplikacji na tym urządzeniu",
     "language": "Język",
     "languageHint": "Język interfejsu",

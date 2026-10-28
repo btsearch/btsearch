@@ -1,8 +1,16 @@
 import type { OfficialBandLabel } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { type MapFilters, type MapFiltersChange, listMapRegisterRatOptions, sanitizeMapFilters } from "./mapFilters";
+import {
+  type MapFilters,
+  type MapFiltersChange,
+  areMapFiltersUrlEquivalent,
+  listMapRegisterRatOptions,
+  readStoredMapFilters,
+  sanitizeMapFilters,
+} from "./mapFilters";
+import { useCloudMapFilters } from "./mapFiltersCloud";
 import { type MapFiltersScope, type SavedMapFilters, readSavedMapFilters, writeSavedMapFilters } from "./mapFilterStorage";
 import { findOperatorIdsByMncs } from "./mapLookups";
 import { officialBandLabelsQueryOptions } from "@/features/official/queries";
@@ -10,46 +18,69 @@ import { operatorsQueryOptions } from "@/features/shared/lookups";
 
 const NO_OVERRIDES: Partial<MapFilters> = {};
 const NO_LEGACY_OPERATORS: readonly number[] = [];
+const appliedCloudMapFilters = new WeakSet<object>();
+
+type MapFiltersOrigin = "load" | "local" | "cloud" | "url";
+type SavedMapFiltersState = SavedMapFilters & { origin: MapFiltersOrigin };
 
 function listRegisterRatValues(labels: readonly OfficialBandLabel[]): string[] {
   return listMapRegisterRatOptions(labels).map((option) => option.value);
 }
 
 export function useSavedMapFilters(scope: MapFiltersScope = "map", loadOverrides: Partial<MapFilters> = NO_OVERRIDES) {
-  const [saved, setSaved] = useState<SavedMapFilters>(() => {
+  const [state, setState] = useState<SavedMapFiltersState>(() => {
     const stored = readSavedMapFilters(scope);
-    return { ...stored, filters: { ...stored.filters, ...loadOverrides } };
+    return { ...stored, filters: { ...stored.filters, ...loadOverrides }, origin: "load" };
   });
-  const hasLegacyOperators = saved.legacyOperatorMncs.length > 0;
+  const mountFiltersRef = useRef(state.filters);
+  const { cloudFilters, queueFilters } = useCloudMapFilters(scope);
+  const hasLegacyOperators = state.legacyOperatorMncs.length > 0;
   const { data: operators } = useQuery({ ...operatorsQueryOptions(), enabled: hasLegacyOperators });
   const { data: registerRats, isError: hasRegisterRatListFailed } = useQuery({
     ...officialBandLabelsQueryOptions(),
     select: listRegisterRatValues,
-    enabled: saved.filters.source === "official",
+    enabled: state.filters.source === "official",
   });
 
-  if (saved.filters.source === "official" && saved.filters.rat.length > 0 && registerRats !== undefined) {
-    const filters = sanitizeMapFilters(saved.filters, registerRats);
-    if (filters.rat.length !== saved.filters.rat.length) setSaved({ ...saved, filters });
+  if (state.filters.source === "official" && state.filters.rat.length > 0 && registerRats !== undefined) {
+    const filters = sanitizeMapFilters(state.filters, registerRats);
+    if (filters.rat.length !== state.filters.rat.length) setState({ ...state, filters });
   }
 
   if (hasLegacyOperators && operators !== undefined) {
-    const convertedIds = findOperatorIdsByMncs(operators, saved.legacyOperatorMncs);
-    const operatorIds = [...new Set([...saved.filters.operatorIds, ...convertedIds])];
-    setSaved((previous) => ({ filters: { ...previous.filters, operatorIds }, legacyOperatorMncs: NO_LEGACY_OPERATORS }));
+    const convertedIds = findOperatorIdsByMncs(operators, state.legacyOperatorMncs);
+    const operatorIds = [...new Set([...state.filters.operatorIds, ...convertedIds])];
+    setState((previous) => ({ ...previous, filters: { ...previous.filters, operatorIds }, legacyOperatorMncs: NO_LEGACY_OPERATORS }));
   }
 
   useEffect(() => {
-    writeSavedMapFilters(scope, saved);
-  }, [scope, saved]);
+    if (cloudFilters === null || appliedCloudMapFilters.has(cloudFilters)) return;
+    appliedCloudMapFilters.add(cloudFilters);
+    setState((previous) =>
+      previous.origin === "url"
+        ? previous
+        : { filters: readStoredMapFilters(cloudFilters), legacyOperatorMncs: NO_LEGACY_OPERATORS, origin: "cloud" },
+    );
+  }, [cloudFilters]);
+
+  useEffect(() => {
+    if (state.origin === "url") return;
+    writeSavedMapFilters(scope, state);
+    if (state.origin === "local" && state.legacyOperatorMncs.length === 0) queueFilters(state.filters);
+  }, [queueFilters, scope, state]);
 
   const setFilters = useCallback((change: MapFiltersChange) => {
-    setSaved((previous) => {
+    setState((previous) => {
       const filters = typeof change === "function" ? change(previous.filters) : change;
       const keepsOperatorChoice = filters.operatorIds === previous.filters.operatorIds;
-      return { filters, legacyOperatorMncs: keepsOperatorChoice ? previous.legacyOperatorMncs : NO_LEGACY_OPERATORS };
+      return { filters, legacyOperatorMncs: keepsOperatorChoice ? previous.legacyOperatorMncs : NO_LEGACY_OPERATORS, origin: "local" };
     });
   }, []);
 
-  return [saved.filters, setFilters, registerRats !== undefined || hasRegisterRatListFailed] as const;
+  const setFiltersFromUrl = useCallback((filters: MapFilters) => {
+    if (areMapFiltersUrlEquivalent(filters, mountFiltersRef.current)) return;
+    setState({ filters, legacyOperatorMncs: NO_LEGACY_OPERATORS, origin: "url" });
+  }, []);
+
+  return [state.filters, setFilters, registerRats !== undefined || hasRegisterRatListFailed, setFiltersFromUrl] as const;
 }

@@ -65,7 +65,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const { data: session } = useSettledSession();
   const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
   const { preferences } = usePreferences();
-  const [savedFilters, setSavedFilters, isRegisterRatListReady] = useSavedMapFilters("list-map", LIST_MAP_FILTER_OVERRIDES);
+  const [savedFilters, setSavedFilters, isRegisterRatListReady, setFiltersFromUrl] = useSavedMapFilters("list-map", LIST_MAP_FILTER_OVERRIDES);
   const { lookups } = useMapLookups();
   const capabilitiesOnScreen = useCapabilitiesOnScreen(bounds);
 
@@ -265,7 +265,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       <StationsLayer
         filters={shownFilters}
         savedFilters={savedFilters}
-        onFiltersChange={setSavedFilters}
+        onFiltersFromUrl={setFiltersFromUrl}
         points={points}
         wantAzimuths={wantAzimuths}
         onActiveMarkerChange={setActiveMarker}

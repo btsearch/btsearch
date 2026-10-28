@@ -4,6 +4,7 @@ import {
   AppleIcon,
   CloudIcon,
   ComputerIcon,
+  FilterIcon,
   GoogleMapsIcon,
   InformationCircleIcon,
   LanguageSquareIcon,
@@ -43,6 +44,7 @@ import { InlineError } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { useMapFiltersSyncSetting } from "@/features/map/data/mapFiltersCloud";
 import { fetchPushSubscription, pushSubscriptionKeys, updatePushTopics } from "@/features/notifications/api";
 import { usePushSubscription } from "@/features/notifications/usePushSubscription";
 import { OpenStreetMapIcon, OrganicMapsIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
@@ -260,11 +262,16 @@ function NavigationAppsPicker({ selected, onChange }: { selected: NavigationApp[
 function SyncCard() {
   const { t } = useTranslation("settings");
   const { cloud } = usePreferences();
+  const mapFiltersSync = useMapFiltersSyncSetting();
   const profileTitleId = useId();
 
   const toggleSync = (enabled: boolean) => {
     const request = enabled ? cloud.enableSync() : cloud.disableSync();
     request.catch(showSettingsError);
+  };
+
+  const toggleMapFiltersSync = (enabled: boolean) => {
+    mapFiltersSync.setEnabled(enabled).catch(showSettingsError);
   };
 
   return (
@@ -279,17 +286,27 @@ function SyncCard() {
         className="py-4"
       />
       {cloud.syncEnabled ? (
-        <SettingsRow title={t("preferences.profile")} titleId={profileTitleId} description={t("preferences.profileHint")} wrap>
-          <SegmentedControl
-            value={cloud.activeProfile}
-            onValueChange={cloud.setActiveProfile}
-            ariaLabelledBy={profileTitleId}
-            options={[
-              { value: "desktop", label: t("preferences.profileDesktop"), icon: ComputerIcon },
-              { value: "mobile", label: t("preferences.profileMobile"), icon: SmartPhone01Icon },
-            ]}
+        <>
+          <SettingsRow title={t("preferences.profile")} titleId={profileTitleId} description={t("preferences.profileHint")} wrap>
+            <SegmentedControl
+              value={cloud.activeProfile}
+              onValueChange={cloud.setActiveProfile}
+              ariaLabelledBy={profileTitleId}
+              options={[
+                { value: "desktop", label: t("preferences.profileDesktop"), icon: ComputerIcon },
+                { value: "mobile", label: t("preferences.profileMobile"), icon: SmartPhone01Icon },
+              ]}
+            />
+          </SettingsRow>
+          <PreferenceSwitchRow
+            icon={FilterIcon}
+            title={t("preferences.syncMapFilters")}
+            description={t("preferences.syncMapFiltersHint")}
+            checked={mapFiltersSync.isEnabled}
+            disabled={cloud.isLoading || mapFiltersSync.isUpdating}
+            onCheckedChange={toggleMapFiltersSync}
           />
-        </SettingsRow>
+        </>
       ) : null}
     </SettingsCard>
   );

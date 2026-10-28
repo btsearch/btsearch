@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
-import { type CloudPreferences, getCloudPreferencesQueryKey, patchCloudPreferences } from "./usePreferences";
-import { fetchApiData, showApiError } from "@/lib/api";
-import { authClient } from "@/lib/auth/client";
+import {
+  type CloudPreferences,
+  cloudPreferencesQueryOptions,
+  getCloudPreferencesQueryKey,
+  patchCloudPreferences,
+  useCloudPreferencesUserId,
+} from "./usePreferences";
+import { showApiError } from "@/lib/api";
 
 type FavoriteListsMutationContext = {
   previous: CloudPreferences | undefined;
@@ -24,15 +29,10 @@ function withFavoriteLists(current: CloudPreferences | undefined, favoriteLists:
 
 export function useFavoriteLists() {
   const queryClient = useQueryClient();
-  const { data: session } = authClient.useSession();
-  const userId = session?.user?.id;
+  const userId = useCloudPreferencesUserId();
   const queryKey = userId === undefined ? null : getCloudPreferencesQueryKey(userId);
 
-  const { data: cloudPreferences } = useQuery({
-    queryKey: queryKey ?? ["account-preferences", "anonymous"],
-    queryFn: () => fetchApiData<CloudPreferences>("account/preferences"),
-    enabled: userId !== undefined,
-  });
+  const { data: cloudPreferences } = useQuery(cloudPreferencesQueryOptions(userId));
 
   const favoriteUuids = cloudPreferences?.favoriteLists ?? EMPTY_FAVORITE_UUIDS;
   const favoriteSet = useMemo(() => new Set(favoriteUuids), [favoriteUuids]);

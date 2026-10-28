@@ -85,12 +85,35 @@ export type CloudUserPreferences = {
   };
 };
 
+export type CloudMapFilters = {
+  operatorIds?: number[];
+  countryCodes?: string[];
+  bands?: number[];
+  rat?: string[];
+  status?: string[];
+  source?: string;
+  recentDays?: number | null;
+  recentDateFields?: string[];
+  showStations?: boolean;
+  showRadiolines?: boolean;
+  radiolineOperators?: number[];
+  showHeatmap?: boolean;
+  showPlannedMeasurements?: boolean;
+  showEstimatedSites?: boolean;
+  showTrails?: boolean;
+  estimatedSiteStatuses?: string[];
+  uplinkTypes?: string[];
+};
+
 export type CloudPreferences = {
   syncEnabled: boolean;
   desktop: CloudUserPreferences | null;
   mobile: CloudUserPreferences | null;
   clfDescriptionTemplates: CLFDescriptionTemplates | null;
   favoriteLists?: string[];
+  syncMapFilters?: boolean;
+  mapFiltersDesktop?: CloudMapFilters | null;
+  mapFiltersMobile?: CloudMapFilters | null;
 };
 
 export const Role = pgEnum("role", ["user", "moderator", "admin"]);

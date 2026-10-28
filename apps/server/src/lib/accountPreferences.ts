@@ -1,4 +1,4 @@
-import type { CloudPreferences, CloudUserPreferences } from "@openbts/drizzle";
+import type { CloudMapFilters, CloudPreferences, CloudUserPreferences } from "@openbts/drizzle";
 import { CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH, CLF_DESCRIPTION_TEMPLATE_RATS, CLF_EXPORT_FORMATS } from "@openbts/shared/clfExportTemplates";
 import { MAX_LOCATION_LIST_LIMIT, countryCodeSchema } from "@openbts/shared/contract";
 import { z } from "zod/v4";
@@ -19,6 +19,29 @@ const clfExportFiltersSchema = z
     displayNRSeparately: z.boolean().default(false),
   })
   .loose();
+
+const mapFiltersSchema = z
+  .object({
+    operatorIds: z.array(z.number().int().positive()),
+    countryCodes: z.array(countryCodeSchema),
+    bands: z.array(z.number()),
+    rat: z.array(z.string()),
+    status: z.array(z.string()),
+    source: z.string(),
+    recentDays: z.number().nullable(),
+    recentDateFields: z.array(z.string()),
+    showStations: z.boolean(),
+    showRadiolines: z.boolean(),
+    radiolineOperators: z.array(z.number().int().positive()),
+    showHeatmap: z.boolean(),
+    showPlannedMeasurements: z.boolean(),
+    showEstimatedSites: z.boolean(),
+    showTrails: z.boolean(),
+    estimatedSiteStatuses: z.array(z.string()),
+    uplinkTypes: z.array(z.string()),
+  })
+  .loose()
+  .partial();
 
 export const userPreferencesSchema = z
   .object({
@@ -54,6 +77,9 @@ export const cloudPreferencesSchema = z.looseObject({
   mobile: userPreferencesSchema.nullable(),
   clfDescriptionTemplates: CLFDescriptionTemplatesSchema.nullable(),
   favoriteLists: z.array(z.string()).optional(),
+  syncMapFilters: z.boolean(),
+  mapFiltersDesktop: mapFiltersSchema.nullable(),
+  mapFiltersMobile: mapFiltersSchema.nullable(),
 });
 
 export const cloudPreferencesPatchSchema = z.looseObject({
@@ -62,6 +88,9 @@ export const cloudPreferencesPatchSchema = z.looseObject({
   mobile: userPreferencesSchema.nullable().optional(),
   clfDescriptionTemplates: CLFDescriptionTemplatesSchema.nullable().optional(),
   favoriteLists: z.array(z.string()).optional(),
+  syncMapFilters: z.boolean().optional(),
+  mapFiltersDesktop: mapFiltersSchema.nullable().optional(),
+  mapFiltersMobile: mapFiltersSchema.nullable().optional(),
 });
 
 export const DEFAULT_CLOUD_PREFERENCES: CloudPreferences = {
@@ -70,6 +99,9 @@ export const DEFAULT_CLOUD_PREFERENCES: CloudPreferences = {
   mobile: null,
   clfDescriptionTemplates: null,
   favoriteLists: [],
+  syncMapFilters: false,
+  mapFiltersDesktop: null,
+  mapFiltersMobile: null,
 };
 
 const knownPreferences: Record<string, z.ZodType> = userPreferencesSchema.shape;
@@ -87,6 +119,11 @@ function normalizeCloudUserPreferences(value: CloudPreferences["desktop"] | unde
   return Object.fromEntries(entries) as CloudUserPreferences;
 }
 
+function normalizeCloudMapFilters(value: CloudPreferences["mapFiltersDesktop"]): CloudMapFilters | null {
+  const parsed = mapFiltersSchema.safeParse(value);
+  return parsed.success ? (parsed.data as CloudMapFilters) : null;
+}
+
 export function normalizeCloudPreferences(value: CloudPreferences | null | undefined): CloudPreferences {
   if (value === undefined || value === null) return DEFAULT_CLOUD_PREFERENCES;
 
@@ -100,5 +137,8 @@ export function normalizeCloudPreferences(value: CloudPreferences | null | undef
     mobile: normalizeCloudUserPreferences(value.mobile),
     clfDescriptionTemplates: templates.success ? (templates.data as CloudPreferences["clfDescriptionTemplates"]) : null,
     favoriteLists,
+    syncMapFilters: value.syncMapFilters === true,
+    mapFiltersDesktop: normalizeCloudMapFilters(value.mapFiltersDesktop),
+    mapFiltersMobile: normalizeCloudMapFilters(value.mapFiltersMobile),
   };
 }

@@ -248,6 +248,33 @@ export function countActiveMapFilters(filters: MapFilters, operators: readonly O
   );
 }
 
+function isSameValueSet(left: readonly (string | number)[], right: readonly (string | number)[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightValues = new Set<string | number>(right);
+  return left.every((value) => rightValues.has(value));
+}
+
+export function areMapFiltersUrlEquivalent(left: MapFilters, right: MapFilters): boolean {
+  return (
+    left.source === right.source &&
+    left.showStations === right.showStations &&
+    left.showRadiolines === right.showRadiolines &&
+    left.showHeatmap === right.showHeatmap &&
+    left.showPlannedMeasurements === right.showPlannedMeasurements &&
+    left.showEstimatedSites === right.showEstimatedSites &&
+    left.showTrails === right.showTrails &&
+    left.recentDays === right.recentDays &&
+    isSameValueSet(left.operatorIds, right.operatorIds) &&
+    isSameValueSet(left.countryCodes, right.countryCodes) &&
+    isSameValueSet(left.bands, right.bands) &&
+    isSameValueSet(left.rat, right.rat) &&
+    isSameValueSet(left.status, right.status) &&
+    isSameValueSet(left.uplinkTypes, right.uplinkTypes) &&
+    (left.recentDays === null || isSameValueSet(left.recentDateFields, right.recentDateFields)) &&
+    (!left.showRadiolines || isSameValueSet(left.radiolineOperators, right.radiolineOperators))
+  );
+}
+
 export function clearMapFilters(filters: MapFilters): MapFilters {
   return {
     operatorIds: [],

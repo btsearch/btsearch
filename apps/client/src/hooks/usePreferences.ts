@@ -61,6 +61,9 @@ export type CloudPreferences = {
   mobile: Partial<UserPreferences> | null;
   clfDescriptionTemplates: CLFDescriptionTemplates | null;
   favoriteLists?: string[];
+  syncMapFilters?: boolean;
+  mapFiltersDesktop?: Record<string, unknown> | null;
+  mapFiltersMobile?: Record<string, unknown> | null;
 };
 
 export type CloudPreferencesPatch = {
@@ -69,6 +72,9 @@ export type CloudPreferencesPatch = {
   mobile?: Partial<UserPreferences> | null;
   clfDescriptionTemplates?: CLFDescriptionTemplates | null;
   favoriteLists?: string[];
+  syncMapFilters?: boolean;
+  mapFiltersDesktop?: Record<string, unknown> | null;
+  mapFiltersMobile?: Record<string, unknown> | null;
 };
 
 const LEGACY_STORAGE_KEY = "user-preferences";
@@ -136,7 +142,23 @@ export function getCloudPreferencesQueryKey(userId: string) {
   return ["account-preferences", userId] as const;
 }
 
-function flushQueuedCloudPatch(userId: string) {
+const ANONYMOUS_PREFERENCES_QUERY_KEY = ["account-preferences", "anonymous"] as const;
+
+export function cloudPreferencesQueryOptions(userId: string | undefined) {
+  return {
+    queryKey: userId === undefined ? ANONYMOUS_PREFERENCES_QUERY_KEY : getCloudPreferencesQueryKey(userId),
+    queryFn: () => fetchApiData<CloudPreferences>("account/preferences"),
+    enabled: userId !== undefined,
+  };
+}
+
+export function useCloudPreferencesUserId(): string | undefined {
+  const { data: session } = authClient.useSession();
+  const isActingAsAnotherUser = Boolean(session?.session.impersonatedBy);
+  return isActingAsAnotherUser ? undefined : session?.user?.id;
+}
+
+export function flushQueuedCloudPatch(userId: string) {
   const pendingPatch = pendingCloudPatches.get(userId);
   if (pendingPatch === undefined) return;
 
@@ -144,7 +166,7 @@ function flushQueuedCloudPatch(userId: string) {
   pendingPatch.send(pendingPatch.patch);
 }
 
-function queueCloudPatch(userId: string, patch: CloudPreferencesPatch, send: (patch: CloudPreferencesPatch) => void) {
+export function queueCloudPatch(userId: string, patch: CloudPreferencesPatch, send: (patch: CloudPreferencesPatch) => void) {
   const pendingPatch = pendingCloudPatches.get(userId);
   if (pendingPatch !== undefined) {
     clearTimeout(pendingPatch.timer);
@@ -366,18 +388,12 @@ export async function patchCloudPreferences(patch: CloudPreferencesPatch): Promi
 
 export function usePreferences() {
   const queryClient = useQueryClient();
-  const { data: session } = authClient.useSession();
-  const isActingAsAnotherUser = Boolean(session?.session.impersonatedBy);
-  const userId = isActingAsAnotherUser ? undefined : session?.user?.id;
+  const userId = useCloudPreferencesUserId();
   const preferences = useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT_PREFERENCES);
-  const activeProfile = useSyncExternalStore<PreferenceProfile>(subscribe, getProfileSnapshot, () => DEFAULT_PROFILE);
+  const activeProfile = useActivePreferenceProfile();
 
   const queryKey = userId === undefined ? null : getCloudPreferencesQueryKey(userId);
-  const { data: cloudPreferences, isFetching: isCloudPreferencesLoading } = useQuery({
-    queryKey: queryKey ?? ["account-preferences", "anonymous"],
-    queryFn: () => fetchApiData<CloudPreferences>("account/preferences"),
-    enabled: userId !== undefined,
-  });
+  const { data: cloudPreferences, isFetching: isCloudPreferencesLoading } = useQuery(cloudPreferencesQueryOptions(userId));
 
   const {
     mutate: patchCloud,
@@ -499,4 +515,8 @@ export function useNavMode(): NavMode {
     () => getSnapshot().navMode,
     () => DEFAULT_PREFERENCES.navMode,
   );
+}
+
+export function useActivePreferenceProfile(): PreferenceProfile {
+  return useSyncExternalStore(subscribe, getProfileSnapshot, () => DEFAULT_PROFILE);
 }

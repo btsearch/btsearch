@@ -111,14 +111,14 @@ type CommonStationsLayerProps = {
 
 type StationsLayerProps = CommonStationsLayerProps &
   (
-    | { urlSyncEnabled?: true; savedFilters: MapFilters; onFiltersChange: (filters: MapFilters) => void }
-    | { urlSyncEnabled: false; savedFilters?: never; onFiltersChange?: never }
+    | { urlSyncEnabled?: true; savedFilters: MapFilters; onFiltersFromUrl: (filters: MapFilters) => void }
+    | { urlSyncEnabled: false; savedFilters?: never; onFiltersFromUrl?: never }
   );
 
 export function StationsLayer({
   filters,
   savedFilters = filters,
-  onFiltersChange,
+  onFiltersFromUrl,
   points,
   wantAzimuths,
   isPickingReceiver = false,
@@ -151,7 +151,7 @@ export function StationsLayer({
     observedSiteId,
     coverage,
   }: UrlInitialization) {
-    if (urlFilters) onFiltersChange?.(urlFilters);
+    if (urlFilters) onFiltersFromUrl?.(urlFilters);
     const activeFilters = urlFilters ?? savedFilters;
 
     if (officialSiteId && map) {

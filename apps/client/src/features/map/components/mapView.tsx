@@ -69,7 +69,7 @@ function MapViewInner() {
   const { data: runtimeSettings } = useSettings();
   const { data: session } = useSettledSession();
   const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
-  const [savedFilters, setSavedFilters, isRegisterRatListReady] = useSavedMapFilters();
+  const [savedFilters, setSavedFilters, isRegisterRatListReady, setFiltersFromUrl] = useSavedMapFilters();
   const { lookups } = useMapLookups();
   const capabilitiesOnScreen = useCapabilitiesOnScreen(bounds);
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -270,7 +270,7 @@ function MapViewInner() {
       <StationsLayer
         filters={shownFilters}
         savedFilters={savedFilters}
-        onFiltersChange={setSavedFilters}
+        onFiltersFromUrl={setFiltersFromUrl}
         points={keepFocusedPoints(points, focusedCoverageTarget)}
         wantAzimuths={wantAzimuths}
         isPickingReceiver={terrainProfile.isPickingReceiver}

@@ -8,6 +8,8 @@
     "profileMobile": "Mobile",
     "profileHint": "Choose which settings profile this browser syncs",
     "loginToSync": "Sign in to use cloud sync",
+    "syncMapFilters": "Sync map filters",
+    "syncMapFiltersHint": "Save your map filters to your account",
     "themeHint": "How the app looks on this device",
     "language": "Language",
     "languageHint": "Interface language",
