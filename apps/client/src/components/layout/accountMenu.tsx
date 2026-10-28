@@ -92,7 +92,7 @@ function ThemeRow() {
   const labelId = useId();
 
   return (
-    <div className="flex h-9 items-center gap-2.5 pr-1 pl-2 text-sm pointer-coarse:h-13 pointer-coarse:gap-3 pointer-coarse:pr-1.5 pointer-coarse:pl-3">
+    <div className="flex h-9 items-center gap-2.5 pr-1 pl-2 text-sm pointer-coarse:h-11 pointer-coarse:gap-3 pointer-coarse:pr-1.5 pointer-coarse:pl-3">
       <HugeiconsIcon icon={PaintBoardIcon} aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <span id={labelId} className="flex-1">
         {t("theme.title")}

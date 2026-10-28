@@ -682,15 +682,7 @@ const FloatingAccountCluster = memo(function FloatingAccountCluster({ anchor }: 
           >
             <UserAvatar user={user} size="sm" />
           </DropdownMenuTrigger>
-          <AccountMenuContent
-            user={user}
-            side="top"
-            align="end"
-            sideOffset={8}
-            anchor={anchor}
-            collisionPadding={8}
-            className="max-md:w-[calc(100vw-1rem)]"
-          />
+          <AccountMenuContent user={user} side="top" align="end" sideOffset={8} anchor={anchor} collisionPadding={8} />
         </DropdownMenu>
       </div>
     );

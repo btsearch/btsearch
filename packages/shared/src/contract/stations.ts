@@ -18,7 +18,6 @@ import {
   idSchema,
   instantSchema,
   latitudeQuerySchema,
-  limitSchema,
   longitudeQuerySchema,
   offsetSchema,
   pagingSchema,
@@ -291,6 +290,8 @@ export type StationQuery = z.infer<typeof stationQuerySchema>;
 const NEAR_POINT_NOTE = "The point `sort=distance` measures from. Send it with both coordinates";
 const NEAR_POINT_ISSUE = { path: ["sort"], message: "Send `latitude` and `longitude` with `sort=distance`, and only with it" };
 
+const MAX_STATION_LIST_LIMIT = 1000;
+
 export const stationListQuerySchema = z
   .object({
     ...stationFilterShape,
@@ -306,7 +307,7 @@ export const stationListQuerySchema = z
         "`distance` lists the stations nearest to `latitude` and `longitude` first, and the stations without a location last. " +
           "It pages through at most 100,000 stations",
       ),
-    limit: limitSchema,
+    limit: z.coerce.number<number>().int().min(1).max(MAX_STATION_LIST_LIMIT).default(50),
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
     includeTotal: booleanQuerySchema.optional(),

@@ -262,7 +262,7 @@
       "mineTitle": "Twoje pomiary",
       "readings": "odczyty",
       "mineCaption": "Razem z postojami i końcami tras. Widzisz je tylko ty",
-      "levelCaption": "Kolor pokazuje siłę sygnału, którą osiąga 9 na 10 pomiarów w danym miejscu. Ślady pomijają postoje oraz pierwsze i ostatnie 100 m każdej trasy",
+      "levelCaption": "Kolor pokazuje siłę sygnału, którą osiąga 9 na 10 pomiarów w danym miejscu",
       "bandsFromFilters": "Pasma z filtrów:",
       "empty": "Nikt jeszcze nie zmierzył tu sieci {{operator}}",
       "mineEmpty": "Nie masz tu pomiarów w sieci {{operator}}",

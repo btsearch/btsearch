@@ -252,7 +252,7 @@
       "mineTitle": "Your measurements",
       "readings": "readings",
       "mineCaption": "Stops and trip ends included. Only you can see them",
-      "levelCaption": "The color shows the signal level that 9 in 10 measurements reach at a place. Trails leave out stops and the first and last 100 m of each trip",
+      "levelCaption": "The color shows the signal level that 9 in 10 measurements reach at a place",
       "bandsFromFilters": "Bands from filters:",
       "empty": "Nobody has measured the {{operator}} network here yet",
       "mineEmpty": "You have no measurements of the {{operator}} network here",

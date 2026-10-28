@@ -71,7 +71,7 @@ describe("getStations", () => {
     expect(query.sql).toContain("supports_iot");
   });
 
-  it.each(["cursor=opaque&offset=0", "limit=201", "statuses=published", "include=location.invalid", "supportsIot=1"])(
+  it.each(["cursor=opaque&offset=0", "limit=1001", "statuses=published", "include=location.invalid", "supportsIot=1"])(
     "rejects invalid combinations before querying: %s",
     async (query) => {
       const app = await createRouteHarness(getStations);
