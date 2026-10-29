@@ -10,7 +10,7 @@ const schemaRoute = {
   summary: "List official locations",
   description:
     "A location holds the official sites at that place, and each site holds the permits issued for it.\n\n" +
-    "The site filters (`operatorIds`, `rats`, `bandLabels`, `createdAfter`, `updatedAfter`, `changedAfter` and `listId`) select sites, " +
+    "The site filters (`operatorIds`, `rats`, `bandLabels`, `statuses`, `createdAfter`, `updatedAfter`, `changedAfter` and `listId`) select sites, " +
     "and a location is only returned if at least one of its sites matches.",
   querystring: officialLocationListQuerySchema,
   response: {

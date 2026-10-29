@@ -144,7 +144,6 @@
     "underground": "Underground",
     "indoor": "Indoor",
     "inService": "In service",
-    "stationNotInService": "Not in service yet",
     "dashedMeansNotInService": "Dashed outline: band not in service yet",
     "bandsWithoutAzimuth": "Bands without published azimuths are only in the table below"
   },

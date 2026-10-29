@@ -22,6 +22,14 @@
     "inactive": "Stacja została wyłączona na czas nieokreślony, zlikwidowana lub zastąpiona inną stacją",
     "changedAt": "Status zmieniony: {{date}}"
   },
+  "officialStatus": {
+    "inService": "Uruchomiona",
+    "approved": "Jeszcze nieuruchomiona"
+  },
+  "officialStatusTooltip": {
+    "inService": "Według rejestru anteny stacji już nadają",
+    "approved": "Według rejestru stacja ma już pozwolenie, ale jej anteny jeszcze nie nadają"
+  },
   "cells": {
     "notesPlaceholder": "np. budynek B2",
     "cellTypes": {

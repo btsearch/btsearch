@@ -133,12 +133,13 @@ function StationPage() {
   const stationNumber = getStationNumber(station);
   const pageTitle = `${operatorName} ${stationNumber}`.trim();
   const shareTitle = stationNumber === "" ? operatorName : `${stationNumber} (${operatorName})`;
-  const city = station.location?.city || tCommon("labels.unknownLocation");
+  const city = station.location?.city;
+  const place = [city, station.location?.address].filter(Boolean).join(" ");
   const hostStation = findHostStation(station, location?.stations);
 
   return (
     <main className="w-full px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
-      <h1 className="sr-only">{`${t("dialog.btsStation")} ${pageTitle} - ${city}`}</h1>
+      <h1 className="sr-only">{`${t("dialog.btsStation")} ${pageTitle}${city ? ` - ${city}` : ""}`}</h1>
 
       <header className="overflow-hidden rounded-2xl border border-border/70 bg-background">
         <div
@@ -196,7 +197,7 @@ function StationPage() {
           <div className="absolute top-3 right-3 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
             <ShareButton
               title={shareTitle}
-              text={`${shareTitle} - ${city} ${station.location?.address || ""}`.trim()}
+              text={place ? `${shareTitle} - ${place}` : shareTitle}
               url={`${window.location.origin}/stations/${station.id}`}
               size="md"
               className={stationDialogHeaderIconActionClassName}

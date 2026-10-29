@@ -83,6 +83,7 @@ export const servedSite = {
   operatorId: 4,
   locationId: 21,
   stationId: null as number | null,
+  status: null as "approved" | "inService" | null,
   createdAt: IMPORTED_AT,
   updatedAt: CHANGED_AT,
 };

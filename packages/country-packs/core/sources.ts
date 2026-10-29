@@ -149,6 +149,7 @@ export type OfficialSourceDefinition = {
   licence: string;
   attribution: string;
   isRedistributable: boolean;
+  reportsPermitStatus?: boolean;
   shortLicenseeName: (publishedName: string) => string;
   operatorNameOfLicensee: (publishedName: string) => string | null;
   datasets: readonly DatasetDefinition[];

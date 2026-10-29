@@ -18,8 +18,7 @@ type StationPanelActionsProps = {
 export function StationPanelActions({ station, editTarget, onClose }: StationPanelActionsProps) {
   const { t } = useTranslation(["stationDetails", "common", "main"]);
   const operatorName = station.operator?.name ?? t("main:unknownOperator");
-  const city = station.location?.city || t("common:labels.unknownLocation");
-  const address = station.location?.address || null;
+  const place = [station.location?.city, station.location?.address].filter(Boolean).join(" ");
   const stationNumber = getStationNumber(station);
   const shareTitle = stationNumber === "" ? operatorName : `${stationNumber} (${operatorName})`;
   const editLabel = (
@@ -33,7 +32,7 @@ export function StationPanelActions({ station, editTarget, onClose }: StationPan
     <>
       <ShareButton
         title={shareTitle}
-        text={`${shareTitle} - ${city}${address !== null ? ` ${address}` : ""}`}
+        text={place ? `${shareTitle} - ${place}` : shareTitle}
         url={`${window.location.origin}/stations/${station.id}`}
         size="md"
         className={stationDialogHeaderIconActionClassName}

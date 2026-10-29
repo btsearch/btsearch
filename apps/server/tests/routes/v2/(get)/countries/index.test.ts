@@ -15,9 +15,18 @@ const packCapabilities = {
   emf: true,
   terrainProfiles: { receiverBounds: { west: 13.8, south: 48.8, east: 24.5, north: 55.2 } },
   kmz: true,
+  officialStatuses: false,
   editableHostStations: false,
 };
-const noCapabilities = { official: false, microwaveLinks: false, emf: false, terrainProfiles: null, kmz: false, editableHostStations: true };
+const noCapabilities = {
+  official: false,
+  microwaveLinks: false,
+  emf: false,
+  terrainProfiles: null,
+  kmz: false,
+  officialStatuses: false,
+  editableHostStations: true,
+};
 const tools = ["analyzer", "measurements"];
 const visible = { code: "PL", isVisible: true, contributions: "open", tools, features, capabilities: packCapabilities, defaultView: null };
 const hidden = { code: "US", isVisible: false, contributions: "closed", tools, features, capabilities: noCapabilities, defaultView: null };
@@ -103,6 +112,27 @@ describe("getCountries", () => {
       ["PL", false],
       ["FR", false],
       ["GB", true],
+    ]);
+  });
+
+  it("says official sites carry a status only where a registered source reports one and its sites are shown", async () => {
+    dbMock.query.countries.findMany.mockResolvedValue(["PL", "FR"].map((code) => ({ ...visible, ...viewColumns, code })));
+    scriptSourceCapabilities([], [polishSource, { id: 2, countryCode: "FR", isVisible: true, layers: ["sites"] }]);
+    const app = await createRouteHarness(getCountries);
+    const listOfficialStatuses = async () => {
+      const response = await app.inject({ method: "GET", url: "/countries" });
+      const countries: { code: string; capabilities: { officialStatuses: boolean } }[] = response.json().data;
+      return countries.map(({ code, capabilities }) => [code, capabilities.officialStatuses]);
+    };
+
+    expect(await listOfficialStatuses()).toEqual([
+      ["PL", false],
+      ["FR", true],
+    ]);
+    scriptSourceCapabilities([], [polishSource, { id: 2, countryCode: "FR", isVisible: false, layers: ["sites"] }]);
+    expect(await listOfficialStatuses()).toEqual([
+      ["PL", false],
+      ["FR", false],
     ]);
   });
 });

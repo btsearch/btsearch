@@ -33,6 +33,7 @@ import { getOfficialSiteCode } from "@/features/official/sites";
 import { brandsQueryOptions, countriesQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
 import { getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { OfficialStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
@@ -104,12 +105,11 @@ function OfficialSiteDialogPanel({
   const siteId = site ? (getOfficialSiteCode(site) ?? "") : "";
   const location = site?.location;
   const shareSourcePrefix = officialSource ? `${officialSource.shortName}: ` : "";
-  const sharePlace = location ? [location.city || t("common:labels.unknownLocation"), location.address].filter(Boolean).join(" ") : "";
+  const sharePlace = location ? [location.city, location.address].filter(Boolean).join(" ") : "";
   const internalStationId = data?.stationId ?? null;
   const registerSiteId = data !== undefined && internalStationId === null ? data.siteId : null;
   const permits = site?.permits;
   const hasPermits = permits !== undefined && permits.length > 0;
-  const isNotInService = hasPermits && permits.every((permit) => permit.status === "approved");
   const listsBandsOnly = hasPermits && permits.every((permit) => permit.kind === "inventory");
   const internalTarget: StationDialogTarget | undefined = internalStationId === null ? switchedFrom : { source: "internal", id: internalStationId };
   const sourceSwitch =
@@ -138,14 +138,8 @@ function OfficialSiteDialogPanel({
             operatorName={operatorName}
             operatorBrand={operatorBrand}
             stationCode={siteId}
-            badges={
-              isNotInService ? (
-                <span className="inline-flex h-5 items-center rounded-md border border-dashed border-muted-foreground px-1.5 text-[11px] font-semibold">
-                  {t("permits.stationNotInService")}
-                </span>
-              ) : null
-            }
             location={location}
+            status={site.status === null ? undefined : <OfficialStatusBadge status={site.status} />}
             createdAt={site.createdAt}
             updatedAt={site.updatedAt}
           />

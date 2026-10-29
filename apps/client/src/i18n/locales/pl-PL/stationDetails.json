@@ -162,7 +162,6 @@
     "underground": "Pod ziemią",
     "indoor": "Wewnątrz",
     "inService": "Uruchomione",
-    "stationNotInService": "Jeszcze nieuruchomiona",
     "dashedMeansNotInService": "Przerywana ramka: pasmo jeszcze nieuruchomione",
     "bandsWithoutAzimuth": "Pasma bez podanych azymutów są tylko w tabeli niżej"
   },

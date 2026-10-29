@@ -1,6 +1,6 @@
 import { Copy01Icon, Location01Icon, Share08Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { StationStatus } from "@openbts/shared/contract";
+import type { OfficialPermitStatus, StationStatus } from "@openbts/shared/contract";
 import { type ComponentProps, type ReactNode, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StationGuestMarks } from "@/features/shared/operatorMarks";
 import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
-import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
+import { OfficialStatusBadge, StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useGpsFormat } from "@/hooks/usePreferences";
 import { getOperatorTintGradient } from "@/lib/cellular/operators";
 import { formatCoordinates } from "@/lib/geo/coordinates";
@@ -134,20 +134,21 @@ type PopupLocationHeaderProps = {
 };
 
 export function PopupLocationHeader({ city, region, address, description, actions }: PopupLocationHeaderProps) {
-  const { t } = useTranslation("main");
-  const details = description ?? address;
+  const place = city || address;
+  const details = description ?? (city ? address : null);
+  const regionSuffix = place ? region : null;
 
   return (
     <div className={cn("flow-root border-b border-border/50 py-2 pl-3", actions ? "pr-1.5" : "pr-3")}>
       {actions ? <div className="float-right -my-0.5 ml-2 flex items-center">{actions}</div> : null}
       <h3 className="overflow-x-clip text-sm leading-5 font-medium">
-        {city || t("common:labels.unknownLocation")}
-        {region ? (
+        {place || region}
+        {regionSuffix ? (
           <>
             <span className="[word-spacing:0.375rem]"> </span>
             <span className="text-[11px] font-normal whitespace-nowrap text-muted-foreground">
               <span className="-ml-1.5 inline-block w-1.5">·</span>
-              {region}
+              {regionSuffix}
             </span>
           </>
         ) : null}
@@ -181,6 +182,16 @@ export function PopupStatusBadge({ status, statusChangedAt }: PopupStatusBadgePr
   if (status === null || status === "active") return null;
 
   return <StationStatusBadge status={toV1StationStatus(status)} statusChangedAt={statusChangedAt ?? undefined} />;
+}
+
+type PopupOfficialStatusBadgeProps = {
+  status: OfficialPermitStatus | null;
+};
+
+export function PopupOfficialStatusBadge({ status }: PopupOfficialStatusBadgeProps) {
+  if (status !== "approved") return null;
+
+  return <OfficialStatusBadge status={status} />;
 }
 
 type PopupBrandMarkProps = {

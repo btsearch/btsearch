@@ -50,7 +50,7 @@ const POLAND_FALLBACK_EXTENT: MapBox = {
   east: POLAND_BOUNDS[1][0],
   north: POLAND_BOUNDS[1][1],
 };
-export const NO_MAP_CAPABILITIES: MapCapabilities = { official: false, microwaveLinks: false, emf: false };
+export const NO_MAP_CAPABILITIES: MapCapabilities = { official: false, officialStatuses: false, microwaveLinks: false, emf: false };
 const filtersOnDatabaseSource = new WeakMap<MapFilters, MapFilters>();
 const filtersWithoutMicrowaveLinks = new WeakMap<MapFilters, MapFilters>();
 const filtersWithoutPlannedMeasurements = new WeakMap<MapFilters, MapFilters>();
@@ -165,6 +165,7 @@ function getMapCapabilities(
 
   return {
     official: countriesOnScreen.some((country) => country.capabilities.official),
+    officialStatuses: countriesOnScreen.some((country) => country.capabilities.officialStatuses),
     microwaveLinks: countriesOnScreen.some((country) => country.capabilities.microwaveLinks),
     emf: countriesOnScreen.some((country) => country.capabilities.emf),
   };
@@ -199,7 +200,12 @@ function hasSameCountryCodes(left: readonly string[], right: readonly string[]):
 }
 
 function hasSameCapabilities(left: MapCapabilities, right: MapCapabilities): boolean {
-  return left.official === right.official && left.microwaveLinks === right.microwaveLinks && left.emf === right.emf;
+  return (
+    left.official === right.official &&
+    left.officialStatuses === right.officialStatuses &&
+    left.microwaveLinks === right.microwaveLinks &&
+    left.emf === right.emf
+  );
 }
 
 function hasSameCountries(left: MapCountries, right: MapCountries): boolean {

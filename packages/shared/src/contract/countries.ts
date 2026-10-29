@@ -59,6 +59,7 @@ export const countryCapabilitiesSchema = z.object({
     .object({ receiverBounds: boundingBoxSchema.describe("The area the receiver has to be in, as a bounding box in degrees") })
     .nullable()
     .describe("Terrain profiles can be requested for stations in the country. `null` if they cannot"),
+  officialStatuses: z.boolean().describe("The register says whether official sites are in service, so their `status` is not `null`"),
   kmz: z.boolean().describe("KMZ files of the official data can be downloaded from the endpoints under `/api/v1/kmz`"),
   editableHostStations: z
     .boolean()

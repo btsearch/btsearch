@@ -1,3 +1,4 @@
+import type { OfficialPermitStatus } from "@openbts/shared/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
@@ -10,6 +11,7 @@ import {
   type MapRecentDateField,
   clampRecentDays,
   isDefaultMapStatus,
+  isDefaultOfficialStatuses,
   readMapSource,
   sanitizeMapFilters,
 } from "../data/mapFilters";
@@ -62,6 +64,15 @@ const STATION_STATUS_BY_URL_CODE = new Map<string, StationStatus>([
   ["i", "inactive"],
 ]);
 
+const OFFICIAL_STATUS_URL_CODES: Record<OfficialPermitStatus, string> = {
+  inService: "i",
+  approved: "a",
+};
+const OFFICIAL_STATUS_BY_URL_CODE = new Map<string, OfficialPermitStatus>([
+  ["i", "inService"],
+  ["a", "approved"],
+]);
+
 function decodeStationStatusUrlToken(value: string): StationStatus | null {
   return STATION_STATUS_BY_URL_CODE.get(value.toLowerCase()) ?? null;
 }
@@ -80,6 +91,10 @@ function parseStatusList(value: string): StationStatus[] {
     .split(",")
     .map(decodeStationStatusUrlToken)
     .filter((entry): entry is StationStatus => entry !== null);
+}
+
+function parseOfficialStatusList(value: string): OfficialPermitStatus[] {
+  return value.split(",").flatMap((code) => OFFICIAL_STATUS_BY_URL_CODE.get(code) ?? []);
 }
 
 function parseLegacyFilters(params: URLSearchParams): UrlFilters | null {
@@ -180,6 +195,9 @@ function parseTokenFilters(tokens: string[]): UrlFilters | null {
       case "t":
         filters = { ...filters, status: parseStatusList(value) };
         break;
+      case "s":
+        filters = { ...filters, officialStatuses: parseOfficialStatusList(value) };
+        break;
       case "n":
         filters = { ...filters, ...parseRecentToken(value) };
         break;
@@ -271,6 +289,9 @@ function buildUrlHash(filters: MapFilters, map: MapLibreMap): string {
   if (filters.bands.length > 0) tokens.push(`b${filters.bands.join(",")}`);
   if (filters.rat.length > 0) tokens.push(`r${filters.rat.join(",")}`);
   if (!isDefaultMapStatus(filters.status)) tokens.push(`t${filters.status.map((status) => STATION_STATUS_URL_CODES[status]).join(",")}`);
+  if (!isDefaultOfficialStatuses(filters.officialStatuses)) {
+    tokens.push(`s${filters.officialStatuses.map((status) => OFFICIAL_STATUS_URL_CODES[status]).join(",")}`);
+  }
   if (filters.recentDays !== null) {
     const fields = filters.recentDateFields.map((field) => (field === "createdAt" ? "c" : "u")).join("");
     const suffix = fields === "c" ? "" : fields;

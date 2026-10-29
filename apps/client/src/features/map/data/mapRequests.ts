@@ -1,4 +1,12 @@
-import type { Band, MicrowaveLinkInclude, OfficialLocationInclude, Operator, StationStatus } from "@openbts/shared/contract";
+import type {
+  Band,
+  MicrowaveLinkInclude,
+  OfficialLocationInclude,
+  OfficialPermitStatus,
+  OfficialStatusFilter,
+  Operator,
+  StationStatus,
+} from "@openbts/shared/contract";
 import { type CellRat, MAX_LOCATION_LIST_LIMIT, MAX_MICROWAVE_LINK_LIST_LIMIT } from "@openbts/shared/contract/constants";
 
 import {
@@ -8,6 +16,7 @@ import {
   type MapFilters,
   UNKNOWN_BAND_LABEL,
   hasCountryCapability,
+  isDefaultOfficialStatuses,
   listAppliedMapBands,
   listOfficialRatFilters,
 } from "./mapFilters";
@@ -155,6 +164,12 @@ function toRegisterRecentParams({ recentDays, recentDateFields }: RecentFilters)
   return dateFields.includes("updatedAt") ? { updatedAfter: cutoff } : { createdAfter: cutoff };
 }
 
+function listOfficialStatusFilters(statuses: readonly OfficialPermitStatus[]): OfficialStatusFilter[] | undefined {
+  if (isDefaultOfficialStatuses(statuses)) return undefined;
+
+  return statuses.includes("inService") ? [...statuses, "unknown"] : [...statuses];
+}
+
 export function buildRegisterListParams({ filters, lookups, limit, wantAzimuths, listId }: MapListRequest): OfficialLocationListParams | null {
   const registerOperators = listCapableOperators("official", filters.operatorIds, lookups);
   if (registerOperators === null) return null;
@@ -166,6 +181,7 @@ export function buildRegisterListParams({ filters, lookups, limit, wantAzimuths,
     keepOtherCountries: operatorIds === undefined ? undefined : true,
     rats: toListParam(listOfficialRatFilters(filters.rat)),
     bandLabels: toListParam(sortIds(listAppliedMapBands(filters))),
+    statuses: listOfficialStatusFilters(filters.officialStatuses),
     ...toRegisterRecentParams(filters),
     listId,
     include: wantAzimuths ? REGISTER_INCLUDE_WITH_SECTORS : REGISTER_INCLUDE,

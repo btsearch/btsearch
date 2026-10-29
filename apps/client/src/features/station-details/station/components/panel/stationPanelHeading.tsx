@@ -52,7 +52,7 @@ export function StationPanelHeading({ station, brands, operators, locationStatio
           ) : null}
         </>
       }
-      location={{ city: station.location?.city || t("common:labels.unknownLocation"), address: station.location?.address ?? null }}
+      location={{ city: station.location?.city || null, address: station.location?.address ?? null }}
       addressLine={
         <StationStructureLine
           location={station.location}

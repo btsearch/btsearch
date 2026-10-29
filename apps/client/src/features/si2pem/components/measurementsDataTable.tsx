@@ -41,7 +41,7 @@ function MeasurementReportLink({ measurement, t }: MeasurementReportLinkProps) {
     <PEMDocumentLink
       href={measurement.reportUrl}
       label={t("table.measurementReport")}
-      context={getPEMRowContext(measurement, t)}
+      context={getPEMRowContext(measurement)}
       icon={FileChartLineIcon}
     />
   );
@@ -60,7 +60,6 @@ function MeasurementMobileRow({ measurement, locale, t, tCommon, onOpenStation }
     <MeasurementSummary
       measurement={measurement}
       locale={locale}
-      unknownCityLabel={t("table.unknownCity")}
       noAddressLabel={tCommon("notFound.address")}
       action={<PEMMobileRowActions row={measurement} t={t} tCommon={tCommon} onOpenStation={onOpenStation} />}
       footerAction={
@@ -114,7 +113,7 @@ export function MeasurementsDataTable({ tab, t, tCommon, locale, onOpenStation, 
       size: 300,
       cell: ({ row }) => (
         <PEMLocationCell
-          city={row.original.location.city || t("table.unknownCity")}
+          city={row.original.location.city}
           regionName={row.original.region?.name}
           address={row.original.location.address}
           noAddressLabel={tCommon("notFound.address")}

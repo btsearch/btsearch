@@ -172,7 +172,11 @@ function SavedStationHead({ record, operatorId, lookups }: SavedStationHeadProps
       compactBadges={statusBadge}
       subtitle={
         location === null ? null : (
-          <EditPageHeadLocation locationId={location.id} city={location.city || `#${location.id}`} address={location.address} />
+          <EditPageHeadLocation
+            locationId={location.id}
+            city={location.city || (location.address ? null : `#${location.id}`)}
+            address={location.address}
+          />
         )
       }
       meta={

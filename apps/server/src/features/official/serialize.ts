@@ -21,7 +21,7 @@ import type {
   OfficialSitePermit,
 } from "@openbts/shared/contract";
 import { formatPermitLabel } from "@openbts/shared/permitLabel";
-import { type SQL, type SQLWrapper, and, asc, eq, inArray } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
 
@@ -46,7 +46,11 @@ export type OfficialPermitRows = OfficialSiteRows & { permit: OfficialPermitRow 
 type SitePermitRows = { permit: OfficialPermitRow; sourceKey: string };
 type PermitListingRow = { permitId: number; key: string; permitKind: DatasetPermitKind };
 export type DatasetPermitKind = z.infer<typeof datasetSelectSchema>["permitKind"];
-type SiteRelations = { stationIdBySite: Map<number, number>; permitsBySite: Map<number, OfficialSitePermit[]> };
+type SiteRelations = {
+  stationIdBySite: Map<number, number>;
+  statusBySite: Map<number, OfficialPermitStatus>;
+  permitsBySite: Map<number, OfficialSitePermit[]>;
+};
 
 export type OfficialSiteParts = {
   location: boolean;
@@ -165,6 +169,21 @@ async function loadSiteStationIds(siteIds: readonly number[], hiddenCountryCodes
   return new Map(rows.map((row) => [row.officialSiteId, row.stationId]));
 }
 
+async function loadSiteStatuses(siteIds: readonly number[]): Promise<Map<number, OfficialPermitStatus>> {
+  if (siteIds.length === 0) return new Map();
+
+  const rows = await db
+    .selectDistinct({ officialSiteId: officialPermits.official_site_id, status: officialPermits.status })
+    .from(officialPermits)
+    .where(and(inArray(officialPermits.official_site_id, [...siteIds]), isNotNull(officialPermits.status)));
+  const statusBySite = new Map<number, OfficialPermitStatus>();
+  for (const { officialSiteId, status } of rows) {
+    if (status === "in_service") statusBySite.set(officialSiteId, "inService");
+    else if (status === "approved" && !statusBySite.has(officialSiteId)) statusBySite.set(officialSiteId, "approved");
+  }
+  return statusBySite;
+}
+
 function loadPermitDetails(permitIds: readonly number[] | SQLWrapper, wantsSectors: boolean) {
   return Promise.all([
     db
@@ -226,8 +245,12 @@ export async function loadSiteRelations(
   parts: OfficialSiteParts,
   hiddenCountryCodes: readonly string[],
 ): Promise<SiteRelations> {
-  const [stationIdBySite, permits] = await Promise.all([loadSiteStationIds(siteIds, hiddenCountryCodes), loadSitePermits(siteIds, parts)]);
-  return { stationIdBySite, permitsBySite: Map.groupBy(permits, (permit) => permit.officialSiteId) };
+  const [stationIdBySite, permits, statusBySite] = await Promise.all([
+    loadSiteStationIds(siteIds, hiddenCountryCodes),
+    loadSitePermits(siteIds, parts),
+    loadSiteStatuses(siteIds),
+  ]);
+  return { stationIdBySite, statusBySite, permitsBySite: Map.groupBy(permits, (permit) => permit.officialSiteId) };
 }
 
 export function toOfficialSites(rows: readonly OfficialSiteRows[], parts: OfficialSiteParts, relations: SiteRelations): OfficialSite[] {
@@ -240,6 +263,7 @@ export function toOfficialSites(rows: readonly OfficialSiteRows[], parts: Offici
       operatorId: row.site.operator_id,
       locationId: row.site.location_id,
       stationId: relations.stationIdBySite.get(row.site.id) ?? null,
+      status: relations.statusBySite.get(row.site.id) ?? null,
       createdAt: row.site.createdAt.toISOString(),
       updatedAt: row.site.updatedAt.toISOString(),
     };

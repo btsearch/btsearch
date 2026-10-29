@@ -1,4 +1,4 @@
-import type { Operator } from "@openbts/shared/contract";
+import type { OfficialPermitStatus, Operator } from "@openbts/shared/contract";
 
 import {
   type CapableCountries,
@@ -43,6 +43,14 @@ export function useFilterHandlers({ filters, operators, countries, onFiltersChan
     });
   }
 
+  function handleToggleOfficialStatus(status: OfficialPermitStatus) {
+    onFiltersChange((current) => {
+      const nextStatuses = toggleValue(current.officialStatuses, status);
+      if (nextStatuses.length === 0) return current;
+      return { ...current, officialStatuses: nextStatuses };
+    });
+  }
+
   function handleClearAllRats() {
     onFiltersChange((current) => ({ ...current, rat: [] }));
   }
@@ -69,6 +77,7 @@ export function useFilterHandlers({ filters, operators, countries, onFiltersChan
     handleToggleBand,
     handleToggleRat,
     handleToggleStatus,
+    handleToggleOfficialStatus,
     handleClearAllRats,
     handleClearAllBands,
     handleRecentDaysChange,

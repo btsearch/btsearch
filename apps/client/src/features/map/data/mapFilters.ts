@@ -1,5 +1,11 @@
 import type { Country, ObservedSiteStatus, OfficialLayer, Operator } from "@openbts/shared/contract";
-import { type BackhaulMedium, OFFICIAL_RAT_FILTERS, type OfficialRatFilter } from "@openbts/shared/contract/constants";
+import {
+  type BackhaulMedium,
+  OFFICIAL_PERMIT_STATUSES,
+  OFFICIAL_RAT_FILTERS,
+  type OfficialPermitStatus,
+  type OfficialRatFilter,
+} from "@openbts/shared/contract/constants";
 
 import { RAT_OPTIONS } from "../constants";
 import { type OfficialLabelParts, listOfficialRatOptions, toOfficialRatOption } from "@/features/official/labels";
@@ -10,7 +16,7 @@ import type { StationSource, StationStatus } from "@/types/station";
 
 export type MapRecentDateField = "createdAt" | "updatedAt";
 
-export type MapCountryCapability = "official" | "microwaveLinks" | "emf";
+export type MapCountryCapability = "official" | "officialStatuses" | "microwaveLinks" | "emf";
 
 export type EstimatedSiteStatus = Exclude<ObservedSiteStatus, "replaced">;
 
@@ -22,6 +28,7 @@ export type MapFilters = {
   bands: number[];
   rat: string[];
   status: StationStatus[];
+  officialStatuses: OfficialPermitStatus[];
   source: StationSource;
   recentDays: number | null;
   recentDateFields: MapRecentDateField[];
@@ -49,6 +56,7 @@ const DEFAULT_MAP_STATUS: StationStatus = "published";
 const DEFAULT_RECENT_DATE_FIELD: MapRecentDateField = "createdAt";
 const LEGACY_OFFICIAL_SOURCE = "uke";
 const MAP_STATUSES: ReadonlySet<string> = new Set<StationStatus>(["published", "pending", "inactive"]);
+const OFFICIAL_STATUS_SET: ReadonlySet<string> = new Set<string>(OFFICIAL_PERMIT_STATUSES);
 const RECENT_DATE_FIELDS: ReadonlySet<string> = new Set<MapRecentDateField>(["createdAt", "updatedAt"]);
 export const ESTIMATED_SITE_STATUSES: readonly EstimatedSiteStatus[] = ["unmatched", "suggested", "matched", "ignored"];
 export const DEFAULT_ESTIMATED_SITE_STATUSES: readonly EstimatedSiteStatus[] = ["unmatched", "suggested"];
@@ -73,6 +81,7 @@ export const DEFAULT_MAP_FILTERS: MapFilters = {
   bands: [],
   rat: [],
   status: [DEFAULT_MAP_STATUS],
+  officialStatuses: [...OFFICIAL_PERMIT_STATUSES],
   source: "internal",
   recentDays: null,
   recentDateFields: [DEFAULT_RECENT_DATE_FIELD],
@@ -109,6 +118,10 @@ function isMapStationStatus(value: string): value is StationStatus {
   return MAP_STATUSES.has(value);
 }
 
+function isOfficialStatus(value: string): value is OfficialPermitStatus {
+  return OFFICIAL_STATUS_SET.has(value);
+}
+
 function isMapRecentDateField(value: string): value is MapRecentDateField {
   return RECENT_DATE_FIELDS.has(value);
 }
@@ -119,6 +132,10 @@ function isEstimatedSiteStatus(value: string): value is EstimatedSiteStatus {
 
 export function isDefaultMapStatus(status: readonly StationStatus[]): boolean {
   return status.length === 1 && status[0] === DEFAULT_MAP_STATUS;
+}
+
+export function isDefaultOfficialStatuses(statuses: readonly OfficialPermitStatus[]): boolean {
+  return OFFICIAL_PERMIT_STATUSES.every((status) => statuses.includes(status));
 }
 
 export function clampRecentDays(days: number): number | null {
@@ -138,6 +155,7 @@ function listKnownMapRats(source: StationSource, registerRats: readonly string[]
 export function sanitizeMapFilters(filters: MapFilters, registerRats?: readonly string[]): MapFilters {
   const knownRats = listKnownMapRats(filters.source, registerRats);
   const status = unique(filters.status);
+  const officialStatuses = unique(filters.officialStatuses);
   const recentDateFields = unique(filters.recentDateFields);
   const estimatedSiteStatuses = unique(filters.estimatedSiteStatuses);
 
@@ -148,6 +166,7 @@ export function sanitizeMapFilters(filters: MapFilters, registerRats?: readonly 
     bands: unique(filters.bands.filter(isBandLabel)),
     rat: unique(filters.rat.filter((rat) => knownRats === null || knownRats.has(rat))),
     status: status.length > 0 ? status : [DEFAULT_MAP_STATUS],
+    officialStatuses: officialStatuses.length > 0 ? officialStatuses : [...OFFICIAL_PERMIT_STATUSES],
     recentDays: filters.recentDays === null ? null : clampRecentDays(filters.recentDays),
     recentDateFields: recentDateFields.length > 0 ? recentDateFields : [DEFAULT_RECENT_DATE_FIELD],
     radiolineOperators: unique(filters.radiolineOperators.filter(isRecordId)),
@@ -163,6 +182,7 @@ export function readStoredMapFilters(stored: Record<string, unknown>): MapFilter
     bands: readNumbers(stored.bands),
     rat: readStrings(stored.rat),
     status: readStrings(stored.status).filter(isMapStationStatus),
+    officialStatuses: readStrings(stored.officialStatuses).filter(isOfficialStatus),
     source: readMapSource(stored.source),
     recentDays: typeof stored.recentDays === "number" ? stored.recentDays : null,
     recentDateFields: readStrings(stored.recentDateFields).filter(isMapRecentDateField),
@@ -235,6 +255,7 @@ export function countAllowedMapOperators(filters: MapFilters, operators: readonl
 export function countActiveMapFilters(filters: MapFilters, operators: readonly Operator[] | undefined, countries: CapableCountries): number {
   const isRegister = filters.source === "official";
   const statusCount = isRegister || isDefaultMapStatus(filters.status) ? 0 : filters.status.length;
+  const officialStatusCount = !isRegister || isDefaultOfficialStatuses(filters.officialStatuses) ? 0 : filters.officialStatuses.length;
 
   return (
     countAllowedMapOperators(filters, operators, countries) +
@@ -242,6 +263,7 @@ export function countActiveMapFilters(filters: MapFilters, operators: readonly O
     listAppliedMapBands(filters).length +
     listAppliedMapRats(filters).length +
     statusCount +
+    officialStatusCount +
     (isRegister ? 0 : filters.uplinkTypes.length) +
     (filters.recentDays === null ? 0 : 1) +
     (filters.showRadiolines ? filters.radiolineOperators.length : 0)
@@ -269,6 +291,7 @@ export function areMapFiltersUrlEquivalent(left: MapFilters, right: MapFilters):
     isSameValueSet(left.bands, right.bands) &&
     isSameValueSet(left.rat, right.rat) &&
     isSameValueSet(left.status, right.status) &&
+    isSameValueSet(left.officialStatuses, right.officialStatuses) &&
     isSameValueSet(left.uplinkTypes, right.uplinkTypes) &&
     (left.recentDays === null || isSameValueSet(left.recentDateFields, right.recentDateFields)) &&
     (!left.showRadiolines || isSameValueSet(left.radiolineOperators, right.radiolineOperators))
@@ -282,6 +305,7 @@ export function clearMapFilters(filters: MapFilters): MapFilters {
     bands: [],
     rat: [],
     status: [DEFAULT_MAP_STATUS],
+    officialStatuses: [...OFFICIAL_PERMIT_STATUSES],
     source: filters.source,
     recentDays: null,
     recentDateFields: [DEFAULT_RECENT_DATE_FIELD],

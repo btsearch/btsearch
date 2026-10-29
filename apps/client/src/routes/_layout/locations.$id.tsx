@@ -29,11 +29,6 @@ import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
 import { buildPageHead, getBrowserOrigin } from "@/lib/seo";
 
-function locationLabel(location: LocationRecord, fallbackCity: string): string {
-  const city = location.city || fallbackCity;
-  return location.address ? `${city}, ${location.address}` : city;
-}
-
 function locationHead(location: LocationRecord, sources: readonly OfficialSource[]) {
   return buildPageHead(
     createLocationSEOMetadata(
@@ -84,8 +79,9 @@ function LocationPage() {
     return locationError ? <LocationRouteError /> : null;
   }
 
-  const city = location.city || t("common:labels.unknownLocation");
-  const label = locationLabel(location, city);
+  const coordinates = formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat);
+  const placeName = location.city || location.address || coordinates;
+  const label = [location.city, location.address].filter(Boolean).join(", ") || coordinates;
   const mapHash = getLocationMapHash(location);
 
   return (
@@ -94,14 +90,12 @@ function LocationPage() {
         <div className="relative flex items-start gap-3 px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex-1 min-w-0 space-y-1.5">
             <h1 className="min-w-0 text-lg font-semibold leading-6 tracking-tight text-foreground sm:text-xl">
-              {city}
+              {placeName}
               {location.region ? <span className="ml-2 text-sm font-normal text-muted-foreground">· {location.region.name}</span> : null}
             </h1>
-            {location.address ? <p className="text-sm leading-5 text-muted-foreground">{location.address}</p> : null}
+            {location.city && location.address ? <p className="text-sm leading-5 text-muted-foreground">{location.address}</p> : null}
             <div className="group/copy flex flex-wrap items-center gap-1.5 pt-0.5">
-              <span className="font-mono text-[11px] text-muted-foreground/80">
-                GPS: {formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}
-              </span>
+              <span className="font-mono text-[11px] text-muted-foreground/80">GPS: {coordinates}</span>
               <CopyButton text={`${location.latitude}, ${location.longitude}`} compact />
             </div>
           </div>
@@ -132,7 +126,7 @@ function LocationPage() {
           <CollapsibleSection title={t("page.info")}>
             <div className="space-y-4">
               <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
-                <span className="font-mono break-all">{formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}</span>
+                <span className="font-mono break-all">{coordinates}</span>
                 {preferences.navLinksDisplay === "inline" ? (
                   <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" />
                 ) : null}

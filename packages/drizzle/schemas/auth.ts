@@ -91,6 +91,7 @@ export type CloudMapFilters = {
   bands?: number[];
   rat?: string[];
   status?: string[];
+  officialStatuses?: string[];
   source?: string;
   recentDays?: number | null;
   recentDateFields?: string[];

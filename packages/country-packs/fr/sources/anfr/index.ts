@@ -12,6 +12,7 @@ export const anfr: OfficialSourceDefinition = {
   licence: "Licence Ouverte / Open Licence 2.0 (Etalab)",
   attribution: "Source: Agence nationale des fréquences (ANFR), data.gouv.fr.",
   isRedistributable: true,
+  reportsPermitStatus: true,
   shortLicenseeName,
   operatorNameOfLicensee,
   datasets: [

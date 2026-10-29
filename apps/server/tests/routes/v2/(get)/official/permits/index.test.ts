@@ -87,6 +87,8 @@ describe("GET /official/permits", () => {
     ["kinds=permit,permitChange,inventory", ["permit", "permit_change", "permit", "inventory"]],
     ["kinds=registration", ["registration"]],
     ["kinds=license", ["licence"]],
+    ["statuses=inService", ["in_service"]],
+    ["statuses=approved,unknown", ["approved"]],
     ["countryCodes=PL", ["PL"]],
     ["regionIds=7", [7]],
     ["sourceKeys=pl-uke", ["pl-uke"]],
@@ -150,6 +152,7 @@ describe("GET /official/permits", () => {
     "include=location",
     "datasetKeys=",
     "rats=gsm-r",
+    "statuses=pending",
     "decision_number=1",
     "cursor=abc&offset=2",
   ])("rejects the invalid query %s before reading anything", async (query) => {

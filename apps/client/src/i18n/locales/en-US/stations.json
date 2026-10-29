@@ -22,6 +22,14 @@
     "inactive": "The station has been disabled indefinitely, was decommissioned or replaced with another station",
     "changedAt": "Status changed: {{date}}"
   },
+  "officialStatus": {
+    "inService": "In service",
+    "approved": "Not in service yet"
+  },
+  "officialStatusTooltip": {
+    "inService": "According to the register, the station's antennas are in service",
+    "approved": "According to the register, the station is approved but its antennas are not in service yet"
+  },
   "cells": {
     "notesPlaceholder": "e.g. building B2",
     "cellTypes": {

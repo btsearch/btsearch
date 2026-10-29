@@ -34,7 +34,7 @@ type InstallationProps = {
 };
 
 function InstallationDocuments({ installation, t }: InstallationProps) {
-  const context = getPEMRowContext(installation, t);
+  const context = getPEMRowContext(installation);
   return (
     <>
       <PEMDocumentLink href={installation.installationDocumentUrl} label={t("table.installationForm")} context={context} icon={FileEditIcon} />
@@ -69,7 +69,7 @@ function InstallationMobileRow({ installation, locale, t, tCommon, onOpenStation
     <PEMRecordSummary
       siteId={installation.siteId}
       operator={installation.operator}
-      city={installation.location.city || t("table.unknownCity")}
+      city={installation.location.city}
       regionName={installation.region?.name}
       address={installation.location.address}
       noAddressLabel={tCommon("notFound.address")}
@@ -122,7 +122,7 @@ export function InstallationsDataTable({ t, tCommon, locale, onOpenStation, ...p
       size: 300,
       cell: ({ row }) => (
         <PEMLocationCell
-          city={row.original.location.city || t("table.unknownCity")}
+          city={row.original.location.city}
           regionName={row.original.region?.name}
           address={row.original.location.address}
           noAddressLabel={tCommon("notFound.address")}

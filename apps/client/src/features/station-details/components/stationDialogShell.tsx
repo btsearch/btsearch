@@ -138,6 +138,7 @@ export function StationDialogHeading({
 }: StationDialogHeadingProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { t: tCommon } = useTranslation("common");
+  const hasCity = Boolean(location?.city);
 
   return (
     <div className="min-w-0 space-y-1.5">
@@ -145,6 +146,7 @@ export function StationDialogHeading({
         <DialogOperatorName name={operatorName} brand={operatorBrand} />
         <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{stationCode}</span>
         {badges}
+        {hasCity ? null : status}
       </div>
       {guests.length > 0 ? (
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -156,10 +158,12 @@ export function StationDialogHeading({
       ) : null}
       {location ? (
         <>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="min-w-0 truncate text-sm font-semibold text-foreground">{location.city}</p>
-            {status}
-          </div>
+          {hasCity ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="min-w-0 truncate text-sm font-semibold text-foreground">{location.city}</p>
+              {status}
+            </div>
+          ) : null}
           <p className="text-xs leading-4 text-muted-foreground">{addressLine ?? (location.address || t("dialog.btsStation"))}</p>
         </>
       ) : null}

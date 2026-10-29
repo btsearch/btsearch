@@ -376,8 +376,12 @@ function LocationDetailForm({ location, area }: { location: LocationRecord; area
 
         <div className="flex items-center gap-2.5 px-3 py-1.5 bg-secondary/30 rounded-full border border-border/40 shadow-[0_1px_2px_rgba(0,0,0,0.05)] min-w-0 overflow-hidden">
           <HugeiconsIcon icon={Location01Icon} className="size-3.5 text-muted-foreground shrink-0" />
-          <span className="font-bold text-sm tracking-tight truncate min-w-0">{location.city || location.address || `#${location.id}`}</span>
-          <div className="w-px h-3.5 bg-border/60 shrink-0" />
+          {location.city || location.address ? (
+            <>
+              <span className="font-bold text-sm tracking-tight truncate min-w-0">{location.city || location.address}</span>
+              <div className="w-px h-3.5 bg-border/60 shrink-0" />
+            </>
+          ) : null}
           <span className="text-xs font-mono text-muted-foreground bg-background/60 px-1.5 py-0.5 rounded border border-border/20 truncate min-w-0">
             {location.id}
           </span>

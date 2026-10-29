@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import type { MapCrowdState } from "../../crowd/useMapCrowd";
 import type { MapCountries } from "../../data/mapCountries";
-import { DEFAULT_MAP_FILTERS, type MapFilters, type MapFiltersChange, isDefaultMapStatus } from "../../data/mapFilters";
+import { DEFAULT_MAP_FILTERS, type MapFilters, type MapFiltersChange, isDefaultMapStatus, isDefaultOfficialStatuses } from "../../data/mapFilters";
 import { useMapLookups } from "../../data/mapLookups";
 import { useFilterHandlers } from "../../hooks/useFilterHandlers";
 import { useOfficialLabel } from "../../hooks/useOfficialLabel";
@@ -18,6 +18,7 @@ import { FilterNote } from "./mapFilterNote";
 import { OperatorRowsSection } from "./mapFilterOperatorRows";
 import {
   hasCountryFacet,
+  hasOfficialStatusFacet,
   hasRegisterSourceNote,
   listBandFacetCountryCodes,
   listCountryPillCodes,
@@ -44,7 +45,7 @@ import {
   FilterPanelSection,
   KbdHint,
 } from "@/features/shared/filterPanel";
-import { StationStatusPills } from "@/features/stations/components/stationStatusFilter";
+import { OfficialStatusPills, StationStatusPills } from "@/features/stations/components/stationStatusFilter";
 import { getCountryName } from "@/lib/geo/countryName";
 import { cn } from "@/lib/utils";
 import type { StationSource } from "@/types/station";
@@ -239,6 +240,7 @@ export function FilterPanel({
     handleToggleBand,
     handleToggleRat,
     handleToggleStatus,
+    handleToggleOfficialStatus,
     handleClearAllRats,
     handleClearAllBands,
     handleRecentDaysChange,
@@ -333,6 +335,18 @@ export function FilterPanel({
           </FilterPanelSection>
           <BackhaulSection filters={filters} onFiltersChange={onFiltersChange} />
         </div>
+      </Reveal>
+      <Reveal shown={hasOfficialStatusFacet(filters, mapCountries)} className={SECTION_SLOT_CLASS}>
+        <FilterPanelSection
+          title={t("main:filters.stationStatus")}
+          onClear={
+            isDefaultOfficialStatuses(filters.officialStatuses)
+              ? undefined
+              : () => onFiltersChange((current) => ({ ...current, officialStatuses: DEFAULT_MAP_FILTERS.officialStatuses }))
+          }
+        >
+          <OfficialStatusPills statuses={filters.officialStatuses} onToggleStatus={handleToggleOfficialStatus} />
+        </FilterPanelSection>
       </Reveal>
       <div className="pt-0.5">
         <FilterPanelSection

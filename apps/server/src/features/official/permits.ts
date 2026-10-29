@@ -24,7 +24,14 @@ import { ErrorResponse } from "../../errors.js";
 import { type SortColumn, type SortField, createKeyset } from "../../lib/keyset.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { operatedBy } from "../operators/sharing.js";
-import { decisionOrDatasetKindMatches, linkedToStations, officialAreaConditions, permitLabelCondition, permitNumberMatches } from "./filters.js";
+import {
+  decisionOrDatasetKindMatches,
+  linkedToStations,
+  officialAreaConditions,
+  permitLabelCondition,
+  permitNumberMatches,
+  permitStatusCondition,
+} from "./filters.js";
 import { type OfficialPermitRows, officialSiteRowColumns, serializeSitePermits, serializeSites } from "./serialize.js";
 import { loadOfficialVisibility, officialLocationIsPublic } from "./visibility.js";
 
@@ -53,6 +60,7 @@ function listedByDatasets(datasetKeys: readonly string[]): SQL {
 function permitConditions(query: OfficialPermitListQuery, hiddenCountryCodes: readonly string[]): SQL[] {
   const conditions: SQL[] = [];
   const labelMatch = permitLabelCondition(query);
+  const statusMatch = query.statuses ? permitStatusCondition(query.statuses) : undefined;
 
   if (query.officialSiteIds) conditions.push(inArray(officialPermits.official_site_id, query.officialSiteIds));
   if (query.stationIds) conditions.push(linkedToStations(officialPermits.official_site_id, query.stationIds, hiddenCountryCodes));
@@ -60,6 +68,7 @@ function permitConditions(query: OfficialPermitListQuery, hiddenCountryCodes: re
   if (query.operatorIds) conditions.push(operatedBy(officialSites.operator_id, query.operatorIds));
   if (query.isLinked !== undefined) conditions.push(query.isLinked ? exists(stationLinks) : notExists(stationLinks));
   if (labelMatch) conditions.push(labelMatch);
+  if (statusMatch) conditions.push(statusMatch);
   if (query.kinds) conditions.push(decisionOrDatasetKindMatches(query.kinds));
   if (query.datasetKeys) conditions.push(listedByDatasets(query.datasetKeys));
   if (query.q) conditions.push(permitNumberMatches(officialPermits.decision_number, query.q));

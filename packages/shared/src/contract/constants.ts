@@ -37,6 +37,9 @@ export const MAX_MICROWAVE_LINK_LIST_LIMIT = 1000;
 export const OFFICIAL_RAT_FILTERS = ["gsm", "gsmR", "umts", "lte", "nr", "cdma", "iot"] as const;
 export type OfficialRatFilter = (typeof OFFICIAL_RAT_FILTERS)[number];
 
+export const OFFICIAL_PERMIT_STATUSES = ["inService", "approved"] as const;
+export type OfficialPermitStatus = (typeof OFFICIAL_PERMIT_STATUSES)[number];
+
 export const OFFICIAL_SITE_INCLUDES = ["location", "location.region", "permits", "permits.sectors"] as const;
 export type OfficialSiteInclude = (typeof OFFICIAL_SITE_INCLUDES)[number];
 

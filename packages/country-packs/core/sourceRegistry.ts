@@ -10,10 +10,18 @@ const countryCodesWithSites = new Set(
   officialSources.filter((source) => source.datasets.some((dataset) => dataset.layer === "sites")).map((source) => source.countryCode),
 );
 
+const countryCodesWithPermitStatus = new Set(
+  officialSources.filter((source) => source.reportsPermitStatus === true).map((source) => source.countryCode),
+);
+
 export function officialSourceByKey(key: string): OfficialSourceDefinition | null {
   return sourceByKey.get(key) ?? null;
 }
 
 export function hasOfficialSites(countryCode: string): boolean {
   return countryCodesWithSites.has(countryCode);
+}
+
+export function reportsPermitStatus(countryCode: string): boolean {
+  return countryCodesWithPermitStatus.has(countryCode);
 }

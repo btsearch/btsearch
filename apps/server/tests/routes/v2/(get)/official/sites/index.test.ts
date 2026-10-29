@@ -117,8 +117,25 @@ describe("GET /official/sites", () => {
     ["countryCodes=PL", ["PL"]],
     ["regionIds=7,8", [7, 8]],
     ["sourceKeys=pl-uke", ["pl-uke"]],
+    ["statuses=inService", ["in_service"]],
+    ["statuses=approved", ["approved", "in_service"]],
   ])("filters the sites with %s", async (query, params) => {
     expect(await sitesFor(query)).toEqual([1, ...params]);
+  });
+
+  it.each([
+    [["approved"], "approved"],
+    [["approved", "in_service"], "inService"],
+    [["in_service", "approved"], "inService"],
+  ])("gives a site whose permits are %j the status %s", async (permitStatuses, status) => {
+    scriptGuestVisibility([1]);
+    dbMock.enqueueFor("select", "official.sites", [listed(31)]);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
+    dbMock.enqueueSiteStatuses(permitStatuses.map((permitStatus) => ({ officialSiteId: 31, status: permitStatus })));
+
+    const response = await injectMutation(route, request);
+
+    expect(response.json().data).toEqual([{ ...servedSite, status }]);
   });
 
   it("finds the sites linked to stations in visible countries", async () => {

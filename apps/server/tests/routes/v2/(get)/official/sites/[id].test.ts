@@ -34,7 +34,7 @@ describe("GET /official/sites/:id", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({ data: { ...servedSite, stationId: 12 } });
     expect(whereQuery("official.sites", "select").params).toEqual([31, 1]);
-    expect(tablesRead()).not.toContain("official.permits");
+    expect(tablesRead()).not.toContain("official.permit_listings");
   });
 
   it("includes the location and every permit of the site, with a stored expiry day as it is and none as null", async () => {

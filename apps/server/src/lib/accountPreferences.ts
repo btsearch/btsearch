@@ -27,6 +27,7 @@ const mapFiltersSchema = z
     bands: z.array(z.number()),
     rat: z.array(z.string()),
     status: z.array(z.string()),
+    officialStatuses: z.array(z.string()),
     source: z.string(),
     recentDays: z.number().nullable(),
     recentDateFields: z.array(z.string()),

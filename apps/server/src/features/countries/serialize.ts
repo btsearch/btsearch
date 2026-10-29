@@ -1,5 +1,5 @@
 import { type SourceCapabilities, capabilitiesFor } from "@openbts/country-packs";
-import { hasOfficialSites } from "@openbts/country-packs/sources";
+import { hasOfficialSites, reportsPermitStatus } from "@openbts/country-packs/sources";
 import { countries } from "@openbts/drizzle";
 import type { BoundingBox, Country } from "@openbts/shared/contract";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -10,6 +10,7 @@ const countrySelectSchema = createSelectSchema(countries);
 type CountryRow = z.infer<typeof countrySelectSchema>;
 
 export function toCountry(row: CountryRow, sourceCapabilities: ReadonlyMap<string, SourceCapabilities>): Country {
+  const capabilities = capabilitiesFor(row.code, sourceCapabilities.get(row.code));
   const { viewWest: west, viewSouth: south, viewEast: east, viewNorth: north } = row;
   const defaultView = west !== null && south !== null && east !== null && north !== null ? { west, south, east, north } : null;
 
@@ -19,7 +20,11 @@ export function toCountry(row: CountryRow, sourceCapabilities: ReadonlyMap<strin
     contributions: row.contributions,
     tools: row.tools,
     features: { structureOwnerProposals: row.structureOwnerProposals, psc: row.psc, bsic: row.bsic, observationsPublic: row.observationsPublic },
-    capabilities: { ...capabilitiesFor(row.code, sourceCapabilities.get(row.code)), editableHostStations: !hasOfficialSites(row.code) },
+    capabilities: {
+      ...capabilities,
+      officialStatuses: capabilities.official && reportsPermitStatus(row.code),
+      editableHostStations: !hasOfficialSites(row.code),
+    },
     defaultView,
   };
 }

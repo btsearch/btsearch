@@ -41,7 +41,7 @@ export function PEMStationTitle({ siteId, operator }: PEMStationTitleProps) {
 }
 
 type PEMRecordSummaryProps = PEMStationTitleProps & {
-  city: string;
+  city: string | null;
   regionName?: string | null;
   address: string | null;
   noAddressLabel: string;
@@ -50,6 +50,8 @@ type PEMRecordSummaryProps = PEMStationTitleProps & {
 };
 
 export function PEMRecordSummary({ siteId, operator, city, regionName, address, noAddressLabel, action, footer }: PEMRecordSummaryProps) {
+  const place = city || address;
+
   return (
     <div className="min-w-0">
       <div className="flex min-w-0 items-center justify-between gap-3">
@@ -61,10 +63,12 @@ export function PEMRecordSummary({ siteId, operator, city, regionName, address, 
         <HugeiconsIcon icon={Location01Icon} className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0">
           <div className="truncate text-sm leading-tight">
-            <span className="font-medium text-foreground">{city}</span>
-            {regionName ? <span className="text-xs text-muted-foreground"> · {regionName}</span> : null}
+            <span className="font-medium text-foreground">{place || regionName}</span>
+            {place && regionName ? <span className="text-xs text-muted-foreground"> · {regionName}</span> : null}
           </div>
-          <div className="truncate text-xs text-muted-foreground underline-offset-2 group-hover:underline">{address || noAddressLabel}</div>
+          {city ? (
+            <div className="truncate text-xs text-muted-foreground underline-offset-2 group-hover:underline">{address || noAddressLabel}</div>
+          ) : null}
         </div>
       </div>
 
@@ -76,13 +80,12 @@ export function PEMRecordSummary({ siteId, operator, city, regionName, address, 
 type MeasurementSummaryProps = {
   measurement: MeasurementTabRow;
   locale: string;
-  unknownCityLabel: string;
   noAddressLabel: string;
   action?: ReactNode;
   footerAction?: ReactNode;
 };
 
-export function MeasurementSummary({ measurement, locale, unknownCityLabel, noAddressLabel, action, footerAction }: MeasurementSummaryProps) {
+export function MeasurementSummary({ measurement, locale, noAddressLabel, action, footerAction }: MeasurementSummaryProps) {
   const labName = getLaboratoryName(measurement);
   const lab = labName ? (
     <div className="flex min-w-0">
@@ -94,7 +97,7 @@ export function MeasurementSummary({ measurement, locale, unknownCityLabel, noAd
     <PEMRecordSummary
       siteId={measurement.siteId}
       operator={measurement.operator}
-      city={measurement.location.city || unknownCityLabel}
+      city={measurement.location.city}
       regionName={measurement.region?.name}
       address={measurement.location.address}
       noAddressLabel={noAddressLabel}

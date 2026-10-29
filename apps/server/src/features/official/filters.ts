@@ -10,8 +10,30 @@ import {
   stations,
   stationsOfficialSites,
 } from "@openbts/drizzle";
-import type { OfficialLocationListQuery, OfficialPermitKind, OfficialRatFilter, officialSiteFilterShape } from "@openbts/shared/contract";
-import { type AnyColumn, type SQL, type SQLWrapper, and, eq, exists, gte, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import type {
+  OfficialLocationListQuery,
+  OfficialPermitKind,
+  OfficialPermitStatus,
+  OfficialRatFilter,
+  OfficialStatusFilter,
+  officialSiteFilterShape,
+} from "@openbts/shared/contract";
+import {
+  type AnyColumn,
+  type SQL,
+  type SQLWrapper,
+  and,
+  eq,
+  exists,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  notExists,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { unique } from "../../lib/collections.js";
@@ -36,6 +58,10 @@ const TECHNOLOGIES: Record<OfficialRatFilter, StoredTechnology> = {
   cdma: { rat: "CDMA" },
   iot: { rat: "IOT" },
 };
+const DATABASE_PERMIT_STATUSES = { approved: "approved", inService: "in_service" } as const satisfies Record<
+  OfficialPermitStatus,
+  NonNullable<OfficialPermitRow["status"]>
+>;
 const DECISION_TYPES: Partial<Record<OfficialPermitKind, OfficialPermitRow["decision_type"]>> = { permit: "permit", permitChange: "permit_change" };
 
 function technologyCondition(filter: OfficialRatFilter): SQL | undefined {
@@ -63,12 +89,29 @@ export function linkedToStations(officialSiteId: SQLWrapper, stationIds: readonl
   );
 }
 
+function sitePermitsWhere(condition: SQL) {
+  return db
+    .select({ id: officialPermits.id })
+    .from(officialPermits)
+    .where(and(eq(officialPermits.official_site_id, officialSites.id), condition));
+}
+
 export function hasMatchingPermit(condition: SQL): SQL {
-  return exists(
-    db
-      .select({ id: officialPermits.id })
-      .from(officialPermits)
-      .where(and(eq(officialPermits.official_site_id, officialSites.id), condition)),
+  return exists(sitePermitsWhere(condition));
+}
+
+function siteStatusCondition(status: OfficialStatusFilter): SQL | undefined {
+  const inServicePermits = sitePermitsWhere(eq(officialPermits.status, "in_service"));
+  if (status === "inService") return exists(inServicePermits);
+  if (status === "approved") return and(hasMatchingPermit(eq(officialPermits.status, "approved")), notExists(inServicePermits));
+  return notExists(sitePermitsWhere(isNotNull(officialPermits.status)));
+}
+
+export function permitStatusCondition(statuses: readonly OfficialStatusFilter[]): SQL | undefined {
+  const stored = statuses.filter((status) => status !== "unknown").map((status) => DATABASE_PERMIT_STATUSES[status]);
+  return or(
+    stored.length > 0 ? inArray(officialPermits.status, stored) : undefined,
+    statuses.includes("unknown") ? isNull(officialPermits.status) : undefined,
   );
 }
 
@@ -93,9 +136,11 @@ function siteOperatorCondition(operatorIds: readonly number[], keepsOtherCountri
 export function officialSiteConditions(query: SiteFilterQuery, listedSiteIds: readonly number[] | null): SQL[] {
   const conditions: SQL[] = [];
   const labelMatch = permitLabelCondition(query);
+  const statusMatch = query.statuses ? or(...query.statuses.map(siteStatusCondition)) : undefined;
 
   if (query.operatorIds) conditions.push(siteOperatorCondition(query.operatorIds, query.keepOtherCountries === true));
   if (labelMatch) conditions.push(hasMatchingPermit(labelMatch));
+  if (statusMatch) conditions.push(statusMatch);
   if (query.createdAfter) conditions.push(gte(officialSites.createdAt, new Date(query.createdAfter)));
   if (query.updatedAfter) conditions.push(gte(officialSites.updatedAt, new Date(query.updatedAfter)));
   if (query.changedAfter) {

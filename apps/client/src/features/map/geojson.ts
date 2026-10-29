@@ -40,10 +40,15 @@ function listOperatorColors(stations: readonly MapPointStation[]): string[] {
   return [...colorsByOperator.values()];
 }
 
+function getStrokeStatus({ status, officialSite }: MapPointStation): StationStatus | null {
+  if (officialSite === null) return status;
+  return officialSite.status === "approved" ? "awaitingCells" : null;
+}
+
 function findSharedStatus(stations: readonly MapPointStation[]): StationStatus | undefined {
-  const statuses = new Set(stations.map((station) => station.status));
+  const statuses = new Set(stations.map(getStrokeStatus));
   if (statuses.size !== 1) return undefined;
-  return stations[0].status ?? undefined;
+  return getStrokeStatus(stations[0]) ?? undefined;
 }
 
 function createPointFeature(lng: number, lat: number, properties: GeoJsonProperties): Feature {

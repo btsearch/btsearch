@@ -151,7 +151,7 @@ describe("GET /official/locations", () => {
       { ...servedLocation, sites: [servedSite] },
       { ...servedLocation, id: 22, sites: [] },
     ]);
-    expect(tablesRead()).not.toContain("official.permits");
+    expect(tablesRead()).not.toContain("official.permit_listings");
   });
 
   it("continues after the last location of a page and counts every match on request", async () => {

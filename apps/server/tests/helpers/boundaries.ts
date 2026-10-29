@@ -22,6 +22,7 @@ type ScriptedResult = {
   submissionPlacement?: boolean;
   stationLinks?: boolean;
   hostLinks?: boolean;
+  siteStatuses?: boolean;
   networks?: boolean;
   operatorCountries?: boolean;
   result: unknown;
@@ -111,6 +112,11 @@ function defaultFeatureResult(call: DatabaseCall, selection: Record<string, unkn
   return [{ ...(countryFeatures.get("PL") ?? defaultCountryFeatures) }];
 }
 
+function isSiteStatusRead(call: DatabaseCall): boolean {
+  if (call.operation !== "select" || call.table !== "official.permits" || typeof call.selection !== "object" || call.selection === null) return false;
+  return "officialSiteId" in call.selection && "status" in call.selection;
+}
+
 function isNetworkRead(call: DatabaseCall): boolean {
   if (call.operation !== "select") return false;
   return call.table === "cell_plmns" || (typeof call.selection === "object" && call.selection !== null && "ownerCode" in call.selection);
@@ -141,6 +147,7 @@ function consume(call: DatabaseCall): Promise<unknown> {
   const placementProjection = isSubmissionPlacementProjection(call);
   const stationLinkRead = isStationLinkRead(call);
   const hostLinkRead = isHostLinkRead(call);
+  const siteStatusRead = isSiteStatusRead(call);
   const networkRead = isNetworkRead(call);
   const operatorCountryRead = isOperatorCountryRead(call);
   const matching = results.findIndex(
@@ -149,6 +156,7 @@ function consume(call: DatabaseCall): Promise<unknown> {
       (entry.submissionPlacement === true) === placementProjection &&
       (entry.stationLinks === true) === stationLinkRead &&
       (entry.hostLinks === true) === hostLinkRead &&
+      (entry.siteStatuses === true) === siteStatusRead &&
       (entry.networks === true) === networkRead &&
       (entry.operatorCountries === true) === operatorCountryRead &&
       (entry.operation === undefined || entry.operation === call.operation) &&
@@ -157,6 +165,7 @@ function consume(call: DatabaseCall): Promise<unknown> {
   if (matching < 0 && featureProjection) return Promise.resolve(defaultFeatureResult(call, selection));
   if (matching < 0 && stationLinkRead) return Promise.resolve([]);
   if (matching < 0 && hostLinkRead) return Promise.resolve([]);
+  if (matching < 0 && siteStatusRead) return Promise.resolve([]);
   if (matching < 0 && networkRead) return Promise.resolve([]);
   if (matching < 0 && operatorCountryRead) return Promise.resolve([]);
   if (matching < 0) return Promise.reject(new Error(`Unscripted database call: ${call.operation} ${call.table ?? ""}`));
@@ -254,6 +263,9 @@ export const dbMock = {
   },
   enqueueHostLinks(...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation: "select", table: "stations", hostLinks: true, result })));
+  },
+  enqueueSiteStatuses(...scripted: unknown[]): void {
+    results.push(...scripted.map((result) => ({ operation: "select", table: "official.permits", siteStatuses: true, result })));
   },
   pendingResults(): number {
     return results.length;

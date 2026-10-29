@@ -30,12 +30,12 @@ function getPEMMapHref({ location }: Pick<PEMRow, "location">) {
   return `/#map=16.00/${location.latitude.toFixed(6)}/${location.longitude.toFixed(6)}~fp`;
 }
 
-function getPEMRowDescription(row: PEMRow, t: TFunction) {
-  return [row.operator?.name, row.siteId, row.location.city || t("table.unknownCity"), row.location.address].filter(Boolean).join(", ");
+function getPEMRowDescription(row: PEMRow) {
+  return [row.operator?.name, row.siteId, row.location.city, row.location.address].filter(Boolean).join(", ");
 }
 
-export function getPEMRowContext(row: PEMRow, t: TFunction) {
-  return row.siteId ?? (row.location.city || t("table.unknownCity"));
+export function getPEMRowContext(row: PEMRow) {
+  return row.siteId || row.location.city || row.location.address || "";
 }
 
 type PEMStationLinkProps = {
@@ -113,7 +113,7 @@ type PEMLinksCellProps = {
 export function PEMLinksCell({ row, t, tCommon, onOpenStation, children }: PEMLinksCellProps) {
   return (
     <div className="flex items-center justify-end gap-1.5">
-      <PEMStationLink stationId={row.stationId} context={getPEMRowContext(row, t)} t={t} onOpen={onOpenStation} />
+      <PEMStationLink stationId={row.stationId} context={getPEMRowContext(row)} t={t} onOpen={onOpenStation} />
       {children}
       <span aria-hidden="true" className={MAP_HINT_CLASS_NAME}>
         <HugeiconsIcon icon={MapsIcon} className="size-3.5" />
@@ -133,10 +133,10 @@ type PEMMobileRowActionsProps = {
 export function PEMMobileRowActions({ row, t, tCommon, onOpenStation }: PEMMobileRowActionsProps) {
   return (
     <div className="-my-0.5 flex shrink-0 items-center gap-1.5">
-      <PEMStationLink stationId={row.stationId} context={getPEMRowContext(row, t)} t={t} onOpen={onOpenStation} />
+      <PEMStationLink stationId={row.stationId} context={getPEMRowContext(row)} t={t} onOpen={onOpenStation} />
       <a
         href={getPEMMapHref(row)}
-        aria-label={`${tCommon("labels.map")}: ${getPEMRowDescription(row, t)}`}
+        aria-label={`${tCommon("labels.map")}: ${getPEMRowDescription(row)}`}
         className={cn(
           MAP_HINT_CLASS_NAME,
           "outline-none after:absolute after:inset-0 focus-visible:text-foreground focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring",
@@ -150,22 +150,24 @@ export function PEMMobileRowActions({ row, t, tCommon, onOpenStation }: PEMMobil
 }
 
 type PEMLocationCellProps = {
-  city: string;
+  city: string | null;
   regionName?: string | null;
   address: string | null;
   noAddressLabel: string;
 };
 
 export function PEMLocationCell({ city, regionName, address, noAddressLabel }: PEMLocationCellProps) {
+  const place = city || address;
+
   return (
     <div className="flex min-w-0 items-start gap-2">
       <HugeiconsIcon icon={Location01Icon} className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="min-w-0">
         <div className="truncate text-sm font-medium leading-tight">
-          <span>{city}</span>
-          {regionName ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">· {regionName}</span> : null}
+          <span>{place || regionName}</span>
+          {place && regionName ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">· {regionName}</span> : null}
         </div>
-        <div className="truncate text-xs text-muted-foreground">{address || noAddressLabel}</div>
+        {city ? <div className="truncate text-xs text-muted-foreground">{address || noAddressLabel}</div> : null}
       </div>
     </div>
   );
@@ -272,7 +274,7 @@ export function PEMDataTableShell<T extends PEMRow>({
   const emptyIcon = hasActiveFilters ? SearchRemoveIcon : Radar01Icon;
   const emptyDescription = hasActiveFilters ? t("states.emptyFiltered") : undefined;
   const emptyAction = hasActiveFilters ? <ClearFiltersButton count={activeFilterCount} onClick={onClearFilters} /> : undefined;
-  const getRowAriaLabel = (row: T) => `${getPEMRowDescription(row, t)}, ${tCommon("actions.showOnMap")}`;
+  const getRowAriaLabel = (row: T) => `${getPEMRowDescription(row)}, ${tCommon("actions.showOnMap")}`;
 
   return (
     <div className="custom-scrollbar relative h-full min-h-0 overflow-x-hidden overflow-y-auto" aria-busy={isLoading || isFetching}>

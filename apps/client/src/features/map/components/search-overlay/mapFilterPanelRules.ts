@@ -1,5 +1,12 @@
 import { type MapCountries, sortCountryCodesByName } from "../../data/mapCountries";
-import { type CapableCountries, type MapFilters, UNKNOWN_BAND_LABEL, hasCountryCapability, isMapCountryAllowed } from "../../data/mapFilters";
+import {
+  type CapableCountries,
+  type MapFilters,
+  UNKNOWN_BAND_LABEL,
+  hasCountryCapability,
+  isDefaultOfficialStatuses,
+  isMapCountryAllowed,
+} from "../../data/mapFilters";
 import type { MapBandLabelsByCountry, MapLookups, MapOperator } from "../../data/mapLookups";
 
 type CountryPillSplit = {
@@ -173,6 +180,11 @@ export function listBandPills(filters: MapFilters, facetCountryCodes: readonly s
   const pills = [...labels].sort((left, right) => left - right).map((label): BandPill => ({ label, markCountryCode: marks?.get(label) ?? null }));
 
   return filters.source === "official" ? pills : [...pills, { label: UNKNOWN_BAND_LABEL, markCountryCode: null }];
+}
+
+export function hasOfficialStatusFacet(filters: MapFilters, mapCountries: MapCountries): boolean {
+  if (filters.source !== "official") return false;
+  return mapCountries.capabilities.officialStatuses || !isDefaultOfficialStatuses(filters.officialStatuses);
 }
 
 export function hasRegisterSourceNote(filters: MapFilters, mapCountries: MapCountries, countries: CapableCountries): boolean {

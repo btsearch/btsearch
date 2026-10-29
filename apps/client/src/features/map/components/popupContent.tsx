@@ -16,6 +16,7 @@ import {
   PopupGuestMarks,
   PopupIconButton,
   PopupLocationHeader,
+  PopupOfficialStatusBadge,
   PopupOperatorName,
   PopupRow,
   PopupShareButton,
@@ -282,6 +283,7 @@ function PopupRegisterStationRow({ site, lookups, showAddToList, onOpenOfficialS
         <>
           <PopupOperatorName name={operatorLook.operator?.name || t("unknownOperator")} />
           <PopupStationId id={getOfficialSiteCode(site) ?? ""} />
+          <PopupOfficialStatusBadge status={site.status} />
           {isOfficialSiteExpired(site) ? <PopupExpiredLabel /> : null}
         </>
       }
@@ -440,8 +442,7 @@ export function PopupContent({
   const isLoading = !items;
   const isEmpty = !isLoading && items.length === 0;
   const shareUrl = `${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~L${location.id}${isOfficialSource ? "~fu" : "~f"}`;
-  const city = location.city || t("common:labels.unknownLocation");
-  const shareTitle = location.address ? `${city} - ${location.address}` : city;
+  const shareTitle = [location.city, location.address].filter(Boolean).join(" - ");
   const structure = location.structure;
   const showStructure =
     !isOfficialSource && structure !== undefined && (structure.type !== null || structure.owner !== null || Boolean(structure.note));

@@ -21,7 +21,7 @@ import {
   searchTextSchema,
   usesCursorOrOffset,
 } from "./common.ts";
-import { MAX_LOCATION_LIST_LIMIT, OFFICIAL_RAT_FILTERS, OFFICIAL_SITE_INCLUDES } from "./constants.ts";
+import { MAX_LOCATION_LIST_LIMIT, OFFICIAL_PERMIT_STATUSES, OFFICIAL_RAT_FILTERS, OFFICIAL_SITE_INCLUDES } from "./constants.ts";
 import { csvSourceKeysSchema } from "./officialSources.ts";
 import { regionSchema } from "./regions.ts";
 import { KEEP_OTHER_COUNTRIES_LEAD, LOCATION_SORTS, areaFilterShape } from "./stations.ts";
@@ -41,8 +41,8 @@ export const OFFICIAL_PERMIT_KINDS = [
 ] as const;
 export type OfficialPermitKind = (typeof OFFICIAL_PERMIT_KINDS)[number];
 
-export const OFFICIAL_PERMIT_STATUSES = ["approved", "inService"] as const;
-export type OfficialPermitStatus = (typeof OFFICIAL_PERMIT_STATUSES)[number];
+export const OFFICIAL_STATUS_FILTERS = [...OFFICIAL_PERMIT_STATUSES, "unknown"] as const;
+export type OfficialStatusFilter = (typeof OFFICIAL_STATUS_FILTERS)[number];
 
 export const OFFICIAL_ANTENNA_TYPES = ["indoor", "outdoor"] as const;
 
@@ -80,6 +80,8 @@ const SITE_ID_NOTE =
 const SOURCE_REF_NOTE = "The register's own id for the record, or `null` when it has none";
 const PRECISION_NOTE = "How far the published position can be from the real one. `null` when the register does not say";
 const STATION_ID_NOTE = "The station in this database linked to the site";
+const SITE_STATUS_NOTE =
+  "`inService` if any of the site's permits is in service, otherwise `approved` if any is approved. `null` if the register does not say";
 const SITE_UPDATED_NOTE =
   "When the site last changed. An import dates a change by the file it read, so a site imported for the first time " +
   "from an older file can have an `updatedAt` earlier than its `createdAt`";
@@ -92,6 +94,7 @@ const RATS_FILTER_NOTE =
   `Comma-separated list. Possible values: \`${OFFICIAL_RAT_FILTERS.join("`, `")}\``;
 const CHANGED_AFTER_NOTE =
   "Matches sites first imported or last changed at or after this time. Unlike `createdAfter` and `updatedAfter` together, either one is enough";
+const STATUSES_FILTER_VALUES = `\`unknown\` matches a \`null\` status. Comma-separated list. Possible values: \`${OFFICIAL_STATUS_FILTERS.join("`, `")}\``;
 const KINDS_FILTER_NOTE = `Matches permits of these kinds. Comma-separated list. Possible values: \`${OFFICIAL_PERMIT_KINDS.join("`, `")}\``;
 const BAND_LABELS_FILTER_NOTE =
   "Matches sites with a permit for one of these bands, given as the nominal frequency in MHz (`labelMhz`), for example `800,1800`. " +
@@ -184,6 +187,7 @@ export const officialSiteSchema = z.object({
   operatorId: z.number().int().nullable(),
   locationId: z.number().int(),
   stationId: z.number().int().nullable().describe(STATION_ID_NOTE),
+  status: z.enum(OFFICIAL_PERMIT_STATUSES).nullable().describe(SITE_STATUS_NOTE),
   createdAt: z.iso.datetime().describe("When the site was first imported"),
   updatedAt: z.iso.datetime().describe(SITE_UPDATED_NOTE),
   location: officialSiteLocationSchema.optional().describe(INCLUDE_NOTE),
@@ -230,6 +234,7 @@ export const officialSiteFilterShape = {
   operatorIds: csvIdsSchema.optional().describe(OPERATORS_FILTER_NOTE),
   rats: csvEnumSchema(OFFICIAL_RAT_FILTERS).optional().describe(RATS_FILTER_NOTE),
   bandLabels: csvBandLabelsSchema.optional(),
+  statuses: csvEnumSchema(OFFICIAL_STATUS_FILTERS).optional().describe(`Matches sites with one of these statuses. ${STATUSES_FILTER_VALUES}`),
   createdAfter: instantSchema.optional().describe("Matches sites first imported at or after this time"),
   updatedAfter: instantSchema.optional().describe("Matches sites last changed at or after this time"),
   changedAfter: instantSchema.optional().describe(CHANGED_AFTER_NOTE),
@@ -337,6 +342,7 @@ export const officialPermitListQuerySchema = z
     bandLabels: csvBandLabelsSchema
       .optional()
       .describe("Matches permits for one of these bands, given as the nominal frequency in MHz (`labelMhz`), for example `800,1800`"),
+    statuses: csvEnumSchema(OFFICIAL_STATUS_FILTERS).optional().describe(`Matches permits with one of these statuses. ${STATUSES_FILTER_VALUES}`),
     kinds: csvEnumSchema(OFFICIAL_PERMIT_KINDS).optional().describe(KINDS_FILTER_NOTE),
     datasetKeys: csvSchema
       .pipe(z.array(z.string().min(1).max(DATASET_KEY_MAX_LENGTH)).min(1).max(100))
