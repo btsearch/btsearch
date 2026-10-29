@@ -38,7 +38,7 @@ type ReqQuery = { Querystring: ListListQuery };
 
 function containsAny(items: SQL, ids: readonly number[] | undefined): SQL | undefined {
   if (!ids) return undefined;
-  return or(...ids.map((id) => sql`(${items}) @> ${JSON.stringify([id])}::jsonb`));
+  return or(...ids.map((id) => sql`(${items}) @> ${sql.param([id])}::jsonb`));
 }
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ListList>>) {

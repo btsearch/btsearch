@@ -58,7 +58,7 @@ function banInForce(): SQL {
   return sql`(${users.banned} IS TRUE AND (${users.banExpires} IS NULL OR ${users.banExpires} > now()))`;
 }
 
-function bannedIs(isBanned: boolean): SQL {
+function bannedIs(isBanned: boolean): SQL | undefined {
   return isBanned ? banInForce() : not(banInForce());
 }
 

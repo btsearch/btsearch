@@ -37,7 +37,7 @@ function whereOf(call: DatabaseCall | undefined) {
 }
 
 function groupsOf(call: DatabaseCall | undefined): unknown {
-  return JSON.parse(String(whereOf(call).params[0]));
+  return whereOf(call).params[0];
 }
 
 function trace(): string[] {
@@ -179,7 +179,7 @@ describe("correcting the links of a group", () => {
     expect(await correctStationLinks(tx, [group])).toEqual({ added: [], removed: [] });
 
     const stored = whereOf(dbMock.calls.find((call) => call.table === "stations_official_sites"));
-    expect(stored.params.map((groups) => JSON.parse(String(groups)))).toEqual([[group], [group]]);
+    expect(stored.params).toEqual([[group], [group]]);
   });
 
   it("removes a link whose site sits in the group although its station does not", async () => {

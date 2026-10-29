@@ -85,8 +85,7 @@ function remapRun(overrides: Partial<ClaimedRun> = {}): ClaimedRun {
 }
 
 function paramsOf(statement: unknown): unknown[] {
-  const { params } = dialect.sqlToQuery((statement as SQLWrapper).getSQL());
-  return params.map((parameter) => (typeof parameter === "string" && /^[[{]/.test(parameter) ? JSON.parse(parameter) : parameter));
+  return dialect.sqlToQuery((statement as SQLWrapper).getSQL()).params;
 }
 
 function executedParams(): unknown[][] {
@@ -111,7 +110,7 @@ function scriptMapping(): void {
 
 function scriptReads(reads: Pick<RemapInput, "sites" | "permits" | "listings"> & Partial<Pick<RemapInput, "targets">>): void {
   dbMock.enqueueFor("select", "official.sites", reads.sites);
-  if (reads.targets) dbMock.enqueueFor("select", "official.target", reads.targets);
+  if (reads.targets) dbMock.enqueueFor("select", "target", reads.targets);
   dbMock.enqueueFor("select", "official.permits", reads.permits);
   dbMock.enqueueFor("select", "official.permit_listings", reads.listings);
 }
@@ -328,7 +327,7 @@ describe("a remap run", () => {
       "select official.remap_runs",
       "select official.licensees",
       "select official.sites",
-      "select official.target",
+      "select target",
       "select official.licensees",
       "select official.permits",
       "select official.permit_listings",

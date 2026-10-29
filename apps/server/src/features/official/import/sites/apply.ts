@@ -175,7 +175,7 @@ async function readMoveCandidates(tx: DbTx, sourceId: number, strongerDatasetKey
 
 async function moveSites(tx: DbTx, moves: readonly SiteMove[], fileDate: Date): Promise<void> {
   for (const group of chunks(moves, STATEMENT_BATCH_SIZE)) {
-    const moved = JSON.stringify(group.map((move) => ({ official_site_id: move.officialSiteId, to_location_id: move.toLocationId })));
+    const moved = sql.param(group.map((move) => ({ official_site_id: move.officialSiteId, to_location_id: move.toLocationId })));
     // eslint-disable-next-line no-await-in-loop
     await tx.execute(sql`
       UPDATE ${officialSites} AS site

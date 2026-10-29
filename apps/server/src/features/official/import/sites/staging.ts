@@ -212,7 +212,7 @@ async function readRegionIds(tx: DbTx, sourceId: number, permits: readonly Publi
   }));
   const resolved = await tx.execute<{ id: number; regionId: number | null }>(sql`
     SELECT place.id, COALESCE(known.region_id, region_at(place.longitude, place.latitude, claimed.id), claimed.id) AS "regionId"
-    FROM jsonb_to_recordset(${JSON.stringify(places)}::jsonb)
+    FROM jsonb_to_recordset(${sql.param(places)}::jsonb)
       AS place (id integer, longitude double precision, latitude double precision, region_iso_code text, source_ref text)
     LEFT JOIN ${regions} AS claimed ON claimed.iso_code = place.region_iso_code
     LEFT JOIN ${officialLocations} AS known
@@ -237,7 +237,7 @@ function locatedPermitsOf(permits: readonly PublishedPermit[], regionIds: Readon
 async function readOrderedLicenseeNames(tx: DbTx, permits: readonly LocatedPermit[]): Promise<string[]> {
   const names = unique(permits.map(({ first }) => first.site.licensee));
   const ordered = await tx.execute<{ licensee: string }>(sql`
-    SELECT published.licensee FROM jsonb_array_elements_text(${JSON.stringify(names)}::jsonb) AS published (licensee) ORDER BY published.licensee
+    SELECT published.licensee FROM jsonb_array_elements_text(${sql.param(names)}::jsonb) AS published (licensee) ORDER BY published.licensee
   `);
   return ordered.map((row) => row.licensee);
 }
@@ -384,7 +384,7 @@ async function stageRows(tx: DbTx, rows: readonly StagedPermitRow[]): Promise<vo
       incoming.location_ref, incoming.precision_meters, incoming.site_code, incoming.site_ref, incoming.licensee_id, incoming.operator_id,
       incoming.site_name, incoming.site_name_ordinal, incoming.rat, incoming.label_mhz, incoming.label_variant, incoming.decision_number,
       incoming.decision_type, incoming.expiry_date, incoming.status, incoming.sectors
-    FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS incoming (
+    FROM jsonb_to_recordset(${sql.param(rows)}::jsonb) AS incoming (
       ordinal integer, slice varchar(64), longitude double precision, latitude double precision, city text, address text, region_id integer,
       location_ref text, precision_meters integer, site_code text, site_ref text, licensee_id integer, operator_id integer, site_name text,
       site_name_ordinal integer, rat rat, label_mhz integer, label_variant band_variant, decision_number text,

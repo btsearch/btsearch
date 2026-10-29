@@ -65,8 +65,8 @@ describe("the orphans step", () => {
     expect(deleteFrom("official.locations").params).toEqual([7]);
     expect(deleteFrom("official.licensees").params).toEqual([7]);
     const [sitesOutOfLists, linksOutOfLists] = dbMock.calls.filter((call) => call.operation === "execute").map(statementOf);
-    expect(sitesOutOfLists?.params).toEqual(["[502,507]"]);
-    expect(linksOutOfLists?.params).toEqual(["[804,805]"]);
+    expect(sitesOutOfLists?.params).toEqual([[502, 507]]);
+    expect(linksOutOfLists?.params).toEqual([[804, 805]]);
 
     expect(whereOf(dbMock.calls.find((call) => call.table === "official.import_changes")).params).toEqual([RUN_ID, "microwave_link_archived"]);
     expect(logger.info).toHaveBeenCalledWith("official.import.orphans", {

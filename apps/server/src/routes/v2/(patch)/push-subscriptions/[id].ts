@@ -31,7 +31,7 @@ type RequestData = { Params: z.infer<typeof pushSubscriptionParamsSchema>; Body:
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<PushSubscription>>) {
   const userId = accountOwnerId(req);
-  const changed = JSON.stringify(toStoredPreferences(req.body.topics));
+  const changed = sql.param(toStoredPreferences(req.body.topics));
 
   const [updated] = await db
     .update(pushSubscriptions)

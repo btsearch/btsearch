@@ -67,7 +67,7 @@ describe("the watchers of a station or an official site", () => {
         [502, [SECOND]],
       ]),
     );
-    expect(statementOf(dbMock.calls.find((call) => call.operation === "execute")).params).toEqual(["[501,502,503]"]);
+    expect(statementOf(dbMock.calls.find((call) => call.operation === "execute")).params).toEqual([[501, 502, 503]]);
   });
 
   it("are read for a page of our stations: direct watchers first, then the owners of notifying lists", async () => {

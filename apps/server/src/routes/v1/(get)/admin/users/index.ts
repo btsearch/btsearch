@@ -1,5 +1,6 @@
 import { users } from "@openbts/drizzle";
 import { and, count, eq, ilike, or, sql } from "drizzle-orm";
+import { EmptyFilter } from "drizzle-orm/relations";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -61,7 +62,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     limit,
     offset,
     orderBy: { createdAt: "desc" },
-    where: countConditions.length > 0 ? { RAW: (fields) => and(...buildConditions(fields)) ?? sql`true` } : undefined,
+    where: countConditions.length > 0 ? { RAW: (fields) => and(...buildConditions(fields)) ?? sql`true` } : EmptyFilter,
   });
 
   return res.send({ data: rows as z.infer<typeof userSchema>[], total: totalCount?.count ?? 0, limit });

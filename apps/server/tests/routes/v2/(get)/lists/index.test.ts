@@ -95,7 +95,7 @@ describe("GET /lists", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ paging: { total: 0 } });
     const condition = whereQuery("user_lists", "select");
-    expect(condition.params).toEqual(expect.arrayContaining([ownerId, "[12]", "[13]", "[24]", "[36]", "%\\%\\_%"]));
+    expect(condition.params).toEqual(expect.arrayContaining([ownerId, [12], [13], [24], [36], "%\\%\\_%"]));
   });
 
   it("rejects malformed cursors without reading lists", async () => {

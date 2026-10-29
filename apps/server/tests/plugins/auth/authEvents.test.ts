@@ -3,6 +3,7 @@ import { passkey } from "@better-auth/passkey";
 import { type GenericEndpointContext, betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { admin, multiSession, twoFactor, username } from "better-auth/plugins";
+import type { GoogleProfile } from "better-auth/social-providers";
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,7 +38,7 @@ const BROWSER = { "user-agent": "Test Browser", "x-forwarded-for": "198.51.100.7
 
 let store: Store;
 let outbox: { verificationUrls: string[]; resetTokens: string[] };
-let googleProfile: Row;
+let googleProfile: Pick<GoogleProfile, "sub" | "email">;
 
 function createAuth() {
   return betterAuth({
@@ -64,8 +65,8 @@ function createAuth() {
         clientSecret: "google-secret",
         verifyIdToken: async () => true,
         getUserInfo: async () => ({
-          user: { id: String(googleProfile.sub), name: "Olek", email: String(googleProfile.email), emailVerified: true },
-          data: googleProfile,
+          user: { name: "Olek", email: googleProfile.email, emailVerified: true },
+          data: googleProfile as GoogleProfile,
         }),
       },
     },

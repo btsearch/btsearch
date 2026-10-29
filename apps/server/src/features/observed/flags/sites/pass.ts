@@ -60,7 +60,7 @@ async function loadCrowdSettings(): Promise<CrowdSettings | undefined> {
 }
 
 function listsAnyOf(siteIds: readonly number[]): SQL {
-  const lists = siteIds.map((siteId) => sql`${JSON.stringify([siteId])}::jsonb`);
+  const lists = siteIds.map((siteId) => sql`${sql.param([siteId])}::jsonb`);
   return sql`${observationFlags.evidence}->'observedSiteIds' @> ANY(ARRAY[${sql.join(lists, sql`, `)}])`;
 }
 

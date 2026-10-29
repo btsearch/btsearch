@@ -81,7 +81,7 @@ async function removeSitesFromLists(tx: DbTx, officialSiteIds: readonly number[]
   await tx.execute(sql`
     WITH gone AS (
       SELECT item."value"::integer AS id
-      FROM jsonb_array_elements_text(${JSON.stringify(officialSiteIds)}::jsonb) AS item ("value")
+      FROM jsonb_array_elements_text(${sql.param(officialSiteIds)}::jsonb) AS item ("value")
     ), held AS (
       SELECT saved_list.id AS list_id, item."position", item."value",
         CASE WHEN jsonb_typeof(item."value") = 'number' THEN item."value"::numeric END AS held_id
@@ -109,7 +109,7 @@ async function removeMicrowaveLinksFromLists(tx: DbTx, microwaveLinkIds: readonl
   await tx.execute(sql`
     WITH gone AS (
       SELECT item."value"::integer AS id
-      FROM jsonb_array_elements_text(${JSON.stringify(microwaveLinkIds)}::jsonb) AS item ("value")
+      FROM jsonb_array_elements_text(${sql.param(microwaveLinkIds)}::jsonb) AS item ("value")
     ), held AS (
       SELECT saved_list.id AS list_id, item."position", item."value",
         CASE WHEN jsonb_typeof(item."value") = 'number' THEN item."value"::numeric END AS held_id

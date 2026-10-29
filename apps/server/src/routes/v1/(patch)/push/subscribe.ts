@@ -39,7 +39,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   if (Object.keys(patch).length > 0)
     await db
       .update(pushSubscriptions)
-      .set({ preferences: sql`preferences || ${JSON.stringify(patch)}::jsonb` })
+      .set({ preferences: sql`preferences || ${sql.param(patch)}::jsonb` })
       .where(and(eq(pushSubscriptions.id, req.body.id), eq(pushSubscriptions.userId, session.user.id)));
 
   return res.send({ data: { ok: true } });

@@ -76,7 +76,7 @@ async function createSplitSites(
 
 async function movePermits(tx: DbTx, moves: readonly Move[]): Promise<void> {
   for (const group of chunks(moves, STATEMENT_BATCH_SIZE)) {
-    const moved = JSON.stringify(group.map(({ permitId, toSiteId }) => ({ permit_id: permitId, to_site_id: toSiteId })));
+    const moved = sql.param(group.map(({ permitId, toSiteId }) => ({ permit_id: permitId, to_site_id: toSiteId })));
     await tx.execute(sql`
       UPDATE ${officialPermits} AS permit
       SET official_site_id = moved.to_site_id
@@ -88,7 +88,7 @@ async function movePermits(tx: DbTx, moves: readonly Move[]): Promise<void> {
 
 async function mergePermits(tx: DbTx, merges: RemapPlan["merges"]): Promise<void> {
   for (const group of chunks(merges, STATEMENT_BATCH_SIZE)) {
-    const merged = JSON.stringify(group.map(({ permitId, intoPermitId }) => ({ permit_id: permitId, into_permit_id: intoPermitId })));
+    const merged = sql.param(group.map(({ permitId, intoPermitId }) => ({ permit_id: permitId, into_permit_id: intoPermitId })));
     const permitIds = group.map((merge) => merge.permitId);
     await tx.execute(sql`
       WITH taken AS (
@@ -142,7 +142,7 @@ async function unlinkEmptiedSites(tx: DbTx, emptiedSites: RemapPlan["emptiedSite
 async function repointEmptiedSites(tx: DbTx, emptiedSites: RemapPlan["emptiedSites"]): Promise<Repointed> {
   const repointed: Repointed = { watchesRepointed: 0, notificationsRepointed: 0, listsRepointed: 0 };
   for (const group of chunks(emptiedSites, STATEMENT_BATCH_SIZE)) {
-    const merged = JSON.stringify(group.map(({ siteId, intoSiteId }) => ({ site_id: siteId, into_site_id: intoSiteId })));
+    const merged = sql.param(group.map(({ siteId, intoSiteId }) => ({ site_id: siteId, into_site_id: intoSiteId })));
     const watches = await tx.execute(sql`
       UPDATE ${officialSiteWatches} AS watch
       SET official_site_id = merged.into_site_id
@@ -201,7 +201,7 @@ async function repointEmptiedSites(tx: DbTx, emptiedSites: RemapPlan["emptiedSit
 
 async function removeListings(tx: DbTx, licenseeId: number, unlistings: RemapPlan["unlistings"]): Promise<void> {
   for (const group of chunks(unlistings, STATEMENT_BATCH_SIZE)) {
-    const removed = JSON.stringify(group.map(({ permitId, datasetId }) => ({ permit_id: permitId, dataset_id: datasetId })));
+    const removed = sql.param(group.map(({ permitId, datasetId }) => ({ permit_id: permitId, dataset_id: datasetId })));
     await tx.execute(sql`
       DELETE FROM ${officialPermitListings} AS listing
       USING jsonb_to_recordset(${removed}::jsonb) AS removed (permit_id integer, dataset_id integer)

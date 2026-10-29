@@ -85,7 +85,7 @@ function trailFeatures(squares: TileSquares, networks: readonly TrailNetwork[], 
     WITH square AS (
       SELECT network.operator_id, network.country_code, ${trailSquares.rat} AS rat, ${trailSquares.channel} AS channel, ${trailSquares.bin} AS bin,
         max(${trailSquares.lastSeenOn}) AS last_seen_on, ${sql.join(counts, sql`, `)}, sum(${trailLevels.sampleCount}) AS total
-      FROM jsonb_to_recordset(${JSON.stringify(networkRows)}::jsonb) AS network (plmn varchar(6), operator_id integer, country_code char(2))
+      FROM jsonb_to_recordset(${sql.param(networkRows)}::jsonb) AS network (plmn varchar(6), operator_id integer, country_code char(2))
       JOIN ${trailSquares}
         ON ${and(
           eq(trailSquares.plmn, sql`network.plmn`),
@@ -108,7 +108,7 @@ function trailFeatures(squares: TileSquares, networks: readonly TrailNetwork[], 
     channel_band AS (
       SELECT channel.country_code, channel.rat, channel.channel, band.band_id
       FROM (SELECT DISTINCT square.country_code, square.rat, square.channel FROM square) AS channel
-      LEFT JOIN jsonb_to_recordset(${JSON.stringify(bandRows)}::jsonb)
+      LEFT JOIN jsonb_to_recordset(${sql.param(bandRows)}::jsonb)
         AS band (country_code char(2), rat ${ratType}, first_channel integer, last_channel integer, band_id integer)
         ON band.country_code = channel.country_code AND band.rat = channel.rat AND channel.channel BETWEEN band.first_channel AND band.last_channel
     )

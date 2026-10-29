@@ -31,6 +31,6 @@ describe("v1 push preferences keep the name ukeUpdates", () => {
 
     expect(response.statusCode, response.body).toBe(200);
     const values = dbMock.calls.find((call) => call.operation === "update" && call.table === "push_subscriptions")?.values as { preferences: SQL };
-    expect(new PgDialect().sqlToQuery(values.preferences).params).toEqual([JSON.stringify({ officialDataUpdates: true })]);
+    expect(new PgDialect().sqlToQuery(values.preferences).params).toEqual([{ officialDataUpdates: true }]);
   });
 });

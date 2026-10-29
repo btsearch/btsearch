@@ -195,9 +195,9 @@ describe("the site notifications step", () => {
     const sitesRead = dbMock.calls.find((call) => call.operation === "select" && call.table === "official.sites");
     const changesRead = dbMock.calls.find((call) => call.table === "official.import_changes");
     const [listsRead] = dbMock.calls.filter((call) => call.operation === "execute").map(statementOf);
-    expect(whereOf(changesRead).params.at(-1)).toBe("[501,502,503]");
-    expect(whereOf(sitesRead).params).toEqual(["[501,503,502]"]);
-    expect(listsRead?.params).toEqual(["[501,503,502]"]);
+    expect(whereOf(changesRead).params.at(-1)).toEqual([501, 502, 503]);
+    expect(whereOf(sitesRead).params).toEqual([[501, 503, 502]]);
+    expect(listsRead?.params).toEqual([[501, 503, 502]]);
     const inserted = valuesOf("insert", "notifications") as Record<string, unknown>[];
     const addressed = inserted.map(({ userId, officialSiteId, stationId, type, title, actionUrl }) => ({
       userId,
@@ -328,7 +328,7 @@ describe("the site notifications step", () => {
 
     expect(dbMock.pendingResults()).toBe(0);
     const resumed = dbMock.calls.slice(firstAttempt);
-    expect(whereOf(resumed.find((call) => call.operation === "select" && call.table === "official.sites")).params).toEqual(["[1200]"]);
+    expect(whereOf(resumed.find((call) => call.operation === "select" && call.table === "official.sites")).params).toEqual([[1200]]);
     expect(resumed.filter((call) => call.operation === "insert" && call.table === "notifications").map((call) => call.values)).toEqual([
       expect.objectContaining({ officialSiteId: 1200 }),
     ]);
@@ -363,7 +363,7 @@ describe("the site notifications step", () => {
       "permit_moved_in",
       "permit_archived",
       "permit_moved_out",
-      "[502,509]",
+      [502, 509],
     ]);
     expect(valuesOf("insert", "notifications")).toEqual([
       expect.objectContaining({

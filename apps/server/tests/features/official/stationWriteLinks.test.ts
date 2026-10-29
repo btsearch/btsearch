@@ -63,7 +63,7 @@ function groupsOf(stationIds: number[], locationIds: number[] = []) {
 }
 
 function correctedGroups(): unknown[] {
-  return dbMock.calls.filter(locksGroups).map((call) => JSON.parse(String(whereOf(call).params[0])));
+  return dbMock.calls.filter(locksGroups).map((call) => whereOf(call).params[0]);
 }
 
 function expectLinkedInsideTheWrite(write: (call: DatabaseCall) => boolean): void {

@@ -28,7 +28,7 @@ function withOperator(groups: readonly StationGroupKey[]): LinkGroupKey[] {
 function inGroups(siteId: SQLWrapper, operatorId: SQLWrapper, groups: readonly LinkGroupKey[]): SQL {
   return sql`(${siteId}, ${operatorId}) IN (
     SELECT link_group."siteId", link_group."operatorId"
-    FROM jsonb_to_recordset(${JSON.stringify(groups)}::jsonb) AS link_group ("siteId" text, "operatorId" integer)
+    FROM jsonb_to_recordset(${sql.param(groups)}::jsonb) AS link_group ("siteId" text, "operatorId" integer)
   )`;
 }
 

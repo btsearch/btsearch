@@ -9,8 +9,7 @@ type Watch = { watchedId: number; userId: string };
 type WatchReader = Pick<DbTx, "select" | "execute">;
 
 export async function getStationWatchers(stationId: number): Promise<string[]> {
-  const stationIdsJson = JSON.stringify([stationId]);
-  const listContainsStation = sql`coalesce(${userLists.stations}->'internal', '[]'::jsonb) @> ${stationIdsJson}::jsonb`;
+  const listContainsStation = sql`coalesce(${userLists.stations}->'internal', '[]'::jsonb) @> ${sql.param([stationId])}::jsonb`;
 
   const [directWatches, listWatches] = await Promise.all([
     db.select({ userId: stationWatches.userId }).from(stationWatches).where(eq(stationWatches.stationId, stationId)),
@@ -26,7 +25,7 @@ export async function getStationWatchers(stationId: number): Promise<string[]> {
 async function readListWatches(watchedIds: readonly number[], listedIds: SQL, reader: WatchReader): Promise<Watch[]> {
   return reader.execute<Watch>(sql`
       SELECT watched.id::integer AS "watchedId", list.created_by AS "userId"
-      FROM jsonb_array_elements_text(${JSON.stringify(watchedIds)}::jsonb) AS watched (id)
+      FROM jsonb_array_elements_text(${sql.param(watchedIds)}::jsonb) AS watched (id)
       JOIN ${userLists} AS list ON coalesce(${listedIds}, '[]'::jsonb) @> jsonb_build_array(watched.id::integer)
       WHERE list.notifications_enabled = true
     `);

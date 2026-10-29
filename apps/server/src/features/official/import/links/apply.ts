@@ -106,7 +106,7 @@ async function updateLinksWithSameColumns(tx: DbTx, changes: readonly LinkChange
     await tx.execute(sql`
       UPDATE ${microwaveLinks} AS link
       SET ${assignments}, "updatedAt" = ${fileDate.toISOString()}::timestamp with time zone
-      FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS changed (id integer, ${definitions})
+      FROM jsonb_to_recordset(${sql.param(rows)}::jsonb) AS changed (id integer, ${definitions})
       WHERE link.id = changed.id
     `);
   }

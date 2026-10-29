@@ -258,10 +258,10 @@ describe("the station notifications step", () => {
       "station_linked",
       "station_unlinked",
     ]);
-    expect(whereOf(keptLinksRead).params).toEqual(["[503,505]"]);
-    expect(whereOf(stationsRead).params).toEqual(["[100,101,102]"]);
-    expect(whereOf(sitesRead).params).toEqual(["[503,502,505,504]"]);
-    expect(listsRead?.params).toEqual(["[100,101]"]);
+    expect(whereOf(keptLinksRead).params).toEqual([[503, 505]]);
+    expect(whereOf(stationsRead).params).toEqual([[100, 101, 102]]);
+    expect(whereOf(sitesRead).params).toEqual([[503, 502, 505, 504]]);
+    expect(listsRead?.params).toEqual([[100, 101]]);
     expect(valuesOf("insert", "notifications")).toEqual([
       expect.objectContaining({
         userId: WATCHER,
@@ -308,8 +308,8 @@ describe("the station notifications step", () => {
     await runStep(stationNotifications);
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(whereOf(dbMock.calls.find((call) => call.table === "stations_official_sites")).params).toEqual(["[501,506]"]);
-    expect(whereOf(dbMock.calls.find((call) => call.table === "official.sites")).params).toEqual(["[501]"]);
+    expect(whereOf(dbMock.calls.find((call) => call.table === "stations_official_sites")).params).toEqual([[501, 506]]);
+    expect(whereOf(dbMock.calls.find((call) => call.table === "official.sites")).params).toEqual([[501]]);
     expect(valuesOf("insert", "notifications")).toEqual([
       expect.objectContaining({
         stationId: 100,
@@ -343,8 +343,8 @@ describe("the station notifications step", () => {
     await runStep(stationNotifications, { run: claimedRun({ kind: "remap" }) });
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(whereOf(dbMock.calls.find((call) => call.table === "stations_official_sites")).params).toEqual(["[602,502]"]);
-    expect(whereOf(dbMock.calls.find((call) => call.table === "official.sites")).params).toEqual(["[602,502]"]);
+    expect(whereOf(dbMock.calls.find((call) => call.table === "stations_official_sites")).params).toEqual([[602, 502]]);
+    expect(whereOf(dbMock.calls.find((call) => call.table === "official.sites")).params).toEqual([[602, 502]]);
     expect(valuesOf("insert", "notifications")).toEqual([
       expect.objectContaining({
         stationId: 101,

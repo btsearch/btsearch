@@ -67,7 +67,7 @@ function executed(): DatabaseCall[] {
 }
 
 function jsonParamOf<Param>(call: DatabaseCall | undefined): Param {
-  return JSON.parse(String(statementOf(call).params[0]));
+  return statementOf(call).params[0] as Param;
 }
 
 function stagingStatements() {
@@ -564,8 +564,7 @@ describe("a run through the engine", () => {
       ],
       [{ runId: RUN_ID, kind: "permit_archived", officialSiteId: 502, permitId: 600 }],
     ]);
-    const [linkUpdateDate, changedLinks] = statementOf(executed().at(-1)).params;
-    const updatedLinks = JSON.parse(String(changedLinks));
+    const [linkUpdateDate, updatedLinks] = statementOf(executed().at(-1)).params as [unknown, unknown[]];
     expect(linkUpdateDate).toBe(FILE_DATE.toISOString());
     expect(updatedLinks).toEqual([
       expect.objectContaining({ id: 801, tx_eirp: 31, permit_number: "RL/1", licensee_id: 8, tx_transmitter_type_id: 31 }),

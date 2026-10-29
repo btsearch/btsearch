@@ -77,9 +77,11 @@ function whereParams(call: DatabaseCall): unknown[] {
 }
 
 function isLinkGroups(param: unknown): boolean {
-  if (typeof param !== "string" || !param.startsWith("[{")) return false;
-  const groups: unknown = JSON.parse(param);
-  return Array.isArray(groups) && groups.every((group) => typeof group === "object" && group !== null && "operatorId" in group && "siteId" in group);
+  return (
+    Array.isArray(param) &&
+    param.length > 0 &&
+    param.every((group) => typeof group === "object" && group !== null && "operatorId" in group && "siteId" in group)
+  );
 }
 
 function isStationLinkRead(call: DatabaseCall): boolean {

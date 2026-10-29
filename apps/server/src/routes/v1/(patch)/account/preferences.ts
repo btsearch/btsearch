@@ -43,7 +43,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     return res.send({ data: normalizeCloudPreferences(user.cloudPreferences) });
   }
 
-  const merged = sql`coalesce(${users.cloudPreferences}, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb`;
+  const merged = sql`coalesce(${users.cloudPreferences}, '{}'::jsonb) || ${sql.param(patch)}::jsonb`;
 
   const [updated] = await db
     .update(users)

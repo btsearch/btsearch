@@ -5,5 +5,5 @@ export function flagCondition(flag: AnyColumn, isSet: boolean): SQL {
 }
 
 export function idsIn(ids: readonly number[]): SQL {
-  return sql`(SELECT wanted.id::integer FROM jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb) AS wanted (id))`;
+  return sql`(SELECT wanted.id::integer FROM jsonb_array_elements_text(${sql.param(ids)}::jsonb) AS wanted (id))`;
 }

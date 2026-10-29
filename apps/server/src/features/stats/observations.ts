@@ -78,7 +78,7 @@ export function selectSquareTotals(networks: readonly PublicNetwork[]) {
   const countryCode = sql<string>`network.country_code`;
   return db
     .select({ countryCode, parent, squares: sql<number>`count(DISTINCT ${trailSquares.bin})::int` })
-    .from(sql`jsonb_to_recordset(${JSON.stringify(networks)}::jsonb) AS network (plmn varchar(6), country_code char(2))`)
+    .from(sql`jsonb_to_recordset(${sql.param(networks)}::jsonb) AS network (plmn varchar(6), country_code char(2))`)
     .innerJoin(trailSquares, and(eq(trailSquares.plmn, sql`network.plmn`), eq(trailSquares.zoom, SQUARE_ZOOM)))
     .groupBy(countryCode, parent);
 }

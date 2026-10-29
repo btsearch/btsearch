@@ -22,7 +22,7 @@
     "@openbts/drizzle": "workspace:*",
     "@openbts/shared": "workspace:*",
     "cheerio": "1.2.0",
-    "drizzle-orm": "1.0.0-rc.4",
+    "drizzle-orm": "1.0.0-rc.5",
     "fflate": "0.8.3",
     "xlsx": "0.18.5",
     "zod": "4.6.7"

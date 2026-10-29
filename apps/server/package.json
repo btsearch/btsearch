@@ -40,7 +40,7 @@
     "better-auth": "1.7.11",
     "debug": "4.4.3",
     "dotenv": "18.0.8",
-    "drizzle-orm": "1.0.0-rc.4",
+    "drizzle-orm": "1.0.0-rc.5",
     "exifreader": "4.50.0",
     "fast-jwt": "6.3.5",
     "fastify": "5.12.7",

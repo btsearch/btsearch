@@ -31,7 +31,7 @@ function stationRow(stationId: number, operatorId: number, siteId: string) {
 function correctedGroups(): unknown[] {
   return dbMock.calls
     .filter((call) => call.operation === "select" && call.table === "stations" && call.clauses.for !== undefined)
-    .map((call) => JSON.parse(String(whereOf(call).params[0])));
+    .map((call) => whereOf(call).params[0]);
 }
 
 function changeReads(): unknown[][] {

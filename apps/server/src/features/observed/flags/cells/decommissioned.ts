@@ -143,7 +143,7 @@ function squareLookups(
 async function loadMeasuredSquares(lookups: readonly SquareLookup[], measuredSince: string): Promise<Map<number, MeasuredSquare[]>> {
   if (lookups.length === 0) return new Map();
 
-  const lookup = sql`jsonb_to_recordset(${JSON.stringify(lookups)}::jsonb) AS lookup (
+  const lookup = sql`jsonb_to_recordset(${sql.param(lookups)}::jsonb) AS lookup (
     cell_id integer, plmn varchar(6), rat ${sql.raw(trailSquares.rat.getSQLType())},
     first_channel integer, last_channel integer, first_bin bigint, last_bin bigint
   )`;
