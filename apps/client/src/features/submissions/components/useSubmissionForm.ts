@@ -176,7 +176,11 @@ export function useSubmissionForm(seed: SubmissionSeed) {
     },
   });
   const storedPhotosQuery = useQuery({ ...submissionPhotosQueryOptions(stored?.id ?? ""), enabled: stored !== null });
-  const edit = useStationDraft({ ...input, canEdit: !sendMutation.isPending && !isSent && (stored === null || stored.status === "pending") });
+  const edit = useStationDraft({
+    ...input,
+    stationId: seed.station?.id ?? null,
+    canEdit: !sendMutation.isPending && !isSent && (stored === null || stored.status === "pending"),
+  });
   const { blockedSaves, countBlockedSave, reportBlockedSave } = useBlockedSaves(edit.dispatch);
 
   const { session } = edit;

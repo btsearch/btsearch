@@ -60,6 +60,9 @@ export const countryCapabilitiesSchema = z.object({
     .nullable()
     .describe("Terrain profiles can be requested for stations in the country. `null` if they cannot"),
   kmz: z.boolean().describe("KMZ files of the official data can be downloaded from the endpoints under `/api/v1/kmz`"),
+  editableHostStations: z
+    .boolean()
+    .describe("Station changes can set `hostStationId` in the country. `false` where host stations are worked out from the official sites"),
 });
 export type CountryCapabilities = z.infer<typeof countryCapabilitiesSchema>;
 

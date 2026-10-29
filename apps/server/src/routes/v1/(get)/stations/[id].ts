@@ -27,7 +27,7 @@ import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
 const stationSchema = createSelectSchema(stations)
-  .omit({ status: true, operator_id: true, location_id: true })
+  .omit({ status: true, operator_id: true, location_id: true, ran_host_station_id: true })
   .extend({ status: z.enum(["published", "inactive", "pending"]).optional() });
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
 const bandsSchema = createSelectSchema(bands);

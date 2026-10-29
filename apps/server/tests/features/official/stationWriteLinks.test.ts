@@ -71,7 +71,9 @@ function expectLinkedInsideTheWrite(write: (call: DatabaseCall) => boolean): voi
   expect(operations[end]?.operation).toBe("commit");
   expect(written).toBeGreaterThan(begin);
   expect(written).toBeLessThan(lock);
-  expect(operations.filter((call, index) => (index < begin || index > end) && (readsGroups(call) || call.table === "stations_permits"))).toEqual([]);
+  expect(
+    operations.filter((call, index) => (index < begin || index > end) && (readsGroups(call) || call.table === "stations_official_sites")),
+  ).toEqual([]);
 }
 
 function writes(operation: string, table: string) {
@@ -81,7 +83,7 @@ function writes(operation: string, table: string) {
 beforeEach(recordTransactions);
 
 describe("a station write relinks its groups inside its own transaction", () => {
-  it("links a station created through v2 to the permits of its site id and operator", async () => {
+  it("links a station created through v2 to the official site of its site id and operator", async () => {
     const saved = stationRow({ status: "pending" });
     dbMock.enqueueFor("select", "operators", [{ id: 1 }]);
     dbMock.query.stations.findFirst.mockResolvedValueOnce(undefined).mockResolvedValue(saved);
@@ -92,10 +94,11 @@ describe("a station write relinks its groups inside its own transaction", () => 
     dbMock.enqueueStationLinks(
       [A1],
       [{ id: 1 }],
-      [{ permitId: 700, officialSiteId: 501, sourceId: 1, ...A1, longitude: 21, latitude: 52, linkId: null, linkedStationId: null }],
+      [{ officialSiteId: 501, sourceId: 1, ...A1, longitude: 21, latitude: 52 }],
       [{ stationId: 1, ...A1, longitude: null, latitude: null }],
+      [],
     );
-    dbMock.enqueueFor("insert", "stations_permits", [{ stationId: 1, permitId: 700 }]);
+    dbMock.enqueueFor("insert", "stations_official_sites", [{ stationId: 1, officialSiteId: 501 }]);
     dbMock.enqueueFor("select", "audit_logs", []);
     dbMock.enqueueFor("update", "audit_operations", []);
     visibleStation(saved);
@@ -106,7 +109,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     expect(response.statusCode, errors.map(String).join("\n")).toBe(201);
     expect(groupReads()).toEqual([{ sql: '(("stations"."id" in ($1)) or (false))', params: [1] }]);
     expect(correctedGroups()).toEqual([[A1]]);
-    expect(dbMock.calls.find(writes("insert", "stations_permits"))?.values).toEqual([{ station_id: 1, permit_id: 700 }]);
+    expect(dbMock.calls.find(writes("insert", "stations_official_sites"))?.values).toEqual([{ station_id: 1, official_site_id: 501 }]);
     expectLinkedInsideTheWrite(writes("insert", "stations"));
     expect(dbMock.query.officialPermits.findMany).not.toHaveBeenCalled();
   });

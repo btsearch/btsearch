@@ -103,6 +103,9 @@ function listStationPairs(change: StationChange | null, operator: Operator | und
   const pairs: ChangePair[] = [];
   if (change.siteId !== undefined) pairs.push({ label: t("common:labels.stationId"), value: change.siteId ?? EMPTY_VALUE });
   if (change.operatorId !== undefined) pairs.push({ label: t("common:labels.operator"), value: operator?.name ?? `#${change.operatorId}` });
+  if (change.hostStationId !== undefined) {
+    pairs.push({ label: t("common:labels.hostStation"), value: change.hostStationId === null ? EMPTY_VALUE : `#${change.hostStationId}` });
+  }
   for (const kind of IDENTIFIER_ORDER) {
     const identifier = change.identifiers?.find((entry) => entry.kind === kind);
     if (identifier !== undefined) pairs.push({ label: getIdentifierLabel(kind, operator, t), value: identifier.value ?? EMPTY_VALUE });

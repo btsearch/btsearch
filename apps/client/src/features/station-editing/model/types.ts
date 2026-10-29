@@ -1,4 +1,4 @@
-import type { BackhaulMedium, CellType, LocationMove, NrMode, StationIdentifierKind, StationStatus } from "@openbts/shared/contract";
+import type { BackhaulMedium, CellType, LocationMove, NrMode, StationBase, StationIdentifierKind, StationStatus } from "@openbts/shared/contract";
 
 import type { StructureDraft } from "@/features/shared/location/types";
 
@@ -16,6 +16,7 @@ export type AreaCodeField = "lac" | "tac";
 export type StationField =
   | "siteId"
   | "operatorId"
+  | "hostStationId"
   | "status"
   | "isConfirmed"
   | "notes"
@@ -50,6 +51,7 @@ export type BackhaulDraft = {
 export type StationDraft = {
   siteId: string;
   operatorId: number | null;
+  hostStationId: number | null;
   status: StationStatus;
   isConfirmed: boolean;
   notes: string;
@@ -123,11 +125,19 @@ export type EditError = {
   isQuiet?: boolean;
 };
 
+export type SiteStation = Pick<StationBase, "id" | "siteId" | "nodeName" | "operatorId" | "hostStationId">;
+
+export type HostSite = {
+  stationId: number | null;
+  stations: readonly SiteStation[];
+};
+
 export type EditSession = {
   kind: EditKind;
   action: EditAction;
   countryCode: string | null;
   hoistedTac: boolean;
+  editsHostStations: boolean;
   live: StationSnapshot | null;
   proposed: StationSnapshot | null;
   initial: StationSnapshot;

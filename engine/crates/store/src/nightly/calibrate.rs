@@ -305,8 +305,8 @@ async fn snap_cases(client: &impl GenericClient, half: Half) -> Result<Vec<SnapC
                         ELSE false END,
                    CASE WHEN t.location_id IS NOT NULL THEN t.location_id = st.location_id
                         WHEN t.official_site_id IS NOT NULL THEN EXISTS (
-                          SELECT 1 FROM public.stations_permits sp JOIN official.permits op ON op.id = sp.permit_id
-                          WHERE sp.station_id = st.id AND op.official_site_id = t.official_site_id
+                          SELECT 1 FROM public.stations_official_sites so
+                          WHERE so.station_id = st.id AND so.official_site_id = t.official_site_id
                         ) OR EXISTS (
                           SELECT 1 FROM official.sites os JOIN official.locations ol ON ol.id = os.location_id
                           WHERE os.id = t.official_site_id AND ST_DistanceSphere(ol.point, l.point) <= $3

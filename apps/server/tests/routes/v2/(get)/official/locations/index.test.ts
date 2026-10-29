@@ -157,11 +157,7 @@ describe("GET /official/locations", () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.locations", [located(21)]);
     dbMock.enqueueFor("select", "official.sites", [officialSiteRows]);
-    dbMock.enqueueFor("select", "stations_permits", [
-      { ownerId: 31, id: 5 },
-      { ownerId: 31, id: 5 },
-      { ownerId: 31, id: 9 },
-    ]);
+    dbMock.enqueueFor("select", "stations_official_sites", [{ officialSiteId: 31, stationId: 5 }]);
     dbMock.enqueueFor("select", "official.permits", [{ permit: officialPermitRow, sourceKey: "pl-uke" }]);
     dbMock.enqueueFor("select", "official.permit_listings", [
       { permitId: 41, key: "device-registry" },
@@ -182,7 +178,7 @@ describe("GET /official/locations", () => {
         sites: [
           {
             ...servedSite,
-            stationIds: [5, 9],
+            stationId: 5,
             permits: [{ ...servedPermit, datasets: ["device-registry", "permits"], sectors: [servedSector] }],
           },
         ],
@@ -197,7 +193,7 @@ describe("GET /official/locations", () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.locations", [located(21), located(22)]);
     dbMock.enqueueFor("select", "official.sites", [officialSiteRows]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
     const response = await injectMutation(route, { ...request, url: "/official/locations?include=sites" });
 

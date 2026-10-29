@@ -100,6 +100,7 @@ function createEmptyStation(): StationDraft {
   return {
     siteId: "",
     operatorId: null,
+    hostStationId: null,
     status: "awaitingCells",
     isConfirmed: false,
     notes: "",
@@ -335,6 +336,7 @@ export function toStationSnapshot(record: StationRecord): StationSnapshot {
     station: {
       siteId: record.siteId ?? "",
       operatorId: record.operatorId,
+      hostStationId: record.hostStationId,
       status: record.status,
       isConfirmed: record.isConfirmed,
       notes: record.notes ?? "",
@@ -374,6 +376,7 @@ function layStation(base: StationDraft, change: StationChange | null): StationDr
     ...base,
     siteId: change.siteId === undefined ? base.siteId : (change.siteId ?? ""),
     operatorId: change.operatorId ?? base.operatorId,
+    hostStationId: change.hostStationId === undefined ? base.hostStationId : change.hostStationId,
     notes: change.notes === undefined ? base.notes : (change.notes ?? ""),
     identifiers: layIdentifiers(base.identifiers, change.identifiers),
     backhaul: layBackhaul(base.backhaul, change.backhaul),

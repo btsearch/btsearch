@@ -1,4 +1,4 @@
-import { officialSites, stationsPermits } from "@openbts/drizzle";
+import { officialSites } from "@openbts/drizzle";
 import { type SQL, getTableUniqueName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
@@ -10,7 +10,7 @@ import { cacheCountryVisibility, cacheSourceVisibility } from "../../helpers/off
 const dialect = new PgDialect();
 const officialSitesTable = getTableUniqueName(officialSites);
 
-type RawFilter = { where: { RAW: (table: unknown) => SQL } };
+type RawFilter = { RAW: (table: unknown) => SQL };
 
 function storedStation(input: unknown) {
   const { id } = (input as { where: { id: number } }).where;
@@ -48,8 +48,8 @@ function scriptPublicSources() {
   cacheSourceVisibility([1]);
 }
 
-function rawFilter(input: unknown, table: unknown) {
-  const { sql, params } = dialect.sqlToQuery((input as RawFilter).where.RAW(table));
+function rawFilter(filter: unknown, table: unknown) {
+  const { sql, params } = dialect.sqlToQuery((filter as RawFilter).RAW(table));
   return { sql: sql.replace(/\s+/g, " "), params };
 }
 
@@ -65,7 +65,7 @@ describe("resolveTerrainStation", () => {
     expect((await resolveTerrainStation({ source: "official", id: 12 })).station.id).toBe(12);
     const [input] = dbMock.query.officialSites.findFirst.mock.calls[0] ?? [];
     expect(input).toMatchObject({ where: { id: 12 } });
-    const condition = rawFilter(input, officialSites);
+    const condition = rawFilter((input as { where: unknown }).where, officialSites);
     expect(condition.sql).toContain('"public_location"."source_id" in');
     expect(condition.params).toEqual([1, "XX"]);
   });
@@ -77,16 +77,17 @@ describe("resolveTerrainStation", () => {
     await expect(resolveTerrainStation({ source: "official", id: 12 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("takes the permit heights of one of our stations only from permits of public sources", async () => {
+  it("takes the permit heights of one of our stations only from its linked site of a public source", async () => {
     scriptPublicSources();
     dbMock.query.stations.findFirst.mockImplementation(async (input) => storedStation(input));
-    dbMock.query.stationsPermits.findMany.mockResolvedValue([]);
+    dbMock.query.stationsOfficialSites.findFirst.mockResolvedValue(undefined);
 
-    await resolveTerrainStation({ source: "internal", id: 12 });
-    const [input] = dbMock.query.stationsPermits.findMany.mock.calls[0] ?? [];
+    const { permitCandidates } = await resolveTerrainStation({ source: "internal", id: 12 });
+    const [input] = dbMock.query.stationsOfficialSites.findFirst.mock.calls[0] ?? [];
+    expect(permitCandidates).toEqual([]);
     expect(input).toMatchObject({ where: { station_id: 12 } });
-    const condition = rawFilter(input, stationsPermits);
-    expect(condition.sql).toContain('"official"."permits"."id" = "stations_permits"."permit_id"');
+    const condition = rawFilter((input as { where: { officialSite: unknown } }).where.officialSite, officialSites);
+    expect(condition.sql).toContain('"public_location"."id" = "official"."sites"."location_id"');
     expect(condition.sql).toContain('"public_location"."source_id" in');
     expect(condition.params).toEqual([1, "XX"]);
   });
@@ -105,12 +106,12 @@ describe("resolveTerrainStation", () => {
   it("takes the frequency and the band of our station's permit antennas from the permit's label", async () => {
     scriptPublicSources();
     dbMock.query.stations.findFirst.mockImplementation(async (input) => storedStation(input));
-    dbMock.query.stationsPermits.findMany.mockResolvedValue([{ permit: labelledPermit }]);
+    dbMock.query.stationsOfficialSites.findFirst.mockResolvedValue({ officialSite: { permits: [labelledPermit] } });
 
     const { permitCandidates } = await resolveTerrainStation({ source: "internal", id: 12 });
 
-    const [input] = dbMock.query.stationsPermits.findMany.mock.calls[0] ?? [];
-    expect((input as { with: { permit: unknown } }).with.permit).toEqual({ with: { sectors: true } });
+    const [input] = dbMock.query.stationsOfficialSites.findFirst.mock.calls[0] ?? [];
+    expect((input as { with: { officialSite: unknown } }).with.officialSite).toEqual({ with: { permits: { with: { sectors: true } } } });
     expect(permitCandidates).toEqual([labelledCandidate]);
   });
 });
@@ -122,7 +123,7 @@ describe("resolveSharedSibling", () => {
   ])("resolves the first shared sibling of one of our stations: $expected", async ({ siblings, expected }) => {
     scriptPublicSources();
     dbMock.query.stations.findFirst.mockImplementation(async (input) => storedStation(input));
-    dbMock.query.stationsPermits.findMany.mockResolvedValue([]);
+    dbMock.query.stationsOfficialSites.findFirst.mockResolvedValue(undefined);
     dbMock.enqueueFor("select", "stations", siblings);
     if (expected !== undefined) scriptPublicSources();
 

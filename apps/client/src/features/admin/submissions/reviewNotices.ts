@@ -64,11 +64,6 @@ function toSharedField(change: ChangeItem): SharedPlaceField[] {
   return field === undefined ? [] : [{ field, label: change.label }];
 }
 
-export function findReviewedLocationId(session: EditSession): number | null {
-  const place = session.live === null ? session.draft.place : session.live.place;
-  return place?.locationId ?? null;
-}
-
 function findSharedPlaceEffect(session: EditSession, changes: readonly ChangeItem[], stationCount: number): SharedPlaceEffect | null {
   if (stationCount === 0 || session.live === null || session.draft.place === null || movesStationAlone(session)) return null;
 

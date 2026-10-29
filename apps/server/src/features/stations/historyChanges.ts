@@ -62,6 +62,7 @@ const STATION_COLUMNS = [
   ["status", "status"],
   ["notes", "notes"],
   ["operator_id", "operatorId"],
+  ["ran_host_station_id", "hostStationId"],
   ["location_id", "location"],
   ["is_confirmed", "isConfirmed"],
 ] as const;

@@ -181,7 +181,7 @@
   "dialog": {
     "virtualStation": "Wirtualna",
     "virtualStationTitle": "Stacja wirtualna",
-    "virtualStationPhysical": "Działa na sprzęcie i pozwoleniu poniższej stacji fizycznej w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
+    "virtualStationHost": "Działa na sprzęcie poniższej stacji w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
     "btsStation": "Stacja bazowa",
     "sourceDatabase": "Baza",
     "inactiveStationTitle": "Stacja oznaczona do usunięcia",

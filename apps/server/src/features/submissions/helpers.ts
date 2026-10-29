@@ -95,7 +95,7 @@ export type ProposedStationChanges = Partial<Pick<ProposedStationRow, ProposedSt
 export type ProposedLocationChanges = Partial<Pick<ProposedLocationRow, ProposedLocationField | "structure_owner_name">>;
 export type ProposedStructureChange = StructureChange & Pick<ProposedLocationChanges, "structure_owner_name">;
 
-type CurrentStationForDiff = { station_id: string | null; operator_id: number | null; notes: string | null };
+type CurrentStationForDiff = { station_id: string | null; operator_id: number | null; notes: string | null; ran_host_station_id: number | null };
 type CurrentExtraIdentifierForDiff = { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
 type CurrentBackhaulForDiff = { type: string; speed: number | null; model: string | null } | null;
 type CurrentLocationForDiff = StructureChange & {
@@ -157,6 +157,9 @@ export function diffProposedStation(
     changes.operator_id = stationData.operator_id;
   const proposedNotes = normalizeText(stationData.notes);
   if (stationData.notes !== undefined && proposedNotes !== normalizeText(currentStation.notes)) changes.notes = proposedNotes;
+  if (stationData.ran_host_station_id !== undefined && stationData.ran_host_station_id !== currentStation.ran_host_station_id) {
+    changes.ran_host_station_id = stationData.ran_host_station_id;
+  }
   if (stationData.networks_id !== undefined && stationData.networks_id !== (currentExtraIdentifier?.networks_id ?? null))
     changes.networks_id = stationData.networks_id;
   if (stationData.networks_name !== undefined && normalizeText(stationData.networks_name) !== normalizeText(currentExtraIdentifier?.networks_name))

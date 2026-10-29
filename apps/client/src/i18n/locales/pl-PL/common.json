@@ -82,6 +82,7 @@
     "id": "ID",
     "stationId": "ID stacji",
     "operator": "Operator",
+    "hostStation": "Stacja fizyczna",
     "allOperators": "Wszyscy operatorzy",
     "region": "Województwo",
     "country": "Kraj",

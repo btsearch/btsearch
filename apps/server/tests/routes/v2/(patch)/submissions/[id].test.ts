@@ -793,6 +793,20 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
+  it("refuses even removing a host in a country whose host stations come from the official sites", async () => {
+    const fixture = draftFixture([draftRadios[0]]);
+    const body = { station: { siteId: "SITE-7", operatorId: 7, hostStationId: null } } satisfies SubmissionUpdate;
+    scriptDraftUpdate(fixture, body);
+    dbMock.query.proposedLocations.findFirst.mockResolvedValue(fixture.snapshot.proposedLocation);
+    dbMock.enqueueFor("select", "regions", [{ countryCode: "PL" }]);
+    dbMock.enqueueFor("select", "operators", [{ countryCode: "PL" }]);
+    const response = await injectMutation(route, { ...request, payload: body }, options);
+
+    expectError(response, 400, "BAD_REQUEST", "Host stations in this country are worked out from the official sites and cannot be set");
+    expect(response.json().errors[0].details).toEqual([{ field: "station/hostStationId", kind: "hostComputed" }]);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
   it("requires an operator when replacing a new station proposal", async () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.query.submissions.findFirst.mockResolvedValue(submissionRow);

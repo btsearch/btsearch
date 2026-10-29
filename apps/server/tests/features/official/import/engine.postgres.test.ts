@@ -20,7 +20,7 @@ import {
   operators,
   regions,
   stations,
-  stationsPermits,
+  stationsOfficialSites,
   userLists,
   users,
 } from "@openbts/drizzle";
@@ -746,7 +746,7 @@ describe.skipIf(DATABASE_URL === "")(
           .values({ station_id: "ET1", operator_id: world.operatorIds.mapped })
           .returning({ id: stations.id });
         if (!station) throw new Error("The station was not added");
-        await tx.insert(stationsPermits).values({ station_id: station.id, permit_id: permit.id });
+        await tx.insert(stationsOfficialSites).values({ station_id: station.id, official_site_id: siteBefore.id });
 
         const remapped = await remapToOtherOperator(world, LICENSEE_NAME);
 
@@ -755,8 +755,11 @@ describe.skipIf(DATABASE_URL === "")(
         expect(await watchesOf(world)).toEqual([{ userId, officialSiteId: siteBefore.id }]);
         expect(await listedSitesOf(tx, userId)).toEqual([{ stations: { internal: [], official: [siteBefore.id] } }]);
         expect(
-          await tx.select({ permitId: stationsPermits.permit_id }).from(stationsPermits).where(eq(stationsPermits.station_id, station.id)),
-        ).toEqual([{ permitId: permit.id }]);
+          await tx
+            .select({ officialSiteId: stationsOfficialSites.official_site_id })
+            .from(stationsOfficialSites)
+            .where(eq(stationsOfficialSites.station_id, station.id)),
+        ).toEqual([{ officialSiteId: siteBefore.id }]);
         expect(await changesOf(world, remapped)).toEqual({ site_remapped: 1 });
         expect(
           await tx

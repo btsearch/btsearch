@@ -135,6 +135,7 @@ function toStationInput(station: StationChangeInput): StationInput {
     networks_id: typeof networksId === "string" ? Number(networksId) : networksId,
     networks_name: identifiers.get("networksName"),
     mno_name: identifiers.get("operatorName"),
+    ran_host_station_id: station.hostStationId,
     ...toBackhaulInput(station.backhaul),
   };
 }

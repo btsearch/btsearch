@@ -15,7 +15,7 @@ export type StationHistoryAction = (typeof STATION_HISTORY_ACTIONS)[number];
 export const STATION_HISTORY_REVERT_STATUSES = ["none", "partial", "complete"] as const;
 export type StationHistoryRevertStatus = (typeof STATION_HISTORY_REVERT_STATUSES)[number];
 
-export const STATION_HISTORY_STATION_FIELDS = ["siteId", "status", "notes", "operatorId", "isConfirmed"] as const;
+export const STATION_HISTORY_STATION_FIELDS = ["siteId", "status", "notes", "operatorId", "hostStationId", "isConfirmed"] as const;
 export const STATION_HISTORY_LOCATION_FIELDS = [
   "regionId",
   "city",

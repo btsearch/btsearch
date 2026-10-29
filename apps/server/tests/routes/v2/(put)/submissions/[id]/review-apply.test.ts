@@ -36,6 +36,16 @@ const reviewedDetails = {
   nr: { type: "sa", gnbid: 100, clid: 2, nrtac: 42, pci: 1007, arfcn: 630000, supports_nr_redcap: true, gnbid_length: undefined },
 };
 
+function withProposedHost(scenario: ReturnType<typeof prepareNewReview>) {
+  const proposedStation = {
+    ...scenario.proposedStation,
+    ran_host_station_id: 4,
+    changed_fields: [...scenario.proposedStation.changed_fields, "ran_host_station_id"],
+  };
+  dbMock.query.proposedStations.findFirst.mockResolvedValue(proposedStation);
+  return { ...scenario, proposedStation };
+}
+
 describe("submission approval application", () => {
   it.each([22, 24, 32])("applies an explicitly selected %i-bit gNBID length when approving an NR SA update", async (gnbidLength) => {
     const scenario = prepareUpdatedCellReview({ ...cellInputs.nr, mode: "sa", gnbidLength });
@@ -219,6 +229,35 @@ describe("submission approval application", () => {
     dbMock.enqueueOperatorCountries([{ foreignOperatorStationId: 12 }]);
     expectError(await injectMutation(route, request, options), 400, "BAD_REQUEST", "The operator belongs to another country than the location");
     expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "submissions")).toBe(false);
+  });
+
+  it("checks a proposed host station again on approval and refuses one that has moved since", async () => {
+    const scenario = withProposedHost(prepareNewReview([], { withSector: false }));
+    writeNewReview(scenario);
+    dbMock.enqueueHostLinks([
+      { id: 12, locationId: 2, operatorId: 7, hostStationId: 4, countryCode: "GB", longitude: 21, latitude: 52 },
+      { id: 4, locationId: 3, operatorId: 8, hostStationId: null, countryCode: "GB", longitude: 21.1, latitude: 52.1 },
+    ]);
+    const response = await injectMutation(route, request, options);
+
+    expectError(response, 400, "BAD_REQUEST", "The host station must be at the same location as the station");
+    expect(response.json().errors[0].details).toEqual([{ field: "station/hostStationId", kind: "hostElsewhere" }]);
+    expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "submissions")).toBe(false);
+  });
+
+  it("creates the station with its proposed host on approval", async () => {
+    const scenario = withProposedHost(prepareNewReview([], { withSector: false }));
+    dbMock.enqueueHostLinks([
+      { id: 12, locationId: 2, operatorId: 7, hostStationId: 4, countryCode: "GB", longitude: 21, latitude: 52 },
+      { id: 4, locationId: 2, operatorId: 8, hostStationId: null, countryCode: "GB", longitude: 21, latitude: 52 },
+    ]);
+    writeNewReview(scenario);
+    const response = await injectMutation(route, request, options);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.changes.station).toMatchObject({ hostStationId: 4 });
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "stations")?.values).toMatchObject({ ran_host_station_id: 4 });
+    expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "stations")).toBe(false);
   });
 
   it("stops a combined proposal when a later cell insert returns no created row", async () => {

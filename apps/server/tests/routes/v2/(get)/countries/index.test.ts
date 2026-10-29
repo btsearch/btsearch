@@ -15,8 +15,9 @@ const packCapabilities = {
   emf: true,
   terrainProfiles: { receiverBounds: { west: 13.8, south: 48.8, east: 24.5, north: 55.2 } },
   kmz: true,
+  editableHostStations: false,
 };
-const noCapabilities = { official: false, microwaveLinks: false, emf: false, terrainProfiles: null, kmz: false };
+const noCapabilities = { official: false, microwaveLinks: false, emf: false, terrainProfiles: null, kmz: false, editableHostStations: true };
 const tools = ["analyzer", "measurements"];
 const visible = { code: "PL", isVisible: true, contributions: "open", tools, features, capabilities: packCapabilities, defaultView: null };
 const hidden = { code: "US", isVisible: false, contributions: "closed", tools, features, capabilities: noCapabilities, defaultView: null };
@@ -89,6 +90,20 @@ describe("getCountries", () => {
 
     const adminApp = await createRouteHarness(getCountries, { session: userSession(userId, "admin") });
     expect((await adminApp.inject({ method: "GET", url: "/countries" })).json().data[0].capabilities).toEqual(packCapabilities);
+  });
+
+  it("lets editors set host stations only where no registered official source lists sites, whatever the stored sources say", async () => {
+    dbMock.query.countries.findMany.mockResolvedValue(["PL", "FR", "GB"].map((code) => ({ ...visible, ...viewColumns, code })));
+    scriptSourceCapabilities([], [{ id: 2, countryCode: "GB", isVisible: true, layers: ["sites"] }]);
+    const app = await createRouteHarness(getCountries);
+    const countries: { code: string; capabilities: { editableHostStations: boolean } }[] = (
+      await app.inject({ method: "GET", url: "/countries" })
+    ).json().data;
+    expect(countries.map(({ code, capabilities }) => [code, capabilities.editableHostStations])).toEqual([
+      ["PL", false],
+      ["FR", false],
+      ["GB", true],
+    ]);
   });
 });
 

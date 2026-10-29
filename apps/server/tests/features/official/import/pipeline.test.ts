@@ -427,7 +427,6 @@ describe("a run through the engine", () => {
     dbMock.enqueueFor("select", "official.import_run_steps", []);
     dbMock.enqueueFor("insert", "official.import_run_steps", undefined);
     dbMock.enqueueFor("select", "official.permits", [{ permitId: 600, officialSiteId: 502 }]);
-    dbMock.enqueueFor("select", "stations_permits", [{ permitId: 600, stationId: 100 }]);
     dbMock.enqueueFor("insert", "official.import_changes", undefined);
     dbMock.enqueueFor("delete", "official.permits", undefined);
     dbMock.enqueueFor("update", "official.import_run_steps", undefined);
@@ -564,7 +563,6 @@ describe("a run through the engine", () => {
       "begin",
       "select official.import_runs",
       "select official.permits",
-      "select stations_permits",
       "insert official.import_changes",
       "delete official.permits",
       "commit",
@@ -600,10 +598,7 @@ describe("a run through the engine", () => {
         { runId: RUN_ID, kind: "microwave_link_added", datasetId: 3, slice: "", microwaveLinkId: 804 },
         { runId: RUN_ID, kind: "microwave_link_archived", datasetId: 3, slice: "", microwaveLinkId: 803 },
       ],
-      [
-        { runId: RUN_ID, kind: "permit_archived", officialSiteId: 502, permitId: 600 },
-        { runId: RUN_ID, kind: "station_unlinked", permitId: 600, stationId: 100 },
-      ],
+      [{ runId: RUN_ID, kind: "permit_archived", officialSiteId: 502, permitId: 600 }],
     ]);
     const linkUpdates = dbMock.calls.filter((call) => call.operation === "execute" && executedLabel(call) === "apply: update links");
     expect(linkUpdates.map((call) => executedQuery(call).params[0])).toEqual([FILE_DATE.toISOString()]);

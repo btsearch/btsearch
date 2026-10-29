@@ -33,8 +33,8 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const stationsInsertSchema = createInsertSchema(stations, {
   station_id: (column) => column.refine((siteId) => !isPlaceholderSiteId(siteId), { message: RESERVED_SITE_ID_MESSAGE }),
-}).omit({ extra_address: true, status: true, statusChangedAt: true });
-const stationSchema = createSelectSchema(stations);
+}).omit({ extra_address: true, status: true, statusChangedAt: true, ran_host_station_id: true });
+const stationSchema = createSelectSchema(stations).omit({ ran_host_station_id: true });
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true });
 const bandsSchema = createSelectSchema(bands);
 const gsmCellsSchema = createSelectSchema(gsmCells).omit({ cell_id: true });

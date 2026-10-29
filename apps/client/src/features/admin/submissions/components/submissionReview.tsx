@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReviewSubmissionMutation, useSaveSubmissionMutation } from "@/features/admin/submissions/mutations";
-import { buildReviewFacts, findReviewedLocationId } from "@/features/admin/submissions/reviewNotices";
+import { buildReviewFacts } from "@/features/admin/submissions/reviewNotices";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { stationHistoryQueryOptions } from "@/features/station-details/station/history/api";
 import type { StationHistoryItem } from "@/features/station-details/station/history/types";
@@ -41,7 +41,14 @@ import { retryEditLookups } from "@/features/station-editing/data/lookups";
 import { submissionPhotosQueryOptions } from "@/features/station-editing/data/submissionPhotos";
 import { type StationDraftApi, useBlockedSaves, useEditText, useStationDraft } from "@/features/station-editing/hooks/useStationDraft";
 import { buildSubmissionReview, buildSubmissionUpdate } from "@/features/station-editing/model/bodies";
-import { buildPhotoChanges, countDraftCells, findNodeName, findSiteIdRemoval, formatCoordinatePair } from "@/features/station-editing/model/changes";
+import {
+  buildPhotoChanges,
+  countDraftCells,
+  findNodeName,
+  findSiteIdRemoval,
+  findStationLocationId,
+  formatCoordinatePair,
+} from "@/features/station-editing/model/changes";
 import type { SessionInput } from "@/features/station-editing/model/draftReducer";
 import { type BuiltKeys, isServerRefusal, toEditErrors } from "@/features/station-editing/model/serverRefusals";
 import { findDraftOperator, listProposalOrphans, toProposedSnapshot, toStationSnapshot } from "@/features/station-editing/model/snapshots";
@@ -167,13 +174,13 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
 
   const isPending = submission.status === "pending";
   const isStale = isPending && hasStaleRefusal;
-  const edit = useStationDraft({ ...draftInput, canEdit: isPending && !isStale && submission.action !== "delete" });
+  const editedStationId = opened.station?.id ?? null;
+  const edit = useStationDraft({ ...draftInput, stationId: editedStationId, canEdit: isPending && !isStale && submission.action !== "delete" });
   const { blockedSaves, countBlockedSave, reportBlockedSave } = useBlockedSaves(edit.dispatch);
   const saveMutation = useSaveSubmissionMutation();
   const reviewMutation = useReviewSubmissionMutation();
-  const editedStationId = opened.station?.id ?? null;
   const shownStationId = station?.id ?? null;
-  const placeStations = useOwnPlaceStations(findReviewedLocationId(edit.session), editedStationId);
+  const placeStations = useOwnPlaceStations(findStationLocationId(edit.session), editedStationId);
   const { data: uploadedPhotos } = useQuery(submissionPhotosQueryOptions(submission.id));
   const { data: historyPages } = useInfiniteQuery({
     ...stationHistoryQueryOptions(shownStationId ?? NO_STATION_ID),

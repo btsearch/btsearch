@@ -8,13 +8,13 @@ import {
   operators,
   regions,
   stations,
-  stationsPermits,
+  stationsOfficialSites,
 } from "@openbts/drizzle";
 import type * as productionDatabase from "@openbts/drizzle/db";
-import { asc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { type LinkGroupKey, correctStationLinks, readOfficialGroupsAfter } from "../../../../src/features/official/links.js";
+import { type LinkGroupKey, type StationLinkChanges, correctStationLinks, readOfficialGroupsAfter } from "../../../../src/features/official/links.js";
 import type { DbTx } from "../../../../src/types/global.js";
 
 const DATABASE_URL = process.env.OFFICIAL_IMPORT_TEST_DATABASE_URL ?? "";
@@ -29,6 +29,7 @@ const ELSEWHERE = -31.09;
 const NONE = { added: [], removed: [] };
 
 type World = { tx: DbTx; sourceId: number; regionId: number; group: LinkGroupKey; stationId: number };
+type OpenedWorld = World & { otherSiteId: number };
 
 class RolledBack extends Error {}
 
@@ -114,7 +115,7 @@ async function moveSite(world: World, officialSiteId: number, longitude: number)
     .where(eq(officialSites.id, officialSiteId));
 }
 
-async function openWorld(tx: DbTx): Promise<World> {
+async function openWorld(tx: DbTx): Promise<OpenedWorld> {
   await tx.insert(countries).values({ code: COUNTRY_CODE });
   const [region] = await tx
     .insert(regions)
@@ -143,20 +144,18 @@ async function openWorld(tx: DbTx): Promise<World> {
   const stationId = await addOurStation({ tx, regionId: region.id, group }, SITE_CODE, W);
   const world = { tx, sourceId: source.id, regionId: region.id, group, stationId };
   await addOurStation(world, OTHER_SITE_CODE, ELSEWHERE);
-  await addSite(world, ELSEWHERE, ["LT/9"], OTHER_SITE_CODE);
+  const otherSiteId = await addSite(world, ELSEWHERE, ["LT/9"], OTHER_SITE_CODE);
 
-  return world;
+  return { ...world, otherSiteId };
 }
 
-async function linkedPermitsOf({ tx, group }: World, siteCode = SITE_CODE): Promise<(string | null)[]> {
+async function linkedSitesOf({ tx, group }: World, siteCode = SITE_CODE): Promise<number[]> {
   const linked = await tx
-    .select({ number: officialPermits.decision_number })
-    .from(stationsPermits)
-    .innerJoin(officialPermits, eq(officialPermits.id, stationsPermits.permit_id))
-    .innerJoin(stations, eq(stations.id, stationsPermits.station_id))
-    .where(sql`${stations.station_id} = ${siteCode} AND ${stations.operator_id} = ${group.operatorId}`)
-    .orderBy(asc(officialPermits.decision_number));
-  return linked.map(({ number }) => number);
+    .select({ officialSiteId: stationsOfficialSites.official_site_id })
+    .from(stationsOfficialSites)
+    .innerJoin(stations, eq(stations.id, stationsOfficialSites.station_id))
+    .where(sql`${stations.station_id} = ${siteCode} AND ${stations.operator_id} = ${group.operatorId}`);
+  return linked.map(({ officialSiteId }) => officialSiteId);
 }
 
 async function correctEveryGroup({ tx, sourceId }: World) {
@@ -167,13 +166,8 @@ async function correctEveryGroup({ tx, sourceId }: World) {
   return correctStationLinks(tx, groups);
 }
 
-async function numbersOf({ tx }: World, { added, removed }: Awaited<ReturnType<typeof correctStationLinks>>) {
-  const numberOf = async ({ permitId }: { permitId: number }): Promise<string | null | undefined> => {
-    const [permit] = await tx.select({ number: officialPermits.decision_number }).from(officialPermits).where(eq(officialPermits.id, permitId));
-    return permit?.number;
-  };
-  const byNumber = (left: string | null | undefined, right: string | null | undefined) => (left ?? "").localeCompare(right ?? "");
-  return { added: (await Promise.all(added.map(numberOf))).sort(byNumber), removed: (await Promise.all(removed.map(numberOf))).sort(byNumber) };
+function siteIdsOf({ added, removed }: StationLinkChanges): { added: number[]; removed: number[] } {
+  return { added: added.map((link) => link.officialSiteId), removed: removed.map((link) => link.officialSiteId) };
 }
 
 describe.skipIf(DATABASE_URL === "")(
@@ -200,47 +194,47 @@ describe.skipIf(DATABASE_URL === "")(
         const moving = await addSite(world, X, ["LT/1"]);
         await addSite(world, Z, ["LT/2"], SITE_CODE, "second");
         await correctEveryGroup(world);
-        expect(await linkedPermitsOf(world)).toEqual([]);
-        expect(await linkedPermitsOf(world, OTHER_SITE_CODE)).toEqual(["LT/9"]);
+        expect(await linkedSitesOf(world)).toEqual([]);
+        expect(await linkedSitesOf(world, OTHER_SITE_CODE)).toEqual([world.otherSiteId]);
 
         await moveSite(world, moving, W);
-        expect(await numbersOf(world, await correctStationLinks(tx, [world.group]))).toEqual({ added: ["LT/1"], removed: [] });
-        expect(await linkedPermitsOf(world)).toEqual(["LT/1"]);
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [moving], removed: [] });
+        expect(await linkedSitesOf(world)).toEqual([moving]);
         expect(await correctEveryGroup(world)).toEqual(NONE);
 
         await moveSite(world, moving, X);
-        expect(await numbersOf(world, await correctStationLinks(tx, [world.group]))).toEqual({ added: [], removed: ["LT/1"] });
-        expect(await linkedPermitsOf(world)).toEqual([]);
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [], removed: [moving] });
+        expect(await linkedSitesOf(world)).toEqual([]);
         expect(await correctEveryGroup(world)).toEqual(NONE);
-        expect(await linkedPermitsOf(world, OTHER_SITE_CODE)).toEqual(["LT/9"]);
+        expect(await linkedSitesOf(world, OTHER_SITE_CODE)).toEqual([world.otherSiteId]);
       }));
 
     it("links by group: a second site with the same pair appears and takes away the first one's fallback link", () =>
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
-        await addSite(world, X, ["LT/1", "LT/2"]);
-        expect(await numbersOf(world, await correctStationLinks(tx, [world.group]))).toEqual({ added: ["LT/1", "LT/2"], removed: [] });
-        expect(await linkedPermitsOf(world, OTHER_SITE_CODE)).toEqual([]);
-        expect(await numbersOf(world, await correctEveryGroup(world))).toEqual({ added: ["LT/9"], removed: [] });
+        const first = await addSite(world, X, ["LT/1", "LT/2"]);
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [first], removed: [] });
+        expect(await linkedSitesOf(world, OTHER_SITE_CODE)).toEqual([]);
+        expect(siteIdsOf(await correctEveryGroup(world))).toEqual({ added: [world.otherSiteId], removed: [] });
 
         await addSite(world, Z, ["LT/3"], SITE_CODE, "second");
-        expect(await numbersOf(world, await correctStationLinks(tx, [world.group]))).toEqual({ added: [], removed: ["LT/1", "LT/2"] });
-        expect(await linkedPermitsOf(world)).toEqual([]);
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [], removed: [first] });
+        expect(await linkedSitesOf(world)).toEqual([]);
         expect(await correctEveryGroup(world)).toEqual(NONE);
-        expect(await linkedPermitsOf(world, OTHER_SITE_CODE)).toEqual(["LT/9"]);
+        expect(await linkedSitesOf(world, OTHER_SITE_CODE)).toEqual([world.otherSiteId]);
       }));
 
     it("links by group: the second site disappears and gives the fallback link back", () =>
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
-        await addSite(world, X, ["LT/1", "LT/2"]);
+        const first = await addSite(world, X, ["LT/1", "LT/2"]);
         const second = await addSite(world, Z, ["LT/3"], SITE_CODE, "second");
         await correctEveryGroup(world);
-        expect(await linkedPermitsOf(world)).toEqual([]);
+        expect(await linkedSitesOf(world)).toEqual([]);
 
         await tx.delete(officialPermits).where(eq(officialPermits.official_site_id, second));
-        expect(await numbersOf(world, await correctStationLinks(tx, [world.group]))).toEqual({ added: ["LT/1", "LT/2"], removed: [] });
-        expect(await linkedPermitsOf(world)).toEqual(["LT/1", "LT/2"]);
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [first], removed: [] });
+        expect(await linkedSitesOf(world)).toEqual([first]);
         expect(await correctEveryGroup(world)).toEqual(NONE);
 
         await tx.delete(officialSites).where(eq(officialSites.id, second));
@@ -248,18 +242,44 @@ describe.skipIf(DATABASE_URL === "")(
         expect(await correctEveryGroup(world)).toEqual(NONE);
       }));
 
+    it("moves the link to a site that appears at our station, and back when that site loses its permits", () =>
+      rolledBack(async (tx) => {
+        const world = await openWorld(tx);
+        const first = await addSite(world, X, ["LT/1"]);
+        await correctStationLinks(tx, [world.group]);
+        expect(await linkedSitesOf(world)).toEqual([first]);
+
+        const atTheStation = await addSite(world, W, ["LT/2"], SITE_CODE, "second");
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [atTheStation], removed: [first] });
+        expect(await linkedSitesOf(world)).toEqual([atTheStation]);
+
+        await tx.delete(officialPermits).where(eq(officialPermits.official_site_id, atTheStation));
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [first], removed: [atTheStation] });
+        expect(await linkedSitesOf(world)).toEqual([first]);
+        expect(await correctStationLinks(tx, [world.group])).toEqual(NONE);
+      }));
+
+    it("removes the link to a site that has left our station's group", () =>
+      rolledBack(async (tx) => {
+        const world = await openWorld(tx);
+        const site = await addSite(world, X, ["LT/1"]);
+        await correctStationLinks(tx, [world.group]);
+        expect(await linkedSitesOf(world)).toEqual([site]);
+
+        await tx.update(officialSites).set({ station_id: "LT7" }).where(eq(officialSites.id, site));
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [], removed: [site] });
+        expect(await linkedSitesOf(world)).toEqual([]);
+      }));
+
     it("pages the groups of the official sites after a given one, and corrects without row locks when told to", () =>
       rolledBack(async (tx) => {
         const world = await openWorld(tx);
-        await addSite(world, X, ["LT/1"]);
+        const site = await addSite(world, X, ["LT/1"]);
 
         const [next] = await readOfficialGroupsAfter(tx, { siteId: SITE_CODE, operatorId: world.group.operatorId - 1 });
         expect(next).toEqual({ siteId: SITE_CODE, operatorId: world.group.operatorId });
 
-        expect(await numbersOf(world, await correctStationLinks(tx, [world.group], { locksStations: false }))).toEqual({
-          added: ["LT/1"],
-          removed: [],
-        });
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group], { locksStations: false }))).toEqual({ added: [site], removed: [] });
         expect(await correctStationLinks(tx, [world.group])).toEqual(NONE);
       }));
   },

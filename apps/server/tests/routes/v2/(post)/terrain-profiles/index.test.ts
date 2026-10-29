@@ -16,7 +16,7 @@ function station(source: "internal" | "official" = "internal", countryCode = "PL
   const row = { id: 1, station_id: "A1", location: { id: 2, latitude, longitude: 21, region: { countryCode } }, operator: null, permits: [] };
   if (source === "internal") {
     dbMock.query.stations.findFirst.mockResolvedValue(row);
-    dbMock.query.stationsPermits.findMany.mockResolvedValue([]);
+    dbMock.query.stationsOfficialSites.findFirst.mockResolvedValue(undefined);
   } else dbMock.query.officialSites.findFirst.mockResolvedValue(row);
 }
 
@@ -145,7 +145,7 @@ describe("POST /terrain-profiles", () => {
     const payload = source === "internal" ? body : { officialSiteId: 1, receiver };
 
     expect((await app.inject({ method: "POST", url: "/terrain-profiles", payload })).statusCode).toBe(404);
-    expect(dbMock.query.stationsPermits.findMany).not.toHaveBeenCalled();
+    expect(dbMock.query.stationsOfficialSites.findFirst).not.toHaveBeenCalled();
     expect(redisMock.get).not.toHaveBeenCalledWith(terrainKey);
     expect(redisMock.setEx).not.toHaveBeenCalled();
   });

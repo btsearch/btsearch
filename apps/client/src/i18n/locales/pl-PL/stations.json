@@ -182,7 +182,11 @@
       "mainPhotoNotPicked": "Zdjęcie główne musi być wśród wybranych",
       "tooManyNetworks": "{{rat}}: najwyżej {{max}} sieci oprócz sieci właściciela",
       "networkOtherCountry": "Sieci {{code}} nie ma w kraju stacji",
-      "operatorOtherCountry": "Ten operator należy do innego kraju niż lokalizacja"
+      "operatorOtherCountry": "Ten operator należy do innego kraju niż lokalizacja",
+      "hostElsewhere": "Stacja fizyczna: musi być w tej samej lokalizacji",
+      "hostSameOperator": "Stacja fizyczna: musi należeć do innego operatora",
+      "hostIsHosted": "Stacja fizyczna: wybrana stacja sama jest stacją wirtualną",
+      "hostingStation": "Stacja fizyczna: na sprzęcie tej stacji działają inne stacje, więc sama nie może być stacją wirtualną"
     },
     "refusals": {
       "unknown": "Serwer odrzucił zapis: {{message}}",
@@ -226,7 +230,9 @@
       "deleteOnlyNote": "Zgłoszenie usunięcia stacji może mieć tylko notatkę",
       "networkGone": "Jedna z wybranych sieci już nie istnieje",
       "ownerNetworkMissing": "Sieci muszą obejmować główny kod właściciela stacji",
-      "networksNotTaken": "Komórki GSM nie nadają innych sieci"
+      "networksNotTaken": "Komórki GSM nie nadają innych sieci",
+      "hostComputed": "Stacja fizyczna: w tym kraju wynika z rejestru i nie można jej ustawić",
+      "hostSelf": "Stacja fizyczna: nie może to być ta sama stacja"
     },
     "frame": {
       "tabs": "Części stacji",
@@ -243,7 +249,9 @@
       "ownCorrection": "Twoja poprawka"
     },
     "stationCard": {
-      "networksIdPlaceholder": "np. 12345"
+      "networksIdPlaceholder": "np. 12345",
+      "noHost": "Brak",
+      "hostsOthers": "Na sprzęcie tej stacji działają inne stacje"
     },
     "azimuths": {
       "cellsOnAzimuth_one": "{{count, number}} komórka na tym azymucie",

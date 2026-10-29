@@ -1,4 +1,4 @@
-export { officialSourceByKey, officialSources } from "./core/sourceRegistry.ts";
+export { hasOfficialSites, officialSourceByKey, officialSources } from "./core/sourceRegistry.ts";
 export { WHOLE_DATASET_SLICE } from "./core/sources.ts";
 export type {
   AntennaPlacement,

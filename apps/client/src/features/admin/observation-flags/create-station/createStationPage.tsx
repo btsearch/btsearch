@@ -182,7 +182,7 @@ function SiteStationEditor({ site, flag, prefill, suggestion, isSwitchedOff }: S
     },
   });
   const isBusy = createMutation.isPending || createMutation.isSuccess;
-  const edit = useStationDraft({ ...sessionInput, canEdit: !isBusy });
+  const edit = useStationDraft({ ...sessionInput, stationId: null, canEdit: !isBusy });
   const feedback = useSaveFeedback(edit);
   const groupNames = useGroupNames(site, flag);
   const siteName = getEstimatedSiteName(site);

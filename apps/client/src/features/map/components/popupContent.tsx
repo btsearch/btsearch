@@ -34,7 +34,7 @@ import { RanSharingLink } from "@/features/station-details/components/sharingLin
 import { locationPhotoRecordsQueryOptions } from "@/features/station-details/station/api";
 import { StationStructureLine } from "@/features/station-details/station/components/panel/stationStructureLine";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
-import { findHostStation, getStationNumber } from "@/features/station-details/station/utils/stations";
+import { findHostStation, getStationCountryCode, getStationNumber } from "@/features/station-details/station/utils/stations";
 import { getStructureOwnerBrand } from "@/features/station-details/station/utils/structure";
 import { StationNumberMark } from "@/features/stations/components/stationNumberMark";
 import { getOperatorTintGradient } from "@/lib/cellular/operators";
@@ -93,12 +93,13 @@ function PopupHostStationLink({ station, onOpen }: PopupHostStationLinkProps) {
 
 type PopupHostedStationCardProps = {
   hostStation: MapPointStation | null;
+  countryCode: string | null;
   isHostLoading: boolean;
   anchor?: RefObject<HTMLElement | null>;
   onOpenHost: (stationId: number) => void;
 };
 
-function PopupHostedStationCard({ hostStation, isHostLoading, anchor, onOpenHost }: PopupHostedStationCardProps) {
+function PopupHostedStationCard({ hostStation, countryCode, isHostLoading, anchor, onOpenHost }: PopupHostedStationCardProps) {
   const { t } = useTranslation("stationDetails");
 
   return (
@@ -108,7 +109,7 @@ function PopupHostedStationCard({ hostStation, isHostLoading, anchor, onOpenHost
         <PopoverTitle className="text-xs font-semibold">{t("dialog.virtualStationTitle")}</PopoverTitle>
       </div>
       <PopoverDescription className="text-[11px] leading-snug">
-        <Trans t={t} i18nKey="dialog.virtualStationPhysical" components={{ ranSharingLink: <RanSharingLink /> }} />
+        <Trans t={t} i18nKey="dialog.virtualStationHost" components={{ ranSharingLink: <RanSharingLink countryCode={countryCode} /> }} />
       </PopoverDescription>
       {hostStation !== null ? <PopupHostStationLink station={hostStation} onOpen={onOpenHost} /> : null}
       {hostStation === null && isHostLoading ? (
@@ -125,11 +126,12 @@ function PopupHostedStationCard({ hostStation, isHostLoading, anchor, onOpenHost
 type PopupHostedStationProps = {
   badgeRef: RefObject<HTMLElement | null>;
   hostStation: MapPointStation | null;
+  countryCode: string | null;
   isHostLoading: boolean;
   onOpenStation: (stationId: number) => boolean | void;
 };
 
-function PopupHostedStationBadge({ badgeRef, hostStation, isHostLoading, onOpenStation }: PopupHostedStationProps) {
+function PopupHostedStationBadge({ badgeRef, hostStation, countryCode, isHostLoading, onOpenStation }: PopupHostedStationProps) {
   const { t } = useTranslation("stationDetails");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -152,6 +154,7 @@ function PopupHostedStationBadge({ badgeRef, hostStation, isHostLoading, onOpenS
       </PopoverTrigger>
       <PopupHostedStationCard
         hostStation={hostStation}
+        countryCode={countryCode}
         isHostLoading={isHostLoading}
         onOpenHost={(stationId) => {
           setIsOpen(false);
@@ -162,7 +165,7 @@ function PopupHostedStationBadge({ badgeRef, hostStation, isHostLoading, onOpenS
   );
 }
 
-function PopupHostedStationButton({ badgeRef, hostStation, isHostLoading, onOpenStation }: PopupHostedStationProps) {
+function PopupHostedStationButton({ badgeRef, hostStation, countryCode, isHostLoading, onOpenStation }: PopupHostedStationProps) {
   const { t } = useTranslation("stationDetails");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -173,6 +176,7 @@ function PopupHostedStationButton({ badgeRef, hostStation, isHostLoading, onOpen
       </PopoverTrigger>
       <PopupHostedStationCard
         hostStation={hostStation}
+        countryCode={countryCode}
         isHostLoading={isHostLoading}
         anchor={badgeRef}
         onOpenHost={(stationId) => {
@@ -208,6 +212,7 @@ function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, l
   const hostedBadgeRef = useRef<HTMLElement>(null);
   const networksIdLabel = getNetworksIdLabel(station);
   const isHosted = station.hostStationId !== null;
+  const countryCode = getStationCountryCode(station);
 
   return (
     <PopupRow
@@ -225,6 +230,7 @@ function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, l
             <PopupHostedStationBadge
               badgeRef={hostedBadgeRef}
               hostStation={hostStation}
+              countryCode={countryCode}
               isHostLoading={isHostLoading}
               onOpenStation={onOpenStationDetails}
             />
@@ -240,6 +246,7 @@ function PopupStationRow({ station, hostStation, isHostLoading, showAddToList, l
               <PopupHostedStationButton
                 badgeRef={hostedBadgeRef}
                 hostStation={hostStation}
+                countryCode={countryCode}
                 isHostLoading={isHostLoading}
                 onOpenStation={onOpenStationDetails}
               />

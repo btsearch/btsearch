@@ -7,7 +7,7 @@ import {
   officialPermits,
   officialSiteWatches,
   officialSites,
-  stationsPermits,
+  stationsOfficialSites,
   userLists,
 } from "@openbts/drizzle";
 import { eq, inArray, sql } from "drizzle-orm";
@@ -69,7 +69,7 @@ async function createSplitSites(
   const moves = splits.flatMap((split) => {
     const toSiteId = createdIdByCode.get(split.siteCode);
     if (toSiteId === undefined) throw new Error(`The site split off site ${split.fromSiteId} was not created`);
-    return split.permitIds.map((permitId) => ({ permitId, toSiteId }));
+    return split.permitIds.map((permitId) => ({ permitId, fromSiteId: split.fromSiteId, toSiteId }));
   });
   return { createdSiteIds: created.map((site) => site.id), moves };
 }
@@ -86,8 +86,7 @@ async function movePermits(tx: DbTx, moves: readonly Move[]): Promise<void> {
   }
 }
 
-async function mergePermits(tx: DbTx, merges: RemapPlan["merges"]): Promise<ChangeInput[]> {
-  const unlinked: ChangeInput[] = [];
+async function mergePermits(tx: DbTx, merges: RemapPlan["merges"]): Promise<void> {
   for (const group of chunks(merges, STATEMENT_BATCH_SIZE)) {
     const merged = JSON.stringify(group.map(({ permitId, intoPermitId }) => ({ permit_id: permitId, into_permit_id: intoPermitId })));
     const permitIds = group.map((merge) => merge.permitId);
@@ -119,14 +118,24 @@ async function mergePermits(tx: DbTx, merges: RemapPlan["merges"]): Promise<Chan
       )
     `);
 
-    const links = await tx
-      .select({ permitId: stationsPermits.permit_id, stationId: stationsPermits.station_id })
-      .from(stationsPermits)
-      .where(inArray(stationsPermits.permit_id, permitIds));
-    unlinked.push(...links.map(({ permitId, stationId }): ChangeInput => ({ kind: "station_unlinked", permitId, stationId })));
     await tx.delete(officialPermits).where(inArray(officialPermits.id, permitIds));
   }
+}
 
+async function unlinkEmptiedSites(tx: DbTx, emptiedSites: RemapPlan["emptiedSites"]): Promise<ChangeInput[]> {
+  const unlinked: ChangeInput[] = [];
+  for (const group of chunks(emptiedSites, STATEMENT_BATCH_SIZE)) {
+    const links = await tx
+      .delete(stationsOfficialSites)
+      .where(
+        inArray(
+          stationsOfficialSites.official_site_id,
+          group.map((emptied) => emptied.siteId),
+        ),
+      )
+      .returning({ stationId: stationsOfficialSites.station_id, officialSiteId: stationsOfficialSites.official_site_id });
+    unlinked.push(...links.map((link): ChangeInput => ({ kind: "station_unlinked", ...link })));
+  }
   return unlinked;
 }
 
@@ -220,8 +229,10 @@ async function mapLicensee(tx: DbTx, { licenseeId, toOperatorId }: RemapRun): Pr
 async function moveToOperator(tx: DbTx, plan: RemapPlan, operatorId: number, startedAt: Date): Promise<Applied> {
   await rekeySites(tx, plan.rekeyedSiteIds, operatorId);
   const split = await createSplitSites(tx, plan.splits, operatorId, startedAt);
-  await movePermits(tx, [...plan.moves, ...split.moves]);
-  const unlinked = await mergePermits(tx, plan.merges);
+  const moves = [...plan.moves, ...split.moves];
+  await movePermits(tx, moves);
+  await mergePermits(tx, plan.merges);
+  const unlinked = await unlinkEmptiedSites(tx, plan.emptiedSites);
   const repointed = await repointEmptiedSites(tx, plan.emptiedSites);
 
   return {
@@ -232,6 +243,11 @@ async function moveToOperator(tx: DbTx, plan: RemapPlan, operatorId: number, sta
         { kind: "site_added", officialSiteId },
         { kind: "site_remapped", officialSiteId },
       ]),
+      ...moves.flatMap(({ permitId, fromSiteId, toSiteId }): ChangeInput[] => [
+        { kind: "permit_moved_out", officialSiteId: fromSiteId, permitId },
+        { kind: "permit_moved_in", officialSiteId: toSiteId, permitId },
+      ]),
+      ...plan.merges.map(({ permitId, fromSiteId }): ChangeInput => ({ kind: "permit_moved_out", officialSiteId: fromSiteId, permitId })),
       ...unlinked,
     ],
   };

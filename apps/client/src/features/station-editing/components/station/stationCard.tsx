@@ -5,11 +5,13 @@ import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { StationDraftApi } from "../../hooks/useStationDraft";
+import { findSiteStation } from "../../model/hostStations";
 import { findDraftOperator } from "../../model/snapshots";
 import { listIdentifierKinds } from "../../model/validate";
 import { EditCard } from "../frame/editCard";
 import { editTargetProps } from "../frame/editTargets";
 import { BackhaulDetailFields, BackhaulMediumField } from "./backhaulFields";
+import { HostStationField } from "./hostStationField";
 import { IdentifierRows } from "./identifierRows";
 import { FieldGroup, getControlProps, getStationFieldView } from "./stationFields";
 import { StationOperatorSelect } from "./stationOperatorSelect";
@@ -97,7 +99,7 @@ function StatusField({ edit, idPrefix }: StatusFieldProps) {
 export function StationCard({ edit, stationId, siteIdHint }: StationCardProps) {
   const { t } = useTranslation(["common", "submissions"]);
   const idPrefix = useId();
-  const { session, dispatch, canEdit, lookups } = edit;
+  const { session, dispatch, canEdit, lookups, hostSite } = edit;
   const { station, place } = session.draft;
   const isEditor = session.kind === "editor";
   const isForm = session.kind === "form";
@@ -115,6 +117,8 @@ export function StationCard({ edit, stationId, siteIdHint }: StationCardProps) {
       ownerPlmn: operator.primaryPlmn,
       identifierKinds: listIdentifierKinds(operator, lookups.operatorsById),
     });
+    const host = findSiteStation(hostSite, station.hostStationId);
+    if (session.editsHostStations && host?.operatorId === operator.id) dispatch({ type: "setHostStation", hostStationId: null });
   }
 
   return (
@@ -138,6 +142,7 @@ export function StationCard({ edit, stationId, siteIdHint }: StationCardProps) {
                 className={cn("cursor-pointer", operatorView.className)}
               />
             </FieldGroup>
+            {session.editsHostStations ? <HostStationField edit={edit} idPrefix={idPrefix} /> : null}
             {isEditor && session.live !== null ? <StatusField edit={edit} idPrefix={idPrefix} /> : null}
             <BackhaulMediumField edit={edit} idPrefix={idPrefix} />
             {isEditor ? (

@@ -65,6 +65,8 @@ export const IMPORT_CHANGE_KINDS = [
   "permitListed",
   "permitUnlisted",
   "permitArchived",
+  "permitMovedIn",
+  "permitMovedOut",
   "stationLinked",
   "stationUnlinked",
   "microwaveLinkAdded",

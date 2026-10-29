@@ -28,8 +28,8 @@ export type RemapCounts = {
 export type RemapPlan = {
   rekeyedSiteIds: number[];
   splits: { fromSiteId: number; siteCode: string; permitIds: number[] }[];
-  moves: { permitId: number; toSiteId: number }[];
-  merges: { permitId: number; intoPermitId: number }[];
+  moves: { permitId: number; fromSiteId: number; toSiteId: number }[];
+  merges: { permitId: number; fromSiteId: number; intoPermitId: number }[];
   emptiedSites: { siteId: number; intoSiteId: number }[];
   unlistings: { permitId: number; datasetId: number; officialSiteId: number }[];
   remappedSiteIds: number[];
@@ -141,8 +141,8 @@ export function planRemap(input: RemapInput): RemapPlan {
     const targetPermitByKey = new Map((permitsBySite.get(target.id) ?? []).map((permit) => [permit.valuesKey, permit.id]));
     for (const permit of moving) {
       const equalPermitId = targetPermitByKey.get(permit.valuesKey);
-      if (equalPermitId === undefined) plan.moves.push({ permitId: permit.id, toSiteId: target.id });
-      else plan.merges.push({ permitId: permit.id, intoPermitId: equalPermitId });
+      if (equalPermitId === undefined) plan.moves.push({ permitId: permit.id, fromSiteId: site.id, toSiteId: target.id });
+      else plan.merges.push({ permitId: permit.id, fromSiteId: site.id, intoPermitId: equalPermitId });
     }
     if (everyPermitMoves) plan.emptiedSites.push({ siteId: site.id, intoSiteId: target.id });
     else plan.counts.sitesSplit += 1;

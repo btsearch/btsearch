@@ -69,6 +69,7 @@ type BackhaulPart = { medium?: BackhaulMedium; speedMbps?: number | null; model?
 type StationPart = {
   siteId?: string | null;
   operatorId?: number;
+  hostStationId?: number | null;
   notes?: string | null;
   identifiers?: IdentifierPart[];
   backhaul?: BackhaulPart | null;
@@ -214,6 +215,7 @@ function buildStationPart(station: StationDraft, base: StationDraft, isDirect: b
 
   if (siteId !== normalizeText(base.siteId)) part.siteId = toNullableText(siteId);
   if (station.operatorId !== null && station.operatorId !== base.operatorId) part.operatorId = station.operatorId;
+  if (station.hostStationId !== base.hostStationId) part.hostStationId = station.hostStationId;
   if (notes !== normalizeText(base.notes)) part.notes = toNullableText(notes);
   if (identifiers.length > 0) part.identifiers = identifiers;
   if (backhaul !== undefined) part.backhaul = backhaul;

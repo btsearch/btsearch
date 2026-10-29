@@ -79,6 +79,55 @@ describe("getStationHistory", () => {
     expect(dbMock.calls.some((call) => call.table === "users")).toBe(false);
   });
 
+  it("names a host station change hostStationId", async () => {
+    dbMock.enqueueFor("select", getTableName(stations), [{ station: readStation, countryCode: null }]);
+    dbMock.enqueueFor("select", "station_sectors", []);
+    dbMock.enqueueFor("select", "bands", []);
+    dbMock.enqueueFor(
+      "select",
+      "audit_logs",
+      [{ id: 5 }],
+      [
+        {
+          id: 6,
+          operation_id: 5,
+          entity: "stations",
+          op: "update",
+          record_id: "1",
+          station_id: 1,
+          old_values: { ran_host_station_id: 4 },
+          new_values: { ran_host_station_id: null },
+          metadata: null,
+        },
+      ],
+      [],
+    );
+    dbMock.enqueueFor(
+      "select",
+      "audit_operations",
+      [],
+      [
+        {
+          id: 5,
+          createdAt: readDate,
+          source: "api",
+          kind: "station.edit",
+          actor_id: readUserId,
+          country_code: "GB",
+          reverted_by_operation_id: null,
+          metadata: null,
+        },
+      ],
+    );
+    const app = await createRouteHarness(getStationHistory);
+    const response = await app.inject({ url: "/stations/1/history" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0].changes).toEqual([
+      expect.objectContaining({ kind: "station", action: "update", fields: [{ field: "hostStationId", from: 4, to: null }] }),
+    ]);
+  });
+
   it("returns an empty history without loading unrelated audit operations", async () => {
     dbMock.enqueueFor("select", getTableName(stations), [{ station: readStation, countryCode: null }]);
     dbMock.enqueueFor("select", "station_sectors", []);

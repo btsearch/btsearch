@@ -803,8 +803,10 @@
       "permitListed": "Pozwolenia dopisane do wykazu",
       "permitUnlisted": "Pozwolenia usunięte z wykazu",
       "permitArchived": "Zarchiwizowane pozwolenia",
-      "stationLinked": "Stacje powiązane z pozwoleniami",
-      "stationUnlinked": "Stacje odłączone od pozwoleń",
+      "permitMovedIn": "Pozwolenia przeniesione z innej stacji z rejestru",
+      "permitMovedOut": "Pozwolenia przeniesione do innej stacji z rejestru",
+      "stationLinked": "Stacje powiązane ze stacjami z rejestru",
+      "stationUnlinked": "Stacje odłączone od stacji z rejestru",
       "microwaveLinkAdded": "Dodane radiolinie",
       "microwaveLinkRenewed": "Odnowione radiolinie",
       "microwaveLinkArchived": "Zarchiwizowane radiolinie"

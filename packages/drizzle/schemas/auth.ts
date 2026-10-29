@@ -145,6 +145,8 @@ export const OfficialChange = pgEnum("official_change", [
   "permit_listed",
   "permit_unlisted",
   "permit_archived",
+  "permit_moved_in",
+  "permit_moved_out",
   "station_linked",
   "station_unlinked",
   "microwave_link_added",
@@ -860,11 +862,11 @@ export const officialImportChanges = OfficialSchema.table(
       .onUpdate("cascade"),
     check(
       "import_changes_official_site_id_by_kind",
-      sql`(${t.officialSiteId} IS NOT NULL) = (${t.kind} IN ('site_added', 'site_moved', 'site_remapped', 'permit_added', 'permit_listed', 'permit_unlisted', 'permit_archived'))`,
+      sql`(${t.officialSiteId} IS NULL) = (${t.kind} IN ('microwave_link_added', 'microwave_link_renewed', 'microwave_link_archived'))`,
     ),
     check(
       "import_changes_permit_id_by_kind",
-      sql`(${t.permitId} IS NOT NULL) = (${t.kind} IN ('permit_added', 'permit_listed', 'permit_unlisted', 'permit_archived', 'station_linked', 'station_unlinked'))`,
+      sql`(${t.permitId} IS NULL) = (${t.kind} IN ('site_added', 'site_moved', 'site_remapped', 'station_linked', 'station_unlinked', 'microwave_link_added', 'microwave_link_renewed', 'microwave_link_archived'))`,
     ),
     check("import_changes_station_id_by_kind", sql`(${t.stationId} IS NOT NULL) = (${t.kind} IN ('station_linked', 'station_unlinked'))`),
     check(

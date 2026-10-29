@@ -27,12 +27,12 @@ describe("GET /official/permits/:id", () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.permits", [officialPermitRows]);
     dbMock.enqueueFor("select", "official.permit_listings", [{ permitId: 41, key: "permits" }]);
-    dbMock.enqueueFor("select", "stations_permits", [], []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
-    const response = await injectMutation(route, { ...request, url: "/official/permits/41?include=stations,officialSite" });
+    const response = await injectMutation(route, { ...request, url: "/official/permits/41?include=officialSite" });
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(response.json()).toEqual({ data: { ...servedPermit, datasets: ["permits"], stationIds: [], officialSite: servedSite } });
+    expect(response.json()).toEqual({ data: { ...servedPermit, datasets: ["permits"], officialSite: servedSite } });
     expect(renderedWhere("official.permits")).toEqual({
       sql:
         '(("official"."permits"."id" = $1) and (exists select "public_location"."id" from "public_location" ' +
@@ -83,7 +83,7 @@ describe("GET /official/permits/:id", () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.permits", [inventoryRows]);
     dbMock.enqueueFor("select", "official.permit_listings", [{ permitId: 41, key: "mobile-networks", permitKind: "inventory" }]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
     const response = await injectMutation(route, { ...request, url: "/official/permits/41?include=officialSite.location" });
 

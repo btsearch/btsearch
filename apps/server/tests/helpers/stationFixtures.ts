@@ -8,6 +8,7 @@ export function stationRow(overrides: Record<string, unknown> = {}) {
     station_id: "A1",
     operator_id: 1,
     location_id: null,
+    ran_host_station_id: null,
     status: "published",
     is_confirmed: true,
     notes: null,

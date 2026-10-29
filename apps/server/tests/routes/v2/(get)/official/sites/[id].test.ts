@@ -28,18 +28,15 @@ describe("GET /official/sites/:id", () => {
     expect(route.config).toMatchObject({ permissions: ["read:official_permits"], allowGuestAccess: true });
   });
 
-  it("returns a public site with the stations linked to it, inactive ones last", async () => {
+  it("returns a public site with the station linked to it", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.sites", [officialSiteRows]);
-    dbMock.enqueueFor("select", "stations_permits", [
-      { ownerId: 31, id: 12 },
-      { ownerId: 31, id: 3 },
-    ]);
+    dbMock.enqueueFor("select", "stations_official_sites", [{ officialSiteId: 31, stationId: 12 }]);
 
     const response = await injectMutation(route, request);
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(response.json()).toEqual({ data: { ...servedSite, stationIds: [12, 3] } });
+    expect(response.json()).toEqual({ data: { ...servedSite, stationId: 12 } });
     expect(renderedWhere("official.sites")).toEqual({ sql: PUBLIC_SITE, params: [31, 1] });
     expect(tablesRead()).not.toContain("official.permits");
   });
@@ -47,7 +44,7 @@ describe("GET /official/sites/:id", () => {
   it("includes the location and every permit of the site, with a stored expiry day as it is and none as null", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.sites", [officialSiteRows]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
     const neverExpiring = { ...officialPermitRow, id: 42, expiry_date: null };
     dbMock.enqueueFor("select", "official.permits", [
       { permit: officialPermitRow, sourceKey: "pl-uke" },
@@ -77,7 +74,7 @@ describe("GET /official/sites/:id", () => {
   ])("answers 404 for %s, with nothing read alongside it in the answer", async (_case, sourceIds) => {
     scriptGuestVisibility(sourceIds);
     dbMock.enqueueFor("select", "official.sites", []);
-    dbMock.enqueueFor("select", "stations_permits", [{ ownerId: 31, id: 12 }]);
+    dbMock.enqueueFor("select", "stations_official_sites", [{ officialSiteId: 31, stationId: 12 }]);
     dbMock.enqueueFor("select", "official.permits", [{ permit: officialPermitRow, sourceKey: "pl-uke" }]);
     dbMock.enqueueFor("select", "official.permit_listings", [{ permitId: 41, key: "device-registry" }]);
 
@@ -91,7 +88,7 @@ describe("GET /official/sites/:id", () => {
   it("shows an administrator a site of a hidden source", async () => {
     scriptAdminVisibility();
     dbMock.enqueueFor("select", "official.sites", [officialSiteRows]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
     const response = await injectMutation(route, request, signInAs("admin"));
 

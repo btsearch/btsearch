@@ -4,7 +4,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { unlistedPermits } from "../../../../../src/features/official/import/steps/unlistedPermits.js";
 import { dbMock } from "../../../../helpers/boundaries.js";
-import { ownRun, recordTransactions, runStep, scriptStepFinish, scriptStepStart, whereOf } from "../../../../helpers/importEngineFixtures.js";
+import {
+  RUN_ID,
+  ownRun,
+  recordTransactions,
+  runStep,
+  scriptStepFinish,
+  scriptStepStart,
+  valuesOf,
+  whereOf,
+} from "../../../../helpers/importEngineFixtures.js";
 
 const dialect = new PgDialect();
 
@@ -19,7 +28,6 @@ function unlistedReads() {
 function scriptArchivedPage(permits: readonly { permitId: number; officialSiteId: number }[]): void {
   ownRun(1);
   dbMock.enqueueFor("select", "official.permits", [...permits]);
-  dbMock.enqueueFor("select", "stations_permits", []);
   dbMock.enqueueFor("insert", "official.import_changes", undefined);
   dbMock.enqueueFor("delete", "official.permits", undefined);
 }
@@ -43,6 +51,26 @@ describe("the unlisted permits step", () => {
     ]);
     expect(whereOf(reads[0]).sql).toContain('("official"."sites"."source_id" = $1) and ("official"."permits"."id" > $2) and (not exists');
     expect(reads[0]?.clauses.orderBy?.map((order) => dialect.sqlToQuery(sql`${order as SQLWrapper}`).sql)).toEqual(['"official"."permits"."id"']);
+  });
+
+  it("records each archived permit with its site, then deletes it", async () => {
+    scriptStepStart();
+    scriptArchivedPage([
+      { permitId: 7, officialSiteId: 500 },
+      { permitId: 8, officialSiteId: 501 },
+    ]);
+    scriptStepFinish();
+
+    await runStep(unlistedPermits);
+
+    expect(dbMock.pendingResults()).toBe(0);
+    expect(valuesOf("insert", "official.import_changes")).toEqual([
+      [
+        { runId: RUN_ID, kind: "permit_archived", officialSiteId: 500, permitId: 7 },
+        { runId: RUN_ID, kind: "permit_archived", officialSiteId: 501, permitId: 8 },
+      ],
+    ]);
+    expect(whereOf(dbMock.calls.find((call) => call.operation === "delete" && call.table === "official.permits")).params).toEqual([7, 8]);
   });
 
   it("stops after one read when nothing is unlisted", async () => {

@@ -74,6 +74,19 @@ async function addForeignKeyConflicts(
         );
     }
   }
+
+  const hostStationId = numberField(target, "ran_host_station_id");
+  if (fields.has("ran_host_station_id") && hostStationId !== null) {
+    const host = await context.tx.query.stations.findFirst({ where: { id: hostStationId }, columns: { id: true } });
+    if (host === undefined) {
+      plan.conflicts.push(
+        conflictFor(plan.entry, "fk_missing", "The original host station no longer exists", "drop_field", {
+          constraint: "stations_ran_host_station_id_stations_id_fkey",
+          nullableField: "ran_host_station_id",
+        }),
+      );
+    }
+  }
 }
 
 async function addUniqueConflict(context: StrategyContext, plan: PlannedEntry, id: number, target: SnapshotRecord): Promise<void> {
@@ -159,6 +172,7 @@ export async function planStationRevert(context: StrategyContext, entry: AuditEn
       const patch = snapshotToRow(stations, oldValues, { fields });
       if (plan.droppedFields.has("location_id")) patch.location_id = null;
       if (plan.droppedFields.has("operator_id")) patch.operator_id = null;
+      if (plan.droppedFields.has("ran_host_station_id")) patch.ran_host_station_id = null;
       const statusPatch = fields.includes("status") && desiredStatus !== null ? stationStatusUpdate(desiredStatus) : { updatedAt: new Date() };
       await tx
         .update(stations)

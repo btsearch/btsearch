@@ -80,6 +80,8 @@ const CHANGE_KINDS = {
   permit_listed: "permitListed",
   permit_unlisted: "permitUnlisted",
   permit_archived: "permitArchived",
+  permit_moved_in: "permitMovedIn",
+  permit_moved_out: "permitMovedOut",
   station_linked: "stationLinked",
   station_unlinked: "stationUnlinked",
   microwave_link_added: "microwaveLinkAdded",

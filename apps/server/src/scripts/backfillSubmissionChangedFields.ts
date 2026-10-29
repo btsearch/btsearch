@@ -113,7 +113,12 @@ async function backfillStationProposal(row: ProposedStationRow, stationId: numbe
 
   const changes = diffProposedStation(
     storedStationInput(row),
-    { station_id: text(station.station_id), operator_id: num(station.operator_id), notes: text(station.notes) },
+    {
+      station_id: text(station.station_id),
+      operator_id: num(station.operator_id),
+      notes: text(station.notes),
+      ran_host_station_id: num(station.ran_host_station_id),
+    },
     extra && { networks_id: num(extra.networks_id), networks_name: text(extra.networks_name), mno_name: text(extra.mno_name) },
     backhaul && backhaulMedium !== null ? { type: backhaulMedium, speed: num(backhaul.speed), model: text(backhaul.model) } : null,
   );

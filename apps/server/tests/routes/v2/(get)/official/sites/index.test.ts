@@ -55,33 +55,28 @@ describe("GET /official/sites", () => {
     expect(route.config).toMatchObject({ permissions: ["read:official_permits"], allowGuestAccess: true });
   });
 
-  it("returns a guest the sites of public sources, newest first, each with its linked stations", async () => {
+  it("returns a guest the sites of public sources, newest first, each with its linked station", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.sites", [listed(31)]);
-    dbMock.enqueueFor("select", "stations_permits", [
-      { ownerId: 31, id: 9 },
-      { ownerId: 31, id: 9 },
-      { ownerId: 31, id: 2 },
-    ]);
+    dbMock.enqueueFor("select", "stations_official_sites", [{ officialSiteId: 31, stationId: 9 }]);
 
     const response = await injectMutation(route, request);
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(response.json()).toEqual({ data: [{ ...servedSite, stationIds: [9, 2] }], paging: { limit: 50, nextCursor: null } });
+    expect(response.json()).toEqual({ data: [{ ...servedSite, stationId: 9 }], paging: { limit: 50, nextCursor: null } });
     expect(renderedWhere("official.sites")).toEqual({ sql: PUBLIC_LOCATION, params: [1] });
     expect(renderedOrder()).toEqual(['"official"."sites"."id" desc']);
-    expect(renderedWhere("stations_permits")).toEqual({ sql: '"official"."permits"."official_site_id" in ($1)', params: [31] });
-    expect(dbMock.calls.find((call) => call.table === "stations_permits")?.clauses.orderBy).toHaveLength(2);
+    expect(renderedWhere("stations_official_sites")).toEqual({ sql: '"stations_official_sites"."official_site_id" in ($1)', params: [31] });
   });
 
   it("leaves out the stations of a country hidden from a guest", async () => {
     scriptGuestVisibility([1], ["XX"]);
     dbMock.enqueueFor("select", "official.sites", [listed(31)]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
     await injectMutation(route, request);
 
-    const stationsRead = renderedWhere("stations_permits");
+    const stationsRead = renderedWhere("stations_official_sites");
     expect(stationsRead.sql).toContain('"stations"."id" IN (SELECT "stations"."id" FROM "stations"');
     expect(stationsRead.params).toEqual([31, "XX"]);
   });
@@ -89,7 +84,7 @@ describe("GET /official/sites", () => {
   it("includes the location with its region and every permit with its sectors", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.sites", [listed(31)]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
     dbMock.enqueueFor("select", "official.permits", [{ permit: officialPermitRow, sourceKey: "pl-uke" }]);
     dbMock.enqueueFor("select", "official.permit_listings", [{ permitId: 41, key: "permits" }]);
     dbMock.enqueueFor("select", "official.permit_sectors", [officialSectorRow]);
@@ -110,7 +105,7 @@ describe("GET /official/sites", () => {
   it("narrows the sites and their permits with the technology filter", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.sites", [listed(31)]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
     dbMock.enqueueFor("select", "official.permits", []);
     dbMock.enqueueFor("select", "official.permit_listings", []);
 
@@ -149,11 +144,11 @@ describe("GET /official/sites", () => {
     const where = await sitesFor("stationIds=5,6", ["XX"]);
 
     expect(where.sql).toContain(
-      'exists select "official"."permits"."id" from "official"."permits" ' +
-        'where (("official"."permits"."official_site_id" = "official"."sites"."id") ' +
-        'and (exists select "stations_permits"."id" from "stations_permits" where (("stations_permits"."permit_id" = "official"."permits"."id") ' +
-        'and ("stations_permits"."station_id" in ($3, $4)) and ("stations"."id" IN',
+      'exists select "stations_official_sites"."station_id" from "stations_official_sites" ' +
+        'where (("stations_official_sites"."official_site_id" = "official"."sites"."id") ' +
+        'and ("stations_official_sites"."station_id" in ($3, $4)) and ("stations"."id" IN',
     );
+    expect(where.sql).not.toContain('"official"."permits"');
     expect(where.params).toEqual([1, "XX", 5, 6, "XX"]);
   });
 
@@ -169,7 +164,7 @@ describe("GET /official/sites", () => {
   it("searches site ids, permit numbers and places, best matches first, and pages by position", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.sites", [listed(31), listed(30)]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
     const response = await injectMutation(route, { ...request, url: "/official/sites?q=bt_1&limit=1" });
 
@@ -203,7 +198,7 @@ describe("GET /official/sites", () => {
   it("returns the newest sites first when sorting by relevance without q, and stops paging deep in the results", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.sites", [listed(31), listed(30)]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
     const response = await injectMutation(route, { ...request, url: "/official/sites?sort=relevance&limit=1&offset=100000" });
 
@@ -214,7 +209,7 @@ describe("GET /official/sites", () => {
   it("continues after the last site of a page and counts every match on request", async () => {
     scriptAdminVisibility();
     dbMock.enqueueFor("select", "official.sites", [listed(31, "1760054400000000"), listed(30, "1760054400000000")], [{ total: 9 }]);
-    dbMock.enqueueFor("select", "stations_permits", []);
+    dbMock.enqueueFor("select", "stations_official_sites", []);
 
     const response = await injectMutation(route, { ...request, url: "/official/sites?sort=-updatedAt&limit=1&includeTotal=true" }, signInAs("admin"));
 

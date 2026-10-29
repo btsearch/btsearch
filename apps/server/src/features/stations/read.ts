@@ -356,7 +356,7 @@ export async function serializeStations(
     cellSightings,
   ] = await Promise.all([
     db.select().from(extraIdentificators).where(inArray(extraIdentificators.station_id, stationIds)).orderBy(asc(extraIdentificators.id)),
-    findHostStationIds(locationIds),
+    findHostStationIds(rows),
     loadOperators(db, wants("operator") ? operatorIds : []),
     wantsLocation && locationIds.length > 0
       ? db

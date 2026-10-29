@@ -7,42 +7,13 @@ import { buildMapLocationActionUrl, buildOfficialSiteActionUrl } from "../../../
 import { notifyOfficialSitesWatchers } from "../../../notifications/service.js";
 import { getWatchedOfficialSiteIds } from "../../../notifications/watchers.js";
 import { readEveryChange } from "../changes.js";
-import type { AfterStep, AfterStepContext, ChangeKind, ChangeRow } from "../types.js";
+import type { AfterStep, AfterStepContext } from "../types.js";
 import { notifyInPages } from "./notificationPages.js";
+import { SITE_CHANGE_KINDS, type SiteChangeSummary, summarizeSiteChanges } from "./siteChanges.js";
 
-type SiteTally = { lastSeq: number; wasAdded: boolean; addedPermitIds: Set<number>; archivedPermitIds: Set<number> };
 type SiteNotification = Parameters<typeof notifyOfficialSitesWatchers>[0][number];
 
-export type SiteChangeSummary = { officialSiteId: number; lastSeq: number; wasAdded: boolean; permitsAdded: number; permitsArchived: number };
 export type StoredSite = { id: number; siteCode: string | null; latitude: number; longitude: number; hasPermits: boolean };
-
-const SITE_CHANGE_KINDS: readonly ChangeKind[] = ["site_added", "permit_added", "permit_archived"];
-
-export function summarizeSiteChanges(changes: readonly ChangeRow[]): SiteChangeSummary[] {
-  const tallies = new Map<number, SiteTally>();
-  for (const change of changes) {
-    if (change.officialSiteId === null) continue;
-
-    const known = tallies.get(change.officialSiteId);
-    const tally = known ?? { lastSeq: change.seq, wasAdded: false, addedPermitIds: new Set<number>(), archivedPermitIds: new Set<number>() };
-    if (!known) tallies.set(change.officialSiteId, tally);
-
-    tally.lastSeq = Math.max(tally.lastSeq, change.seq);
-    if (change.kind === "site_added") tally.wasAdded = true;
-    if (change.kind === "permit_added" && change.permitId !== null) tally.addedPermitIds.add(change.permitId);
-    if (change.kind === "permit_archived" && change.permitId !== null) tally.archivedPermitIds.add(change.permitId);
-  }
-
-  return [...tallies]
-    .map(([officialSiteId, tally]) => ({
-      officialSiteId,
-      lastSeq: tally.lastSeq,
-      wasAdded: tally.wasAdded,
-      permitsAdded: tally.addedPermitIds.difference(tally.archivedPermitIds).size,
-      permitsArchived: tally.archivedPermitIds.size,
-    }))
-    .toSorted((first, second) => first.lastSeq - second.lastSeq);
-}
 
 export function siteNotificationOf(summary: SiteChangeSummary, site: StoredSite): SiteNotification | null {
   const permitsAdded = summary.permitsAdded;

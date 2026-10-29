@@ -119,16 +119,31 @@ export const stationLocationSchema = z.object(locationShape);
 export type StationLocation = z.infer<typeof stationLocationSchema>;
 
 export const RESERVED_SITE_ID_PREFIX = "~";
-export const STATION_SITE_ID_NOTE = "The id the operator uses for the station, unique among the operator's stations";
+export const STATION_SITE_ID_NOTE =
+  "The station's number, unique among the operator's stations: the operator's own id, " +
+  "or the register's station number where the register publishes no operator ids";
 export const STATION_SITE_ID_READ_NOTE = `${STATION_SITE_ID_NOTE}. \`null\` while no number is known`;
 export const NODE_NAME_NOTE =
   "A name you can show in place of `siteId` while the station has no number, taken from the first of these it has: " +
   "its lowest eNBID (`4G 412345`), its lowest gNBID (`5G 1234567`), its lowest UMTS cell (`3G 12:34561`, RNC and cell id) " +
   "or its lowest GSM cell (`2G 1234:5678`, LAC and cell id). `null` for a station with a number, and for one with none of these";
 
-const HOST_STATION_NOTE =
-  "The station that hosts this one in a shared network: another member's station at the same location, " +
-  "which holds the official permits while this station has none";
+export const HOST_STATION_REFUSAL_KINDS = [
+  "hostComputed",
+  "hostElsewhere",
+  "hostSelf",
+  "hostSameOperator",
+  "hostIsHosted",
+  "hostingStation",
+] as const;
+export type HostStationRefusalKind = (typeof HOST_STATION_REFUSAL_KINDS)[number];
+
+export const HOST_STATION_NOTE = "Another operator's station at the same location whose radio equipment this station shares";
+export const HOST_STATION_CLEARED_WHEN = "when either station leaves the location without the other, or when both end up with the same operator";
+const HOST_STATION_READ_NOTE =
+  `${HOST_STATION_NOTE}. Where the country's \`capabilities.editableHostStations\` is \`false\`, it is worked out from the official sites: ` +
+  "a shared network member's station without an official site points at another member's station there that has one. " +
+  `Elsewhere station changes set it, and it is cleared ${HOST_STATION_CLEARED_WHEN}`;
 const STATION_STATUS_NOTE =
   "`awaitingCells`: the station has no cells yet. " +
   "`inactive`: the station was deactivated, and it is deleted permanently after six months without changes";
@@ -139,7 +154,7 @@ const stationOwnShape = {
   nodeName: z.string().nullable().describe(NODE_NAME_NOTE),
   operatorId: z.number().int().nullable(),
   locationId: z.number().int().nullable(),
-  hostStationId: z.number().int().nullable().describe(HOST_STATION_NOTE),
+  hostStationId: z.number().int().nullable().describe(HOST_STATION_READ_NOTE),
   status: z.enum(STATION_STATUSES).describe(STATION_STATUS_NOTE),
   isConfirmed: z.boolean().describe("Only editors can change it"),
   notes: z.string().nullable(),

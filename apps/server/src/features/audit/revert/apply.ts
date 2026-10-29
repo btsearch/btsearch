@@ -6,6 +6,7 @@ import { DetailedErrorResponse, FOREIGN_KEY_VIOLATION, UNIQUE_VIOLATION, isStill
 import { unique } from "../../../lib/collections.js";
 import type { DbTx } from "../../../types/global.js";
 import { correctStationLinks, findStationGroups } from "../../official/links.js";
+import { clearBrokenHostLinks } from "../../stations/hostStations.js";
 import type { AuditRecorder } from "../types.js";
 import { recordIdNumber } from "./columns.js";
 import { bumpIdentitySequences } from "./sequences.js";
@@ -136,6 +137,7 @@ export async function applyRevertPlan(tx: DbTx, audit: AuditRecorder, plans: rea
   const finalizePlans = [...active].sort((left, right) => right.entry.id - left.entry.id);
   // eslint-disable-next-line no-await-in-loop
   for (const plan of finalizePlans) await runPlanStep(plan, () => plan.finalize(tx, audit, state));
+  await clearBrokenHostLinks(audit, restoredIds);
 
   return {
     reverted: finalizePlans.map((plan) => plan.entry.id),

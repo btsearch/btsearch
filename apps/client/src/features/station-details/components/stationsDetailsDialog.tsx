@@ -105,14 +105,13 @@ function OfficialSiteDialogPanel({
   const location = site?.location;
   const shareSourcePrefix = officialSource ? `${officialSource.shortName}: ` : "";
   const sharePlace = location ? [location.city || t("common:labels.unknownLocation"), location.address].filter(Boolean).join(" ") : "";
-  const internalStationId = data?.stationIds.at(0);
-  const registerSiteId = data !== undefined && internalStationId === undefined ? data.siteId : null;
+  const internalStationId = data?.stationId ?? null;
+  const registerSiteId = data !== undefined && internalStationId === null ? data.siteId : null;
   const permits = site?.permits;
   const hasPermits = permits !== undefined && permits.length > 0;
   const isNotInService = hasPermits && permits.every((permit) => permit.status === "approved");
   const listsBandsOnly = hasPermits && permits.every((permit) => permit.kind === "inventory");
-  const internalTarget: StationDialogTarget | undefined =
-    internalStationId === undefined ? switchedFrom : { source: "internal", id: internalStationId };
+  const internalTarget: StationDialogTarget | undefined = internalStationId === null ? switchedFrom : { source: "internal", id: internalStationId };
   const sourceSwitch =
     onSwitchStation && internalTarget && site && officialSource ? (
       <StationSourceSwitch

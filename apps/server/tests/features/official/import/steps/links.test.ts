@@ -20,8 +20,8 @@ import {
 const GROUP_CHANGING_KINDS = ["site_added", "site_moved", "site_remapped", "permit_added", "permit_archived"];
 const X = { longitude: 21, latitude: 52 };
 
-function permitRow(permitId: number, officialSiteId: number, operatorId: number, siteId: string, link: { id: number; stationId: number } | null) {
-  return { permitId, officialSiteId, sourceId: 1, operatorId, siteId, ...X, linkId: link?.id ?? null, linkedStationId: link?.stationId ?? null };
+function siteRow(officialSiteId: number, operatorId: number, siteId: string) {
+  return { officialSiteId, sourceId: 1, operatorId, siteId, ...X };
 }
 
 function stationRow(stationId: number, operatorId: number, siteId: string) {
@@ -61,14 +61,15 @@ describe("the links step", () => {
     ]);
     dbMock.enqueueStationLinks(
       [{ id: 100 }, { id: 103 }],
-      [permitRow(701, 504, 4, "BT1001", null), permitRow(650, 503, 4, "BT1003", { id: 9005, stationId: 104 })],
+      [siteRow(504, 4, "BT1001"), siteRow(503, 4, "BT1003")],
       [stationRow(100, 4, "BT1001"), stationRow(103, 4, "BT1003")],
+      [{ stationId: 104, officialSiteId: 503 }],
     );
-    dbMock.enqueueFor("insert", "stations_permits", [
-      { stationId: 100, permitId: 701 },
-      { stationId: 103, permitId: 650 },
+    dbMock.enqueueFor("delete", "stations_official_sites", [{ stationId: 104, officialSiteId: 503 }]);
+    dbMock.enqueueFor("insert", "stations_official_sites", [
+      { stationId: 100, officialSiteId: 504 },
+      { stationId: 103, officialSiteId: 503 },
     ]);
-    dbMock.enqueueFor("delete", "stations_permits", [{ stationId: 104, permitId: 650 }]);
     dbMock.enqueueFor("insert", "official.import_changes", undefined);
     dbMock.enqueueFor("update", "official.import_run_steps", undefined);
     scriptStepFinish();
@@ -84,8 +85,9 @@ describe("the links step", () => {
       "select stations",
       "select official.sites",
       "select stations",
-      "insert stations_permits",
-      "delete stations_permits",
+      "select stations_official_sites",
+      "delete stations_official_sites",
+      "insert stations_official_sites",
       "insert official.import_changes",
       "update official.import_run_steps",
       "commit",
@@ -104,22 +106,22 @@ describe("the links step", () => {
     ]);
     expect(valuesOf("insert", "official.import_changes")).toEqual([
       [
-        { runId: RUN_ID, kind: "station_linked", stationId: 100, permitId: 701 },
-        { runId: RUN_ID, kind: "station_linked", stationId: 103, permitId: 650 },
-        { runId: RUN_ID, kind: "station_unlinked", stationId: 104, permitId: 650 },
+        { runId: RUN_ID, kind: "station_linked", stationId: 100, officialSiteId: 504 },
+        { runId: RUN_ID, kind: "station_linked", stationId: 103, officialSiteId: 503 },
+        { runId: RUN_ID, kind: "station_unlinked", stationId: 104, officialSiteId: 503 },
       ],
     ]);
     expect(valuesOf("update", "official.import_run_steps")).toEqual([{ lastSeq: 20 }, { finishedAt: expect.anything() }]);
   });
 
-  it("resumes after the last change an earlier attempt handled, and finds nothing to write where the pairs are already right", async () => {
+  it("resumes after the last change an earlier attempt handled, and finds nothing to write where the links are already right", async () => {
     scriptStepStart({ lastSeq: 15 });
     ownRun(1);
     dbMock.enqueueFor("select", "official.import_changes", [
       change(16, "permit_added", { datasetId: 1, slice: "north", officialSiteId: 504, permitId: 701 }),
     ]);
     dbMock.enqueueFor("select", "official.sites", [{ id: 504, operatorId: 4, siteId: "BT1001" }]);
-    dbMock.enqueueStationLinks([{ id: 100 }], [permitRow(701, 504, 4, "BT1001", { id: 9001, stationId: 100 })], [stationRow(100, 4, "BT1001")]);
+    dbMock.enqueueStationLinks([{ id: 100 }], [siteRow(504, 4, "BT1001")], [stationRow(100, 4, "BT1001")], [{ stationId: 100, officialSiteId: 504 }]);
     dbMock.enqueueFor("update", "official.import_run_steps", undefined);
     scriptStepFinish();
 
@@ -128,7 +130,9 @@ describe("the links step", () => {
     expect(dbMock.pendingResults()).toBe(0);
     expect(changeReads()).toEqual([[RUN_ID, ...GROUP_CHANGING_KINDS, 15]]);
     expect(
-      dbMock.calls.some((call) => call.table === "stations_permits" || (call.table === "official.import_changes" && call.operation === "insert")),
+      dbMock.calls.some(
+        (call) => call.operation !== "select" && (call.table === "stations_official_sites" || call.table === "official.import_changes"),
+      ),
     ).toBe(false);
     expect(valuesOf("update", "official.import_run_steps")).toEqual([{ error: null }, { lastSeq: 16 }, { finishedAt: expect.anything() }]);
   });
@@ -188,11 +192,12 @@ describe("the links step", () => {
     dbMock.enqueueFor("select", "official.remap_runs", [{ fromOperatorId: 4 }]);
     dbMock.enqueueStationLinks(
       [{ id: 200 }, { id: 201 }],
-      [permitRow(800, 520, 7, "BT2000", { id: 9100, stationId: 200 }), permitRow(810, 530, 7, "BT3000", null)],
+      [siteRow(520, 7, "BT2000"), siteRow(530, 7, "BT3000")],
       [stationRow(200, 4, "BT2000"), stationRow(201, 7, "BT2000")],
+      [{ stationId: 200, officialSiteId: 520 }],
     );
-    dbMock.enqueueFor("insert", "stations_permits", [{ stationId: 201, permitId: 800 }]);
-    dbMock.enqueueFor("delete", "stations_permits", [{ stationId: 200, permitId: 800 }]);
+    dbMock.enqueueFor("delete", "stations_official_sites", [{ stationId: 200, officialSiteId: 520 }]);
+    dbMock.enqueueFor("insert", "stations_official_sites", [{ stationId: 201, officialSiteId: 520 }]);
     dbMock.enqueueFor("insert", "official.import_changes", undefined);
     dbMock.enqueueFor("update", "official.import_run_steps", undefined);
     scriptStepFinish();
@@ -210,14 +215,14 @@ describe("the links step", () => {
         { operatorId: 4, siteId: "BT3000" },
       ],
     ]);
-    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "stations_permits")?.values).toEqual([
-      { station_id: 201, permit_id: 800 },
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "stations_official_sites")?.values).toEqual([
+      { station_id: 201, official_site_id: 520 },
     ]);
-    expect(whereOf(dbMock.calls.find((call) => call.operation === "delete" && call.table === "stations_permits")).params).toEqual([9100]);
+    expect(whereOf(dbMock.calls.find((call) => call.operation === "delete" && call.table === "stations_official_sites")).params).toEqual([200, 520]);
     expect(valuesOf("insert", "official.import_changes")).toEqual([
       [
-        { runId: RUN_ID, kind: "station_linked", stationId: 201, permitId: 800 },
-        { runId: RUN_ID, kind: "station_unlinked", stationId: 200, permitId: 800 },
+        { runId: RUN_ID, kind: "station_linked", stationId: 201, officialSiteId: 520 },
+        { runId: RUN_ID, kind: "station_unlinked", stationId: 200, officialSiteId: 520 },
       ],
     ]);
   });
@@ -235,7 +240,7 @@ describe("the links step", () => {
       `After-step links failed: Import run ${RUN_ID} remapped sites without a remap row`,
     );
     expect(correctedGroups()).toEqual([]);
-    expect(dbMock.calls.some((call) => call.table === "stations_permits")).toBe(false);
+    expect(dbMock.calls.some((call) => call.table === "stations_official_sites")).toBe(false);
   });
 
   it("corrects every group for a relink run, a page of groups a transaction, without walking the change set", async () => {
@@ -244,8 +249,8 @@ describe("the links step", () => {
     scriptStepStart();
     ownRun(3);
     dbMock.enqueueFor("select", "official.sites", firstPage, [lastGroup], []);
-    dbMock.enqueueStationLinks([], [], [{ id: 300 }], [permitRow(900, 600, 5, "BT0500", null)], [stationRow(300, 5, "BT0500")]);
-    dbMock.enqueueFor("insert", "stations_permits", [{ stationId: 300, permitId: 900 }]);
+    dbMock.enqueueStationLinks([], [], [], [{ id: 300 }], [siteRow(600, 5, "BT0500")], [stationRow(300, 5, "BT0500")], []);
+    dbMock.enqueueFor("insert", "stations_official_sites", [{ stationId: 300, officialSiteId: 600 }]);
     dbMock.enqueueFor("insert", "official.import_changes", undefined);
     scriptStepFinish();
 
@@ -253,14 +258,22 @@ describe("the links step", () => {
 
     expect(dbMock.pendingResults()).toBe(0);
     const [, firstWork, secondWork, lastWork] = transactionsOf(trace());
-    expect(firstWork).toEqual(["select official.import_runs", "select official.sites", "select stations", "select official.sites", "commit"]);
+    expect(firstWork).toEqual([
+      "select official.import_runs",
+      "select official.sites",
+      "select stations",
+      "select official.sites",
+      "select stations_official_sites",
+      "commit",
+    ]);
     expect(secondWork).toEqual([
       "select official.import_runs",
       "select official.sites",
       "select stations",
       "select official.sites",
       "select stations",
-      "insert stations_permits",
+      "select stations_official_sites",
+      "insert stations_official_sites",
       "insert official.import_changes",
       "commit",
     ]);
@@ -273,7 +286,7 @@ describe("the links step", () => {
     ]);
     expect(correctedGroups().map((groups) => (groups as unknown[]).length)).toEqual([500, 1]);
     expect(changeReads()).toEqual([]);
-    expect(valuesOf("insert", "official.import_changes")).toEqual([[{ runId: RUN_ID, kind: "station_linked", stationId: 300, permitId: 900 }]]);
+    expect(valuesOf("insert", "official.import_changes")).toEqual([[{ runId: RUN_ID, kind: "station_linked", stationId: 300, officialSiteId: 600 }]]);
     expect(valuesOf("update", "official.import_run_steps")).toEqual([{ finishedAt: expect.anything() }]);
   });
 
@@ -281,13 +294,17 @@ describe("the links step", () => {
     scriptStepStart({ lastSeq: null });
     ownRun(2);
     dbMock.enqueueFor("select", "official.sites", [{ siteId: "BT1001", operatorId: 4 }], []);
-    dbMock.enqueueStationLinks([{ id: 100 }], [permitRow(700, 501, 4, "BT1001", { id: 9001, stationId: 100 })], [stationRow(100, 4, "BT1001")]);
+    dbMock.enqueueStationLinks([{ id: 100 }], [siteRow(501, 4, "BT1001")], [stationRow(100, 4, "BT1001")], [{ stationId: 100, officialSiteId: 501 }]);
     scriptStepFinish();
 
     await runStep(links, { run: claimedRun({ kind: "relink", attempt: 2 }) });
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(dbMock.calls.some((call) => call.table === "stations_permits" || call.table === "official.import_changes")).toBe(false);
+    expect(
+      dbMock.calls.some(
+        (call) => (call.table === "stations_official_sites" && call.operation !== "select") || call.table === "official.import_changes",
+      ),
+    ).toBe(false);
   });
 
   it("takes no station row lock in a dry run, for the changed groups or for every group", async () => {
@@ -297,8 +314,8 @@ describe("the links step", () => {
       change(11, "permit_added", { datasetId: 1, slice: "north", officialSiteId: 504, permitId: 701 }),
     ]);
     dbMock.enqueueFor("select", "official.sites", [{ id: 504, operatorId: 4, siteId: "BT1001" }]);
-    dbMock.enqueueStationLinks([permitRow(701, 504, 4, "BT1001", null)], [stationRow(100, 4, "BT1001")]);
-    dbMock.enqueueFor("insert", "stations_permits", [{ stationId: 100, permitId: 701 }]);
+    dbMock.enqueueStationLinks([siteRow(504, 4, "BT1001")], [stationRow(100, 4, "BT1001")], []);
+    dbMock.enqueueFor("insert", "stations_official_sites", [{ stationId: 100, officialSiteId: 504 }]);
     dbMock.enqueueFor("insert", "official.import_changes", undefined);
     dbMock.enqueueFor("update", "official.import_run_steps", undefined);
     scriptStepFinish();
@@ -307,14 +324,14 @@ describe("the links step", () => {
 
     expect(dbMock.pendingResults()).toBe(0);
     expect(dbMock.calls.some((call) => call.clauses.for !== undefined && call.table === "stations")).toBe(false);
-    expect(valuesOf("insert", "official.import_changes")).toEqual([[{ runId: RUN_ID, kind: "station_linked", stationId: 100, permitId: 701 }]]);
+    expect(valuesOf("insert", "official.import_changes")).toEqual([[{ runId: RUN_ID, kind: "station_linked", stationId: 100, officialSiteId: 504 }]]);
 
     dbMock.calls.length = 0;
     scriptStepStart();
     ownRun(2);
     dbMock.enqueueFor("select", "official.sites", [{ siteId: "BT1001", operatorId: 4 }], []);
-    dbMock.enqueueStationLinks([permitRow(700, 501, 4, "BT1001", null)], [stationRow(100, 4, "BT1001")]);
-    dbMock.enqueueFor("insert", "stations_permits", [{ stationId: 100, permitId: 700 }]);
+    dbMock.enqueueStationLinks([siteRow(501, 4, "BT1001")], [stationRow(100, 4, "BT1001")], []);
+    dbMock.enqueueFor("insert", "stations_official_sites", [{ stationId: 100, officialSiteId: 501 }]);
     dbMock.enqueueFor("insert", "official.import_changes", undefined);
     scriptStepFinish();
 

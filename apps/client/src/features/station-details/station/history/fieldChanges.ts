@@ -20,6 +20,7 @@ const FIELD_LABELS: Record<Exclude<HistoryFieldName, CellIdentifierField>, Field
   status: { translationKey: "common:labels.status" },
   notes: { translationKey: "common:labels.notes" },
   operatorId: { translationKey: "common:labels.operator" },
+  hostStationId: { translationKey: "common:labels.hostStation" },
   isConfirmed: { translationKey: "common:labels.confirmed" },
   location: { translationKey: "common:labels.location" },
   regionId: { translationKey: "common:labels.region" },
@@ -105,7 +106,7 @@ function formatText(field: string, value: string, t: TFunction): string {
 function formatNumber(field: string, value: number, names: HistoryNames): string {
   if (field === "operatorId") return getNameById(names.operators, value);
   if (field === "regionId") return getNameById(names.regions, value);
-  if (field === "structureOwner") return formatUnresolvedId(value);
+  if (field === "structureOwner" || field === "hostStationId") return formatUnresolvedId(value);
   return String(value);
 }
 

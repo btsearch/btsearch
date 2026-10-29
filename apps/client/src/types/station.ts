@@ -13,25 +13,6 @@ export type Region = {
   code: string;
 };
 
-export type Location = {
-  id: number;
-  city: string;
-  address: string;
-  longitude: number;
-  latitude: number;
-  updatedAt: string;
-  createdAt: string;
-  region: Region;
-};
-
-type Operator = {
-  id: number;
-  name: string;
-  full_name: string;
-  parent_id: number | null;
-  mnc: number;
-};
-
 export type CellDetails = {
   // GSM
   lac?: number;
@@ -85,51 +66,4 @@ export type ExtraIdentificator = {
 
 export type StationStatus = "published" | "inactive" | "pending";
 
-export type PhysicalStation = {
-  id: number;
-  station_id: string;
-  status: StationStatus;
-  operator: Operator;
-};
-
-export type Station = {
-  id: number;
-  station_id: string;
-  operator_id: number;
-  notes: string | null;
-  extra_address: string | null;
-  updatedAt: string;
-  createdAt: string;
-  is_confirmed: boolean;
-  status?: StationStatus;
-  statusChangedAt?: string;
-  cells: Cell[];
-  location: Location;
-  operator: Operator;
-  extra_identificators?: ExtraIdentificator;
-  sectors?: Sector[];
-  physicalStation?: PhysicalStation;
-};
-
 export type StationSource = "internal" | "official";
-
-export type StationWithoutCells = Omit<Station, "location" | "cells"> & {
-  cells?: Cell[];
-};
-
-export type LocationWithStations = {
-  id: number;
-  city?: string;
-  address?: string;
-  latitude: number;
-  longitude: number;
-  updatedAt: string;
-  createdAt: string;
-  region: Region;
-  stations: StationWithoutCells[];
-};
-
-export type Sector = {
-  id: number;
-  azimuth: number;
-};

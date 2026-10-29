@@ -1,5 +1,5 @@
 import { users } from "@openbts/drizzle";
-import { submissionCreateManySchema, submissionSchema } from "@openbts/shared/contract";
+import { HOST_STATION_REFUSAL_KINDS, submissionCreateManySchema, submissionSchema } from "@openbts/shared/contract";
 import type { Submission, SubmissionCreate } from "@openbts/shared/contract";
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -46,7 +46,9 @@ const errorReasons = {
   400:
     "A change cannot be accepted as it is. Typical cases are an update that changes nothing, " +
     "a new station whose site id the operator already uses, a new station with neither cells nor photos, " +
-    "or a band that is not in the country's band plan.",
+    "a band that is not in the country's band plan, or a `hostStationId` that names a station that cannot host this one. " +
+    "A refused `hostStationId` puts its full path in `details[0].field`, such as `0/station/hostStationId`, " +
+    `and \`details[0].kind\` gives the reason, one of \`${HOST_STATION_REFUSAL_KINDS.join("`, `")}\`.`,
   403:
     "Submissions are disabled, or one of the changes is in a country that is closed to contributions. " +
     "Those reasons do not identify a change. Also returned when a change proposes a new structure owner while proposals are disabled, " +

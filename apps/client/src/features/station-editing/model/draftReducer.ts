@@ -1,6 +1,7 @@
 import { conventionsFor } from "@openbts/country-packs";
 import type { LocationMove, StationIdentifierKind } from "@openbts/shared/contract";
 
+import { findStationLocationId, movesStationAlone } from "./changes";
 import { isSameCodes } from "./networks";
 import { MAX_SECTORS, RAT_FIELDS, RAT_ORDER, canShareAreaCode, carriesAreaCode, getAreaCodeField, getCellNumber } from "./ratFields";
 import {
@@ -58,6 +59,8 @@ export type SessionInput = {
 export type DraftAction =
   | { type: "setStation"; patch: StationPatch }
   | { type: "setOperator"; operatorId: number | null; ownerPlmn: string | null; identifierKinds: readonly StationIdentifierKind[] }
+  | { type: "setHostStation"; hostStationId: number | null }
+  | { type: "setHostStationEditing"; editsHostStations: boolean }
   | { type: "setIdentifier"; kind: StationIdentifierKind; value: string }
   | { type: "setBackhaul"; patch: Partial<BackhaulDraft> }
   | { type: "setPlace"; patch: PlacePatch }
@@ -131,6 +134,7 @@ export function createSession(input: SessionInput): EditSession {
     action: input.action,
     countryCode: input.countryCode,
     hoistedTac,
+    editsHostStations: false,
     live: input.live,
     proposed: input.proposed,
     initial,
@@ -202,6 +206,24 @@ function setOperator(
 
   const next = withStation(session, { ...station, operatorId, identifiers: keepsIdentifiers ? station.identifiers : identifiers });
   return station.operatorId === operatorId ? next : dropOwnerPlmn(next, ownerPlmn);
+}
+
+function setHostStation(session: EditSession, hostStationId: number | null): EditSession {
+  const { station } = session.draft;
+  return station.hostStationId === hostStationId ? session : withStation(session, { ...station, hostStationId });
+}
+
+function setHostStationEditing(session: EditSession, editsHostStations: boolean): EditSession {
+  if (session.editsHostStations === editsHostStations) return session;
+
+  const next = { ...session, editsHostStations };
+  return editsHostStations ? next : setHostStation(next, session.live?.station.hostStationId ?? null);
+}
+
+function dropHostOfMovedStation(before: EditSession, after: EditSession): EditSession {
+  const leavesHostLocation = after.live === null ? findStationLocationId(after) !== findStationLocationId(before) : movesStationAlone(after);
+  if (!after.editsHostStations || !leavesHostLocation) return after;
+  return setHostStation(after, null);
 }
 
 function setIdentifier(session: EditSession, kind: StationIdentifierKind, value: string): EditSession {
@@ -527,6 +549,7 @@ function revertStationField(session: EditSession, base: StationDraft, field: Edi
   if (field === "operatorId") {
     return station.operatorId === base.operatorId ? session : withStation(session, { ...station, operatorId: base.operatorId });
   }
+  if (field === "hostStationId") return setHostStation(session, base.hostStationId);
   if (field === "siteId") return patchStation(session, { siteId: base.siteId });
   if (field === "status") return patchStation(session, { status: base.status });
   if (field === "isConfirmed") return patchStation(session, { isConfirmed: base.isConfirmed });
@@ -662,16 +685,20 @@ function applyAction(session: EditSession, action: DraftAction): EditSession {
       return patchStation(session, action.patch);
     case "setOperator":
       return setOperator(session, action.operatorId, action.ownerPlmn, action.identifierKinds);
+    case "setHostStation":
+      return setHostStation(session, action.hostStationId);
+    case "setHostStationEditing":
+      return setHostStationEditing(session, action.editsHostStations);
     case "setIdentifier":
       return setIdentifier(session, action.kind, action.value);
     case "setBackhaul":
       return setBackhaul(session, action.patch);
     case "setPlace":
-      return patchPlace(session, action.patch);
+      return dropHostOfMovedStation(session, patchPlace(session, action.patch));
     case "pickPlace":
-      return pickPlace(session, action.place);
+      return dropHostOfMovedStation(session, pickPlace(session, action.place));
     case "setMove":
-      return session.draft.place === null ? session : patchPlace(session, { move: action.move });
+      return session.draft.place === null ? session : dropHostOfMovedStation(session, patchPlace(session, { move: action.move }));
     case "setStructure":
       return patchStructure(session, action.patch);
     case "setOwner":
@@ -710,8 +737,10 @@ function applyAction(session: EditSession, action: DraftAction): EditSession {
       return setEnabledRats(session, action.rats);
     case "setAction":
       return setAction(session, action.action);
-    case "revertToLive":
-      return revertToLive(session, action.target);
+    case "revertToLive": {
+      const reverted = revertToLive(session, action.target);
+      return action.target.scope === "place" ? dropHostOfMovedStation(session, reverted) : reverted;
+    }
     case "rebase":
       return rebase(session, action.live, action.proposed);
     case "reset":
@@ -738,6 +767,7 @@ function getOutdatedErrors(session: EditSession, action: DraftAction): ErrorFilt
   switch (action.type) {
     case "setStation":
     case "setOperator":
+    case "setHostStation":
     case "setIdentifier":
     case "setBackhaul":
       return (error) => error.target.scope === "station";

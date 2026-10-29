@@ -50,6 +50,7 @@ export type ChangeContext = {
   bandText: (bandId: number | null) => string;
   operatorName: (operatorId: number | null) => string | null;
   operatorShortName: (operatorId: number | null) => string | null;
+  stationCode: (stationId: number) => string | null;
   regionName: (regionId: number | null) => string | null;
   ownerName: (ownerId: number) => string | null;
   ownerPlmn: (operatorId: number | null) => string | null;
@@ -293,6 +294,11 @@ export function movesStationAlone(session: EditSession): boolean {
   return hasMarkerMoved(session) && session.draft.place?.move !== "location";
 }
 
+export function findStationLocationId(session: EditSession): number | null {
+  const place = session.live === null ? session.draft.place : session.live.place;
+  return place?.locationId ?? null;
+}
+
 export function getMoveDistance(place: PlaceDraft | null, basePlace: PlaceDraft | null): number | null {
   if (place === null || basePlace === null) return null;
   if (place.latitude === null || place.longitude === null || basePlace.latitude === null || basePlace.longitude === null) return null;
@@ -317,6 +323,10 @@ function describeOwner(owner: OwnerChoice, context: ChangeContext): TextPart {
   if (owner.kind === "unknown") return { key: UNKNOWN_KEY };
   if (owner.kind === "proposed") return { key: "stations:edit.changes.proposedOwner", values: { name: normalizeText(owner.name) } };
   return { text: context.ownerName(owner.ownerId) ?? `#${owner.ownerId}` };
+}
+
+function describeStation(stationId: number | null, context: ChangeContext): TextPart | null {
+  return stationId === null ? null : { text: context.stationCode(stationId) ?? `#${stationId}` };
 }
 
 function describeMedium(medium: BackhaulMedium | null): TextPart {
@@ -354,6 +364,12 @@ const STATION_SPECS: readonly FieldSpec<StationField>[] = [
     label: () => ({ key: "common:labels.operator" }),
     read: (snapshot) => snapshot.station.operatorId,
     describe: (snapshot, context) => toTextPart(context.operatorName(snapshot.station.operatorId) ?? ""),
+  },
+  {
+    field: "hostStationId",
+    label: () => ({ key: "common:labels.hostStation" }),
+    read: (snapshot) => snapshot.station.hostStationId,
+    describe: (snapshot, context) => describeStation(snapshot.station.hostStationId, context),
   },
   {
     field: "status",

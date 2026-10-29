@@ -23,6 +23,7 @@ import { checkOwnerCellDuplicates, checkPciDuplicates, getOperatorIdForStation }
 import { type NetworkOwner, cellNetworkKeys, loadNetworkOwner, withoutOwnerCode } from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { backhaulSpeedSchema } from "../stations/backhaul.js";
+import { assertHostStationFits } from "../stations/hostStations.js";
 import { assertCountriesOpen, loadCurrentLocations } from "./contributions.js";
 import {
   type PhotoPickInput,
@@ -366,6 +367,11 @@ export async function updateSubmission(
   }
   if (submission.type === "new" && body.location && !isCompleteLocation(body.location)) {
     throw new ErrorResponse("BAD_REQUEST", { message: "A region and coordinates are required for a new station's location" });
+  }
+  const hostStationId = body.station?.ran_host_station_id;
+  if (hostStationId !== undefined) {
+    const location = body.location ?? (await db.query.proposedLocations.findFirst({ where: { submission_id: id } }));
+    await assertHostStationFits({ stationId, hostStationId, operatorId: body.station?.operator_id, location });
   }
 
   if (body.sectors || body.cells) {

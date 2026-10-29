@@ -64,13 +64,15 @@ const DRY_RUN_NOTE = "A dry run works out what the run would change and then und
 const RUN_KIND_NOTE =
   "`import` reads what the source has published and applies what is new. " +
   "`replay` reads the latest release of each dataset again, even when it was imported before. " +
-  "`relink` works out the links between official permits and stations again, without reading a dataset";
+  "`relink` works out the links between official sites and stations again, without reading a dataset";
 const REMAP_KIND_NOTE = "`remap` moves the official sites and permits of a licensee to another operator";
 const CHANGE_KIND_NOTE =
   "`siteAdded`, `siteMoved`, `siteRemapped`: an official site is new, moved to another location, or went to another operator. " +
   "`permitAdded`: a permit is new. `permitListed`, `permitUnlisted`: a dataset started or stopped listing a permit that already existed. " +
   "`permitArchived`: no dataset lists the permit any more, so it was removed. " +
-  "`stationLinked`, `stationUnlinked`: a permit was linked to a station, or the link was removed. " +
+  "`permitMovedIn`, `permitMovedOut`: a remap moved a permit to an official site, or away from one. " +
+  "A permit merged into an equal permit that the other site already had counts only as moved out. " +
+  "`stationLinked`, `stationUnlinked`: an official site was linked to a station, or the link was removed. " +
   "`microwaveLinkAdded`, `microwaveLinkRenewed`, `microwaveLinkArchived`: a microwave link is new, continues under a new permit number, " +
   "or was removed";
 const SLICE_OUTCOME_NOTE =

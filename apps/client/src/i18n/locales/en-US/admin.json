@@ -763,8 +763,10 @@
       "permitListed": "Permits added to a listing",
       "permitUnlisted": "Permits removed from a listing",
       "permitArchived": "Permits archived",
-      "stationLinked": "Stations linked to permits",
-      "stationUnlinked": "Stations unlinked from permits",
+      "permitMovedIn": "Permits moved in from another register station",
+      "permitMovedOut": "Permits moved out to another register station",
+      "stationLinked": "Stations linked to register stations",
+      "stationUnlinked": "Stations unlinked from register stations",
       "microwaveLinkAdded": "Microwave links added",
       "microwaveLinkRenewed": "Microwave links renewed",
       "microwaveLinkArchived": "Microwave links archived"

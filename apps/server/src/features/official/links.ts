@@ -1,56 +1,20 @@
 /* eslint-disable no-await-in-loop */
-import { locations, officialLocations, officialPermits, officialSites, stations, stationsPermits } from "@openbts/drizzle";
-import { type SQL, type SQLWrapper, and, asc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { locations, officialLocations, officialPermits, officialSites, stations, stationsOfficialSites } from "@openbts/drizzle";
+import { type SQL, type SQLWrapper, and, asc, eq, exists, inArray, isNotNull, or, sql } from "drizzle-orm";
 
 import { chunks } from "../../lib/collections.js";
 import type { DbTx } from "../../types/global.js";
+import { type LinkableSite, type LinkableStation, type StationLink, decideStationLinks, groupKey } from "./linkRule.js";
 
 export type StationGroupKey = { operatorId: number | null; siteId: string | null };
-export type StationLink = { stationId: number; permitId: number };
 export type StationLinkChanges = { added: StationLink[]; removed: StationLink[] };
-export type LinkablePermit = {
-  permitId: number;
-  officialSiteId: number;
-  sourceId: number;
-  operatorId: number;
-  siteId: string;
-  longitude: number;
-  latitude: number;
-};
-export type LinkableStation = { stationId: number; operatorId: number | null; siteId: string; longitude: number | null; latitude: number | null };
-
 export type LinkGroupKey = { operatorId: number; siteId: string };
-type StoredLink = StationLink & { id: number };
 
 const GROUPS_PER_STATEMENT = 500;
 const LINKS_PER_STATEMENT = 1_000;
 
-function groupKey({ operatorId, siteId }: StationGroupKey): string {
-  return JSON.stringify([operatorId, siteId]);
-}
-
-function sourceGroupKey({ sourceId, operatorId, siteId }: LinkablePermit): string {
-  return JSON.stringify([sourceId, operatorId, siteId]);
-}
-
-function linkKey({ stationId, permitId }: StationLink): string {
-  return `${stationId}:${permitId}`;
-}
-
-export function decideStationLinks(permits: readonly LinkablePermit[], ourStations: readonly LinkableStation[]): StationLink[] {
-  const stationsByGroup = new Map(ourStations.filter(({ operatorId }) => operatorId !== null).map((station) => [groupKey(station), station]));
-  const siteCountsBySourceGroup = new Map(
-    [...Map.groupBy(permits, sourceGroupKey)].map(([key, groupPermits]) => [key, new Set(groupPermits.map((permit) => permit.officialSiteId)).size]),
-  );
-
-  return permits.flatMap((permit) => {
-    const station = stationsByGroup.get(groupKey(permit));
-    if (!station) return [];
-
-    const isAtTheStation = permit.longitude === station.longitude && permit.latitude === station.latitude;
-    const isTheOnlySite = siteCountsBySourceGroup.get(sourceGroupKey(permit)) === 1;
-    return isAtTheStation || isTheOnlySite ? [{ stationId: station.stationId, permitId: permit.permitId }] : [];
-  });
+function linkKey({ stationId, officialSiteId }: StationLink): string {
+  return `${stationId}:${officialSiteId}`;
 }
 
 function withOperator(groups: readonly StationGroupKey[]): LinkGroupKey[] {
@@ -78,24 +42,48 @@ async function lockStations(tx: DbTx, groups: readonly LinkGroupKey[]): Promise<
   return new Set(locked.map(({ id }) => id));
 }
 
-async function readPermitsWithLinks(tx: DbTx, groups: readonly LinkGroupKey[]) {
+async function readSitesWithPermits(tx: DbTx, groups: readonly LinkGroupKey[]): Promise<LinkableSite[]> {
   return tx
     .select({
-      permitId: officialPermits.id,
       officialSiteId: officialSites.id,
       sourceId: officialSites.source_id,
       operatorId: officialSites.operator_id,
       siteId: sql<string>`${officialSites.station_id}`,
       longitude: officialLocations.longitude,
       latitude: officialLocations.latitude,
-      linkId: stationsPermits.id,
-      linkedStationId: stationsPermits.station_id,
     })
     .from(officialSites)
     .innerJoin(officialLocations, eq(officialLocations.id, officialSites.location_id))
-    .innerJoin(officialPermits, eq(officialPermits.official_site_id, officialSites.id))
-    .leftJoin(stationsPermits, eq(stationsPermits.permit_id, officialPermits.id))
-    .where(inGroups(officialSites.station_id, officialSites.operator_id, groups));
+    .where(
+      and(
+        inGroups(officialSites.station_id, officialSites.operator_id, groups),
+        exists(tx.select({ id: officialPermits.id }).from(officialPermits).where(eq(officialPermits.official_site_id, officialSites.id))),
+      ),
+    );
+}
+
+async function readStoredLinks(tx: DbTx, groups: readonly LinkGroupKey[]): Promise<StationLink[]> {
+  return tx
+    .select({ stationId: stationsOfficialSites.station_id, officialSiteId: stationsOfficialSites.official_site_id })
+    .from(stationsOfficialSites)
+    .where(
+      or(
+        inArray(
+          stationsOfficialSites.station_id,
+          tx
+            .select({ id: stations.id })
+            .from(stations)
+            .where(inGroups(stations.station_id, stations.operator_id, groups)),
+        ),
+        inArray(
+          stationsOfficialSites.official_site_id,
+          tx
+            .select({ id: officialSites.id })
+            .from(officialSites)
+            .where(inGroups(officialSites.station_id, officialSites.operator_id, groups)),
+        ),
+      ),
+    );
 }
 
 async function readStations(tx: DbTx, groups: readonly LinkGroupKey[]): Promise<LinkableStation[]> {
@@ -116,26 +104,32 @@ async function insertLinks(tx: DbTx, links: readonly StationLink[]): Promise<Sta
   const inserted: StationLink[] = [];
   for (const page of chunks(links, LINKS_PER_STATEMENT)) {
     const insertedOfPage = await tx
-      .insert(stationsPermits)
-      .values(page.map(({ stationId, permitId }) => ({ station_id: stationId, permit_id: permitId })))
-      .returning({ stationId: stationsPermits.station_id, permitId: stationsPermits.permit_id });
+      .insert(stationsOfficialSites)
+      .values(page.map(({ stationId, officialSiteId }) => ({ station_id: stationId, official_site_id: officialSiteId })))
+      .returning({ stationId: stationsOfficialSites.station_id, officialSiteId: stationsOfficialSites.official_site_id });
     inserted.push(...insertedOfPage);
   }
   return inserted;
 }
 
-async function deleteLinks(tx: DbTx, links: readonly StoredLink[]): Promise<StationLink[]> {
+async function deleteLinks(tx: DbTx, links: readonly StationLink[]): Promise<StationLink[]> {
   const deleted: StationLink[] = [];
   for (const page of chunks(links, LINKS_PER_STATEMENT)) {
     const deletedOfPage = await tx
-      .delete(stationsPermits)
+      .delete(stationsOfficialSites)
       .where(
-        inArray(
-          stationsPermits.id,
-          page.map((link) => link.id),
+        and(
+          inArray(
+            stationsOfficialSites.station_id,
+            page.map((link) => link.stationId),
+          ),
+          inArray(
+            stationsOfficialSites.official_site_id,
+            page.map((link) => link.officialSiteId),
+          ),
         ),
       )
-      .returning({ stationId: stationsPermits.station_id, permitId: stationsPermits.permit_id });
+      .returning({ stationId: stationsOfficialSites.station_id, officialSiteId: stationsOfficialSites.official_site_id });
     deleted.push(...deletedOfPage);
   }
   return deleted;
@@ -144,29 +138,26 @@ async function deleteLinks(tx: DbTx, links: readonly StoredLink[]): Promise<Stat
 async function readGroupState(tx: DbTx, groups: readonly LinkGroupKey[], locksStations: boolean) {
   for (;;) {
     const lockedIds = locksStations ? await lockStations(tx, groups) : null;
-    const permitsWithLinks = await readPermitsWithLinks(tx, groups);
-    const ourStations = permitsWithLinks.length > 0 ? await readStations(tx, groups) : [];
-    if (lockedIds === null || ourStations.every(({ stationId }) => lockedIds.has(stationId))) return { permitsWithLinks, ourStations };
+    const sites = await readSitesWithPermits(tx, groups);
+    const ourStations = sites.length > 0 ? await readStations(tx, groups) : [];
+    if (lockedIds === null || ourStations.every(({ stationId }) => lockedIds.has(stationId))) return { sites, ourStations };
   }
 }
 
 async function correctGroups(tx: DbTx, groups: readonly LinkGroupKey[], locksStations: boolean): Promise<StationLinkChanges> {
-  const { permitsWithLinks, ourStations } = await readGroupState(tx, groups, locksStations);
-  const permits = [...new Map(permitsWithLinks.map((permit) => [permit.permitId, permit])).values()];
-  const stored = permitsWithLinks.flatMap(({ linkId, linkedStationId, permitId }): StoredLink[] =>
-    linkId === null || linkedStationId === null ? [] : [{ id: linkId, stationId: linkedStationId, permitId }],
-  );
-  const wanted = decideStationLinks(permits, ourStations);
+  const { sites, ourStations } = await readGroupState(tx, groups, locksStations);
+  const stored = await readStoredLinks(tx, groups);
+  const wanted = decideStationLinks(sites, ourStations);
   const storedKeys = new Set(stored.map(linkKey));
   const wantedKeys = new Set(wanted.map(linkKey));
 
-  const added = await insertLinks(
-    tx,
-    wanted.filter((link) => !storedKeys.has(linkKey(link))),
-  );
   const removed = await deleteLinks(
     tx,
     stored.filter((link) => !wantedKeys.has(linkKey(link))),
+  );
+  const added = await insertLinks(
+    tx,
+    wanted.filter((link) => !storedKeys.has(linkKey(link))),
   );
   return { added, removed };
 }

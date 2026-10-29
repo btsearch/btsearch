@@ -58,7 +58,7 @@ import {
   stationBackhauls,
   stationSectors,
   stations,
-  stationsPermits,
+  stationsOfficialSites,
   statsSnapshots,
   structureOwners,
   umtsCells,
@@ -114,7 +114,7 @@ export const relations = defineRelations(
     microwaveLinkAntennaTypes,
     microwaveLinkTransmitterTypes,
     microwaveLinks,
-    stationsPermits,
+    stationsOfficialSites,
     gsmCells,
     umtsCells,
     lteCells,
@@ -678,7 +678,6 @@ export const relations = defineRelations(
         optional: false,
       }),
       sectors: helpers.many.officialPermitSectors(),
-      stationsPermits: helpers.many.stationsPermits(),
     },
     officialPermitSectors: {
       permit: helpers.one.officialPermits({
@@ -709,15 +708,16 @@ export const relations = defineRelations(
       permits: helpers.many.officialPermits(),
       officialSiteWatches: helpers.many.officialSiteWatches(),
     },
-    stationsPermits: {
-      permit: helpers.one.officialPermits({
-        from: helpers.stationsPermits.permit_id,
-        to: helpers.officialPermits.id,
+    stationsOfficialSites: {
+      officialSite: helpers.one.officialSites({
+        from: helpers.stationsOfficialSites.official_site_id,
+        to: helpers.officialSites.id,
         optional: false,
       }),
       station: helpers.one.stations({
-        from: helpers.stationsPermits.station_id,
+        from: helpers.stationsOfficialSites.station_id,
         to: helpers.stations.id,
+        optional: false,
       }),
     },
     extraIdentificators: {

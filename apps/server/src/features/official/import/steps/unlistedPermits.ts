@@ -1,5 +1,5 @@
-import { officialPermitListings, officialPermits, officialSites, stationsPermits } from "@openbts/drizzle";
-import { and, asc, eq, gt, inArray, notExists } from "drizzle-orm";
+import { officialPermitListings, officialPermits, officialSites } from "@openbts/drizzle";
+import { and, eq, gt, inArray, notExists } from "drizzle-orm";
 
 import type { DbTx } from "../../../../types/global.js";
 import { insertChanges } from "../changes.js";
@@ -34,20 +34,10 @@ async function archiveUnlistedPermits(tx: DbTx, run: ClaimedRun, afterPermitId: 
   if (unlisted.length === 0) return unlisted;
 
   const permitIds = unlisted.map((permit) => permit.permitId);
-  const links = await tx
-    .select({ permitId: stationsPermits.permit_id, stationId: stationsPermits.station_id })
-    .from(stationsPermits)
-    .where(inArray(stationsPermits.permit_id, permitIds))
-    .orderBy(asc(stationsPermits.permit_id), asc(stationsPermits.station_id));
-  const linksByPermit = Map.groupBy(links, (link) => link.permitId);
-
   await insertChanges(
     tx,
     run.id,
-    unlisted.flatMap(({ permitId, officialSiteId }): ChangeInput[] => [
-      { kind: "permit_archived", officialSiteId, permitId },
-      ...(linksByPermit.get(permitId) ?? []).map(({ stationId }): ChangeInput => ({ kind: "station_unlinked", permitId, stationId })),
-    ]),
+    unlisted.map(({ permitId, officialSiteId }): ChangeInput => ({ kind: "permit_archived", officialSiteId, permitId })),
   );
   await tx.delete(officialPermits).where(inArray(officialPermits.id, permitIds));
 

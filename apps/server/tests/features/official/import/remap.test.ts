@@ -160,8 +160,8 @@ describe("the plan of a remap", () => {
 
     expect(plan).toEqual(
       planWith({
-        moves: [{ permitId: 702, toSiteId: 601 }],
-        merges: [{ permitId: 701, intoPermitId: 801 }],
+        moves: [{ permitId: 702, fromSiteId: 501, toSiteId: 601 }],
+        merges: [{ permitId: 701, fromSiteId: 501, intoPermitId: 801 }],
         emptiedSites: [{ siteId: 501, intoSiteId: 601 }],
         remappedSiteIds: [601],
         touchedSiteIds: [601],
@@ -200,7 +200,7 @@ describe("the plan of a remap", () => {
 
     expect(plan).toEqual(
       planWith({
-        moves: [{ permitId: 701, toSiteId: 601 }],
+        moves: [{ permitId: 701, fromSiteId: 501, toSiteId: 601 }],
         remappedSiteIds: [601],
         touchedSiteIds: [501, 601],
         counts: { sitesSplit: 1, permitsMoved: 1 },
@@ -322,8 +322,8 @@ describe("a remap run", () => {
     dbMock.enqueueFor("update", "official.sites", undefined, undefined);
     dbMock.enqueueFor("insert", "official.sites", [{ id: 903, siteCode: "BT1003" }]);
     dbMock.enqueueFor("execute", undefined, [], [], []);
-    dbMock.enqueueFor("select", "stations_permits", [{ permitId: 702, stationId: 100 }]);
     dbMock.enqueueFor("delete", "official.permits", undefined);
+    dbMock.enqueueFor("delete", "stations_official_sites", [{ stationId: 100, officialSiteId: 502 }]);
     dbMock.enqueueFor("execute", undefined, [{ id: "watch" }], [], [{ id: 7 }, { id: 9 }]);
     dbMock.enqueueFor("delete", "official.sites", undefined);
     dbMock.enqueueFor("update", "official.licensees", undefined);
@@ -349,8 +349,8 @@ describe("a remap run", () => {
       "move permits",
       "merge listings",
       "merge sectors",
-      "select stations_permits",
       "delete official.permits",
+      "delete stations_official_sites",
       "repoint watches",
       "repoint notifications",
       "repoint lists",
@@ -377,6 +377,7 @@ describe("a remap run", () => {
       ],
     ]);
     expect(parametersOf("merge listings")).toEqual([[{ permit_id: 702, into_permit_id: 802 }]]);
+    expect(paramsOf(dbMock.calls.find((call) => call.table === "stations_official_sites")?.clauses.where?.[0])).toEqual([502]);
     expect(parametersOf("repoint lists")).toEqual([[{ site_id: 502, into_site_id: 602 }]]);
     expect([touched?.values, paramsOf(touched?.clauses.where?.[0])]).toEqual([{ updatedAt: STARTED_AT }, [[501, 602, 503]]]);
     expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "official.licensees")?.values).toEqual({
@@ -388,7 +389,12 @@ describe("a remap run", () => {
       { runId: RUN_ID, kind: "site_remapped", officialSiteId: 602 },
       { runId: RUN_ID, kind: "site_added", officialSiteId: 903 },
       { runId: RUN_ID, kind: "site_remapped", officialSiteId: 903 },
-      { runId: RUN_ID, kind: "station_unlinked", permitId: 702, stationId: 100 },
+      { runId: RUN_ID, kind: "permit_moved_out", officialSiteId: 502, permitId: 703 },
+      { runId: RUN_ID, kind: "permit_moved_in", officialSiteId: 602, permitId: 703 },
+      { runId: RUN_ID, kind: "permit_moved_out", officialSiteId: 503, permitId: 704 },
+      { runId: RUN_ID, kind: "permit_moved_in", officialSiteId: 903, permitId: 704 },
+      { runId: RUN_ID, kind: "permit_moved_out", officialSiteId: 502, permitId: 702 },
+      { runId: RUN_ID, kind: "station_unlinked", stationId: 100, officialSiteId: 502 },
     ]);
   });
 
@@ -467,8 +473,8 @@ describe("a remap run", () => {
     dbMock.enqueueFor("update", "official.sites", undefined, undefined);
     dbMock.enqueueFor("insert", "official.sites", [{ id: 903, siteCode: "BT1003" }]);
     dbMock.enqueueFor("execute", undefined, [], [], []);
-    dbMock.enqueueFor("select", "stations_permits", []);
     dbMock.enqueueFor("delete", "official.permits", undefined);
+    dbMock.enqueueFor("delete", "stations_official_sites", []);
     dbMock.enqueueFor("execute", undefined, [{ id: "watch" }], [{ id: "notice" }, { id: "other notice" }], [{ id: 7 }]);
     dbMock.enqueueFor("delete", "official.sites", undefined);
     dbMock.enqueueFor("update", "official.licensees", undefined);

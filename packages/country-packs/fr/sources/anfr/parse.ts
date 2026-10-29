@@ -248,7 +248,7 @@ export async function* parseRadioInstallations(ctx: ReadContext, _release: Relea
       yield {
         slice,
         location,
-        site: { siteId: null, licensee, name: null, ref: station },
+        site: { siteId: station, licensee, name: null, ref: station },
         permit: { label: labelOfSystem(system), number: null, decisionType: null, expiresOn: null, status: isInService ? "in_service" : "approved" },
         sectors: antennaIds.flatMap((antennaId) => sectors?.get(antennaId) ?? []),
       };

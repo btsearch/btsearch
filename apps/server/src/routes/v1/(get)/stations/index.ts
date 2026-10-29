@@ -15,7 +15,7 @@ import { buildStatusCondition, parseStationStatusParam } from "../../../../featu
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
+const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true, ran_host_station_id: true });
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
 const bandsSchema = createSelectSchema(bands);
 const regionSchema = createSelectSchema(regions);

@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
 const RAN_SHARING_ARTICLE_URL = "https://biuroprasowe.orange.pl/blog/gdy-dwoch-operatorow-korzysta-z-jednej-anteny-i-nie-tylko/";
+const RAN_SHARING_ARTICLE_COUNTRY_CODE = "PL";
 const MOCN_ARTICLE_URL = "https://www.vodafonethree.com/merger-sharing-mobile-networks-everything-you-need-to-know-mocn/";
 
 type ArticleLinkProps = {
@@ -11,6 +12,10 @@ type ArticleLinkProps = {
 };
 
 type SharingLinkProps = Omit<ArticleLinkProps, "href">;
+
+type RanSharingLinkProps = SharingLinkProps & {
+  countryCode: string | null;
+};
 
 function ArticleLink({ href, children }: ArticleLinkProps) {
   return (
@@ -31,7 +36,8 @@ function ArticleLink({ href, children }: ArticleLinkProps) {
   );
 }
 
-export function RanSharingLink({ children }: SharingLinkProps) {
+export function RanSharingLink({ countryCode, children }: RanSharingLinkProps) {
+  if (countryCode !== RAN_SHARING_ARTICLE_COUNTRY_CODE) return <>{children}</>;
   return <ArticleLink href={RAN_SHARING_ARTICLE_URL}>{children}</ArticleLink>;
 }
 

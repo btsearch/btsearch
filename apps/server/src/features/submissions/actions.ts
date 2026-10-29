@@ -70,6 +70,7 @@ import { findRegionIdAt } from "../regions/lookup.js";
 import { isBackhaulMedium } from "../stations/backhaul.js";
 import { assertOperatorsFitLocation, stationCountryCode } from "../stations/country.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
+import { settleHostLinks } from "../stations/hostStations.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { writeSectorAzimuths } from "../stations/sectorAzimuths.js";
 import { findSharedSiblingIds, keepSameEnbSiblingIds } from "../stations/sharedSiblings.js";
@@ -490,6 +491,7 @@ async function createStationFromProposal(
     {
       location_id: locationId,
       operator_id: proposedStation.operator_id,
+      ran_host_station_id: proposedStation.ran_host_station_id,
       notes: typeof proposedStation.notes === "string" && proposedStation.notes.trim() !== "" ? proposedStation.notes : null,
       is_confirmed: isConfirmed,
       status: stationStatusForCellCount(proposedCellCount),
@@ -725,8 +727,9 @@ async function applyStationIdentityUpdate(audit: AuditRecorder, changes: Propose
   const nextOperatorId =
     typeof changes.operator_id === "number" && changes.operator_id !== currentStation.operator_id ? changes.operator_id : undefined;
   const nextNotes = changes.notes !== undefined && proposedNotes !== normalizeText(currentStation.notes) ? proposedNotes : undefined;
+  const nextHostId = changes.ran_host_station_id !== currentStation.ran_host_station_id ? changes.ran_host_station_id : undefined;
 
-  if (nextStationStringId === undefined && nextOperatorId === undefined && nextNotes === undefined) return false;
+  if (nextStationStringId === undefined && nextOperatorId === undefined && nextNotes === undefined && nextHostId === undefined) return false;
 
   if (nextStationStringId !== undefined || nextOperatorId !== undefined) {
     const candidateStationStringId = nextStationStringId ?? currentStation.station_id;
@@ -745,6 +748,7 @@ async function applyStationIdentityUpdate(audit: AuditRecorder, changes: Propose
   if (nextStationStringId !== undefined) updateValues.station_id = nextStationStringId;
   if (nextOperatorId !== undefined) updateValues.operator_id = nextOperatorId;
   if (nextNotes !== undefined) updateValues.notes = nextNotes;
+  if (nextHostId !== undefined) updateValues.ran_host_station_id = nextHostId;
 
   const [updatedStation] = await tx.update(stations).set(updateValues).where(eq(stations.id, stationId)).returning();
   if (!updatedStation) throw new ErrorResponse("FAILED_TO_UPDATE", { message: "Failed to update station" });
@@ -1879,6 +1883,9 @@ async function applyChange(
     await correctStationLinks(tx, [...groupsBefore, ...groupsAfter]);
   }
   const movesStation = draft.proposedLocation !== undefined || typeof draft.proposedStation?.operator_id === "number" || change?.location === null;
+  const requestedHostId = draft.proposedStation?.ran_host_station_id;
+  const touchesHostLinks = (type === "update" && movesStation) || typeof requestedHostId === "number";
+  if (stationId && touchesHostLinks) await settleHostLinks(audit, stationId, requestedHostId);
   if (stationId && (type === "new" || movesStation)) {
     await assertOperatorsFitLocation(tx, resolvedLocationId === null ? eq(stations.id, stationId) : eq(stations.location_id, resolvedLocationId));
   }

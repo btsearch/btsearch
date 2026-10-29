@@ -67,11 +67,11 @@ describe("GET /official/locations/:id", () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.locations", [officialLocationRows]);
     dbMock.enqueueFor("select", "official.sites", [officialSiteRows]);
-    dbMock.enqueueFor("select", "stations_permits", [{ ownerId: 31, id: 5 }]);
+    dbMock.enqueueFor("select", "stations_official_sites", [{ officialSiteId: 31, stationId: 5 }]);
 
     const response = await injectMutation(route, { ...request, url: "/official/locations/21?include=sites&operatorIds=4&bandLabels=800" });
 
-    expect(response.json().data).toEqual({ ...servedLocation, sites: [{ ...servedSite, stationIds: [5] }] });
+    expect(response.json().data).toEqual({ ...servedLocation, sites: [{ ...servedSite, stationId: 5 }] });
     expect(renderedWhere("official.locations").sql).not.toContain("official.sites");
     const sites = renderedWhere("official.sites");
     expect(sites.sql).toContain('"official"."sites"."operator_id" in ($2)');

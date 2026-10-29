@@ -8,7 +8,7 @@ import {
   officialSources,
   regions,
   stations,
-  stationsPermits,
+  stationsOfficialSites,
 } from "@openbts/drizzle";
 import type {
   OfficialPermitKind,
@@ -26,7 +26,6 @@ import { createSelectSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
 
 import db from "../../database/psql.js";
-import { unique } from "../../lib/collections.js";
 import { type RegionRow, toRegion } from "../regions/serialize.js";
 import { stationAreaConditions } from "../stations/read.js";
 
@@ -47,7 +46,7 @@ export type OfficialPermitRows = OfficialSiteRows & { permit: OfficialPermitRow 
 type SitePermitRows = { permit: OfficialPermitRow; sourceKey: string };
 type PermitListingRow = { permitId: number; key: string; permitKind: DatasetPermitKind };
 export type DatasetPermitKind = z.infer<typeof datasetSelectSchema>["permitKind"];
-type SiteRelations = { stationIdsBySite: Map<number, number[]>; permitsBySite: Map<number, OfficialSitePermit[]> };
+type SiteRelations = { stationIdBySite: Map<number, number>; permitsBySite: Map<number, OfficialSitePermit[]> };
 
 export type OfficialSiteParts = {
   location: boolean;
@@ -155,34 +154,15 @@ export function toOfficialSiteLocation({ location, region, sourceKey }: Official
   return serialized;
 }
 
-function groupIds(rows: readonly { ownerId: number; id: number }[]): Map<number, number[]> {
-  const grouped = Map.groupBy(rows, (row) => row.ownerId);
-  return new Map([...grouped].map(([ownerId, owned]) => [ownerId, unique(owned.map((row) => row.id))]));
-}
-
-async function loadSiteStationIds(siteIds: readonly number[], hiddenCountryCodes: readonly string[]): Promise<Map<number, number[]>> {
+async function loadSiteStationIds(siteIds: readonly number[], hiddenCountryCodes: readonly string[]): Promise<Map<number, number>> {
   if (siteIds.length === 0) return new Map();
 
   const rows = await db
-    .select({ ownerId: officialPermits.official_site_id, id: stations.id })
-    .from(stationsPermits)
-    .innerJoin(officialPermits, eq(officialPermits.id, stationsPermits.permit_id))
-    .innerJoin(stations, eq(stations.id, stationsPermits.station_id))
-    .where(and(inArray(officialPermits.official_site_id, [...siteIds]), ...stationAreaConditions({}, hiddenCountryCodes)))
-    .orderBy(eq(stations.status, "inactive"), asc(stations.id));
-  return groupIds(rows);
-}
-
-export async function loadPermitStationIds(permitIds: readonly number[], hiddenCountryCodes: readonly string[]): Promise<Map<number, number[]>> {
-  if (permitIds.length === 0) return new Map();
-
-  const rows = await db
-    .select({ ownerId: stationsPermits.permit_id, id: stations.id })
-    .from(stationsPermits)
-    .innerJoin(stations, eq(stations.id, stationsPermits.station_id))
-    .where(and(inArray(stationsPermits.permit_id, [...permitIds]), ...stationAreaConditions({}, hiddenCountryCodes)))
-    .orderBy(asc(stations.id));
-  return groupIds(rows);
+    .select({ officialSiteId: stationsOfficialSites.official_site_id, stationId: stations.id })
+    .from(stationsOfficialSites)
+    .innerJoin(stations, eq(stations.id, stationsOfficialSites.station_id))
+    .where(and(inArray(stationsOfficialSites.official_site_id, [...siteIds]), ...stationAreaConditions({}, hiddenCountryCodes)));
+  return new Map(rows.map((row) => [row.officialSiteId, row.stationId]));
 }
 
 function loadPermitDetails(permitIds: readonly number[] | SQLWrapper, wantsSectors: boolean) {
@@ -246,8 +226,8 @@ export async function loadSiteRelations(
   parts: OfficialSiteParts,
   hiddenCountryCodes: readonly string[],
 ): Promise<SiteRelations> {
-  const [stationIdsBySite, permits] = await Promise.all([loadSiteStationIds(siteIds, hiddenCountryCodes), loadSitePermits(siteIds, parts)]);
-  return { stationIdsBySite, permitsBySite: Map.groupBy(permits, (permit) => permit.officialSiteId) };
+  const [stationIdBySite, permits] = await Promise.all([loadSiteStationIds(siteIds, hiddenCountryCodes), loadSitePermits(siteIds, parts)]);
+  return { stationIdBySite, permitsBySite: Map.groupBy(permits, (permit) => permit.officialSiteId) };
 }
 
 export function toOfficialSites(rows: readonly OfficialSiteRows[], parts: OfficialSiteParts, relations: SiteRelations): OfficialSite[] {
@@ -259,7 +239,7 @@ export function toOfficialSites(rows: readonly OfficialSiteRows[], parts: Offici
       sourceRef: row.site.source_ref,
       operatorId: row.site.operator_id,
       locationId: row.site.location_id,
-      stationIds: relations.stationIdsBySite.get(row.site.id) ?? [],
+      stationId: relations.stationIdBySite.get(row.site.id) ?? null,
       createdAt: row.site.createdAt.toISOString(),
       updatedAt: row.site.updatedAt.toISOString(),
     };

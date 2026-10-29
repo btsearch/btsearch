@@ -60,4 +60,16 @@ describe("PATCH /stations/:station_id", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(dbMock.query.cells.findMany).not.toHaveBeenCalled();
   });
+
+  it("keeps the stored host station out of its answer and its body", async () => {
+    scriptStationWrite({ ...inactive, notes: "Roof", ran_host_station_id: 2 });
+
+    const response = await injectMutation(patchStation, { method: "PATCH", url: "/stations/4", payload: { notes: "Roof" } }, options);
+    const hostWrite = await injectMutation(patchStation, { method: "PATCH", url: "/stations/4", payload: { ran_host_station_id: 2 } }, options);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data).not.toHaveProperty("ran_host_station_id");
+    expect(hostWrite.statusCode).toBe(400);
+    expect(hostWrite.json().errors[0].details).toEqual([{ field: "unknown", validationMessage: 'Unrecognized key: "ran_host_station_id"' }]);
+  });
 });

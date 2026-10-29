@@ -50,6 +50,7 @@ export const ProposedStationFieldEnum = pgEnum("proposed_station_field", [
   "uplink_type",
   "uplink_speed",
   "uplink_model",
+  "ran_host_station_id",
 ]);
 export const ProposedLocationFieldEnum = pgEnum("proposed_location_field", [
   "region_id",
@@ -234,6 +235,7 @@ export const proposedStations = SubmissionsSchema.table(
     target_station_id: integer("target_station_id").references(() => stations.id, { onDelete: "set null", onUpdate: "cascade" }),
     station_id: varchar("station_id", { length: 16 }),
     operator_id: integer("operator_id").references(() => operators.id, { onDelete: "set null", onUpdate: "cascade" }),
+    ran_host_station_id: integer("ran_host_station_id"),
     notes: text("notes"),
     networks_id: integer("networks_id"),
     networks_name: varchar("networks_name", { length: 50 }),

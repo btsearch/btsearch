@@ -93,6 +93,7 @@ export const draftStation: ProposedStationRow = {
   target_station_id: null,
   station_id: "SITE-7",
   operator_id: 7,
+  ran_host_station_id: null,
   notes: "Station evidence",
   networks_id: 123,
   networks_name: "Network name",
@@ -292,6 +293,7 @@ export function scriptContentDraftCreate(fixture: DraftFixture): void {
   }
   if (fixture.input.station?.operatorId !== undefined && fixture.input.location === undefined)
     dbMock.enqueueFor("select", "stations", [{ id: 1, locationId: 2, operatorId: 7 }]);
+  if (fixture.input.station?.hostStationId !== undefined) dbMock.enqueueFor("select", "stations", [{ locationCountry: "GB", operatorCountry: "GB" }]);
   dbMock.enqueueFor("select", "countries", []);
   dbMock.query.stations.findFirst.mockResolvedValue(liveDraftStation);
   dbMock.query.extraIdentificators.findFirst.mockResolvedValue(liveDraftIdentifiers);

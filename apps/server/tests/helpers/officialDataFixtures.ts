@@ -83,7 +83,7 @@ export const servedSite = {
   sourceRef: null,
   operatorId: 4,
   locationId: 21,
-  stationIds: [] as number[],
+  stationId: null as number | null,
   createdAt: IMPORTED_AT,
   updatedAt: CHANGED_AT,
 };

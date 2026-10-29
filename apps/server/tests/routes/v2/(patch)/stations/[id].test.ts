@@ -8,6 +8,14 @@ import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 import { stationRow, visibleStation } from "../../../../helpers/stationFixtures.js";
 import { detachPlacedStation, movePlacedStation, placedStation } from "../../../../helpers/stationLocationFixtures.js";
 
+function hostLink(id: number, overrides: Record<string, unknown> = {}) {
+  return { id, locationId: 2, operatorId: id, hostStationId: null, countryCode: "GB", longitude: 21, latitude: 52, ...overrides };
+}
+
+function placedIn(countryCode: string) {
+  dbMock.enqueueFor("select", "stations", [{ locationCountry: countryCode, operatorCountry: countryCode }]);
+}
+
 function editableStation() {
   const current = stationRow({ notes: "old", location: null, sectors: [] });
   visibleStation(current);
@@ -359,5 +367,151 @@ describe("PATCH /stations/:id", () => {
 
     expect((await app.inject({ method: "PATCH", url: "/stations/1", payload })).statusCode).toBe(400);
     expect(dbMock.calls).toEqual([]);
+  });
+
+  it("sets a host station after checking it, in the station's own audited update", async () => {
+    const { current } = placedStation();
+    placedIn("GB");
+    const hosted = { ...current, ran_host_station_id: 2 };
+    dbMock.enqueueHostLinks(
+      [hostLink(1, { operatorId: 1 }), hostLink(2, { operatorId: 2 })],
+      [hostLink(1, { operatorId: 1, hostStationId: 2 }), hostLink(2, { operatorId: 2 })],
+    );
+    writeStation(hosted);
+    dbMock.enqueueFor("select", "stations", [
+      { id: 1, locationId: 2, countryCode: "GB", operatorId: null, sharedNetworkId: null, hasOfficialSite: false },
+    ]);
+    const errors: Error[] = [];
+    const app = await createRouteHarness(route, { session: userSession(), onError: (error) => errors.push(error) });
+    const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { station: { hostStationId: 2 } } });
+
+    expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
+    expect(response.json().data.hostStationId).toBe(2);
+    expect(dbMock.calls.filter((call) => call.operation === "update" && call.table === "stations").map((call) => call.values)).toEqual([
+      { ran_host_station_id: 2, updatedAt: expect.any(Date) },
+      { updatedAt: expect.any(Date) },
+    ]);
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toMatchObject([
+      {
+        entity: "stations",
+        op: "update",
+        record_id: "1",
+        station_id: 1,
+        old_values: { ran_host_station_id: null },
+        new_values: { ran_host_station_id: 2 },
+      },
+    ]);
+  });
+
+  it("removes a host station in the station's own update without reading the host links", async () => {
+    const { current } = placedStation();
+    placedIn("GB");
+    dbMock.query.stations.findFirst.mockResolvedValue({ ...current, ran_host_station_id: 2 });
+    writeStation(current);
+    dbMock.enqueueFor("select", "stations", []);
+    const errors: Error[] = [];
+    const app = await createRouteHarness(route, { session: userSession(), onError: (error) => errors.push(error) });
+    const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { station: { hostStationId: null } } });
+
+    expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
+    expect(dbMock.calls.filter((call) => call.operation === "update" && call.table === "stations").map((call) => call.values)).toEqual([
+      { ran_host_station_id: null, updatedAt: expect.any(Date) },
+      { updatedAt: expect.any(Date) },
+    ]);
+    expect(dbMock.calls.some((call) => typeof call.selection === "object" && call.selection !== null && "hostStationId" in call.selection)).toBe(
+      false,
+    );
+  });
+
+  it.each([2, null])(
+    "refuses host %s in a country whose host stations come from the official sites, before writing anything",
+    async (hostStationId) => {
+      placedStation();
+      placedIn("PL");
+      dbMock.enqueueHostLinks([hostLink(1, { operatorId: 1, countryCode: "PL" }), hostLink(2, { operatorId: 2, countryCode: "PL" })]);
+      const app = await createRouteHarness(route, { session: userSession() });
+      const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { station: { hostStationId } } });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().errors[0]).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "Host stations in this country are worked out from the official sites and cannot be set",
+        details: [{ field: "station/hostStationId", kind: "hostComputed" }],
+      });
+      expect(dbMock.calls.some((call) => call.operation === "insert" && call.table === "audit_operations")).toBe(false);
+    },
+  );
+
+  it("clears the host links a station leaves behind when it moves alone, in the same audited operation", async () => {
+    const { current, location } = placedStation();
+    const movedLocation = { ...location, id: 3, latitude: 52.1, longitude: 21.1 };
+    const saved = { ...current, location_id: 3, location: movedLocation };
+    const guest = stationRow({ id: 4, operator_id: 4, location_id: 2, ran_host_station_id: 1 });
+    dbMock.enqueueFor("select", "regions", [{ id: 1 }]);
+    dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }], [{ regionId: 1 }]);
+    dbMock.query.locations.findFirst.mockResolvedValue(undefined);
+    dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
+    dbMock.enqueueFor("select", "station_photo_selections", [], []);
+    dbMock.enqueueFor("insert", "audit_logs", [], [], []);
+    dbMock.enqueueFor("select", "audit_logs", []);
+    dbMock.enqueueFor("update", "audit_operations", []);
+    dbMock.enqueueFor("insert", "locations", [movedLocation]);
+    dbMock.enqueueFor("update", "stations", [saved], [], [{ ...guest, ran_host_station_id: null }]);
+    dbMock.enqueueFor("select", "stations", [{ remaining: 1 }], [guest]);
+    dbMock.query.stationPhotoSelections.findMany.mockResolvedValue([]);
+    dbMock.enqueueHostLinks([hostLink(1, { locationId: 3, operatorId: 1 }), hostLink(4, { operatorId: 4, hostStationId: 1 })]);
+    dbMock.enqueueFor("select", "cells", []);
+    visibleStation(saved);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    dbMock.enqueueFor("select", "stations", []);
+    const errors: Error[] = [];
+    const app = await createRouteHarness(route, { session: userSession(), onError: (error) => errors.push(error) });
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/stations/1",
+      payload: { location: { latitude: 52.1, longitude: 21.1, regionId: 1, move: "station" } },
+    });
+
+    expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
+    expect(dbMock.calls.filter((call) => call.operation === "update" && call.table === "stations").at(-1)?.values).toEqual({
+      ran_host_station_id: null,
+      updatedAt: expect.any(Date),
+    });
+    expect(dbMock.calls.filter((call) => call.operation === "insert" && call.table === "audit_logs").flatMap((call) => call.values)).toMatchObject([
+      { entity: "locations", op: "create" },
+      { entity: "stations", op: "update", record_id: "1", new_values: { location_id: 3 } },
+      {
+        entity: "stations",
+        op: "update",
+        record_id: "4",
+        station_id: 4,
+        old_values: { ran_host_station_id: 1 },
+        new_values: { ran_host_station_id: null },
+      },
+    ]);
+  });
+
+  it("keeps the host links of a station that moves with its whole location", async () => {
+    movePlacedStation("location");
+    dbMock.enqueueHostLinks([
+      hostLink(1, { operatorId: 1, hostStationId: 2 }),
+      hostLink(2, { operatorId: 2 }),
+      hostLink(4, { operatorId: 4, hostStationId: 2 }),
+    ]);
+    const errors: Error[] = [];
+    const app = await createRouteHarness(route, { session: userSession(), onError: (error) => errors.push(error) });
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/stations/1",
+      payload: { location: { latitude: 52.1, longitude: 21.1, regionId: 1, move: "location" } },
+    });
+
+    expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
+    expect(dbMock.calls.some((call) => typeof call.selection === "object" && call.selection !== null && "hostStationId" in call.selection)).toBe(
+      true,
+    );
+    expect(
+      dbMock.calls.some((call) => call.operation === "update" && call.table === "stations" && "ran_host_station_id" in Object(call.values)),
+    ).toBe(false);
   });
 });

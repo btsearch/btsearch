@@ -24,6 +24,8 @@ import {
 import { BACKHAUL_MEDIUMS, CELL_RATS, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH } from "./constants.ts";
 import { photoDetailsShape, photoIdSchema, photoUploadShape, photoUrlsSchema } from "./photos.ts";
 import {
+  HOST_STATION_CLEARED_WHEN,
+  HOST_STATION_NOTE,
   RESERVED_SITE_ID_PREFIX,
   SECTOR_AZIMUTH_NOTE,
   STATION_IDENTIFIER_KIND_NOTE,
@@ -101,6 +103,10 @@ const backhaulChangeSchema = z
   .strict();
 
 const BACKHAUL_INPUT_NOTE = "How the station is connected to the operator's network";
+const HOST_STATION_INPUT_NOTE =
+  `${HOST_STATION_NOTE}. The host cannot have a host of its own, and a station that hosts others cannot get one. ` +
+  `\`null\` removes the host, and it is also cleared ${HOST_STATION_CLEARED_WHEN}. ` +
+  "Rejected with 400 where the country's `capabilities.editableHostStations` is `false`, even as `null`";
 const SITE_ID_INPUT_NOTE = `${STATION_SITE_ID_NOTE}. It cannot start with \`${RESERVED_SITE_ID_PREFIX}\``;
 const WITHOUT_SITE_ID = "a cell that names it: an LTE cell with an eNBID, an NR cell with a gNBID, a UMTS cell with an RNC or a GSM cell with a LAC";
 export const SITE_ID_NEEDED_MESSAGE = `A station needs a station number unless it has ${WITHOUT_SITE_ID}`;
@@ -131,7 +137,7 @@ export const stationChangeInputSchema = z
     siteId: siteIdInputSchema
       .nullable()
       .optional()
-      .describe(`${SITE_ID_INPUT_NOTE}. \`null\` takes the number away from a station with ${WITHOUT_SITE_ID}; \`nodeName\` then names it`),
+      .describe(`${SITE_ID_INPUT_NOTE}. \`null\` takes the number away from a station with ${WITHOUT_SITE_ID}. \`nodeName\` then names it`),
     operatorId: idSchema.optional(),
     notes: z.string().nullable().optional(),
     identifiers: z
@@ -143,6 +149,7 @@ export const stationChangeInputSchema = z
       .optional()
       .describe("Other ids and names of the station. Each kind can appear once"),
     backhaul: backhaulChangeSchema.nullable().optional().describe(BACKHAUL_INPUT_NOTE),
+    hostStationId: idSchema.nullable().optional().describe(HOST_STATION_INPUT_NOTE),
   })
   .strict();
 export type StationChangeInput = z.infer<typeof stationChangeInputSchema>;
@@ -159,7 +166,7 @@ export const newStationInputSchema = stationChangeInputSchema
   .extend({
     siteId: siteIdInputSchema
       .optional()
-      .describe(`${SITE_ID_INPUT_NOTE}. Can be left out for a station with ${WITHOUT_SITE_ID}; \`nodeName\` then names it`),
+      .describe(`${SITE_ID_INPUT_NOTE}. Can be left out for a station with ${WITHOUT_SITE_ID}. \`nodeName\` then names it`),
     operatorId: idSchema,
     isConfirmed: z.boolean().optional().describe("Defaults to `true`"),
   })
@@ -592,6 +599,7 @@ export const stationChangeSchema = z.object({
     .nullable()
     .optional()
     .describe("The backhaul fields the submission sets. `null` if it removes the backhaul"),
+  hostStationId: z.number().int().nullable().optional().describe("The host station the submission sets. `null` if it removes the host"),
 });
 export type StationChange = z.infer<typeof stationChangeSchema>;
 
@@ -792,8 +800,8 @@ export const submissionQuerySchema = z.object({ include: submissionIncludeSchema
 export type SubmissionQuery = z.infer<typeof submissionQuerySchema>;
 
 const SUBMITTERS_NOTE =
-  "`mine` returns your own submissions. `all` returns everyone's and is only for editors and administrators; " +
-  "an editor gets the submissions their grant covers";
+  "`mine` returns your own submissions. `all` returns everyone's and is only for editors and administrators. " +
+  "An editor gets the submissions their grant covers";
 const OPERATORS_FILTER_NOTE = "Filters by the station's operator or by the operator the submission proposes. Comma-separated ids";
 const REGIONS_FILTER_NOTE = "Filters by the region of the station's location or of the location the submission proposes. Comma-separated ids";
 

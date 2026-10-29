@@ -363,6 +363,7 @@ export const stations = pgTable(
     station_id: varchar("station_id", { length: 16 }).notNull(),
     location_id: integer("location_id").references(() => locations.id, { onDelete: "set null", onUpdate: "cascade" }),
     operator_id: integer("operator_id").references(() => operators.id, { onDelete: "set null", onUpdate: "cascade" }),
+    ran_host_station_id: integer("ran_host_station_id").references((): AnyPgColumn => stations.id, { onDelete: "set null", onUpdate: "cascade" }),
     notes: text("notes"),
     extra_address: text("extra_address"),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -381,6 +382,7 @@ export const stations = pgTable(
       .where(sql`${t.status} = 'published'`),
     index("stations_operator_id_idx").on(t.operator_id),
     index("stations_operator_location_id_idx").on(t.operator_id, t.location_id, t.id),
+    index("stations_ran_host_station_id_idx").on(t.ran_host_station_id),
     index("stations_station_id_trgm_idx").using("gin", sql`(${t.station_id}) gin_trgm_ops`),
     index("stations_station_id_idx").on(t.station_id),
     index("stations_updated_at_idx").on(t.updatedAt),
@@ -390,6 +392,7 @@ export const stations = pgTable(
       .where(sql`${t.status} = 'inactive'`),
     unique("stations_station_id_operator_unique").on(t.station_id, t.operator_id),
     check("stations_station_id_16_length", sql`${t.station_id} ~ '(^.{1,16}$)'`),
+    check("stations_ran_host_not_self", sql`${t.ran_host_station_id} <> ${t.id}`),
   ],
 );
 
@@ -425,26 +428,21 @@ export const stationBackhauls = pgTable(
 );
 
 /**
- * Stations permits table
+ * Stations official sites table
  * @example
- * { id: 1, permit_id: 1, station_id: 1 }
+ * { station_id: 1, official_site_id: 1 }
  */
-export const stationsPermits = pgTable(
-  "stations_permits",
+export const stationsOfficialSites = pgTable(
+  "stations_official_sites",
   {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    permit_id: integer("permit_id")
-      .references(() => officialPermits.id, { onDelete: "cascade", onUpdate: "cascade" })
-      .notNull(),
     station_id: integer("station_id")
-      .references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .primaryKey()
+      .references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    official_site_id: integer("official_site_id")
+      .references(() => officialSites.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
   },
-  (t) => [
-    index("stations_permits_station_id_idx").on(t.station_id),
-    index("stations_permits_permit_id_idx").on(t.permit_id),
-    unique("stations_permits_pair_unique").on(t.station_id, t.permit_id),
-  ],
+  (t) => [unique("stations_official_sites_site_unique").on(t.official_site_id)],
 );
 
 export const extraIdentificators = pgTable(

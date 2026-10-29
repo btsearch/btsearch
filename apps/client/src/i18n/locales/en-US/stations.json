@@ -162,7 +162,11 @@
       "mainPhotoNotPicked": "The main photo must be one of the picked photos",
       "tooManyNetworks": "{{rat}}: at most {{max}} networks besides the owner's",
       "networkOtherCountry": "Network {{code}} is not in the station's country",
-      "operatorOtherCountry": "This operator belongs to another country than the location"
+      "operatorOtherCountry": "This operator belongs to another country than the location",
+      "hostElsewhere": "Host station: must be at the same location",
+      "hostSameOperator": "Host station: must belong to another operator",
+      "hostIsHosted": "Host station: the chosen station is a virtual station itself",
+      "hostingStation": "Host station: other stations run on this station's hardware, so it cannot be a virtual station"
     },
     "refusals": {
       "unknown": "The server refused the save: {{message}}",
@@ -206,7 +210,9 @@
       "deleteOnlyNote": "A removal submission can only carry a note",
       "networkGone": "One of the chosen networks no longer exists",
       "ownerNetworkMissing": "The networks must include the station owner's main code",
-      "networksNotTaken": "GSM cells do not broadcast other networks"
+      "networksNotTaken": "GSM cells do not broadcast other networks",
+      "hostComputed": "Host station: in this country it comes from the register and cannot be set",
+      "hostSelf": "Host station: a station cannot be its own host"
     },
     "frame": {
       "tabs": "Parts of the station",
@@ -219,7 +225,9 @@
       "ownCorrection": "Your correction"
     },
     "stationCard": {
-      "networksIdPlaceholder": "e.g. 12345"
+      "networksIdPlaceholder": "e.g. 12345",
+      "noHost": "None",
+      "hostsOthers": "Other stations run on this station's hardware"
     },
     "azimuths": {
       "cellsOnAzimuth_one": "{{count, number}} cell on this azimuth",

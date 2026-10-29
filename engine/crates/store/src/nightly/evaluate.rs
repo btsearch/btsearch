@@ -183,10 +183,9 @@ async fn score_snaps(client: &Client, calibrated: &Calibrated, scored: &[Scored<
     let nearby = load_nearby(client, &shown.iter().map(|(_, shown)| shown).collect::<Vec<_>>(), EVALUATION).await?;
 
     let station_ids: Vec<i32> = scored.iter().map(|site| site.station_id).collect();
-    let permitted: BTreeSet<(i32, i32)> = client
+    let linked_sites: BTreeSet<(i32, i32)> = client
         .query(
-            "SELECT sp.station_id, op.official_site_id FROM public.stations_permits sp JOIN official.permits op ON op.id = sp.permit_id
-             WHERE sp.station_id = ANY($1)",
+            "SELECT so.station_id, so.official_site_id FROM public.stations_official_sites so WHERE so.station_id = ANY($1)",
             &[&station_ids],
         )
         .await?
@@ -212,7 +211,7 @@ async fn score_snaps(client: &Client, calibrated: &Calibrated, scored: &[Scored<
         let is_right = |candidate: &Candidate| match candidate.target {
             Target::Location(id) => id == site.station.location_id,
             Target::OfficialSite(id) => {
-                permitted.contains(&(site.station_id, id)) || distance_meters(candidate.point, site.station.point) <= RIGHT_WITHIN_M
+                linked_sites.contains(&(site.station_id, id)) || distance_meters(candidate.point, site.station.point) <= RIGHT_WITHIN_M
             }
             Target::OtherSite(id) => other_locations.get(&id).copied().flatten() == Some(site.station.location_id),
             Target::Candidate(_) => distance_meters(candidate.point, site.station.point) <= RIGHT_WITHIN_M,

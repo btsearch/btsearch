@@ -25,7 +25,7 @@ import { type GroupedFilters, groupFiltersByTable, hasFilters, parseFilterQuery 
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
 
-const stationsSelectSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
+const stationsSelectSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true, ran_host_station_id: true });
 const cellsSelectSchema = createSelectSchema(cells);
 const bandsSchema = createSelectSchema(bands);
 const gsmCellsSchema = createSelectSchema(gsmCells).omit({ cell_id: true });

@@ -1,4 +1,4 @@
-import { stationParamsSchema, stationQuerySchema, stationSchema, stationUpdateSchema } from "@openbts/shared/contract";
+import { HOST_STATION_REFUSAL_KINDS, stationParamsSchema, stationQuerySchema, stationSchema, stationUpdateSchema } from "@openbts/shared/contract";
 import type { Station, StationQuery, StationUpdate } from "@openbts/shared/contract";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -33,7 +33,9 @@ const errorReasons = {
   400:
     "The change cannot be applied as sent. For example, a band is not in the country's band plan, " +
     "two sectors share an azimuth, the operator belongs to a different country than the location, " +
-    "or the operator already has another station with this `siteId`.",
+    "`hostStationId` names a station that cannot host this one, or the operator already has another station with this `siteId`. " +
+    "A refused `hostStationId` puts `station/hostStationId` in `details[0].field`, " +
+    `and \`details[0].kind\` gives the reason, one of \`${HOST_STATION_REFUSAL_KINDS.join("`, `")}\`.`,
   403:
     "Your editor access does not cover the place the station moves to, or a station a cell is moved to. " +
     "Editors can also get this response when the station does not exist.",

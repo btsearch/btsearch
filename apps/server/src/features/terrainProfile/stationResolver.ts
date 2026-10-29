@@ -1,5 +1,5 @@
 import { type TerrainProfilesCapability, capabilitiesFor } from "@openbts/country-packs";
-import { officialPermits, officialSites } from "@openbts/drizzle";
+import { officialSites } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
 import { type SQL, type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -89,14 +89,6 @@ function locationIsPublic(locationId: SQLWrapper, visibility: OfficialVisibility
   return officialLocationIsPublic(locationId, visibility) ?? sql`true`;
 }
 
-function permitIsPublic(permitId: SQLWrapper, visibility: OfficialVisibility): SQL {
-  return sql`EXISTS (
-    SELECT 1 FROM ${officialPermits}
-    INNER JOIN ${officialSites} ON ${officialSites.id} = ${officialPermits.official_site_id}
-    WHERE ${officialPermits.id} = ${permitId} AND ${locationIsPublic(officialSites.location_id, visibility)}
-  )`;
-}
-
 async function resolveInternalStation(id: number, visibility: OfficialVisibility): Promise<ResolvedStationWithFallbacks> {
   const station = await db.query.stations.findFirst({
     where: { id },
@@ -105,15 +97,11 @@ async function resolveInternalStation(id: number, visibility: OfficialVisibility
   if (!station?.location) throw new ErrorResponse("NOT_FOUND");
   const receiverBounds = requireReceiverBounds(station.location.region.countryCode);
 
-  const permitLinks = await db.query.stationsPermits.findMany({
-    where: { station_id: id, RAW: (link) => permitIsPublic(link.permit_id, visibility) },
-    with: {
-      permit: {
-        with: { sectors: true },
-      },
-    },
+  const siteLink = await db.query.stationsOfficialSites.findFirst({
+    where: { station_id: id, officialSite: { RAW: (site) => locationIsPublic(site.location_id, visibility) } },
+    with: { officialSite: { with: { permits: { with: { sectors: true } } } } },
   });
-  const permits = permitLinks.map((link) => link.permit);
+  const permits = siteLink?.officialSite.permits ?? [];
   const operator = toStationOperator(station.operator);
 
   return {

@@ -11,12 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type HostedStationBadgeProps = {
   hostStation: LocationStationRecord | null;
+  countryCode: string | null;
   hostBrand: Brand | null;
   isHostLoading: boolean;
   onOpenStation: (stationId: number) => void;
 };
 
-export function HostedStationBadge({ hostStation, hostBrand, isHostLoading, onOpenStation }: HostedStationBadgeProps) {
+export function HostedStationBadge({ hostStation, countryCode, hostBrand, isHostLoading, onOpenStation }: HostedStationBadgeProps) {
   const { t } = useTranslation("stationDetails");
   const [open, setOpen] = useState(false);
 
@@ -37,7 +38,7 @@ export function HostedStationBadge({ hostStation, hostBrand, isHostLoading, onOp
           <PopoverTitle className="text-xs font-semibold">{t("dialog.virtualStationTitle")}</PopoverTitle>
         </div>
         <PopoverDescription className="text-[11px] leading-snug">
-          <Trans t={t} i18nKey="dialog.virtualStationPhysical" components={{ ranSharingLink: <RanSharingLink /> }} />
+          <Trans t={t} i18nKey="dialog.virtualStationHost" components={{ ranSharingLink: <RanSharingLink countryCode={countryCode} /> }} />
         </PopoverDescription>
         {hostStation !== null ? (
           <HostStationLink

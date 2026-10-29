@@ -4,7 +4,8 @@ import { RESERVED_SITE_ID_PREFIX } from "@openbts/shared/contract";
 import type { Band, Operator, Region, StationIdentifierKind } from "@openbts/shared/contract";
 
 import { countCellEntries } from "./bodies";
-import { findNodeName, getAreaValue, getRowKind, normalizeText } from "./changes";
+import { findNodeName, getAreaValue, getRowKind, movesStationAlone, normalizeText } from "./changes";
+import { findSiteStation, hostsOtherStations, isOfOtherOperator } from "./hostStations";
 import { EXTRA_PLMN_LIMITS, listNetworkOptions } from "./networks";
 import {
   CELL_FLAG_LABELS,
@@ -35,6 +36,7 @@ import type {
   EditField,
   EditSession,
   FieldTarget,
+  HostSite,
   PlaceDraft,
   Rat,
   SectorDraft,
@@ -188,6 +190,19 @@ function validateOperatorCountry(session: EditSession, context: ValidationContex
   const regionCountryCode = context.regionsById.get(regionId)?.countryCode;
   if (operatorCountryCode === undefined || regionCountryCode === undefined || operatorCountryCode === regionCountryCode) return [];
   return [toError(stationTarget("operatorId"), "stations:edit.errors.operatorOtherCountry")];
+}
+
+function validateHostStation(session: EditSession, site: HostSite | null): EditError[] {
+  const { hostStationId, operatorId } = session.draft.station;
+  if (site === null || hostStationId === null || hostStationId === (session.live?.station.hostStationId ?? null)) return [];
+
+  const target = stationTarget("hostStationId");
+  const host = movesStationAlone(session) ? null : findSiteStation(site, hostStationId);
+  if (host === null) return [toError(target, "stations:edit.errors.hostElsewhere")];
+  if (!isOfOtherOperator(host, operatorId)) return [toError(target, "stations:edit.errors.hostSameOperator")];
+  if (host.hostStationId !== null) return [toError(target, "stations:edit.errors.hostIsHosted")];
+  if (hostsOtherStations(site, operatorId)) return [toError(target, "stations:edit.errors.hostingStation")];
+  return [];
 }
 
 function validateCoordinates(place: PlaceDraft): EditError[] {
@@ -440,12 +455,13 @@ function validateRat(session: EditSession, context: ValidationContext, rat: Rat)
   ];
 }
 
-export function validateDraft(session: EditSession, context: ValidationContext): EditError[] {
+export function validateDraft(session: EditSession, context: ValidationContext, site: HostSite | null): EditError[] {
   if (session.action === "delete") return [];
 
   const errors = [
     ...validateStation(session),
     ...validateOperatorCountry(session, context),
+    ...validateHostStation(session, site),
     ...validatePlace(session, context),
     ...validateSectors(session.draft.sectors),
     ...RAT_ORDER.flatMap((rat) => validateRat(session, context, rat)),

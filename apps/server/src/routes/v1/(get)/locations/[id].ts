@@ -16,7 +16,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true, ...STRUCTURE_COLUMNS });
 const regionsSchema = createSelectSchema(regions);
-const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
+const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true, ran_host_station_id: true });
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
 const bandsSchema = createSelectSchema(bands);
 const operatorSchema = createSelectSchema(operators);

@@ -22,7 +22,9 @@ import { signInAs } from "../../../../../helpers/officialFixtures.js";
 
 const request = { method: "GET" as const, url: "/official/permits" };
 const PUBLIC_LOCATION = '"official"."locations"."source_id" in ($1)';
-const LINKED = 'exists select "stations_permits"."id" from "stations_permits" where "stations_permits"."permit_id" = "official"."permits"."id"';
+const LINKED =
+  'exists select "stations_official_sites"."station_id" from "stations_official_sites" ' +
+  'where "stations_official_sites"."official_site_id" = "official"."permits"."official_site_id"';
 
 function listed(id: number, key: string | null = null) {
   return { ...officialPermitRows, permit: { ...officialPermitRows.permit, id }, key };
@@ -61,41 +63,29 @@ describe("GET /official/permits", () => {
     expect(tablesRead()).toEqual(["official.permits", "official.permit_listings"]);
   });
 
-  it("includes the sectors, the linked stations and the site with its location", async () => {
+  it("includes the sectors and the site with its location and its linked station", async () => {
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.permits", [listed(41)]);
     dbMock.enqueueFor("select", "official.permit_listings", []);
     dbMock.enqueueFor("select", "official.permit_sectors", [officialSectorRow]);
-    dbMock.enqueueFor(
-      "select",
-      "stations_permits",
-      [{ ownerId: 41, id: 5 }],
-      [
-        { ownerId: 31, id: 5 },
-        { ownerId: 31, id: 9 },
-      ],
-    );
+    dbMock.enqueueFor("select", "stations_official_sites", [{ officialSiteId: 31, stationId: 5 }]);
 
-    const response = await injectMutation(route, { ...request, url: "/official/permits?include=sectors,stations,officialSite.location" });
+    const response = await injectMutation(route, { ...request, url: "/official/permits?include=sectors,officialSite.location" });
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data).toEqual([
-      {
-        ...servedPermit,
-        sectors: [servedSector],
-        stationIds: [5],
-        officialSite: { ...servedSite, stationIds: [5, 9], location: servedLocation },
-      },
+      { ...servedPermit, sectors: [servedSector], officialSite: { ...servedSite, stationId: 5, location: servedLocation } },
     ]);
-    expect(renderedWhere("stations_permits")).toEqual({ sql: '"stations_permits"."permit_id" in ($1)', params: [41] });
+    expect(renderedWhere("stations_official_sites")).toEqual({ sql: '"stations_official_sites"."official_site_id" in ($1)', params: [31] });
   });
 
   it("lists a station's permits, finding nothing for a station in a country hidden from the caller", async () => {
     const where = await permitsFor("stationIds=12", ["XX"]);
 
     expect(where.sql).toContain(
-      'exists select "stations_permits"."id" from "stations_permits" where (("stations_permits"."permit_id" = "official"."permits"."id") ' +
-        'and ("stations_permits"."station_id" in ($3)) and ("stations"."id" IN',
+      'exists select "stations_official_sites"."station_id" from "stations_official_sites" ' +
+        'where (("stations_official_sites"."official_site_id" = "official"."permits"."official_site_id") ' +
+        'and ("stations_official_sites"."station_id" in ($3)) and ("stations"."id" IN',
     );
     expect(where.sql).toContain('"stations"."id" IN (SELECT "stations"."id" FROM "stations" LEFT JOIN "locations"');
     expect(where.params).toEqual([1, "XX", 12, "XX"]);

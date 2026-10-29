@@ -163,7 +163,7 @@
   "dialog": {
     "virtualStation": "Virtual",
     "virtualStationTitle": "Virtual station",
-    "virtualStationPhysical": "Runs on the hardware and permit of the physical station below via <ranSharingLink>RAN sharing</ranSharingLink>",
+    "virtualStationHost": "Runs on the hardware of the station below through <ranSharingLink>RAN sharing</ranSharingLink>",
     "btsStation": "Base station",
     "sourceDatabase": "Database",
     "inactiveStationTitle": "Station marked for deletion",

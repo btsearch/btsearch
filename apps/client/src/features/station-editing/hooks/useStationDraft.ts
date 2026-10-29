@@ -1,8 +1,17 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { type EditLookups, useCountryLookups, useEditReference } from "../data/lookups";
-import { type ChangeContext, type Translate, countCells, formatTextPart, formatTextParts, listChanges } from "../model/changes";
+import {
+  type ChangeContext,
+  type Translate,
+  countCells,
+  findStationLocationId,
+  formatTextPart,
+  formatTextParts,
+  listChanges,
+} from "../model/changes";
 import {
   type DraftAction,
   type DraftDispatch,
@@ -12,14 +21,17 @@ import {
   findTacRuleChange,
   withNewKey,
 } from "../model/draftReducer";
+import { findSiteStation } from "../model/hostStations";
 import { findDraftCountryCode } from "../model/snapshots";
-import type { ChangeItem, EditError, EditSession, Rat, RatCounters, TextPart } from "../model/types";
+import type { ChangeItem, EditError, EditSession, HostSite, Rat, RatCounters, TextPart } from "../model/types";
 import { getOperatorGnbidLength, listShownErrors, validateDraft } from "../model/validate";
 import { indexNetworkNames } from "@/features/shared/operatorMarks";
+import { locationRecordQueryOptions } from "@/features/station-details/station/api";
 import { getBandCode, getBandLabel } from "@/features/station-details/station/utils/bands";
-import { getOperatorShortLabel } from "@/features/station-details/station/utils/stations";
+import { getOperatorShortLabel, getStationNumber } from "@/features/station-details/station/utils/stations";
 
 type StationDraftInput = SessionInput & {
+  stationId: number | null;
   canEdit: boolean;
 };
 
@@ -33,6 +45,7 @@ export type StationDraftApi = {
   counters: Record<Rat, RatCounters>;
   canEdit: boolean;
   lookups: EditLookups;
+  hostSite: HostSite | null;
   context: ChangeContext;
   setServerErrors: (errors: readonly EditError[]) => void;
 };
@@ -79,7 +92,7 @@ export function useBlockedSaves(dispatch: DraftDispatch): BlockedSaves {
   return { blockedSaves, countBlockedSave, reportBlockedSave };
 }
 
-function createChangeContext(lookups: EditLookups, unknownBandText: string, language: string): ChangeContext {
+function createChangeContext(lookups: EditLookups, hostSite: HostSite | null, unknownBandText: string, language: string): ChangeContext {
   const networkNames = indexNetworkNames(lookups.operators);
 
   return {
@@ -92,6 +105,10 @@ function createChangeContext(lookups: EditLookups, unknownBandText: string, lang
     },
     operatorName: (operatorId) => (operatorId === null ? null : (lookups.operatorsById.get(operatorId)?.name ?? null)),
     operatorShortName: (operatorId) => getOperatorShortLabel(operatorId === null ? null : (lookups.operatorsById.get(operatorId) ?? null)),
+    stationCode: (stationId) => {
+      const station = findSiteStation(hostSite, stationId);
+      return station === null ? null : getStationNumber(station) || null;
+    },
     regionName: (regionId) => (regionId === null ? null : (lookups.regionsById.get(regionId)?.name ?? null)),
     ownerName: (ownerId) => lookups.ownersById.get(ownerId)?.name ?? null,
     ownerPlmn: (operatorId) => (operatorId === null ? null : (lookups.operatorsById.get(operatorId)?.primaryPlmn ?? null)),
@@ -109,16 +126,23 @@ export function useStationDraft(input: StationDraftInput): StationDraftApi {
   const countryCode = featureCountryCode ?? session.countryCode;
   const tacRuleChange = findTacRuleChange(session, countryCode);
   if (tacRuleChange !== null) send({ type: "setHoistedTac", hoistedTac: tacRuleChange });
+  const editsHostStations = countryCode !== null && reference.countriesByCode.get(countryCode)?.capabilities.editableHostStations === true;
+  if (editsHostStations !== session.editsHostStations) send({ type: "setHostStationEditing", editsHostStations });
   const lookups = useCountryLookups(reference, countryCode, featureCountryCode);
   const { language } = i18n;
-  const { canEdit } = input;
-  const context = useMemo(() => createChangeContext(lookups, t("stations:cells.unknownBand"), language), [lookups, t, language]);
+  const { stationId, canEdit } = input;
+  const { data: hostLocation } = useQuery(locationRecordQueryOptions(findStationLocationId(session)));
+  const hostSite = useMemo(
+    () => (hostLocation === undefined ? null : { stationId, stations: hostLocation.stations.filter((station) => station.id !== stationId) }),
+    [hostLocation, stationId],
+  );
+  const context = useMemo(() => createChangeContext(lookups, hostSite, t("stations:cells.unknownBand"), language), [lookups, hostSite, t, language]);
   const dispatch = useCallback((action: DraftAction) => send(withNewKey(action)), []);
   const setServerErrors = useCallback((errors: readonly EditError[]) => send({ type: "setServerErrors", errors }), []);
 
   return useMemo(() => {
     const { changes, corrections } = listChanges(session, context);
-    const blockingErrors = validateDraft(session, lookups);
+    const blockingErrors = validateDraft(session, lookups, hostSite);
     const errors = [...listShownErrors(blockingErrors, session.isSaveAttempted), ...session.serverErrors];
 
     return {
@@ -131,8 +155,9 @@ export function useStationDraft(input: StationDraftInput): StationDraftApi {
       counters: countCells(session, context.gnbidLength(session.draft.station.operatorId)),
       canEdit,
       lookups,
+      hostSite,
       context,
       setServerErrors,
     };
-  }, [session, lookups, context, canEdit, dispatch, setServerErrors]);
+  }, [session, lookups, hostSite, context, canEdit, dispatch, setServerErrors]);
 }

@@ -8,7 +8,7 @@ import {
   officialSources,
   regions,
   stations,
-  stationsPermits,
+  stationsOfficialSites,
 } from "@openbts/drizzle";
 import type { OfficialLocationListQuery, OfficialPermitKind, OfficialRatFilter, officialSiteFilterShape } from "@openbts/shared/contract";
 import { type AnyColumn, type SQL, type SQLWrapper, and, eq, exists, gte, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
@@ -48,17 +48,17 @@ export function permitLabelCondition({ rats, bandLabels }: LabelFilterQuery): SQ
   return and(rats ? or(...rats.map(technologyCondition)) : undefined, bandLabels ? inArray(officialPermits.label_mhz, bandLabels) : undefined);
 }
 
-export function linkedToStations(permitId: SQLWrapper, stationIds: readonly number[], hiddenCountryCodes: readonly string[]): SQL {
+export function linkedToStations(officialSiteId: SQLWrapper, stationIds: readonly number[], hiddenCountryCodes: readonly string[]): SQL {
   const conditions = [
-    eq(stationsPermits.permit_id, permitId),
-    inArray(stationsPermits.station_id, [...stationIds]),
+    eq(stationsOfficialSites.official_site_id, officialSiteId),
+    inArray(stationsOfficialSites.station_id, [...stationIds]),
     ...stationAreaConditions({}, hiddenCountryCodes),
   ];
   return exists(
     db
-      .select({ id: stationsPermits.id })
-      .from(stationsPermits)
-      .innerJoin(stations, eq(stations.id, stationsPermits.station_id))
+      .select({ id: stationsOfficialSites.station_id })
+      .from(stationsOfficialSites)
+      .innerJoin(stations, eq(stations.id, stationsOfficialSites.station_id))
       .where(and(...conditions)),
   );
 }

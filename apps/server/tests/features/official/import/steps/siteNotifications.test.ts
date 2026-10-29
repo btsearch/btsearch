@@ -1,13 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { RunNotOwnedError } from "../../../../../src/features/official/import/runs.js";
-import {
-  type SiteChangeSummary,
-  type StoredSite,
-  siteNotificationOf,
-  siteNotifications,
-  summarizeSiteChanges,
-} from "../../../../../src/features/official/import/steps/siteNotifications.js";
+import type { SiteChangeSummary } from "../../../../../src/features/official/import/steps/siteChanges.js";
+import { type StoredSite, siteNotificationOf, siteNotifications } from "../../../../../src/features/official/import/steps/siteNotifications.js";
 import { dbMock } from "../../../../helpers/boundaries.js";
 import {
   FOREIGN_TOKEN,
@@ -64,43 +59,16 @@ function scriptRecipients(sites: readonly { siteId: number; watchers?: readonly 
     sites.map(({ siteId }) => ({ siteId, operatorName: "Orange", operatorMnc: 26003 })),
   );
   const recipients = [...new Set(sites.flatMap(({ watchers = [], listOwners = [] }) => [...watchers, ...listOwners]))];
-  if (recipients.length > 0)
+  if (recipients.length > 0) {
     dbMock.enqueueFor(
       "select",
       "users",
       recipients.map((id) => ({ id, locale: "en-US" })),
     );
+  }
 }
 
 beforeEach(recordTransactions);
-
-describe("the changes of a run, per official site", () => {
-  it("counts the permits added and archived and remembers that the site itself was added", () => {
-    const summaries = summarizeSiteChanges([
-      change(3, "site_added", { officialSiteId: 503 }),
-      change(4, "permit_added", { officialSiteId: 503, permitId: 703 }),
-      change(1, "permit_added", { officialSiteId: 501, permitId: 701 }),
-      change(2, "permit_added", { officialSiteId: 501, permitId: 702 }),
-      change(8, "permit_archived", { officialSiteId: 501, permitId: 650 }),
-      change(9, "permit_archived", { officialSiteId: 502, permitId: 651 }),
-    ]);
-
-    expect(summaries).toEqual([
-      { officialSiteId: 503, lastSeq: 4, wasAdded: true, permitsAdded: 1, permitsArchived: 0 },
-      { officialSiteId: 501, lastSeq: 8, wasAdded: false, permitsAdded: 2, permitsArchived: 1 },
-      { officialSiteId: 502, lastSeq: 9, wasAdded: false, permitsAdded: 0, permitsArchived: 1 },
-    ]);
-  });
-
-  it("does not count as added a permit that the same run archived again", () => {
-    const [site] = summarizeSiteChanges([
-      change(1, "permit_added", { officialSiteId: 501, permitId: 701 }),
-      change(5, "permit_archived", { officialSiteId: 501, permitId: 701 }),
-    ]);
-
-    expect(site).toMatchObject({ permitsAdded: 0, permitsArchived: 1 });
-  });
-});
 
 describe("the notification of an official site", () => {
   it.each([
@@ -392,7 +360,9 @@ describe("the site notifications step", () => {
       RUN_ID,
       "site_added",
       "permit_added",
+      "permit_moved_in",
       "permit_archived",
+      "permit_moved_out",
       "[502,509]",
     ]);
     expect(valuesOf("insert", "notifications")).toEqual([

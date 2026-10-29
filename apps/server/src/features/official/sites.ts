@@ -73,7 +73,7 @@ function siteListConditions(query: OfficialSiteListQuery, hiddenCountryCodes: re
   const conditions: SQL[] = [];
 
   if (query.siteIds) conditions.push(inArray(officialSites.station_id, query.siteIds));
-  if (query.stationIds) conditions.push(hasMatchingPermit(linkedToStations(officialPermits.id, query.stationIds, hiddenCountryCodes)));
+  if (query.stationIds) conditions.push(linkedToStations(officialSites.id, query.stationIds, hiddenCountryCodes));
   if (query.q) conditions.push(siteTextMatch(query.q));
   return conditions;
 }

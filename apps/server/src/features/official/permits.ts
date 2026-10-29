@@ -6,7 +6,7 @@ import {
   officialSites,
   officialSources,
   regions,
-  stationsPermits,
+  stationsOfficialSites,
 } from "@openbts/drizzle";
 import type {
   OfficialPermit,
@@ -25,7 +25,7 @@ import { type SortColumn, type SortField, createKeyset } from "../../lib/keyset.
 import { hasStaffPermission } from "../access/staff.js";
 import { operatedBy } from "../operators/sharing.js";
 import { decisionOrDatasetKindMatches, linkedToStations, officialAreaConditions, permitLabelCondition, permitNumberMatches } from "./filters.js";
-import { type OfficialPermitRows, loadPermitStationIds, officialSiteRowColumns, serializeSitePermits, serializeSites } from "./serialize.js";
+import { type OfficialPermitRows, officialSiteRowColumns, serializeSitePermits, serializeSites } from "./serialize.js";
 import { loadOfficialVisibility, officialLocationIsPublic } from "./visibility.js";
 
 const SORT_COLUMNS: Record<SortField<OfficialPermitSort>, SortColumn | null> = {
@@ -35,7 +35,10 @@ const SORT_COLUMNS: Record<SortField<OfficialPermitSort>, SortColumn | null> = {
 
 const permitRowColumns = { ...officialSiteRowColumns, permit: officialPermits };
 
-const stationLinks = db.select({ id: stationsPermits.id }).from(stationsPermits).where(eq(stationsPermits.permit_id, officialPermits.id));
+const stationLinks = db
+  .select({ id: stationsOfficialSites.station_id })
+  .from(stationsOfficialSites)
+  .where(eq(stationsOfficialSites.official_site_id, officialPermits.official_site_id));
 
 function listedByDatasets(datasetKeys: readonly string[]): SQL {
   return exists(
@@ -52,7 +55,7 @@ function permitConditions(query: OfficialPermitListQuery, hiddenCountryCodes: re
   const labelMatch = permitLabelCondition(query);
 
   if (query.officialSiteIds) conditions.push(inArray(officialPermits.official_site_id, query.officialSiteIds));
-  if (query.stationIds) conditions.push(linkedToStations(officialPermits.id, query.stationIds, hiddenCountryCodes));
+  if (query.stationIds) conditions.push(linkedToStations(officialPermits.official_site_id, query.stationIds, hiddenCountryCodes));
   if (query.siteIds) conditions.push(inArray(officialSites.station_id, query.siteIds));
   if (query.operatorIds) conditions.push(operatedBy(officialSites.operator_id, query.operatorIds));
   if (query.isLinked !== undefined) conditions.push(query.isLinked ? exists(stationLinks) : notExists(stationLinks));
@@ -73,14 +76,8 @@ async function serializePermits(
   const siteRows = [...new Map(rows.map((row) => [row.site.id, row])).values()];
   const siteParts = { location: wants("officialSite.location"), region: false, permits: false, sectors: false };
 
-  const [permits, stationIdsByPermit, sites] = await Promise.all([
+  const [permits, sites] = await Promise.all([
     serializeSitePermits(rows, wants("sectors")),
-    wants("stations")
-      ? loadPermitStationIds(
-          rows.map((row) => row.permit.id),
-          hiddenCountryCodes,
-        )
-      : null,
     wantsSite ? serializeSites(siteRows, siteParts, hiddenCountryCodes) : [],
   ]);
   const sitesById = new Map(sites.map((site) => [site.id, site]));
@@ -88,7 +85,6 @@ async function serializePermits(
   return permits.map((sitePermit) => {
     const permit: OfficialPermit = sitePermit;
     const site = sitesById.get(permit.officialSiteId);
-    if (stationIdsByPermit) permit.stationIds = stationIdsByPermit.get(permit.id) ?? [];
     if (site) permit.officialSite = site;
     return permit;
   });

@@ -20,6 +20,7 @@ import { deletePhotoFiles } from "../../utils/photoFiles.js";
 import { loadCellSnapshots, runAuditedOperation, systemAuditContext } from "../audit/index.js";
 import { deleteLocationWithPhotos } from "../locations/deleteWithPhotos.js";
 import { isAttachmentUsedByNoLocation } from "../submissions/cleanup.js";
+import { clearGuestLinks } from "./hostStations.js";
 
 type CleanedStations = { stationCount: number; attachmentUuids: string[] };
 
@@ -115,6 +116,7 @@ export async function cleanupExpiredInactiveStations(): Promise<void> {
         await tx.delete(cells).where(inArray(cells.id, cellIds));
       }
 
+      await clearGuestLinks(audit, stationIds);
       await tx.delete(stations).where(inArray(stations.id, stationIds));
       await audit.logMany([
         ...stationCells.map((cell) => ({

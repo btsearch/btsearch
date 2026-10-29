@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { StationDialogHeading } from "../../../components/stationDialogShell";
 import type { Brand, LocationStationRecord, Operator, StationRecord } from "../../types";
 import { getOperatorBrand } from "../../utils/brands";
-import { findHostStation, getStationNumber, toV1StationStatus } from "../../utils/stations";
+import { findHostStation, getStationCountryCode, getStationNumber, toV1StationStatus } from "../../utils/stations";
 import { getStructureOwnerBrand } from "../../utils/structure";
 import { HostedStationBadge } from "./hostedStationBadge";
 import { StationStructureLine } from "./stationStructureLine";
@@ -38,6 +38,7 @@ export function StationPanelHeading({ station, brands, operators, locationStatio
           {station.hostStationId !== null ? (
             <HostedStationBadge
               hostStation={hostStation}
+              countryCode={getStationCountryCode(station)}
               hostBrand={getOperatorBrand(hostStation?.operator, brands)}
               isHostLoading={isLocationLoading}
               onOpenStation={onOpenStation}

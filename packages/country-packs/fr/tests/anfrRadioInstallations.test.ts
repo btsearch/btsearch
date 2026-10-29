@@ -96,7 +96,7 @@ void test("reads real tables: a permit per station and mobile system, with a sec
       ref: "595159",
       precisionMeters: 31,
     },
-    site: { siteId: null, licensee: "FREE MOBILE", name: null, ref: "02A0990273" },
+    site: { siteId: "02A0990273", licensee: "FREE MOBILE", name: null, ref: "02A0990273" },
     permit: { label: { rat: "LTE", mhz: 800, variant: "commercial" }, number: null, decisionType: null, expiresOn: null, status: "approved" },
     sectors: [sector(290, 23)],
   } satisfies SiteRecord);

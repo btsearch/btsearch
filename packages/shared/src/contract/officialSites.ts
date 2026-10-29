@@ -49,7 +49,7 @@ export const OFFICIAL_ANTENNA_TYPES = ["indoor", "outdoor"] as const;
 export const OFFICIAL_LOCATION_INCLUDES = ["region", "sites", "sites.permits", "sites.permits.sectors"] as const;
 export type OfficialLocationInclude = (typeof OFFICIAL_LOCATION_INCLUDES)[number];
 
-export const OFFICIAL_PERMIT_INCLUDES = ["sectors", "stations", "officialSite", "officialSite.location"] as const;
+export const OFFICIAL_PERMIT_INCLUDES = ["sectors", "officialSite", "officialSite.location"] as const;
 export type OfficialPermitInclude = (typeof OFFICIAL_PERMIT_INCLUDES)[number];
 
 export const OFFICIAL_SITE_SORTS = ["-id", "id", "createdAt", "-createdAt", "updatedAt", "-updatedAt", "relevance"] as const;
@@ -67,21 +67,19 @@ const LIST_ID_MAX_LENGTH = 64;
 const PERMIT_KIND_NOTE =
   "What the record is. `permit`: a decision that grants a permit. `permitChange`: a decision that changes an earlier permit. " +
   "`registration`, `inventory`, `environmentalPermit`, `certificate`, `assessment` and `license` " +
-  "are the records other registers publish instead of permits. " +
-  "More values may be added, so expect values you do not know";
+  "are the records other registers publish instead of permits";
 const SOURCE_KEY_NOTE = "The key of the source the record comes from, as in `GET /official/sources`";
 const SOURCE_KEYS_FILTER_NOTE = "Matches records of these sources. Comma-separated source keys";
 const LABEL_MHZ_NOTE = "The nominal frequency of the band in MHz, as the register names it";
 const VARIANT_NOTE = "`railway` for a band set aside for railways, such as GSM-R, and `commercial` for every other band";
 const LABEL_NAME_NOTE = "The label as people write it, for example `LTE 800` or `GSM-R 900`. `null` without a technology or a frequency";
 const AZIMUTH_NOTE = "The antenna direction in degrees, as the register publishes it. A value of 360 is passed on as it is";
-const SITE_ID_NOTE = "The id the operator uses for the site, as the register lists it, or `null` when the register has none";
+const SITE_ID_NOTE =
+  "The operator's id for the site as the register lists it, or the register's own station number where the register lists no operator ids. " +
+  "`null` when there is neither";
 const SOURCE_REF_NOTE = "The register's own id for the record, or `null` when it has none";
 const PRECISION_NOTE = "How far the published position can be from the real one. `null` when the register does not say";
-const STATION_IDS_NOTE =
-  "The stations in this database that are linked to one of the site's permits. " +
-  "Inactive stations come after the others, and both groups are ordered by id";
-const PERMIT_STATION_IDS_NOTE = "Only returned with `include=stations`. The stations in this database that are linked to the permit, ordered by id";
+const STATION_ID_NOTE = "The station in this database linked to the site";
 const SITE_UPDATED_NOTE =
   "When the site last changed. An import dates a change by the file it read, so a site imported for the first time " +
   "from an older file can have an `updatedAt` earlier than its `createdAt`";
@@ -108,7 +106,7 @@ const SITE_SORT_NOTE =
 
 const csvSiteIdsSchema = csvSchema
   .pipe(z.array(z.string().min(1).max(SITE_ID_MAX_LENGTH)).min(1).max(100))
-  .describe("Matches sites with exactly one of these ids, as the operator uses them. Comma-separated");
+  .describe("Matches sites whose `siteId` is one of these. Comma-separated");
 const csvBandLabelsSchema = csvSchema
   .pipe(z.array(z.coerce.number<string>().int().positive().max(MAX_ID)).min(1).max(100))
   .describe(BAND_LABELS_FILTER_NOTE);
@@ -185,7 +183,7 @@ export const officialSiteSchema = z.object({
   sourceRef: z.string().nullable().describe(SOURCE_REF_NOTE),
   operatorId: z.number().int().nullable(),
   locationId: z.number().int(),
-  stationIds: z.array(z.number().int()).describe(STATION_IDS_NOTE),
+  stationId: z.number().int().nullable().describe(STATION_ID_NOTE),
   createdAt: z.iso.datetime().describe("When the site was first imported"),
   updatedAt: z.iso.datetime().describe(SITE_UPDATED_NOTE),
   location: officialSiteLocationSchema.optional().describe(INCLUDE_NOTE),
@@ -207,7 +205,6 @@ export type OfficialLocation = z.infer<typeof officialLocationSchema>;
 
 export const officialPermitSchema = z.object({
   ...officialPermitShape,
-  stationIds: z.array(z.number().int()).optional().describe(PERMIT_STATION_IDS_NOTE),
   officialSite: officialPermitSiteSchema.optional().describe(INCLUDE_NOTE),
 });
 export type OfficialPermit = z.infer<typeof officialPermitSchema>;
@@ -289,7 +286,7 @@ export const officialSiteListQuerySchema = z
     siteIds: csvSiteIdsSchema.optional(),
     stationIds: csvIdsSchema
       .optional()
-      .describe("Matches sites with a permit linked to one of these stations. A station in a country you cannot access matches nothing"),
+      .describe("Matches the sites linked to these stations. A station in a country you cannot access matches nothing. Comma-separated ids"),
     ...officialSiteFilterShape,
     ...officialAreaFilterShape,
     include: csvEnumSchema(OFFICIAL_SITE_INCLUDES).optional(),
@@ -318,17 +315,17 @@ export const officialPermitListQuerySchema = z
     officialSiteIds: csvIdsSchema.optional().describe("Matches permits of these official sites. Comma-separated ids"),
     stationIds: csvIdsSchema
       .optional()
-      .describe("Matches permits linked to one of these stations. A station in a country you cannot access matches nothing. Comma-separated ids"),
-    siteIds: csvSiteIdsSchema
-      .optional()
-      .describe("Matches permits of sites with exactly one of these ids, as the operator uses them. Comma-separated"),
+      .describe(
+        "Matches the permits of the sites linked to these stations. A station in a country you cannot access matches nothing. Comma-separated ids",
+      ),
+    siteIds: csvSiteIdsSchema.optional().describe("Matches permits of sites whose `siteId` is one of these. Comma-separated"),
     operatorIds: csvIdsSchema
       .optional()
       .describe("Matches permits of sites of these operators. For a shared network, the sites of its members match too. Comma-separated ids"),
     isLinked: booleanQuerySchema
       .optional()
       .describe(
-        "`true` matches permits linked to at least one station, `false` permits linked to none. " +
+        "`true` matches permits whose site is linked to a station, `false` permits whose site is not. " +
           "`false` requires the `read_unassigned:official_permits` permission",
       ),
     rats: csvEnumSchema(OFFICIAL_RAT_FILTERS)

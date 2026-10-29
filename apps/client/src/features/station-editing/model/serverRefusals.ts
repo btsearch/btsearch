@@ -15,6 +15,7 @@ export type ListedRefusal = { code: string; message: string; fields: { path: str
 type Refusal = { code: string; message: string; details: readonly unknown[] };
 type MatchedRefusal = { text: RefusalText; findTargets: (session: EditSession) => FieldTarget[] };
 type InvalidField = { path: string; message: string };
+type HostRefusalField = { path: string; messageKey: string };
 type TargetFinder = (match: RegExpExecArray, session: EditSession) => FieldTarget[];
 type ValueReader = (match: RegExpExecArray) => TextValues;
 type NumberPair = readonly [field: CellNumberField, group: number];
@@ -53,9 +54,18 @@ const CODE_KEYS: Partial<Record<string, string>> = {
   FORBIDDEN: "stations:edit.refusals.forbidden",
   DUPLICATE_ENTRY: "stations:edit.refusals.duplicateEntry",
 };
+const HOST_REFUSAL_KEYS: Partial<Record<string, string>> = {
+  hostComputed: "stations:edit.refusals.hostComputed",
+  hostElsewhere: "stations:edit.errors.hostElsewhere",
+  hostSelf: "stations:edit.refusals.hostSelf",
+  hostSameOperator: "stations:edit.errors.hostSameOperator",
+  hostIsHosted: "stations:edit.errors.hostIsHosted",
+  hostingStation: "stations:edit.errors.hostingStation",
+};
 const STATION_PATH_FIELDS: Partial<Record<string, EditField>> = {
   siteId: "siteId",
   operatorId: "operatorId",
+  hostStationId: "hostStationId",
   notes: "notes",
   status: "status",
   isConfirmed: "isConfirmed",
@@ -128,6 +138,12 @@ export function isServerRefusal(error: unknown): boolean {
 function toInvalidField(detail: unknown): InvalidField[] {
   if (!isRecord(detail) || typeof detail.field !== "string") return [];
   return [{ path: detail.field, message: typeof detail.validationMessage === "string" ? detail.validationMessage : "" }];
+}
+
+function toHostRefusalField(detail: unknown): HostRefusalField[] {
+  if (!isRecord(detail) || typeof detail.field !== "string" || typeof detail.kind !== "string") return [];
+  const messageKey = HOST_REFUSAL_KEYS[detail.kind];
+  return messageKey === undefined ? [] : [{ path: detail.field, messageKey }];
 }
 
 function toCellTarget(session: EditSession, cell: CellDraft, field?: EditField): FieldTarget {
@@ -633,6 +649,9 @@ function toRefusalErrors(refusal: Refusal, built: BuiltKeys | null, session: Edi
         "stations:edit.refusals.featureDisabled",
       );
   }
+
+  const hostFields = refusal.details.flatMap(toHostRefusalField);
+  if (hostFields.length > 0) return hostFields.map((host) => ({ target: toPathTarget(host.path, built, session), messageKey: host.messageKey }));
 
   const invalidFields = refusal.code === VALIDATION_CODE ? refusal.details.flatMap(toInvalidField) : [];
   if (invalidFields.length === 0) return toMessageErrors(refusal, session);

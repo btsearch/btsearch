@@ -11,7 +11,7 @@ import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
-const stationsSchema = createSelectSchema(stations).omit({ status: true });
+const stationsSchema = createSelectSchema(stations).omit({ status: true, ran_host_station_id: true });
 const bandsSchema = createSelectSchema(bands);
 const gsmCellsSchema = createSelectSchema(gsmCells).omit({ cell_id: true });
 const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });

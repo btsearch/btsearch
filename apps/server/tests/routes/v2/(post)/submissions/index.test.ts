@@ -172,6 +172,55 @@ describe("POST /submissions", () => {
     });
   });
 
+  it("stores a proposed host station and returns it in the station change", async () => {
+    const fixture = existingContentDraft();
+    fixture.input.station = { hostStationId: 4 };
+    fixture.snapshot.proposedStation = {
+      ...draftStation,
+      station_id: null,
+      operator_id: null,
+      notes: null,
+      networks_id: null,
+      networks_name: null,
+      mno_name: null,
+      uplink_type: null,
+      uplink_speed: null,
+      uplink_model: null,
+      ran_host_station_id: 4,
+      changed_fields: ["ran_host_station_id"],
+    };
+    dbMock.enqueueHostLinks([
+      { id: 1, locationId: 2, operatorId: 7, hostStationId: null, countryCode: "GB", longitude: 21, latitude: 52 },
+      { id: 4, locationId: 2, operatorId: 8, hostStationId: null, countryCode: "GB", longitude: 21, latitude: 52 },
+    ]);
+    scriptContentDraftCreate(fixture);
+    const { app, errors } = await createRouteHarnessWithErrors(route, options);
+    const response = await app.inject({ ...request, payload: [fixture.input] });
+
+    expect(errors).toEqual([]);
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data[0].changes.station).toEqual({ hostStationId: 4 });
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "proposed_stations")?.values).toMatchObject({
+      ran_host_station_id: 4,
+      changed_fields: ["ran_host_station_id"],
+    });
+  });
+
+  it("refuses a proposed host station of the same operator without saving the submission", async () => {
+    const fixture = existingContentDraft();
+    fixture.input.station = { hostStationId: 4 };
+    dbMock.enqueueHostLinks([
+      { id: 1, locationId: 2, operatorId: 7, hostStationId: null, countryCode: "GB", longitude: 21, latitude: 52 },
+      { id: 4, locationId: 2, operatorId: 7, hostStationId: null, countryCode: "GB", longitude: 21, latitude: 52 },
+    ]);
+    scriptContentDraftCreate(fixture);
+    const response = await injectMutation(route, { ...request, payload: [fixture.input] }, options);
+
+    expectError(response, 400, "BAD_REQUEST", "The host station must belong to another operator");
+    expect(response.json().errors[0].details).toEqual([{ field: "0/station/hostStationId", kind: "hostSameOperator" }]);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
   it.each([
     {
       description: "identical live station fields",

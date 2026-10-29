@@ -33,6 +33,7 @@ import {
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { assertCellUpdateFitsStoredRat, refuseNsaFields, requireStandaloneTac } from "../cells/ratCellSchemas.js";
 import { backhaulSpeedSchema } from "../stations/backhaul.js";
+import { assertHostStationFits } from "../stations/hostStations.js";
 import { toSiteId } from "../stations/siteIds.js";
 import type { StationStatus } from "../stations/status.js";
 import {
@@ -56,6 +57,7 @@ import {
   validateCellDuplicates,
   validateSectorChanges,
 } from "./helpers.js";
+import type { BodyPath } from "./translate.js";
 
 export const submissionsSelectSchema = createSelectSchema(submissions);
 export const submissionsInsertBase = createInsertSchema(submissions).omit({ createdAt: true, updatedAt: true, submitter_id: true });
@@ -257,8 +259,8 @@ export async function loadSubmissionOwner(
   return stationId === null ? loadNetworkOwner(tx, null, null) : loadStationNetworkOwner(tx, stationId);
 }
 
-export async function validateSubmission(input: SingleSubmission): Promise<void> {
-  await validateChange(input, "review");
+export async function validateSubmission(input: SingleSubmission, bodyPath?: BodyPath): Promise<void> {
+  await validateChange(input, "review", bodyPath);
 }
 
 async function checkChangedCellIdentities(
@@ -287,7 +289,7 @@ function letsStationLackSiteId({ rat, details }: ChangeCell): boolean {
   return typeof nodeId === "number" && nodeId > 0;
 }
 
-export async function validateChange(input: SubmissionChange, handling: "review" | "direct"): Promise<string[][]> {
+export async function validateChange(input: SubmissionChange, handling: "review" | "direct", bodyPath?: BodyPath): Promise<string[][]> {
   const { station_id, type, station: stationData } = input;
   const locationData = input.location ?? undefined;
   const waitsForReview = handling === "review";
@@ -378,6 +380,10 @@ export async function validateChange(input: SubmissionChange, handling: "review"
 
   const operatorId = type === "new" ? stationData?.operator_id : (stationData?.operator_id ?? targetStation?.operator_id);
   const changesOwner = type === "update" && typeof stationData?.operator_id === "number" && stationData.operator_id !== targetStation?.operator_id;
+  await assertHostStationFits(
+    { stationId, hostStationId: stationData?.ran_host_station_id, operatorId: stationData?.operator_id, location: input.location },
+    bodyPath,
+  );
 
   const allModifiedCellIds = input.cells?.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined) ?? [];
   if (input.cells && input.cells.length > 0) {

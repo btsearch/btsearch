@@ -154,6 +154,7 @@ function SavedStationHead({ record, operatorId, lookups }: SavedStationHeadProps
           {record.hostStationId === null ? null : (
             <HostedStationBadge
               hostStation={hostStation}
+              countryCode={getStationCountryCode(record)}
               hostBrand={getOperatorBrand(hostStation?.operator, lookups.brands)}
               isHostLoading={isPlaceLoading}
               onOpenStation={(stationId) => openStationDialog(stationId, "internal")}
@@ -192,7 +193,7 @@ export function SavedStationEditor({ record }: SavedStationEditorProps) {
   const { t } = useTranslation(["stations", "common", "submissions"]);
   const { data: authSession } = authClient.useSession();
   const [sessionInput] = useState(() => createSavedStationInput(record));
-  const edit = useStationDraft({ ...sessionInput, canEdit: true });
+  const edit = useStationDraft({ ...sessionInput, stationId: record.id, canEdit: true });
   const feedback = useSaveFeedback(edit);
   const saveMutation = useSaveStationMutation();
   const statusMutation = useSaveStationMutation();
@@ -362,7 +363,7 @@ export function NewStationEditor({ prefill }: NewStationEditorProps) {
   const createMutation = useCreateStationMutation();
   const isBusy = createMutation.isPending || createMutation.isSuccess;
   const [sessionInput] = useState(() => createNewStationInput(prefill));
-  const edit = useStationDraft({ ...sessionInput, canEdit: !isBusy });
+  const edit = useStationDraft({ ...sessionInput, stationId: null, canEdit: !isBusy });
   const feedback = useSaveFeedback(edit);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoNotes, setPhotoNotes] = useState<string[]>([]);

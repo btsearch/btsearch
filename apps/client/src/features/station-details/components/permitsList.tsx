@@ -9,7 +9,6 @@ import { DEVICE_REGISTRY_DATASET, compareNullsLast, getPermitKindLook, listPermi
 import { stationPermitsQueryOptions } from "../queries";
 import { formatSectorAzimuth } from "../station/utils/sectors";
 import { OfficialBandLabel } from "./officialBandLabel";
-import { StationLink } from "./stationLink";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,14 +17,12 @@ import { useFloatingDialogStack } from "@/features/floating-dialogs/components/f
 import { getOfficialSiteCode } from "@/features/official/sites";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
-import type { PhysicalStation } from "@/types/station";
 
 type PermitsListProps = {
   stationId?: number;
   permits?: readonly OfficialSitePermit[];
   sourceName: string | null;
   isExternalLoading?: boolean;
-  physicalStation?: PhysicalStation;
   permitHolderNote?: ReactNode;
 };
 
@@ -41,14 +38,7 @@ const DATASET_LABEL_KEYS: ReadonlyMap<string, string> = new Map([
   [DEVICE_REGISTRY_DATASET, "permits.sourceDeviceRegistry"],
 ]);
 
-export function PermitsList({
-  stationId,
-  permits: externalPermits,
-  sourceName,
-  isExternalLoading,
-  physicalStation,
-  permitHolderNote,
-}: PermitsListProps) {
+export function PermitsList({ stationId, permits: externalPermits, sourceName, isExternalLoading, permitHolderNote }: PermitsListProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const {
     data: fetchedPermits = NO_PERMITS,
@@ -98,7 +88,7 @@ export function PermitsList({
         <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
           <HugeiconsIcon icon={DocumentCodeIcon} className="size-8 mb-2 opacity-20" />
           <p className="text-sm">{sourceName === null ? t("permits.noRegisterPermits") : t("permits.noPermits", { source: sourceName })}</p>
-          {physicalStation ? <PermitHolderNote station={physicalStation} /> : permitHolderNote}
+          {permitHolderNote}
         </div>
       </>
     );
@@ -133,23 +123,6 @@ function PermitSiteLinks({ sites, sourceName }: PermitSiteLinksProps) {
           <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
       ))}
-    </div>
-  );
-}
-
-function PermitHolderNote({ station }: { station: PhysicalStation }) {
-  const { t } = useTranslation("stationDetails");
-  const { openStationDialog } = useFloatingDialogStack();
-
-  return (
-    <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-sm">
-      <span>{t("permits.permitHolder")}</span>
-      <StationLink
-        station={station}
-        onOpen={(id) => openStationDialog(id, "internal")}
-        className="inline-flex"
-        stationIdClassName="underline-offset-2 group-hover:underline group-focus-visible:underline"
-      />
     </div>
   );
 }

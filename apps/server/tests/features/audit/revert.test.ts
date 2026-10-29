@@ -260,3 +260,76 @@ describe("planStationRevert of a deactivation", () => {
     expect(dbMock.query.cells.findMany.mock.calls[0]?.[0]).toMatchObject({ where: { OR: [{ id: { in: [] } }, { station_id: 1 }] } });
   });
 });
+
+describe("planStationRevert of a host link", () => {
+  const hosted = stationRow({ id: 1, location_id: 2, ran_host_station_id: 4 });
+  const cleared = stationRow({ id: 1, location_id: 2, ran_host_station_id: null });
+  const entry = auditEntry({ id: 401, entity: "stations", op: "update", record_id: "1", old_values: hosted, new_values: cleared });
+  const tx = dbMock as unknown as DbTx;
+  const context: StrategyContext = { tx, pendingInserts: new Map(), selectedEntries: [entry], operationEntries: [entry] };
+
+  it("restores the host while it still exists", async () => {
+    dbMock.enqueueFor("select", "stations", [cleared]);
+    dbMock.query.stations.findFirst.mockResolvedValueOnce({ id: 4 });
+    dbMock.enqueueFor("update", "stations", []);
+
+    const plan = await planStationRevert(context, entry);
+    expect(plan.conflicts).toEqual([]);
+    await plan.actions[0]!.run(tx, emptyState());
+
+    expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "stations")?.values).toMatchObject({ ran_host_station_id: 4 });
+  });
+
+  it("clears a restored host link that no longer fits, after logging the reverted station", async () => {
+    const audit: AuditRecorder = {
+      operationId: 8,
+      tx,
+      entryMetadata: null,
+      log: vi.fn(async () => undefined),
+      logMany: vi.fn(async () => undefined),
+      withEntryMetadata: () => audit,
+    };
+    dbMock.enqueueFor("select", "stations", [cleared]);
+    dbMock.query.stations.findFirst.mockResolvedValueOnce({ id: 4 });
+    dbMock.enqueueFor("update", "stations", [], [], [cleared]);
+    dbMock.enqueueFor("select", "stations", [hosted], [hosted]);
+    dbMock.enqueueHostLinks([
+      { id: 1, locationId: 2, operatorId: 10, hostStationId: 4, countryCode: "GB", longitude: 21, latitude: 52 },
+      { id: 4, locationId: 3, operatorId: 40, hostStationId: null, countryCode: "GB", longitude: 21.1, latitude: 52.1 },
+    ]);
+
+    await applyRevertPlan(tx, audit, [await planStationRevert(context, entry)], false);
+
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ recordId: 1, new: expect.objectContaining({ ran_host_station_id: 4 }) }));
+    expect(audit.logMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        recordId: 1,
+        old: expect.objectContaining({ ran_host_station_id: 4 }),
+        new: expect.objectContaining({ ran_host_station_id: null }),
+      }),
+    ]);
+    expect(vi.mocked(audit.log).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(audit.logMany).mock.invocationCallOrder[0]!);
+  });
+
+  it("offers to drop a host that no longer exists and then leaves the station without one", async () => {
+    dbMock.enqueueFor("select", "stations", [cleared]);
+    dbMock.query.stations.findFirst.mockResolvedValueOnce(undefined);
+    dbMock.enqueueFor("update", "stations", []);
+
+    const plan = await planStationRevert(context, entry);
+    expect(plan.conflicts).toEqual([
+      expect.objectContaining({
+        kind: "fk_missing",
+        message: "The original host station no longer exists",
+        forceResolution: "drop_field",
+        nullableField: "ran_host_station_id",
+      }),
+    ]);
+    plan.droppedFields.add("ran_host_station_id");
+    await plan.actions[0]!.run(tx, emptyState());
+
+    expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "stations")?.values).toMatchObject({
+      ran_host_station_id: null,
+    });
+  });
+});

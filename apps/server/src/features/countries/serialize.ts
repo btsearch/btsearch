@@ -1,4 +1,5 @@
 import { type SourceCapabilities, capabilitiesFor } from "@openbts/country-packs";
+import { hasOfficialSites } from "@openbts/country-packs/sources";
 import { countries } from "@openbts/drizzle";
 import type { BoundingBox, Country } from "@openbts/shared/contract";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -18,7 +19,7 @@ export function toCountry(row: CountryRow, sourceCapabilities: ReadonlyMap<strin
     contributions: row.contributions,
     tools: row.tools,
     features: { structureOwnerProposals: row.structureOwnerProposals, psc: row.psc, bsic: row.bsic, observationsPublic: row.observationsPublic },
-    capabilities: capabilitiesFor(row.code, sourceCapabilities.get(row.code)),
+    capabilities: { ...capabilitiesFor(row.code, sourceCapabilities.get(row.code)), editableHostStations: !hasOfficialSites(row.code) },
     defaultView,
   };
 }

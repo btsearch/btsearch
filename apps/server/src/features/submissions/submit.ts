@@ -17,7 +17,7 @@ export async function submitSubmissions(
   submitter: Submitter,
 ): Promise<SubmissionWithExtras[]> {
   await assertContributionsOpen(req, changes);
-  await Promise.all(changes.map((change, index) => pointRefusalsAtItem(index, () => validateSubmission(change))));
+  await Promise.all(changes.map((change, index) => pointRefusalsAtItem(index, () => validateSubmission(change, (path) => [index, ...path]))));
 
   try {
     const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "submission.create" }, async (tx, audit) => {

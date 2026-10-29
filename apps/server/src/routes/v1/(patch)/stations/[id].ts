@@ -31,9 +31,10 @@ const stationsUpdateSchema = createUpdateSchema(stations, {
     createdAt: true,
     updatedAt: true,
     statusChangedAt: true,
+    ran_host_station_id: true,
   })
   .strict();
-const stationsSelectSchema = createSelectSchema(stations);
+const stationsSelectSchema = createSelectSchema(stations).omit({ ran_host_station_id: true });
 const schemaRoute = {
   params: z.object({
     station_id: z.coerce.number<number>(),

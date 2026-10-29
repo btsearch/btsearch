@@ -82,6 +82,7 @@
     "id": "ID",
     "stationId": "Station ID",
     "operator": "Operator",
+    "hostStation": "Host station",
     "allOperators": "All operators",
     "region": "Region",
     "country": "Country",

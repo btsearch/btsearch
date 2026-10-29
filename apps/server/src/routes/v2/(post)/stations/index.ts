@@ -1,4 +1,4 @@
-import { stationCreateSchema, stationQuerySchema, stationSchema } from "@openbts/shared/contract";
+import { HOST_STATION_REFUSAL_KINDS, stationCreateSchema, stationQuerySchema, stationSchema } from "@openbts/shared/contract";
 import type { Station, StationCreate, StationQuery } from "@openbts/shared/contract";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -29,7 +29,9 @@ const errorReasons = {
   400:
     "The station cannot be created as sent. For example, the operator already has a station with this `siteId`, " +
     "a band is not in the country's band plan, the operator belongs to a different country than the region, " +
-    "or an operator, region or band does not exist.",
+    "`hostStationId` names a station that cannot host this one, or an operator, region or band does not exist. " +
+    "A refused `hostStationId` puts `station/hostStationId` in `details[0].field`, " +
+    `and \`details[0].kind\` gives the reason, one of \`${HOST_STATION_REFUSAL_KINDS.join("`, `")}\`.`,
   409:
     "An active station already has a cell with the same identity on one of the cell's networks: " +
     "`lac` and `cid` for GSM, `rnc` and `cid` for UMTS, `enbid` and `clid` for LTE, `nci` for NR.",

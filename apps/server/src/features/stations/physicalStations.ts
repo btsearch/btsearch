@@ -1,16 +1,23 @@
-import { operatorLinks, operators, stations, stationsPermits } from "@openbts/drizzle";
+import { hasOfficialSites } from "@openbts/country-packs/sources";
+import { locations, operatorLinks, operators, regions, stations, stationsOfficialSites } from "@openbts/drizzle";
 import { NETWORKS_PARTNER_MNCS, getNetworksSiblingMnc, isNetworksPartnerMnc } from "@openbts/shared/operatorUtils";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
 
 import db from "../../database/psql.js";
+import { unique } from "../../lib/collections.js";
+import type { StationRow } from "./serialize.js";
 
 export const physicalStationSchema = createSelectSchema(stations)
   .pick({ id: true, station_id: true, status: true })
   .extend({ operator: createSelectSchema(operators) });
 
 export type PhysicalStation = z.infer<typeof physicalStationSchema>;
+
+const hasOfficialSite = exists(
+  db.select({ stationId: stationsOfficialSites.station_id }).from(stationsOfficialSites).where(eq(stationsOfficialSites.station_id, stations.id)),
+).mapWith(Boolean);
 
 export async function findPhysicalStations(locationId: number): Promise<Map<number, PhysicalStation>> {
   const rows = await db
@@ -19,7 +26,7 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
       station_id: stations.station_id,
       status: stations.status,
       operator: operators,
-      hasPermits: sql<boolean>`EXISTS (SELECT 1 FROM ${stationsPermits} WHERE ${stationsPermits.station_id} = ${stations.id})`,
+      hasOfficialSite,
     })
     .from(stations)
     .innerJoin(operators, eq(operators.id, stations.operator_id))
@@ -28,9 +35,9 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
 
   const physicalStations = new Map<number, PhysicalStation>();
   for (const station of rows) {
-    if (station.hasPermits || station.operator.mnc === null) continue;
+    if (station.hasOfficialSite || station.operator.mnc === null) continue;
     const siblingMnc = getNetworksSiblingMnc(station.operator.mnc);
-    const physical = rows.find((candidate) => candidate.hasPermits && candidate.operator.mnc === siblingMnc);
+    const physical = rows.find((candidate) => candidate.hasOfficialSite && candidate.operator.mnc === siblingMnc);
     if (!physical) continue;
     const { id, station_id, status, operator } = physical;
     physicalStations.set(station.id, { id, station_id, status, operator });
@@ -38,28 +45,41 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
   return physicalStations;
 }
 
-export async function findHostStationIds(locationIds: readonly number[]): Promise<Map<number, number>> {
+export async function findHostStationIds(
+  stationRows: readonly Pick<StationRow, "id" | "location_id" | "ran_host_station_id">[],
+): Promise<Map<number, number>> {
   const hostStationIds = new Map<number, number>();
+  const locationIds = unique(stationRows.map((station) => station.location_id));
   if (locationIds.length === 0) return hostStationIds;
 
-  const rows = await db
+  const residents = await db
     .select({
       id: stations.id,
       locationId: stations.location_id,
+      countryCode: regions.countryCode,
       operatorId: operatorLinks.operatorId,
       sharedNetworkId: operatorLinks.relatedOperatorId,
-      hasPermits: sql<boolean>`EXISTS (SELECT 1 FROM ${stationsPermits} WHERE ${stationsPermits.station_id} = ${stations.id})`,
+      hasOfficialSite,
     })
     .from(stations)
-    .innerJoin(operatorLinks, and(eq(operatorLinks.operatorId, stations.operator_id), eq(operatorLinks.kind, "jv_member")))
-    .where(inArray(stations.location_id, [...locationIds]))
+    .innerJoin(locations, eq(locations.id, stations.location_id))
+    .innerJoin(regions, eq(regions.id, locations.region_id))
+    .leftJoin(operatorLinks, and(eq(operatorLinks.operatorId, stations.operator_id), eq(operatorLinks.kind, "jv_member")))
+    .where(inArray(stations.location_id, locationIds))
     .orderBy(sql`${stations.status} = 'inactive'`, asc(stations.id));
 
-  type HostCandidate = Pick<(typeof rows)[number], "id" | "operatorId">;
+  type NetworkMember = (typeof residents)[number] & { operatorId: number; sharedNetworkId: number };
+  const officialLocationIds = new Set(residents.filter((station) => hasOfficialSites(station.countryCode)).map((station) => station.locationId));
+  const networkMembers = residents.filter(
+    (station): station is NetworkMember =>
+      station.operatorId !== null && station.sharedNetworkId !== null && officialLocationIds.has(station.locationId),
+  );
+
+  type HostCandidate = Pick<NetworkMember, "id" | "operatorId">;
   type HostCandidates = { first: HostCandidate; firstDifferentOperator?: HostCandidate };
   const candidatesByLocation = new Map<number | null, Map<number, HostCandidates>>();
-  for (const station of rows) {
-    if (!station.hasPermits) continue;
+  for (const station of networkMembers) {
+    if (!station.hasOfficialSite) continue;
 
     let candidatesByNetwork = candidatesByLocation.get(station.locationId);
     if (candidatesByNetwork === undefined) {
@@ -72,13 +92,18 @@ export async function findHostStationIds(locationIds: readonly number[]): Promis
       candidates.firstDifferentOperator = station;
   }
 
-  for (const station of rows) {
-    if (station.hasPermits || hostStationIds.has(station.id)) continue;
+  for (const station of networkMembers) {
+    if (station.hasOfficialSite || hostStationIds.has(station.id)) continue;
 
     const candidates = candidatesByLocation.get(station.locationId)?.get(station.sharedNetworkId);
     if (candidates === undefined) continue;
     const host = candidates.first.operatorId === station.operatorId ? candidates.firstDifferentOperator : candidates.first;
     if (host !== undefined) hostStationIds.set(station.id, host.id);
+  }
+
+  for (const station of stationRows) {
+    if (station.location_id === null || officialLocationIds.has(station.location_id)) continue;
+    if (station.ran_host_station_id !== null) hostStationIds.set(station.id, station.ran_host_station_id);
   }
   return hostStationIds;
 }

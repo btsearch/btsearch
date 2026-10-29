@@ -108,6 +108,7 @@ function toStationChange(row: ProposedStationRow, isNewStation: boolean): Statio
   if (changes.uplink_type !== undefined || changes.uplink_speed !== undefined || changes.uplink_model !== undefined) {
     station.backhaul = toBackhaulChange(changes);
   }
+  if (changes.ran_host_station_id !== undefined) station.hostStationId = changes.ran_host_station_id;
   return station;
 }
 
