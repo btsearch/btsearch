@@ -5,7 +5,7 @@ import type { EditLookups } from "../../data/lookups";
 import type { StationDraftApi } from "../../hooks/useStationDraft";
 import { type CellToolId, type CellToolInput, type ConfirmScope, listCellTools } from "../../model/cellTools";
 import { getCellRowState } from "../../model/changes";
-import { EXTRA_PLMN_LIMITS, type NetworkOption, listNetworkOptions } from "../../model/networks";
+import { EXTRA_PLMN_LIMITS, type NetworkOption, extraPlmnLimitsFor, listNetworkOptions } from "../../model/networks";
 import { findDraftOperator, findDraftOwnerPlmn } from "../../model/snapshots";
 import type { CellDraft, CellRowState, DraftKey, EditError, FieldTarget, Rat, TextValues } from "../../model/types";
 import { NO_EDIT_ERRORS } from "../../model/validate";
@@ -25,6 +25,7 @@ export type NetworkChoice = {
   options: readonly NetworkOption[];
   ownerPlmn: string | null;
   brands: readonly Brand[];
+  limits: Readonly<Record<Rat, number>>;
 };
 
 const errorsByCell = new WeakMap<CellDraft, readonly EditError[]>();
@@ -56,16 +57,19 @@ export function getNetworkChoice(edit: StationDraftApi): NetworkChoice {
 
   const options = listNetworkOptions(lookups.countryOperators);
   const owner = options.filter((option) => option.code === ownerPlmn);
-  const choice = { options: [...owner, ...options.filter((option) => option.code !== ownerPlmn)], ownerPlmn, brands: lookups.brands };
+  const choice = {
+    options: [...owner, ...options.filter((option) => option.code !== ownerPlmn)],
+    ownerPlmn,
+    brands: lookups.brands,
+    limits: extraPlmnLimitsFor(lookups.countryCode),
+  };
   choices.set(ownerPlmn, choice);
   return choice;
 }
 
 export function offersNetworks(edit: StationDraftApi, rat: Rat): boolean {
-  if (EXTRA_PLMN_LIMITS[rat] === 0) return false;
-
-  const { options, ownerPlmn } = getNetworkChoice(edit);
-  return options.some((option) => option.code !== ownerPlmn);
+  const { options, ownerPlmn, limits } = getNetworkChoice(edit);
+  return limits[rat] > 0 && options.some((option) => option.code !== ownerPlmn);
 }
 
 function hasExtraNetworks(cells: readonly CellDraft[], rat: Rat): boolean {

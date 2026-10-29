@@ -2,7 +2,7 @@ import type { CellNetworkMatch } from "@openbts/shared/contract";
 import { plmnCandidates } from "@openbts/shared/operatorUtils";
 
 import { cellNetworkCodes } from "../../../cells/networks.js";
-import { EXTRA_CODE_LIMITS, type KnownPlmns } from "../../../cells/networkWrites.js";
+import { type KnownPlmns, extraCodeLimit } from "../../../cells/networkWrites.js";
 import { CONFIRMING_PEOPLE } from "../../cells/confirmation.js";
 import type { RaisedFlag } from "../kinds.js";
 import { cellNetworkSubject } from "../subjects.js";
@@ -109,7 +109,7 @@ export function raiseNetworkFlags(input: NetworkFlagInput): NetworkFlag[] {
   );
 
   return input.cells.flatMap((cell): NetworkFlag[] => {
-    const limit = EXTRA_CODE_LIMITS[cell.rat] ?? 0;
+    const limit = extraCodeLimit(cell.rat, cell.countryCode);
     if (limit === 0) return [];
     const observed = observedByCell.get(cell.id) ?? [];
     const listed = listedByCell.get(cell.id) ?? [];

@@ -6,6 +6,7 @@ export const readStation = {
   station_id: "Łódź-1",
   operator_id: null,
   location_id: null,
+  ran_host_station_id: null,
   status: "published",
   is_confirmed: true,
   notes: null,

@@ -76,12 +76,9 @@ export function TerrainProfileAntennaSection({ panel }: { panel: TerrainProfileP
 
   const selected = findSelectedAntenna(profile, panel.selectedAntennaKey);
   const { offered, folded } = listAntennaChoices(profile.candidates, selected, getReceiverBearing(station, receiverPoint), describeAntenna);
-  const { report } = profile;
   const meta = [t("antenna.height", { value: format.decimal(selected.heightMeters, 1) })];
   if (selected.tilt !== null) meta.push(t("selection.tilt", { value: format.compact(selected.tilt, 1) }));
   if (selected.source === "permit") meta.push(t("antenna.source.permit"));
-  else if (report === null || report.measuredOn === null) meta.push(t("antenna.source.emfReport"));
-  else meta.push(t("antenna.source.emfReportDated", { date: format.day(report.measuredOn) }));
 
   function renderPill(choice: LabeledAntenna) {
     const { antenna } = choice;

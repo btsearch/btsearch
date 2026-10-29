@@ -51,7 +51,14 @@ void test("gives every operator in Great Britain a 22-bit gNB ID and the default
   assert.equal(conventions.gnbidLength(WITHOUT_PLMN), 22);
   assert.equal(conventions.lteSectorRule, defaultConventions.lteSectorRule);
   assert.equal(conventions.hoistedTac, false);
-  assert.deepEqual(capabilitiesFor("GB"), { official: false, microwaveLinks: false, emf: false, terrainProfiles: null, kmz: false });
+  assert.deepEqual(capabilitiesFor("GB"), {
+    official: false,
+    microwaveLinks: false,
+    emf: false,
+    terrainProfiles: null,
+    kmz: false,
+    cellNetworks: true,
+  });
 });
 
 void test("gives the defaults to a country without a pack and to no country", () => {
@@ -93,6 +100,7 @@ void test("takes the official layers from the sources and lets KMZ follow the of
     emf: true,
     terrainProfiles: TERRAIN_PROFILES,
     kmz: true,
+    cellNetworks: false,
   });
   assert.deepEqual(capabilitiesFor("PL", { official: false, microwaveLinks: true }), {
     official: false,
@@ -100,8 +108,16 @@ void test("takes the official layers from the sources and lets KMZ follow the of
     emf: true,
     terrainProfiles: TERRAIN_PROFILES,
     kmz: false,
+    cellNetworks: false,
   });
-  assert.deepEqual(capabilitiesFor("PL"), { official: false, microwaveLinks: false, emf: true, terrainProfiles: TERRAIN_PROFILES, kmz: false });
+  assert.deepEqual(capabilitiesFor("PL"), {
+    official: false,
+    microwaveLinks: false,
+    emf: true,
+    terrainProfiles: TERRAIN_PROFILES,
+    kmz: false,
+    cellNetworks: false,
+  });
   assert.equal("official" in pl.capabilities, false);
   assert.equal("microwaveLinks" in pl.capabilities, false);
 });
@@ -113,6 +129,7 @@ void test("gives a country without a pack only what its sources bring", () => {
     emf: false,
     terrainProfiles: null,
     kmz: false,
+    cellNetworks: true,
   });
   assert.deepEqual(countryCodesWith("emf"), ["PL"]);
   assert.deepEqual(countryCodesWith("terrainProfiles"), ["PL"]);

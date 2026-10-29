@@ -7,7 +7,7 @@ import { unique } from "../../../../lib/collections.js";
 import type { DbTx } from "../../../../types/global.js";
 import type { BandRow } from "../../../bands/serialize.js";
 import { cellNetworkCodes } from "../../../cells/networks.js";
-import { EXTRA_CODE_LIMITS, type KnownPlmns } from "../../../cells/networkWrites.js";
+import { type KnownPlmns, extraCodeLimit } from "../../../cells/networkWrites.js";
 import { disabledCountryFeatures } from "../../../stations/countryFeatures.js";
 import { bandsHolding } from "../../bandPlans.js";
 import { CELLS_PER_ENB, MATCHED_FIELDS, type MatchedField, NCI_BITS, gnbidOf, isMatchedField } from "../../cells/identity.js";
@@ -76,7 +76,7 @@ function networksOf(source: NewCellSource, station: NewCellStation, known: Known
       return isGuest ? network : null;
     }),
   );
-  return cellNetworkCodes(station.ownerCode, guests.slice(0, EXTRA_CODE_LIMITS[source.rat] ?? 0).toSorted());
+  return cellNetworkCodes(station.ownerCode, guests.slice(0, extraCodeLimit(source.rat, station.countryCode)).toSorted());
 }
 
 export function buildNewCell(source: NewCellSource, station: NewCellStation, { known, gnbidLengths }: NewCellContext): CellApplyNewCell | null {

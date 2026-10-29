@@ -17,6 +17,9 @@ const SITE_ID = 9205;
 const PLUS = "26001";
 const PLAY = "26006";
 const ORANGE = "26003";
+const VODAFONE = "23415";
+const O2 = "23410";
+const EE = "23430";
 const ANIA = 0b01n;
 const BOTH = 0b11n;
 const B20: BandRow = { id: 20, value: 800, rat: "LTE", name: "LTE800", duplex: "FDD", variant: "commercial", code: "B20" };
@@ -28,6 +31,9 @@ const known: KnownPlmns = new Map([
   [PLUS, { id: 1, code: PLUS, countryCode: "PL" }],
   [PLAY, { id: 6, code: PLAY, countryCode: "PL" }],
   [ORANGE, { id: 3, code: ORANGE, countryCode: "PL" }],
+  [VODAFONE, { id: 7, code: VODAFONE, countryCode: "GB" }],
+  [O2, { id: 8, code: O2, countryCode: "GB" }],
+  [EE, { id: 9, code: EE, countryCode: "GB" }],
 ]);
 
 function siteCell(overrides: Partial<SiteCell> = {}): SiteCell {
@@ -50,22 +56,26 @@ function siteCell(overrides: Partial<SiteCell> = {}): SiteCell {
   };
 }
 
+function listing(plmn: string, contributorBits: bigint) {
+  return { observedCellId: 50411, observedSiteId: SITE_ID, plmn, sampleCount: 20, contributorBits, lastSeenOn: "2026-10-20" };
+}
+
 function seen(field: "areaCode" | "pci" | "channel", value: number, observedCellId = 50411) {
   return { observedCellId, observedSiteId: SITE_ID, field, value, sampleCount: 20, contributorBits: BOTH, lastSeenOn: "2026-10-20" };
 }
 
-type RaiseOptions = { ownerCode?: string; planBands?: BandRow[]; listedNetworks?: MissingCellInput["listedNetworks"] };
+type RaiseOptions = { ownerCode?: string; countryCode?: string; planBands?: BandRow[]; listedNetworks?: MissingCellInput["listedNetworks"] };
 
 function raise(
   cells: SiteCell[],
   values: MissingCellInput["values"],
-  { ownerCode = PLUS, planBands = [B20], listedNetworks = [] }: RaiseOptions = {},
+  { ownerCode = PLUS, countryCode = "PL", planBands = [B20], listedNetworks = [] }: RaiseOptions = {},
 ) {
   return raiseMissingCellFlags({
     cells: findMissingCells(cells, OWN_SITE, SEEN_SINCE),
     values,
     listedNetworks,
-    stations: new Map([[STATION_ID, { ownerCode, countryCode: "PL", planBands }]]),
+    stations: new Map([[STATION_ID, { ownerCode, countryCode, planBands }]]),
     context: { known, gnbidLengths: new Map([[PLAY, knownGnbidLength("260", "06") ?? 0]]) },
   });
 }
@@ -114,18 +124,16 @@ describe("cellMissing", () => {
   });
 
   it("lists the owner's main code first, then the known networks two people read in the cell's list", () => {
-    const listing = (plmn: string, contributorBits: bigint) => ({
-      observedCellId: 50411,
-      observedSiteId: SITE_ID,
-      plmn,
-      sampleCount: 20,
-      contributorBits,
-      lastSeenOn: "2026-10-20",
-    });
-    const listedNetworks = [listing(PLAY, BOTH), listing(ORANGE, ANIA), listing("26099", BOTH)];
-    const [flag] = raise([siteCell()], lteValues, { listedNetworks });
+    const listedNetworks = [listing(O2, BOTH), listing(EE, ANIA), listing(ORANGE, BOTH), listing("23499", BOTH)];
+    const [flag] = raise([siteCell({ plmn: VODAFONE, countryCode: "GB" })], lteValues, { ownerCode: VODAFONE, countryCode: "GB", listedNetworks });
 
-    expect(flag?.suggestion.cells).toMatchObject([{ plmns: [PLUS, PLAY] }]);
+    expect(flag?.suggestion.cells).toMatchObject([{ plmns: [VODAFONE, O2] }]);
+  });
+
+  it("lists only the owner's main code in a country whose pack switches cell networks off", () => {
+    const [flag] = raise([siteCell()], lteValues, { listedNetworks: [listing(PLAY, BOTH)] });
+
+    expect(flag?.suggestion.cells).toMatchObject([{ plmns: [PLUS] }]);
   });
 
   it("opens nothing for a copy, an unconfirmed cell, a partner's cell, a cell of ours, or a site matched only through a partner", () => {

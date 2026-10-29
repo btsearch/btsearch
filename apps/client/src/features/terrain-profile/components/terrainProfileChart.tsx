@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Area, CartesianGrid, ComposedChart, type CurveProps, Line, type TooltipContentProps, XAxis, YAxis, useYAxisScale } from "recharts";
 
@@ -89,12 +89,6 @@ type ProfileMarksProps = {
   shortLabels: EndLabels;
   prefersShortLabels: boolean;
   crosshairIndex: number | null;
-  onExaggerationChange: (exaggeration: number | null) => void;
-};
-
-type ExaggerationReporterProps = {
-  exaggeration: number | null;
-  onChange: (exaggeration: number | null) => void;
 };
 
 type LegendItemProps = {
@@ -117,7 +111,6 @@ const ELEVATION_TOP_PADDING_SHARE = 0.2;
 const DISTANCE_TICK_TARGET = { regular: 5, compact: 3 };
 const DISTANCE_TICK_DECIMALS = 6;
 const NICE_STEP_FACTORS = [1, 2, 5, 10];
-const WHOLE_EXAGGERATION_FROM = 10;
 const LABEL_GAP = 9;
 const LABEL_LIFT = 8;
 const LABEL_DROP = 13;
@@ -130,7 +123,6 @@ const LABEL_FONT_SIZE = 11;
 const LABEL_CHARACTER_WIDTH = 6.5;
 const LABEL_HALO = { paintOrder: "stroke", stroke: "var(--background)", strokeWidth: 3, strokeLinejoin: "round" } as const;
 const TOOLTIP_VALUE_CLASS = "font-mono font-medium tabular-nums";
-const EXAGGERATION_CLASS = "ms-auto min-w-[14ch] text-end font-mono text-[11px] whitespace-nowrap";
 
 function getNiceStep(roughStep: number): number {
   const magnitude = 10 ** Math.floor(Math.log10(roughStep));
@@ -187,16 +179,6 @@ function measurePlot(points: CurveProps["points"], scale: ElevationScale, sample
   const bottom = toPixel(low);
   if (typeof top !== "number" || typeof bottom !== "number") return null;
   return { xs, top, bottom, toY: (meters) => toPixel(meters) ?? bottom };
-}
-
-function getExaggeration(plot: Plot, samples: readonly TerrainSample[], [low, high]: ElevationDomain): number | null {
-  const pathMeters = samples[samples.length - 1].distanceMeters - samples[0].distanceMeters;
-  const plotWidth = plot.xs[plot.xs.length - 1] - plot.xs[0];
-  const plotHeight = plot.bottom - plot.top;
-  if (pathMeters <= 0 || plotWidth <= 0 || plotHeight <= 0 || high <= low) return null;
-
-  const exaggeration = plotHeight / (high - low) / (plotWidth / pathMeters);
-  return exaggeration >= WHOLE_EXAGGERATION_FROM ? Math.round(exaggeration) : Math.round(exaggeration * 10) / 10;
 }
 
 function getMidpoint(plot: Plot, heights: readonly number[], leftIndex: number, rightIndex: number): string {
@@ -320,14 +302,6 @@ function HighlightMark({ plot, highlight, label, surfaceY, tipY, freeSpan }: Hig
   );
 }
 
-function ExaggerationReporter({ exaggeration, onChange }: ExaggerationReporterProps) {
-  useEffect(() => {
-    onChange(exaggeration);
-  }, [exaggeration, onChange]);
-
-  return null;
-}
-
 function ProfileMarks({
   curve,
   samples,
@@ -339,11 +313,10 @@ function ProfileMarks({
   shortLabels,
   prefersShortLabels,
   crosshairIndex,
-  onExaggerationChange,
 }: ProfileMarksProps) {
   const scale = useYAxisScale();
   const plot = measurePlot(curve.points, scale, samples.length, elevationDomain);
-  if (plot === null) return <ExaggerationReporter exaggeration={null} onChange={onExaggerationChange} />;
+  if (plot === null) return null;
 
   const lastIndex = samples.length - 1;
   const station = samples[0];
@@ -359,7 +332,6 @@ function ProfileMarks({
 
   return (
     <g aria-hidden="true" pointerEvents="none">
-      <ExaggerationReporter exaggeration={getExaggeration(plot, samples, elevationDomain)} onChange={onExaggerationChange} />
       {summary.blockedRuns.map((run) => (
         <path
           key={run.firstIndex}
@@ -421,9 +393,8 @@ function LegendItem({ label, swatchClassName }: LegendItemProps) {
   );
 }
 
-function ProfileLegend({ exaggeration }: { exaggeration: number | null }) {
+function ProfileLegend() {
   const { t } = useTranslation("terrainProfile");
-  const format = useTerrainFormat();
 
   return (
     <div className="flex items-center gap-3 text-xs leading-4 text-muted-foreground">
@@ -433,9 +404,6 @@ function ProfileLegend({ exaggeration }: { exaggeration: number | null }) {
         <LegendItem label={t("chart.legend.lineOfSight")} swatchClassName="h-0.5 bg-primary" />
         <LegendItem label={t("chart.legend.obstruction")} swatchClassName="h-[3px] rounded-full bg-destructive" />
       </ul>
-      {exaggeration === null ? null : (
-        <span className={EXAGGERATION_CLASS}>{t("chart.exaggeration", { value: format.compact(exaggeration, 1) })}</span>
-      )}
     </div>
   );
 }
@@ -445,7 +413,6 @@ export default function TerrainProfileChart({ profile, summary, siteId, hover, i
   const format = useTerrainFormat();
   const descriptionId = useId();
   const mapHoveredDistance = useSyncExternalStore(hover.subscribe, () => getMapHoveredDistance(hover));
-  const [exaggeration, setExaggeration] = useState<number | null>(null);
 
   const reportActiveSample = useCallback(
     (sample: TerrainSample | null) => {
@@ -478,7 +445,7 @@ export default function TerrainProfileChart({ profile, summary, siteId, hover, i
 
   return (
     <div className={cn("flex flex-col gap-2", isCompact ? null : "flex-1")}>
-      <ProfileLegend exaggeration={exaggeration} />
+      <ProfileLegend />
       <p id={descriptionId} className="sr-only">
         {description}
       </p>
@@ -566,7 +533,6 @@ export default function TerrainProfileChart({ profile, summary, siteId, hover, i
                   shortLabels={shortLabels}
                   prefersShortLabels={isCompact}
                   crosshairIndex={crosshairIndex}
-                  onExaggerationChange={setExaggeration}
                 />
               )}
             />

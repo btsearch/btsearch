@@ -15,6 +15,7 @@ export const pl: CountryPack = {
     emf: true,
     terrainProfiles: { receiverBounds: { south: 48.8, north: 55.2, west: 13.8, east: 24.5 } },
     kmz: true,
+    cellNetworks: false,
   },
   conventions: {
     identifierKinds,

@@ -174,7 +174,7 @@ function SavedStationHead({ record, operatorId, lookups }: SavedStationHeadProps
         location === null ? null : (
           <EditPageHeadLocation
             locationId={location.id}
-            city={location.city || (location.address ? null : `#${location.id}`)}
+            city={location.city || location.address ? location.city : `#${location.id}`}
             address={location.address}
           />
         )

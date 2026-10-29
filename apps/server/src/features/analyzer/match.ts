@@ -38,6 +38,7 @@ import { type LimitedTask, runLimited } from "../../lib/async/runLimited.js";
 import { chunks, unique } from "../../lib/collections.js";
 import { logger } from "../../utils/logger.js";
 import { cellNetworkCodes, extraCodesByCell, loadCellExtras, loadOwnerCodes } from "../cells/networks.js";
+import { allowsCellNetworks } from "../cells/networkWrites.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
 import { loadOperatorRefs } from "../operators/ref.js";
 import { stationCountryCode, stationPlacementMatches } from "../stations/country.js";
@@ -406,7 +407,7 @@ async function findMissingCodeCells(
   const nrValues: IdentifiersByOperator<ChannelIdentifiers> = new Map();
   for (const cell of observed) {
     const network = networks.get(cell.plmn);
-    if (!network) continue;
+    if (!network || !allowsCellNetworks(network.countryCode)) continue;
     const own = network.operatorId;
 
     if (cell.rat === "umts") {

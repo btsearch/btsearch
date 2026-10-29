@@ -17,13 +17,9 @@ type AppliedKind = "cellMissing" | "valueDiffers" | "valueMissing" | "networkMis
 const STATION_ID = 40077;
 const CELL_ID = 880345;
 const PLUS = "26001";
-const T_MOBILE = "26002";
 const BOTH = 0b11n;
 const B3 = { id: 3, value: 1800, rat: "LTE" as const, name: "LTE1800", duplex: "FDD" as const, variant: "commercial" as const, code: "B3" };
-const known: KnownPlmns = new Map([
-  [PLUS, { id: 1, code: PLUS, countryCode: "PL" }],
-  [T_MOBILE, { id: 2, code: T_MOBILE, countryCode: "PL" }],
-]);
+const known: KnownPlmns = new Map([[PLUS, { id: 1, code: PLUS, countryCode: "PL" }]]);
 const newCell: CellApplyNewCell = { rat: "lte", bandId: 3, tac: 51010, enbid: 24494, clid: 1, pci: 101, earfcn: 1850, plmns: [PLUS] };
 
 function sighting(observedCellId: number) {
@@ -42,11 +38,13 @@ function valueFlags(): RaisedFlag<AppliedKind>[] {
 }
 
 function networkFlags(): RaisedFlag<AppliedKind>[] {
-  const cell = { id: CELL_ID, stationId: STATION_ID, rat: "LTE", ownerCode: PLUS, extraCodes: ["26003"], countryCode: "PL" };
+  const vodafone = "23415";
+  const o2 = "23410";
+  const cell = { id: CELL_ID, stationId: STATION_ID, rat: "LTE", ownerCode: vodafone, extraCodes: ["23430"], countryCode: "GB" };
   const listed = (plmn: string, lastSeenOn: string) => ({
     ...sighting(50411),
     cellId: CELL_ID,
-    ownPlmn: PLUS,
+    ownPlmn: vodafone,
     networkMatch: "own" as const,
     plmn,
     lastSeenOn,
@@ -54,8 +52,11 @@ function networkFlags(): RaisedFlag<AppliedKind>[] {
   return raiseNetworkFlags({
     cells: [cell],
     observedCells: [],
-    listedNetworks: [listed(PLUS, "2026-10-20"), listed(T_MOBILE, "2026-10-20"), listed("26003", "2026-06-01")],
-    known,
+    listedNetworks: [listed(vodafone, "2026-10-20"), listed(o2, "2026-10-20"), listed("23430", "2026-06-01")],
+    known: new Map([
+      [vodafone, { id: 7, code: vodafone, countryCode: "GB" }],
+      [o2, { id: 8, code: o2, countryCode: "GB" }],
+    ]),
     seenSince: "2026-07-27",
   });
 }

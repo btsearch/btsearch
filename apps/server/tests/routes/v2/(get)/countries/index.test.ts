@@ -15,6 +15,7 @@ const packCapabilities = {
   emf: true,
   terrainProfiles: { receiverBounds: { west: 13.8, south: 48.8, east: 24.5, north: 55.2 } },
   kmz: true,
+  cellNetworks: false,
   officialStatuses: false,
   editableHostStations: false,
 };
@@ -24,6 +25,7 @@ const noCapabilities = {
   emf: false,
   terrainProfiles: null,
   kmz: false,
+  cellNetworks: true,
   officialStatuses: false,
   editableHostStations: true,
 };

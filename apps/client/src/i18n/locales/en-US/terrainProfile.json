@@ -79,7 +79,6 @@
       "lineOfSight": "Direct ray",
       "obstruction": "Obstruction"
     },
-    "exaggeration": "vertical x{{value}}",
     "obstacleAt": "Obstruction · {{distance}} km"
   },
   "evidence": {
@@ -140,8 +139,6 @@
     "showOthers": "Show the other antennas: {{total}}",
     "collapseList": "Collapse the antenna list",
     "source": {
-      "emfReport": "EMF report",
-      "emfReportDated": "EMF report of {{date}}",
       "permit": "Permit"
     }
   },

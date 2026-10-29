@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { CELL_CONTROL_PROPS } from "../../hooks/useCellNavigation";
 import { TEXT_SEPARATOR } from "../../model/changes";
-import { EXTRA_PLMN_LIMITS, type NetworkOption, toPlmnList } from "../../model/networks";
+import { type NetworkOption, toPlmnList } from "../../model/networks";
 import type { Rat } from "../../model/types";
 import { EMPTY_TEXT } from "./cellFields";
 import type { NetworkChoice } from "./cellRules";
@@ -82,8 +82,8 @@ function NetworksValue({ choice, extraPlmns }: NetworksValueProps) {
 export function NetworkPicker({ choice, rat, extraPlmns, label, className, isInvalid, isLocked, isNavigable = true, onChange }: NetworkPickerProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
-  const { options, ownerPlmn, brands } = choice;
-  const max = EXTRA_PLMN_LIMITS[rat];
+  const { options, ownerPlmn, brands, limits } = choice;
+  const max = limits[rat];
   const isFull = extraPlmns.length >= max;
   const selected = toPlmnList(ownerPlmn, extraPlmns);
   const foldedQuery = foldText(query.trim());

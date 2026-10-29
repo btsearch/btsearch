@@ -79,7 +79,6 @@
       "lineOfSight": "Promień",
       "obstruction": "Przeszkoda"
     },
-    "exaggeration": "pionowo x{{value}}",
     "obstacleAt": "Przeszkoda · {{distance}} km"
   },
   "evidence": {
@@ -140,8 +139,6 @@
     "showOthers": "Pokaż pozostałe anteny: {{total}}",
     "collapseList": "Zwiń listę anten",
     "source": {
-      "emfReport": "raport PEM",
-      "emfReportDated": "raport PEM z {{date}}",
       "permit": "pozwolenie"
     }
   },

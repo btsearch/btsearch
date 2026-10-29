@@ -6,6 +6,7 @@ export type PackCapabilities = {
   emf?: boolean;
   terrainProfiles?: TerrainProfilesCapability;
   kmz?: boolean;
+  cellNetworks?: boolean;
 };
 
 export type SourceCapabilities = {
@@ -17,6 +18,7 @@ export type CountryCapabilities = SourceCapabilities & {
   emf: boolean;
   terrainProfiles: TerrainProfilesCapability | null;
   kmz: boolean;
+  cellNetworks: boolean;
 };
 
 export type PackCapabilityName = "emf" | "terrainProfiles";
@@ -30,5 +32,6 @@ export function resolveCapabilities(declared: PackCapabilities, sources: SourceC
     emf: declared.emf ?? false,
     terrainProfiles: declared.terrainProfiles ?? null,
     kmz: sources.official && (declared.kmz ?? false),
+    cellNetworks: declared.cellNetworks ?? true,
   };
 }

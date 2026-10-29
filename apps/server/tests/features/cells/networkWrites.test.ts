@@ -42,4 +42,15 @@ describe("extraCodesFromSent", () => {
     expect(() => extraCodesFromSent("LTE", ["23415", ...many], vodafone, codes)).toThrow("at most 5 networks");
     expect(extraCodesFromSent("NR", ["23415", ...many], vodafone, codes)).toHaveLength(6);
   });
+
+  it("refuses extra codes in a country whose pack switches cell networks off, but accepts the owner's code alone", () => {
+    const plus: NetworkOwner = { operatorId: 5, mainCode: "26001", countryCode: "PL" };
+    const polish: KnownPlmns = new Map([
+      ["26001", { id: 20, code: "26001", countryCode: "PL" }],
+      ["26006", { id: 21, code: "26006", countryCode: "PL" }],
+    ]);
+
+    expect(() => extraCodesFromSent("LTE", ["26001", "26006"], plus, polish)).toThrow("Cells in this country cannot broadcast other networks");
+    expect(extraCodesFromSent("LTE", ["26001"], plus, polish)).toEqual([]);
+  });
 });

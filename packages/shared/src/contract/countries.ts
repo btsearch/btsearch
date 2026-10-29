@@ -60,6 +60,7 @@ export const countryCapabilitiesSchema = z.object({
     .nullable()
     .describe("Terrain profiles can be requested for stations in the country. `null` if they cannot"),
   officialStatuses: z.boolean().describe("The register says whether official sites are in service, so their `status` is not `null`"),
+  cellNetworks: z.boolean().describe("Cells can broadcast other networks besides their owner's, listed in their `plmns`"),
   kmz: z.boolean().describe("KMZ files of the official data can be downloaded from the endpoints under `/api/v1/kmz`"),
   editableHostStations: z
     .boolean()

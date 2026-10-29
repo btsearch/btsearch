@@ -1,3 +1,4 @@
+import { capabilitiesFor } from "@openbts/country-packs";
 import { cellPlmns, cells, operators, plmns, stations } from "@openbts/drizzle";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -12,10 +13,18 @@ export type NetworkOwner = { operatorId: number | null; mainCode: string | null;
 export type KnownPlmns = ReadonlyMap<string, KnownPlmn>;
 export type ExtraCodesWrite = { cellId: number; extras: readonly string[] };
 
-export const EXTRA_CODE_LIMITS: Partial<Record<string, number>> = { GSM: 0, UMTS: 5, LTE: 5, NR: 11 };
+const EXTRA_CODE_LIMITS: Partial<Record<string, number>> = { GSM: 0, UMTS: 5, LTE: 5, NR: 11 };
 
 function refusal(message: string): ErrorResponse {
   return new ErrorResponse("BAD_REQUEST", { message });
+}
+
+export function allowsCellNetworks(countryCode: string | null): boolean {
+  return countryCode === null || capabilitiesFor(countryCode).cellNetworks;
+}
+
+export function extraCodeLimit(rat: string, countryCode: string | null): number {
+  return allowsCellNetworks(countryCode) ? (EXTRA_CODE_LIMITS[rat] ?? 0) : 0;
 }
 
 export async function loadNetworkOwner(client: Client, operatorId: number | null, countryCode: string | null): Promise<NetworkOwner> {
@@ -74,7 +83,9 @@ export function extraCodesFromSent(rat: string | null | undefined, codes: readon
   if (owner.mainCode !== null && !codes.includes(owner.mainCode)) {
     throw refusal(`A cell's networks must include the station owner's main code ${owner.mainCode}`);
   }
-  return cappedExtraCodes(rat, codes, owner);
+  const extras = cappedExtraCodes(rat, codes, owner);
+  if (extras.length > 0 && !allowsCellNetworks(owner.countryCode)) throw refusal("Cells in this country cannot broadcast other networks");
+  return extras;
 }
 
 export function extraCodesFromStored(rat: string | null | undefined, codes: readonly string[], owner: NetworkOwner, known: KnownPlmns): string[] {

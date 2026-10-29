@@ -63,7 +63,7 @@ describe("the suggested station", () => {
     expect(cells.map(({ id, bearingDeg }) => ({ id, bearingDeg }))).toEqual([{ id: 50911, bearingDeg: 121.5 }]);
   });
 
-  it("holds the members' cells with a band of the plan, the owner's main code first", () => {
+  it("holds the members' cells with a band of the plan, under the owner's main code alone in a country whose pack switches cell networks off", () => {
     const cells = [
       siteCell(50911, { plmn: PLAY_EXTRA, cellKey: 24494 * 256 + 2, bearingDeg: 121.5 }),
       siteCell(50914, { values: [seen(50914, "channel", 6300)] }),
@@ -71,7 +71,7 @@ describe("the suggested station", () => {
     ];
 
     expect(buildSiteCells(cells, [7310, 7311], newCellStation, context)).toEqual([
-      { cell: { rat: "lte", bandId: 3, tac: 51010, enbid: 24494, clid: 2, pci: 101, earfcn: 1850, plmns: [PLAY, PLAY_EXTRA] }, bearingDeg: 121.5 },
+      { cell: { rat: "lte", bandId: 3, tac: 51010, enbid: 24494, clid: 2, pci: 101, earfcn: 1850, plmns: [PLAY] }, bearingDeg: 121.5 },
       { cell: { rat: "lte", bandId: 3, tac: 51010, enbid: 24495, clid: 11, pci: 101, earfcn: 1850, plmns: [PLAY] }, bearingDeg: null },
     ]);
   });

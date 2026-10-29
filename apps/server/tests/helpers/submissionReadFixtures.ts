@@ -22,6 +22,7 @@ export const proposedStation: typeof proposedStations.$inferSelect = {
   target_station_id: 1,
   station_id: "Draft site",
   operator_id: 7,
+  ran_host_station_id: null,
   notes: null,
   networks_id: 0,
   networks_name: null,

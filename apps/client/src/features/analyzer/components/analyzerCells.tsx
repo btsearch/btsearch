@@ -1,7 +1,6 @@
 import { AlertCircleIcon, Cancel01Icon, CheckmarkCircle02Icon, Note01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { OfficialSiteRef, Station } from "@openbts/shared/contract";
-import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
 import { buildIdChips, findNetworkDifference } from "../model/rows";
@@ -449,19 +448,10 @@ export function DifferencesCell({ view, isSingleLine = false }: RowLineProps) {
   return (
     <div className={cn("flex min-w-0 gap-x-1.5 overflow-hidden text-xs leading-4", isSingleLine ? null : "max-h-8 flex-wrap")}>
       {kinds.map((kind, position) => (
-        <Fragment key={kind}>
-          {position === 0 ? null : (
-            <>
-              <span aria-hidden="true" className="text-muted-foreground">
-                ·
-              </span>
-              <span className="sr-only">, </span>
-            </>
-          )}
-          <span title={getKindHint(kind)} className="whitespace-nowrap">
-            {getKindLabel(kind, networkCode)}
-          </span>
-        </Fragment>
+        <span key={kind} title={getKindHint(kind)} className="whitespace-nowrap">
+          {getKindLabel(kind, networkCode)}
+          {position < kinds.length - 1 ? "," : null}
+        </span>
       ))}
     </div>
   );
