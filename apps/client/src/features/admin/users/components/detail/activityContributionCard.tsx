@@ -108,7 +108,7 @@ function ContributionRows({ userId, counts }: ContributionRowsProps) {
       {auditOperations === null ? (
         <ContributionRow icon={Note01Icon} title={auditTitle} description={auditDescription} count={null} />
       ) : (
-        <Link to="/admin/audit-logs" search={{ user: userId }} className={ROW_LINK_CLASS}>
+        <Link to="/admin/audit-logs" search={{ users: userId }} className={ROW_LINK_CLASS}>
           <ContributionRow icon={Note01Icon} title={auditTitle} description={auditDescription} count={auditOperations} />
         </Link>
       )}

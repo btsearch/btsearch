@@ -883,16 +883,15 @@
     },
     "actor": {
       "system": "System",
-      "via": "przez {{name}}",
-      "viaWithUsername": "przez {{name}} (@{{username}})"
+      "via": "przez <user>{{name}}</user>"
     },
     "filters": {
       "allEntities": "Wszystkie tabele",
       "allKinds": "Wszystkie operacje",
-      "kindsCount_one": "{{count, number}} operacja",
-      "kindsCount_few": "{{count, number}} operacje",
-      "kindsCount_many": "{{count, number}} operacji",
-      "kindsCount_other": "{{count, number}} operacji",
+      "searchEntities": "Szukaj tabeli",
+      "searchKinds": "Szukaj operacji",
+      "noEntitiesFound": "Nie znaleziono tabel",
+      "noKindsFound": "Nie znaleziono operacji",
       "recordId": "ID rekordu"
     },
     "empty": {
@@ -939,7 +938,11 @@
       "observations": "Pomiary",
       "system": "System",
       "revert": "Cofnięcia",
-      "structure_owner": "Właściciele obiektów"
+      "structure_owner": "Właściciele obiektów",
+      "locations_and_photos": "Lokalizacje i zdjęcia",
+      "reference": "Dane referencyjne",
+      "register": "Rejestr",
+      "users_and_access": "Użytkownicy i dostęp"
     },
     "kinds": {
       "station": {

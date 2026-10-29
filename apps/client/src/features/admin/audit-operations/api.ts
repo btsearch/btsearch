@@ -5,6 +5,8 @@ import { API_V2_BASE, ApiResponseError, CONFLICT_STATUS, appendList, fetchJson, 
 
 type RevertRequest = { operationId: number; entryIds?: number[]; force: boolean };
 
+export const AUDIT_SEARCH_MAX_LENGTH = 100;
+
 const REVERT_CONFLICT_KINDS: Record<AuditRevertConflict["kind"], true> = {
   missing: true,
   stale: true,

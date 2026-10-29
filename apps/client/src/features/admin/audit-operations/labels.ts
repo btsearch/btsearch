@@ -1,7 +1,7 @@
 import type { AuditEntity, AuditOp, AuditOperationKind } from "@openbts/shared/audit";
 import type { TFunction } from "i18next";
 
-import type { AuditOperationCount } from "./types";
+import type { AuditOperation, AuditOperationCount, UserRef } from "./types";
 
 const REVERT_REASON_LABEL_KEYS = {
   unsupported_entity: "auditLogs.revert.reasons.unsupportedEntity",
@@ -51,4 +51,56 @@ export function formatCountsSummary(t: TFunction, counts: AuditOperationCount[])
       }),
     )
     .join(" · ");
+}
+
+export function getUserRefName(t: TFunction, user: UserRef | null): string {
+  return user?.name ?? user?.username ?? t("auditLogs.actor.system", { ns: "admin" });
+}
+
+export function getDistinctPerformer(operation: AuditOperation): UserRef | null {
+  const { actor, performer } = operation;
+  return performer === null || performer.id === actor?.id ? null : performer;
+}
+
+export function getOperationTargetLabel(t: TFunction, operation: AuditOperation): string {
+  if (operation.stationIds.length === 1) return `#${operation.stationIds[0]}`;
+  if (operation.stationIds.length > 1) return t("common:labels.stations", { count: operation.stationIds.length });
+
+  const entities = [...new Set(operation.counts.map((count) => count.entity))];
+  return entities.length > 0 ? entities.map((entity) => getEntityLabel(t, entity)).join(", ") : "-";
+}
+
+export function describeOperation(t: TFunction, operation: AuditOperation, locale: string): string {
+  const performer = getDistinctPerformer(operation);
+  const performerLabel = performer === null ? null : `${t("auditLogs.detail.performedBy", { ns: "admin" })} ${getUserRefName(t, performer)}`;
+
+  return [
+    getKindLabel(t, operation.kind),
+    formatAuditDate(operation.createdAt, locale),
+    getUserRefName(t, operation.actor),
+    performerLabel,
+    getOperationTargetLabel(t, operation),
+    formatCountsSummary(t, operation.counts),
+    operation.source,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+const auditDateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+export function formatAuditDate(dateString: string, locale: string): string {
+  let formatter = auditDateFormatters.get(locale);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    auditDateFormatters.set(locale, formatter);
+  }
+  return formatter.format(new Date(dateString));
 }

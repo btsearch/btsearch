@@ -843,14 +843,15 @@
     },
     "actor": {
       "system": "System",
-      "via": "via {{name}}",
-      "viaWithUsername": "via {{name}} (@{{username}})"
+      "via": "via <user>{{name}}</user>"
     },
     "filters": {
       "allEntities": "All tables",
       "allKinds": "All operations",
-      "kindsCount_one": "{{count, number}} operation",
-      "kindsCount_other": "{{count, number}} operations",
+      "searchEntities": "Search tables",
+      "searchKinds": "Search operations",
+      "noEntitiesFound": "No tables found",
+      "noKindsFound": "No operations found",
       "recordId": "Record ID"
     },
     "empty": {
@@ -897,7 +898,11 @@
       "observations": "Measurements",
       "system": "System",
       "revert": "Reverts",
-      "structure_owner": "Structure owners"
+      "structure_owner": "Structure owners",
+      "locations_and_photos": "Locations and photos",
+      "reference": "Reference data",
+      "register": "Register",
+      "users_and_access": "Users and access"
     },
     "kinds": {
       "station": {

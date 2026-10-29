@@ -42,11 +42,13 @@ type ListFacetComboboxProps<Key extends FacetKey> = {
   label: string;
   placeholder: string;
   addPlaceholder?: string;
+  searchPlaceholder?: string;
   emptyText: string;
   hasChips?: boolean;
   showPickedNames?: boolean;
   isLoadingOptions?: boolean;
   isInline?: boolean;
+  contentClassName?: string;
   getCountText?: (shownCount: number, optionCount: number) => string;
   onChange: (keys: Key[]) => void;
 };
@@ -121,11 +123,13 @@ export function ListFacetCombobox<Key extends FacetKey>({
   label,
   placeholder,
   addPlaceholder,
+  searchPlaceholder,
   emptyText,
   hasChips = false,
   showPickedNames = true,
   isLoadingOptions = false,
   isInline = false,
+  contentClassName,
   getCountText,
   onChange,
 }: ListFacetComboboxProps<Key>) {
@@ -179,7 +183,7 @@ export function ListFacetCombobox<Key extends FacetKey>({
           <>
             <div className={INLINE_FIELD_CLASS}>
               <HugeiconsIcon icon={icon} className={FIELD_ICON_CLASS} aria-hidden="true" />
-              <ComboboxChipsInput aria-label={label} className="min-w-0" placeholder={t("placeholder.search")} />
+              <ComboboxChipsInput aria-label={label} className="min-w-0" placeholder={searchPlaceholder ?? t("placeholder.search")} />
             </div>
             <div className="custom-scrollbar mt-1.5 max-h-64 overflow-y-auto overscroll-contain">
               <ComboboxList className="max-h-none overflow-visible p-0">
@@ -204,7 +208,7 @@ export function ListFacetCombobox<Key extends FacetKey>({
               ) : null}
               <ComboboxChipsInput aria-label={label} className={hasFieldChips ? "min-w-8" : "min-w-0"} placeholder={fieldPlaceholder} />
             </ComboboxChips>
-            <ComboboxContent anchor={fieldRef}>
+            <ComboboxContent anchor={fieldRef} className={contentClassName}>
               <ComboboxList>
                 <FacetOptionRows groups={matchingGroups} />
               </ComboboxList>

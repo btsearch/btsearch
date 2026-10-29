@@ -15,6 +15,7 @@ type FittedListPaginationOptions = {
   chosenPageSize: number | null;
   maxPageSize: number;
   mobileRowHeightFallback?: number;
+  mobileHeaderHeight?: number;
   mobilePageSize?: number;
   onPagingChange: (paging: FittedListPaging) => void;
 };
@@ -35,13 +36,19 @@ export function useFittedListPagination({
   chosenPageSize,
   maxPageSize,
   mobileRowHeightFallback = DATA_TABLE_ROW_HEIGHT,
+  mobileHeaderHeight = 0,
   mobilePageSize,
   onPagingChange,
 }: FittedListPaginationOptions) {
   const isMobile = useIsMobile();
   const { listRef: mobileListRef, rowHeight: mobileRowHeight } = useMeasuredListRowHeight(mobileRowHeightFallback, MOBILE_ROW_MEASUREMENT);
   const tableFit = useTablePagination(TABLE_FIT);
-  const mobileFit = useTablePagination({ rowHeight: mobileRowHeight, headerHeight: 0, paginationHeight: MOBILE_PAGINATION_HEIGHT, minRows: 1 });
+  const mobileFit = useTablePagination({
+    rowHeight: mobileRowHeight,
+    headerHeight: mobileHeaderHeight,
+    paginationHeight: MOBILE_PAGINATION_HEIGHT,
+    minRows: 1,
+  });
   const fixedPageSize = isMobile ? (mobilePageSize ?? null) : null;
   const fit = isMobile && fixedPageSize === null ? mobileFit : tableFit;
   const fittedPageSize = fixedPageSize ?? fit.autoPageSize;
