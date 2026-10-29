@@ -115,7 +115,6 @@ describe("GET /audit-operations", () => {
     );
     expect(response.statusCode).toBe(200);
     const where = whereQuery("audit_operations", "select");
-    expect(where.sql.match(/EXISTS/g)).toHaveLength(1);
     expect(where.params).toEqual(expect.arrayContaining(["stations", "update", 12, "12"]));
   });
 

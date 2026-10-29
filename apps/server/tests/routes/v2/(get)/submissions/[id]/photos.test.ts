@@ -1,5 +1,5 @@
-import type { SQL } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
+import { submissionPhotos } from "@openbts/drizzle";
+import { asc } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../../src/lib/runtimeSettings.js";
@@ -65,10 +65,9 @@ describe("GET /submissions/11111111-1111-4111-8111-111111111111/photos", () => {
       },
     ]);
     expect(whereQuery("submission_photos", "select").params).toEqual([submissionRow.id]);
-    const order = dbMock.calls.find((call) => call.table === "submission_photos")?.clauses.orderBy as SQL[];
-    expect(order.map((field) => new PgDialect().sqlToQuery(field).sql)).toEqual([
-      expect.stringContaining('"createdAt" asc'),
-      expect.stringContaining('"id" asc'),
+    expect(dbMock.calls.find((call) => call.table === "submission_photos")?.clauses.orderBy).toEqual([
+      asc(submissionPhotos.createdAt),
+      asc(submissionPhotos.id),
     ]);
     expect(dbMock.calls.some((call) => call.table === "submission_location_photo_selections")).toBe(false);
   });

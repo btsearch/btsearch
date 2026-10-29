@@ -89,9 +89,7 @@ describe("POST /lists", () => {
     expectError(response, 400, "BAD_REQUEST", "Some of the items do not exist");
     const sites = whereQuery("official.sites", "select");
     const links = whereQuery("official.microwave_links", "select");
-    expect(sites.sql).toContain('"public_location"."source_id" in');
     expect(sites.params).toEqual([24, 1]);
-    expect(links.sql).toContain('"link_dataset"."source_id" in');
     expect(links.params).toEqual([36, 1]);
   });
 

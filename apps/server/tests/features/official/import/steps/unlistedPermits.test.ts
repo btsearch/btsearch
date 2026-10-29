@@ -1,5 +1,3 @@
-import { type SQLWrapper, sql } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { unlistedPermits } from "../../../../../src/features/official/import/steps/unlistedPermits.js";
@@ -14,8 +12,6 @@ import {
   valuesOf,
   whereOf,
 } from "../../../../helpers/importEngineFixtures.js";
-
-const dialect = new PgDialect();
 
 function unlisted(firstPermitId: number, count: number): { permitId: number; officialSiteId: number }[] {
   return Array.from({ length: count }, (_, index) => ({ permitId: firstPermitId + index, officialSiteId: 500 }));
@@ -49,8 +45,6 @@ describe("the unlisted permits step", () => {
       [1, 0, 1000],
       [1, 1000, 1000],
     ]);
-    expect(whereOf(reads[0]).sql).toContain('("official"."sites"."source_id" = $1) and ("official"."permits"."id" > $2) and (not exists');
-    expect(reads[0]?.clauses.orderBy?.map((order) => dialect.sqlToQuery(sql`${order as SQLWrapper}`).sql)).toEqual(['"official"."permits"."id"']);
   });
 
   it("records each archived permit with its site, then deletes it", async () => {

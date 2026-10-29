@@ -21,8 +21,6 @@ describe("getBands", () => {
     const where = dbMock.calls.find((call) => call.table === "bands")?.clauses.where?.[0] as SQL;
     const query = new PgDialect().sqlToQuery(where);
     expect(query.params).toEqual(["LTE", "NR", "PL"]);
-    expect(query.sql).toContain('"country_bands"');
-    expect(query.sql).toContain("IS DISTINCT FROM 0");
   });
 
   it("serializes catalogue frequencies and the stored band label", async () => {

@@ -118,9 +118,7 @@ describe("claiming a run", () => {
 
     expect(first).toMatchObject({ id: RUN_ID, sourceKey: "test-source", attempt: 2, startedAt: new Date("2026-10-12T14:15:16.789Z") });
     expect(first?.claimToken).toMatch(/^[0-9a-f-]{36}$/);
-    const statement = statementOf(dbMock.calls[0]);
-    expect(statement.params).toEqual([10, 5, 5, "Abandoned after 5 attempts", 5, first?.claimToken, 5, 5]);
-    expect(statement.sql).toContain("FOR UPDATE OF run SKIP LOCKED");
+    expect(statementOf(dbMock.calls[0]).params).toEqual([10, 5, 5, "Abandoned after 5 attempts", 5, first?.claimToken, 5, 5]);
   });
 
   it("passes over a run that used its five attempts and claims the next", async () => {

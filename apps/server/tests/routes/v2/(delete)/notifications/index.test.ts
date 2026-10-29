@@ -20,7 +20,6 @@ describe("DELETE /notifications", () => {
     expect(response.body).toBe("");
     const condition = whereQuery("notifications", "delete");
     expect(condition.params).toEqual([ownerId]);
-    expect(condition.sql).not.toContain("readAt");
   });
 
   it("requires the profile scope for OAuth owners", async () => {

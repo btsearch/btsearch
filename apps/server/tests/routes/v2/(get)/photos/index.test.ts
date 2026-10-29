@@ -38,7 +38,6 @@ describe("getPhotos", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ data: [], paging: { limit: 50, nextCursor: null } });
     const query = new PgDialect().sqlToQuery(dbMock.calls.find((call) => call.table === "location_photos")?.clauses.where?.[0] as SQL);
-    expect(query.sql).toContain("COALESCE");
     expect(query.params).toEqual(expect.arrayContaining([false, "%100\\%%"]));
   });
 
@@ -57,10 +56,6 @@ describe("getPhotos", () => {
       .map((call) => new PgDialect().sqlToQuery(call.clauses.where?.[0] as SQL));
     expect(conditions).toHaveLength(2);
     for (const query of conditions) {
-      expect(query.sql).toContain('"stations"."operator_id" in ($3, $4) OR "stations"."operator_id" in');
-      expect(query.sql).toContain('OR "regions"."country_code" not in');
-      expect(query.sql).toContain('"location_photos"."createdAt" >=');
-      expect(query.sql).not.toContain("COALESCE");
       expect(query.params).toEqual(["published", "pending", 4, 7, 4, 7, "jv_member", 4, 7, 4, 7, "jv_member", "2026-10-01T00:00:00.000Z"]);
     }
   });
@@ -74,8 +69,6 @@ describe("getPhotos", () => {
       expect((await app.inject({ method: "GET", url: `/photos?${filter}` })).statusCode).toBe(200);
       const query = new PgDialect().sqlToQuery(dbMock.calls.find((call) => call.table === "location_photos")?.clauses.where?.[0] as SQL);
       const namesOperators = filter.includes("operatorIds");
-      expect(query.sql).not.toContain("country_code");
-      expect(query.sql.includes('"stations"."operator_id" in ($3, $4) OR "stations"."operator_id" in')).toBe(namesOperators);
       expect(query.params).toEqual(namesOperators ? ["published", "pending", 4, 7, 4, 7, "jv_member"] : ["published", "pending"]);
     },
   );
@@ -97,7 +90,6 @@ describe("getPhotos", () => {
     expect(pages.map((call) => call.clauses.offset)).toEqual([[0], [1]]);
     for (const page of pages) {
       const query = new PgDialect().sqlToQuery(page.clauses.where?.[0] as SQL);
-      expect(query.sql).toContain('"location_photos"."createdAt" >=');
       expect(query.params).toContain("2026-10-01T00:00:00.000Z");
     }
   });

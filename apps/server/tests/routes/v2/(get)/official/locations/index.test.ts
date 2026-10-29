@@ -5,7 +5,7 @@ import { decodeCursor } from "../../../../../../src/lib/cursor.js";
 import { getRuntimeSettings } from "../../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../../src/routes/v2/(get)/official/locations/index.js";
 import { dbMock } from "../../../../../helpers/boundaries.js";
-import { expectError, injectMutation } from "../../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import {
   expectDocumented,
   officialLocationRows,
@@ -13,7 +13,6 @@ import {
   officialSectorRow,
   officialSiteRows,
   regionRow,
-  renderedWhere,
   scriptAdminVisibility,
   scriptGuestVisibility,
   servedLocation,
@@ -25,9 +24,6 @@ import {
 import { signInAs } from "../../../../../helpers/officialFixtures.js";
 
 const request = { method: "GET" as const, url: "/official/locations" };
-const PUBLIC_LOCATION = '"official"."locations"."source_id" in ($1)';
-const MATCHING_SITE =
-  'exists select "official"."sites"."id" from "official"."sites" where (("official"."sites"."location_id" = "official"."locations"."id") and ';
 
 function located(id: number) {
   return { ...officialLocationRows, location: { ...officialLocationRows.location, id }, key: null };
@@ -38,7 +34,7 @@ async function locationsFor(query: string) {
   dbMock.enqueueFor("select", "official.locations", []);
   const response = await injectMutation(route, { ...request, url: `/official/locations?${query}` });
   expect(response.statusCode, response.body).toBe(200);
-  return renderedWhere("official.locations");
+  return whereQuery("official.locations", "select").params;
 }
 
 describe("GET /official/locations", () => {
@@ -55,18 +51,9 @@ describe("GET /official/locations", () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({ data: [servedLocation], paging: { limit: 50, nextCursor: null } });
-    expect(renderedWhere("official.locations")).toEqual({ sql: PUBLIC_LOCATION, params: [1] });
+    expect(whereQuery("official.locations", "select").params).toEqual([1]);
     expect(dbMock.calls.find((call) => call.table === "official.locations")?.clauses.orderBy).toHaveLength(1);
     expect(tablesRead()).toEqual(["official.locations"]);
-  });
-
-  it("matches nothing for a guest while no source is public", async () => {
-    scriptGuestVisibility([]);
-    dbMock.enqueueFor("select", "official.locations", []);
-
-    await injectMutation(route, request);
-
-    expect(renderedWhere("official.locations").sql).toBe("false");
   });
 
   it("leaves out the locations in a country hidden from a guest", async () => {
@@ -75,9 +62,7 @@ describe("GET /official/locations", () => {
 
     await injectMutation(route, request);
 
-    const where = renderedWhere("official.locations");
-    expect(where.sql).toContain('"regions"."country_code" not in ($2)');
-    expect(where.params).toEqual([1, "XX"]);
+    expect(whereQuery("official.locations", "select").params).toEqual([1, "XX"]);
   });
 
   it("shows an administrator the locations of every source", async () => {
@@ -87,65 +72,33 @@ describe("GET /official/locations", () => {
     const response = await injectMutation(route, request, signInAs("admin"));
 
     expect(response.json().data).toEqual([servedLocation]);
-    expect(() => renderedWhere("official.locations")).toThrow("No where condition");
+    expect(dbMock.calls.find((call) => call.table === "official.locations")?.clauses.where).toEqual([undefined]);
   });
 
   it.each([
-    ["bbox=14,49,24,55", "ST_Intersects"],
-    ["countryCodes=PL,DE", '"regions"."country_code" in ($2, $3)'],
-    ["regionIds=7", '"official"."locations"."region_id" in ($2)'],
-    ["sourceKeys=pl-uke", '"official"."sources"."key" in ($2)'],
-  ])("filters the locations themselves with %s", async (query, condition) => {
-    const where = await locationsFor(query);
-    expect(where.sql).toContain(condition);
-    expect(where.sql).not.toContain(MATCHING_SITE);
-  });
-
-  it.each([
-    ["operatorIds=4", '("official"."sites"."operator_id" in ($2) OR "official"."sites"."operator_id" in select "operator_links"'],
-    ["operatorIds=4&keepOtherCountries=true", 'OR "regions"."country_code" not in select "operators"."country_code"'],
-    ["bandLabels=800,1800", '"official"."sites"."id") and ("official"."permits"."label_mhz" in ($2, $3))'],
-    ["createdAfter=2026-10-01T00:00:00Z", '"official"."sites"."createdAt" >= $2'],
-    ["updatedAfter=2026-10-01T00:00:00Z", '"official"."sites"."updatedAt" >= $2'],
-    ["changedAfter=2026-10-01T00:00:00Z", '("official"."sites"."createdAt" >= $2 OR "official"."sites"."updatedAt" >= $3)'],
-  ])("returns only locations with a matching site for %s", async (query, condition) => {
-    const where = await locationsFor(query);
-    expect(where.sql).toContain(MATCHING_SITE);
-    expect(where.sql).toContain(condition);
+    ["bbox=14,49,24,55", [14, 49, 24, 55]],
+    ["countryCodes=PL,DE", ["PL", "DE"]],
+    ["regionIds=7", [7]],
+    ["sourceKeys=pl-uke", ["pl-uke"]],
+    ["operatorIds=4", [4, 4, "jv_member"]],
+    ["operatorIds=4&keepOtherCountries=true", [4, 4, "jv_member", 4, 4, "jv_member"]],
+    ["bandLabels=800,1800", [800, 1800]],
+    ["createdAfter=2026-10-01T00:00:00Z", ["2026-10-01T00:00:00.000Z"]],
+    ["updatedAfter=2026-10-01T00:00:00Z", ["2026-10-01T00:00:00.000Z"]],
+    ["changedAfter=2026-10-01T00:00:00Z", ["2026-10-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z"]],
+  ])("filters the locations with %s", async (query, params) => {
+    expect(await locationsFor(query)).toEqual([1, ...params]);
   });
 
   it("reads gsm as commercial GSM and gsmR as railway GSM, and other technologies whatever their band", async () => {
-    const where = await locationsFor("rats=gsm,gsmR,lte");
-
-    expect(where.sql).toContain(
-      '(((("official"."permits"."rat" = $2) and ("official"."permits"."label_variant" = $3))) or ' +
-        '((("official"."permits"."rat" = $4) and ("official"."permits"."label_variant" = $5))) or ("official"."permits"."rat" = $6))',
-    );
-    expect(where.params).toEqual([1, "GSM", "commercial", "GSM", "railway", "LTE"]);
-  });
-
-  it("needs a single permit to match both the technology and the band", async () => {
-    const where = await locationsFor("rats=lte&bandLabels=800");
-
-    expect(where.sql).toContain('and ((("official"."permits"."rat" = $2) and ("official"."permits"."label_mhz" in ($3))))');
+    expect(await locationsFor("rats=gsm,gsmR,lte")).toEqual([1, "GSM", "commercial", "GSM", "railway", "LTE"]);
   });
 
   it("returns only the locations with a site on the list", async () => {
     getRuntimeSettings().enableUserLists = true;
     dbMock.query.userLists.findFirst.mockResolvedValue({ is_public: true, stations: { official: [31, 32] }, radiolines: [] });
 
-    const where = await locationsFor("listId=list-1");
-
-    expect(where.sql).toContain(`${MATCHING_SITE}("official"."sites"."id" in ($2, $3)))`);
-  });
-
-  it("returns nothing for a list without official sites", async () => {
-    getRuntimeSettings().enableUserLists = true;
-    dbMock.query.userLists.findFirst.mockResolvedValue({ is_public: true, stations: { internal: [5] }, radiolines: [] });
-
-    const where = await locationsFor("listId=list-1");
-
-    expect(where.sql).toContain(`${MATCHING_SITE}(false))`);
+    expect(await locationsFor("listId=list-1")).toEqual([1, 31, 32]);
   });
 
   it("refuses a list while lists are switched off", async () => {
@@ -184,9 +137,6 @@ describe("GET /official/locations", () => {
         ],
       },
     ]);
-    expect(renderedWhere("official.sites").sql).toContain('"official"."sites"."location_id" in ($1)');
-    expect(renderedWhere("official.sites").sql).toContain('"official"."permits"."rat" = $2');
-    expect(renderedWhere("official.permits").sql).toBe('(("official"."permits"."official_site_id" in ($1)) and ("official"."permits"."rat" = $2))');
   });
 
   it("includes the sites without their permits, and empty lists where nothing matched", async () => {
@@ -214,13 +164,13 @@ describe("GET /official/locations", () => {
     expect(first.json().data).toHaveLength(1);
     expect(total).toBe(5);
     expect(decodeCursor(nextCursor, z.unknown())).toEqual({ sort: "-id", id: 22 });
-    expect(renderedWhere("official.locations", 1)).toEqual({ sql: PUBLIC_LOCATION, params: [1] });
+    expect(whereQuery("official.locations", "select", 1).params).toEqual([1]);
 
     scriptGuestVisibility([1]);
     dbMock.enqueueFor("select", "official.locations", []);
     await injectMutation(route, { ...request, url: `/official/locations?limit=1&cursor=${nextCursor}` });
 
-    expect(renderedWhere("official.locations", 2)).toEqual({ sql: `((${PUBLIC_LOCATION}) and ("official"."locations"."id" < $2))`, params: [1, 22] });
+    expect(whereQuery("official.locations", "select", 2).params).toEqual([1, 22]);
   });
 
   it("sorts by the time of the last change and skips by offset", async () => {

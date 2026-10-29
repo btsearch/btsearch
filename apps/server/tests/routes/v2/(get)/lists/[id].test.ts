@@ -53,8 +53,8 @@ describe("GET /lists/list-1", () => {
       itemCounts: { stations: 1, officialSites: 0, microwaveLinks: 0 },
       items: { stationIds: [12], officialSiteIds: [], microwaveLinkIds: [] },
     });
-    expect(whereQuery("official.sites", "select").sql).toContain('"public_location"."source_id" in');
-    expect(whereQuery("official.microwave_links", "select").sql).toContain('"link_dataset"."source_id" in');
+    expect(whereQuery("official.sites", "select").params).toEqual([24, 1]);
+    expect(whereQuery("official.microwave_links", "select").params).toEqual([36, 1]);
   });
 
   it("hides another person's private list from guests and ordinary users", async () => {

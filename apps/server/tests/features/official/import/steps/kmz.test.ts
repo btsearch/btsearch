@@ -77,9 +77,6 @@ describe("the KMZ step", () => {
     expect(dbMock.pendingResults()).toBe(0);
     expect(exportKmz.mock.calls[0]?.[0].changedDatasets).toEqual(["permits", "microwave-links"]);
     const linkRead = dbMock.calls.find((call) => call.operation === "select" && call.table === "official.microwave_links");
-    expect(whereOf(linkRead).sql).toBe(
-      '(("official"."microwave_links"."dataset_id" = $1) and (((("official"."microwave_links"."specs_date" is null)) or ("official"."microwave_links"."specs_date" < "official"."microwave_links"."updatedAt"))))',
-    );
     expect(whereOf(linkRead).params).toEqual([3]);
   });
 

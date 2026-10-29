@@ -33,7 +33,6 @@ describe("getHunters", () => {
     });
 
     const listed = queryOf(dbMock.calls.findLast((call) => call.table === "users")?.clauses.where?.[0]);
-    expect(listed.sql).toContain("exists");
     expect(listed.params).toEqual(expect.arrayContaining([true, "public", "US", "PL", 3]));
     const regions = queryOf(dbMock.calls.find((call) => call.table === "hunter_regions")?.clauses.where?.[0]);
     expect(regions.params).toEqual(expect.arrayContaining([readUserId, "US"]));

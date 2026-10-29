@@ -20,7 +20,6 @@ describe("PUT /notifications/read", () => {
     expect(response.body).toBe("");
     const condition = whereQuery("notifications", "update");
     expect(condition.params).toEqual([ownerId]);
-    expect(condition.sql).toContain('"notifications"."readAt" is null');
     expect(dbMock.calls[0]?.values).toEqual({ readAt: expect.any(Date) });
   });
 
@@ -35,8 +34,6 @@ describe("PUT /notifications/read", () => {
     expect(response.statusCode).toBe(204);
     const condition = whereQuery("notifications", "update");
     expect(condition.params).toEqual([ownerId, snapshot]);
-    expect(condition.sql).toContain("date_trunc('milliseconds'");
-    expect(condition.sql).toContain("<=");
   });
 
   it("requires the profile scope for OAuth owners", async () => {

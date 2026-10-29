@@ -271,6 +271,15 @@ describe.skipIf(DATABASE_URL === "")(
         expect(await linkedSitesOf(world)).toEqual([]);
       }));
 
+    it("links our station whatever its status", () =>
+      rolledBack(async (tx) => {
+        const world = await openWorld(tx);
+        await tx.update(stations).set({ status: "inactive" }).where(eq(stations.id, world.stationId));
+        const site = await addSite(world, X, ["LT/1"]);
+
+        expect(siteIdsOf(await correctStationLinks(tx, [world.group]))).toEqual({ added: [site], removed: [] });
+      }));
+
     it("pages the groups of the official sites after a given one, and corrects without row locks when told to", () =>
       rolledBack(async (tx) => {
         const world = await openWorld(tx);

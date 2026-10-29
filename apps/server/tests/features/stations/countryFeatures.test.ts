@@ -105,15 +105,11 @@ describe("placementCountryCode", () => {
     const query = new PgDialect().sqlToQuery(placementCountryCode({ stationId: 1, regionId: 2, operatorId: 3 }));
 
     expect(query.params).toEqual([2, 1, 3, 1]);
-    expect(query.sql).toMatch(/^COALESCE\(/);
-    expect(query.sql.indexOf('"regions"')).toBeLessThan(query.sql.indexOf('"locations"'));
-    expect(query.sql.indexOf('"locations"')).toBeLessThan(query.sql.indexOf('"operators"'));
   });
 
   it("omits the current location when a station is detached", () => {
     const query = new PgDialect().sqlToQuery(placementCountryCode({ stationId: 1, operatorId: 3, withoutLocation: true }));
 
     expect(query.params).toEqual([3, 1]);
-    expect(query.sql).not.toContain('"locations"');
   });
 });

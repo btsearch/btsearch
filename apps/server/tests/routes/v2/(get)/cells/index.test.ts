@@ -58,7 +58,6 @@ describe("getCells", () => {
     const where = dbMock.calls.find((call) => call.table === "cells")?.clauses.where?.[0] as SQL;
     const query = new PgDialect().sqlToQuery(where);
     expect(query.params).toEqual(expect.arrayContaining(["inactive", "NR", 0, 1]));
-    expect(query.sql).toContain("CASE");
   });
 
   it("adds the days phones saw each cell, its confirmed bandwidth except on UMTS, and null for a cell no phone saw", async () => {

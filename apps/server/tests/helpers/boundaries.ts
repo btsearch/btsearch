@@ -25,6 +25,7 @@ type ScriptedResult = {
   networks?: boolean;
   operatorCountries?: boolean;
   result: unknown;
+  read?: () => unknown;
 };
 type QueryBoundary = {
   [Name in keyof Database["query"]]: {
@@ -67,19 +68,26 @@ function isSubmissionPlacementProjection(call: DatabaseCall): boolean {
   );
 }
 
+function whereParams(call: DatabaseCall): unknown[] {
+  const condition = call.clauses.where?.[0];
+  return typeof condition === "object" && condition !== null && "getSQL" in condition
+    ? dialect.sqlToQuery((condition as SQLWrapper).getSQL()).params
+    : [];
+}
+
+function isLinkGroups(param: unknown): boolean {
+  if (typeof param !== "string" || !param.startsWith("[{")) return false;
+  const groups: unknown = JSON.parse(param);
+  return Array.isArray(groups) && groups.every((group) => typeof group === "object" && group !== null && "operatorId" in group && "siteId" in group);
+}
+
 function isStationLinkRead(call: DatabaseCall): boolean {
   if (call.operation !== "select" || !["stations", "official.sites", "stations_official_sites"].includes(call.table ?? "")) return false;
 
   const selection = call.selection;
   if (typeof selection === "object" && selection !== null && Object.keys(selection).join() === "operatorId,siteId") return true;
 
-  const condition = call.clauses.where?.[0];
-  return (
-    typeof condition === "object" &&
-    condition !== null &&
-    "getSQL" in condition &&
-    dialect.sqlToQuery((condition as SQLWrapper).getSQL()).sql.includes("link_group")
-  );
+  return whereParams(call).some(isLinkGroups);
 }
 
 function isHostLinkRead(call: DatabaseCall): boolean {
@@ -89,9 +97,7 @@ function isHostLinkRead(call: DatabaseCall): boolean {
 }
 
 function defaultFeatureResult(call: DatabaseCall, selection: Record<string, unknown>) {
-  const condition = call.clauses.where?.[0];
-  const params =
-    typeof condition === "object" && condition !== null && "getSQL" in condition ? dialect.sqlToQuery((condition as SQLWrapper).getSQL()).params : [];
+  const params = whereParams(call);
   if ("stationId" in selection)
     return [...new Set(params.filter((value): value is number => typeof value === "number"))].map((stationId) => ({
       stationId,
@@ -155,6 +161,7 @@ function consume(call: DatabaseCall): Promise<unknown> {
   if (matching < 0 && operatorCountryRead) return Promise.resolve([]);
   if (matching < 0) return Promise.reject(new Error(`Unscripted database call: ${call.operation} ${call.table ?? ""}`));
   const entry = results.splice(matching, 1)[0];
+  if (entry?.read !== undefined) return Promise.resolve(entry.read());
   if (entry?.result instanceof Error) return Promise.reject(entry.result);
   return Promise.resolve(entry?.result);
 }
@@ -226,6 +233,9 @@ export const dbMock = {
   },
   enqueueFor(operation: string, table: string | undefined, ...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation, table, result })));
+  },
+  enqueueReadFor(operation: string, table: string, read: () => unknown): void {
+    results.push({ operation, table, result: undefined, read });
   },
   enqueueCountryFeatures(table: "countries" | "stations", ...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation: "select", table, countryFeatures: true, result })));

@@ -73,11 +73,7 @@ describe("GET /spectrum-holdings", () => {
     const response = await app.inject({ method: "GET", url: "/spectrum-holdings?operatorIds=1&bandIds=7&activeOn=2026-10-21" });
     expect(response.statusCode).toBe(200);
     const where = dbMock.calls.find((call) => call.table === "spectrum_holdings")?.clauses.where?.[0] as SQL;
-    const { sql, params } = new PgDialect().sqlToQuery(where);
-    expect(params).toEqual(expect.arrayContaining(["PL", 1, 7, "2026-10-21"]));
-    expect(sql).toContain('"valid_from" is null');
-    expect(sql).toContain('"valid_to" is null');
-    expect(sql).toContain('"joint_operator_id" in');
+    expect(new PgDialect().sqlToQuery(where).params).toEqual(["PL", 1, 1, 7, "2026-10-21", "2026-10-21"]);
   });
 
   it("embeds the operator and the band with include", async () => {

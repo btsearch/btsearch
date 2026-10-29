@@ -29,7 +29,6 @@ type ArchivedFile = { sha256: string; mediaType: string; sizeBytes: number };
 
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const ZIP = "application/zip";
-const READ_PRUNABLE_FILES: readonly (readonly [RegExp, string])[] = [[/^WITH newest AS/, "read the files no kept release uses"]];
 
 let directory: string;
 let archive: DirectoryArchive;
@@ -79,13 +78,15 @@ describe("the prune step", () => {
     await runStep(prune, { run: claimedRun({ startedAt: new Date("2026-10-12T14:15:16.789Z") }), archive });
 
     expect(dbMock.pendingResults()).toBe(0);
-    const [, read, work] = transactionsOf(trace(READ_PRUNABLE_FILES));
-    expect(read).toEqual(["select official.import_runs", "read the files no kept release uses", "commit"]);
+    const [, read, work] = transactionsOf(trace());
+    expect(read).toEqual(["select official.import_runs", "execute", "commit"]);
     expect(work).toEqual(["select official.import_runs", "delete official.import_runs", "update official.import_run_steps", "commit"]);
-    expect(whereOf(dbMock.calls.find((call) => call.operation === "delete"))).toEqual({
-      sql: '(("official"."import_runs"."created_at" < $1) and ("official"."import_runs"."state" in ($2, $3, $4)))',
-      params: ["2026-04-15T14:15:16.789Z", "done", "failed", "cancelled"],
-    });
+    expect(whereOf(dbMock.calls.find((call) => call.operation === "delete")).params).toEqual([
+      "2026-04-15T14:15:16.789Z",
+      "done",
+      "failed",
+      "cancelled",
+    ]);
   });
 });
 

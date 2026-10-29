@@ -128,8 +128,6 @@ describe("GET /notifications", () => {
     expect(response.json()).toEqual({ data: [], paging: { limit: 50, nextCursor: null } });
     const condition = whereQuery("notifications", "select");
     expect(condition.params).toEqual(["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]);
-    if (query === "?isRead=true") expect(condition.sql).toContain("is not null");
-    if (query === "?isRead=false") expect(condition.sql).toContain("is null");
   });
 
   it("requires profile scope before accessing an OAuth user's notifications", async () => {

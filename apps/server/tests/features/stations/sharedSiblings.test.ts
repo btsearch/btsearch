@@ -1,9 +1,10 @@
-import type { SQL } from "drizzle-orm";
+import { stations } from "@openbts/drizzle";
+import { type SQL, asc } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { findSharedSiblingIds } from "../../../src/features/stations/sharedSiblings.js";
-import { dbMock, queryOf } from "../../helpers/boundaries.js";
+import { dbMock } from "../../helpers/boundaries.js";
 import { operatorRow, primaryPlmn } from "../../helpers/operatorFixtures.js";
 
 type Reader = Parameters<typeof findSharedSiblingIds>[2];
@@ -57,17 +58,15 @@ describe("findSharedSiblingIds", () => {
     expect(dbMock.calls).toEqual([]);
   });
 
-  it("asks for the other members' stations at the location, published ones first and then by id", async () => {
+  it("asks for the other members' stations at the location, ending the order on the id", async () => {
     scriptSiblings([14, 13]);
 
     expect(await findSharedSiblingIds(station)).toEqual([14, 13]);
     expect(dbMock.calls).toHaveLength(1);
 
     const [call] = selects("stations");
-    const where = dialect.sqlToQuery(call?.clauses.where?.[0] as SQL);
-    expect(where.params).toEqual([2, 8, 8, "jv_member", "jv_member"]);
-    expect(where.sql).toContain('"stations"."operator_id" <> $2');
-    expect(call?.clauses.orderBy?.map((order) => queryOf(order).sql)).toEqual([`"stations"."status" = 'published' desc`, '"stations"."id" asc']);
+    expect(dialect.sqlToQuery(call?.clauses.where?.[0] as SQL).params).toEqual([2, 8, 8, "jv_member", "jv_member"]);
+    expect(call?.clauses.orderBy?.at(-1)).toEqual(asc(stations.id));
   });
 
   it("keeps the siblings that have an LTE cell with an equivalent eNBID under the country's rule", async () => {

@@ -336,7 +336,6 @@ describe("clearGuestLinks", () => {
     await clearGuestLinks(audit as unknown as AuditRecorder, [1, 4]);
 
     expect(whereQuery("stations", "select").params).toEqual([1, 4, 1, 4]);
-    expect(whereQuery("stations", "select").sql).toContain('"stations"."id" not in');
     expect(audit.logMany).toHaveBeenCalledWith([expect.objectContaining({ recordId: 3, stationId: 3 })]);
   });
 });

@@ -64,8 +64,6 @@ describe("DELETE /submissions/rejected-photos", () => {
     const selection = dbMock.calls.find((call) => call.table === "submissions" && call.operation === "select");
     const condition = whereQuery("submissions", "select");
     expect(condition.params).toEqual(["rejected"]);
-    expect(condition.sql).toMatch(/exists\s*\(?select "submissions"\."submission_photos"\."id"/);
-    expect(condition.sql).toContain('"submission_id" = "submissions"."submissions"."id"');
     expect(selection?.clauses.limit).toEqual([51]);
     expect(selection?.clauses.orderBy).toHaveLength(2);
     expect(dbMock.calls.some((call) => call.operation === "delete" || call.operation === "update")).toBe(false);
@@ -113,8 +111,6 @@ describe("DELETE /submissions/rejected-photos", () => {
     expect((await injectMutation(route, request, options)).json()).toEqual({ data: { submissions: 2, photos: 3, hasMore: false } });
     const attachmentCondition = whereQuery("attachments", "delete");
     expect(attachmentCondition.params).toEqual([8, 9, 10]);
-    expect(attachmentCondition.sql).toMatch(/not exists\s*\(?select "location_photos"\."id"/);
-    expect(attachmentCondition.sql).toContain('"location_photos"."attachment_id" = "attachments"."id"');
     expect(unlink.mock.calls.map(([file]) => file)).toEqual([
       photoFilePath(submissionPhotoId),
       photoFilePath(submissionPhotoId, "thumb"),

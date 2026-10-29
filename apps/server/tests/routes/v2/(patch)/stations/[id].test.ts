@@ -473,7 +473,7 @@ describe("PATCH /stations/:id", () => {
     });
 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
-    expect(dbMock.calls.filter((call) => call.operation === "update" && call.table === "stations").at(-1)?.values).toEqual({
+    expect(dbMock.calls.findLast((call) => call.operation === "update" && call.table === "stations")?.values).toEqual({
       ran_host_station_id: null,
       updatedAt: expect.any(Date),
     });

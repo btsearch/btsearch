@@ -5,13 +5,15 @@ import {
   microwaveLinks,
   nrCells,
   officialDatasetSlices,
+  officialDatasets,
   officialLocations,
   officialPermits,
+  officialSites,
   officialSources,
+  regions,
   stations,
 } from "@openbts/drizzle";
-import { type SQLWrapper, getTableName, getTableUniqueName } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
+import { getTableName, getTableUniqueName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import getAnalyzerUsage from "../../../../../src/routes/v2/(get)/statistics/analyzer-usage.js";
@@ -176,18 +178,16 @@ describe("getStatistics", () => {
     const app = await createRouteHarness(getStatistics);
     await app.inject({ method: "GET", url: "/statistics" });
 
-    const dialect = new PgDialect();
-    const text = (clause: unknown) => dialect.sqlToQuery((clause as SQLWrapper).getSQL()).sql;
     const groupings = [officialLocations, officialPermits, microwaveLinks, officialDatasetSlices].map((table) => {
       const read = dbMock.calls.find((call) => call.table === getTableUniqueName(table));
       expect(read?.clauses.where).toBeUndefined();
-      return (read?.clauses.groupBy ?? []).map(text);
+      return read?.clauses.groupBy;
     });
     expect(groupings).toEqual([
-      ['"official"."locations"."source_id"', '"regions"."country_code"'],
-      ['"official"."sites"."source_id"', '"regions"."country_code"'],
-      ['"official"."sources"."id"', '"official"."sources"."country_code"'],
-      ['"official"."sources"."id"', '"official"."sources"."country_code"', '"official"."datasets"."layer"'],
+      [officialLocations.source_id, regions.countryCode],
+      [officialSites.source_id, regions.countryCode],
+      [officialSources.id, officialSources.countryCode],
+      [officialSources.id, officialSources.countryCode, officialDatasets.layer],
     ]);
   });
 

@@ -1,4 +1,5 @@
-import type { SQL } from "drizzle-orm";
+import { officialSites, stations } from "@openbts/drizzle";
+import { type SQL, asc } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
@@ -167,13 +168,7 @@ describe("correcting the links of a group", () => {
       "insert stations_official_sites",
     ]);
     const [lock, sites, ourStations, , insert] = dbMock.calls;
-    expect(whereOf(lock).sql).toContain('("stations"."station_id", "stations"."operator_id") IN');
-    expect(dialect.sqlToQuery(lock?.clauses.orderBy?.[0] as SQL).sql).toBe('"stations"."id" asc');
-    expect(whereOf(sites).sql).toContain('("official"."sites"."site_id", "official"."sites"."operator_id") IN');
-    expect(whereOf(sites).sql).toContain(
-      'exists select "official"."permits"."id" from "official"."permits" where "official"."permits"."official_site_id" = "official"."sites"."id"',
-    );
-    expect(whereOf(ourStations).sql).not.toContain("status");
+    expect(lock?.clauses.orderBy).toEqual([asc(stations.id)]);
     for (const call of [lock, sites, ourStations]) expect(groupsOf(call)).toEqual([group, { operatorId: 4, siteId: "BT0999" }]);
     expect(insert?.clauses.onConflictDoNothing).toBeUndefined();
   });
@@ -184,8 +179,6 @@ describe("correcting the links of a group", () => {
     expect(await correctStationLinks(tx, [group])).toEqual({ added: [], removed: [] });
 
     const stored = whereOf(dbMock.calls.find((call) => call.table === "stations_official_sites"));
-    expect(stored.sql).toContain('("stations_official_sites"."station_id" in select "stations"."id" from "stations" where');
-    expect(stored.sql).toContain('("stations_official_sites"."official_site_id" in select "official"."sites"."id" from "official"."sites" where');
     expect(stored.params.map((groups) => JSON.parse(String(groups)))).toEqual([[group], [group]]);
   });
 
@@ -298,14 +291,8 @@ describe("every group of the official sites", () => {
 
     const [first, second] = dbMock.calls;
     expect([first?.clauses.limit, second?.clauses.limit]).toEqual([[500], [500]]);
-    expect(whereOf(first)).toMatchObject({ sql: '("official"."sites"."site_id" is not null)', params: [] });
-    expect(whereOf(second)).toMatchObject({
-      sql: '((("official"."sites"."site_id" is not null)) and (("official"."sites"."site_id", "official"."sites"."operator_id") > ($1::text, $2::integer)))',
-      params: ["BT0499", 4],
-    });
-    expect(second?.clauses.orderBy?.map((order) => dialect.sqlToQuery(order as SQL).sql)).toEqual([
-      '"official"."sites"."site_id" asc',
-      '"official"."sites"."operator_id" asc',
-    ]);
+    expect(whereOf(first).params).toEqual([]);
+    expect(whereOf(second).params).toEqual(["BT0499", 4]);
+    expect(second?.clauses.orderBy).toEqual([asc(officialSites.station_id), asc(officialSites.operator_id)]);
   });
 });

@@ -24,6 +24,10 @@ vi.mock("../../src/utils/logger.js", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return { ...actual, logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }, flushLogs: vi.fn(async () => undefined) };
 });
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args) };
+});
 
 beforeEach(() => {
   resetBoundaries();

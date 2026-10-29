@@ -11,6 +11,7 @@ import {
   officialImportRunSlices,
   officialImportRuns,
   officialListedFiles,
+  officialLocations,
   officialPermitListings,
   officialPermitSectors,
   officialPermits,
@@ -25,7 +26,7 @@ import {
   users,
 } from "@openbts/drizzle";
 import type * as productionDatabase from "@openbts/drizzle/db";
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -37,6 +38,7 @@ import { readChanges } from "../../../../src/features/official/import/changes.js
 import { processRun } from "../../../../src/features/official/import/run.js";
 import { type EnqueueRunInput, claimNextRun, enqueueRun } from "../../../../src/features/official/import/runs.js";
 import { syncSources } from "../../../../src/features/official/import/sourceSync.js";
+import { orphans } from "../../../../src/features/official/import/steps/orphans.js";
 import { unlistedPermits } from "../../../../src/features/official/import/steps/unlistedPermits.js";
 import type { ClaimedRun, ImportEnvironment } from "../../../../src/features/official/import/types.js";
 import type { DbTx } from "../../../../src/types/global.js";
@@ -399,7 +401,7 @@ async function linksOf({ tx, datasetIds }: World) {
 }
 
 describe.skipIf(DATABASE_URL === "")(
-  "the import engine on PostgreSQL (written without a database and never executed; every case is rolled back)",
+  "the import engine on PostgreSQL (written without a database and never executed; every case is rolled back or deletes what it committed)",
   { timeout: 120_000 },
   () => {
     beforeAll(async () => {
@@ -875,5 +877,116 @@ describe.skipIf(DATABASE_URL === "")(
             .where(eq(officialImportRuns.id, stalled.id)),
         ).toEqual([{ state: "running", error: null }]);
       }));
+
+    it("cleans up only the run's own sites and locations that nothing holds, and its licensees without an operator or a reference", () =>
+      rolledBack(async (tx) => {
+        const world = await openWorld(tx);
+        world.published.permits = [siteRecord(1)];
+        await runImport(world, ["permits"]);
+        const keptSites = await sitesOf(world);
+        const [region] = await tx.select({ id: regions.id }).from(regions).where(eq(regions.isoCode, REGION_ISO_CODE));
+        const [otherSource] = await tx
+          .insert(officialSources)
+          .values({
+            key: `${SOURCE_KEY}-other`,
+            countryCode: COUNTRY_CODE,
+            shortName: "OTHER",
+            authority: "Engine test authority",
+            homepageUrl: "https://authority.invalid",
+            licence: "none stated",
+            attribution: "Source: engine test",
+            isRedistributable: true,
+          })
+          .returning({ id: officialSources.id });
+        if (!region || !otherSource) throw new Error("The region or the other source was not added");
+
+        const placeAt = (sourceId: number, longitude: number) => ({ region_id: region.id, longitude, latitude: 40.25, source_id: sourceId });
+        const [emptied, unused, otherEmptied, otherUnused] = await tx
+          .insert(officialLocations)
+          .values([placeAt(world.sourceId, -32), placeAt(world.sourceId, -33), placeAt(otherSource.id, -32), placeAt(otherSource.id, -33)])
+          .returning({ id: officialLocations.id });
+        if (!emptied || !unused || !otherEmptied || !otherUnused) throw new Error("The locations were not added");
+        const [, otherSite] = await tx
+          .insert(officialSites)
+          .values([
+            { station_id: "ET9", operator_id: world.operatorIds.mapped, location_id: emptied.id, source_id: world.sourceId },
+            { station_id: "ET9", operator_id: world.operatorIds.mapped, location_id: otherEmptied.id, source_id: otherSource.id },
+          ])
+          .returning({ id: officialSites.id });
+        await tx
+          .update(licensees)
+          .set({ operatorId: null })
+          .where(and(eq(licensees.sourceId, world.sourceId), eq(licensees.full_name, LICENSEE_NAME)));
+        await tx.insert(licensees).values([
+          { sourceId: world.sourceId, full_name: "Engine Test Gone S.A.", name: "Engine Test Gone" },
+          { sourceId: world.sourceId, full_name: OTHER_LICENSEE_NAME, name: OTHER_OPERATOR_NAME, operatorId: world.operatorIds.other },
+          { sourceId: otherSource.id, full_name: "Engine Test Gone S.A.", name: "Engine Test Gone" },
+        ]);
+        world.environment.steps = [orphans];
+        const locationsOf = (sourceId: number) =>
+          tx
+            .select({ id: officialLocations.id })
+            .from(officialLocations)
+            .where(eq(officialLocations.source_id, sourceId))
+            .orderBy(asc(officialLocations.id));
+        const licenseesOf = (sourceId: number) =>
+          tx.select({ legalName: licensees.full_name }).from(licensees).where(eq(licensees.sourceId, sourceId)).orderBy(asc(licensees.full_name));
+
+        const run = await claimRun(world, { kind: "relink" });
+
+        expect(await processRun(run, world.environment)).toBe("done");
+        expect(await sitesOf(world)).toEqual(keptSites);
+        expect(await locationsOf(world.sourceId)).toEqual(keptSites.map((site) => ({ id: site.locationId })));
+        expect(await tx.select({ id: officialSites.id }).from(officialSites).where(eq(officialSites.source_id, otherSource.id))).toEqual([otherSite]);
+        expect(await locationsOf(otherSource.id)).toEqual([otherEmptied, otherUnused]);
+        expect(await licenseesOf(world.sourceId)).toEqual([{ legalName: LICENSEE_NAME }, { legalName: OTHER_LICENSEE_NAME }]);
+        expect(await licenseesOf(otherSource.id)).toEqual([{ legalName: "Engine Test Gone S.A." }]);
+      }));
+
+    it("gives two runners that claim at the same time two different runs, the second without waiting for the first", async () => {
+      const queued = await database.db.transaction(async (tx) => {
+        await tx.insert(countries).values({ code: COUNTRY_CODE });
+        const sources = await tx
+          .insert(officialSources)
+          .values(
+            ["first", "second"].map((name) => ({
+              key: `${SOURCE_KEY}-${name}`,
+              countryCode: COUNTRY_CODE,
+              shortName: "ENGINE",
+              authority: "Engine test authority",
+              homepageUrl: "https://authority.invalid",
+              licence: "none stated",
+              attribution: "Source: engine test",
+              isRedistributable: true,
+            })),
+          )
+          .returning({ id: officialSources.id });
+        const runIds = await Promise.all(
+          sources.map(({ id }) =>
+            enqueueRun(tx, { sourceId: id, kind: "import", trigger: "cli", isDryRun: false, datasetIds: [], requestedById: null, approvals: [] }),
+          ),
+        );
+        return { sourceIds: sources.map(({ id }) => id), runIds };
+      });
+
+      try {
+        const claimedIds: (string | undefined)[] = [];
+        await rolledBack(async () => {
+          claimedIds.push((await claimNextRun())?.id);
+          await rolledBack(async (second) => {
+            await second.execute(sql`SET LOCAL lock_timeout = '5s'`);
+            claimedIds.push((await claimNextRun())?.id);
+          });
+        });
+
+        expect(new Set(claimedIds)).toEqual(new Set(queued.runIds));
+      } finally {
+        await database.db.transaction(async (tx) => {
+          await tx.delete(officialImportRuns).where(inArray(officialImportRuns.id, queued.runIds));
+          await tx.delete(officialSources).where(inArray(officialSources.id, queued.sourceIds));
+          await tx.delete(countries).where(eq(countries.code, COUNTRY_CODE));
+        });
+      }
+    });
   },
 );

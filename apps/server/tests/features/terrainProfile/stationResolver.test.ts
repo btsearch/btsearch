@@ -1,10 +1,10 @@
 import { officialSites } from "@openbts/drizzle";
-import { type SQL, getTableUniqueName } from "drizzle-orm";
+import { type SQL, asc, getTableUniqueName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import { resolveSharedSibling, resolveTerrainStation } from "../../../src/features/terrainProfile/stationResolver.js";
-import { dbMock, queryOf } from "../../helpers/boundaries.js";
+import { dbMock } from "../../helpers/boundaries.js";
 import { cacheCountryVisibility, cacheSourceVisibility } from "../../helpers/officialDataFixtures.js";
 
 const dialect = new PgDialect();
@@ -48,9 +48,8 @@ function scriptPublicSources() {
   cacheSourceVisibility([1]);
 }
 
-function rawFilter(filter: unknown, table: unknown) {
-  const { sql, params } = dialect.sqlToQuery((filter as RawFilter).RAW(table));
-  return { sql: sql.replace(/\s+/g, " "), params };
+function rawFilterParams(filter: unknown, table: unknown) {
+  return dialect.sqlToQuery((filter as RawFilter).RAW(table)).params;
 }
 
 function lookups(table: string) {
@@ -65,9 +64,7 @@ describe("resolveTerrainStation", () => {
     expect((await resolveTerrainStation({ source: "official", id: 12 })).station.id).toBe(12);
     const [input] = dbMock.query.officialSites.findFirst.mock.calls[0] ?? [];
     expect(input).toMatchObject({ where: { id: 12 } });
-    const condition = rawFilter((input as { where: unknown }).where, officialSites);
-    expect(condition.sql).toContain('"public_location"."source_id" in');
-    expect(condition.params).toEqual([1, "XX"]);
+    expect(rawFilterParams((input as { where: unknown }).where, officialSites)).toEqual([1, "XX"]);
   });
 
   it("answers 404 for an official site the filter leaves out", async () => {
@@ -86,10 +83,7 @@ describe("resolveTerrainStation", () => {
     const [input] = dbMock.query.stationsOfficialSites.findFirst.mock.calls[0] ?? [];
     expect(permitCandidates).toEqual([]);
     expect(input).toMatchObject({ where: { station_id: 12 } });
-    const condition = rawFilter((input as { where: { officialSite: unknown } }).where.officialSite, officialSites);
-    expect(condition.sql).toContain('"public_location"."id" = "official"."sites"."location_id"');
-    expect(condition.sql).toContain('"public_location"."source_id" in');
-    expect(condition.params).toEqual([1, "XX"]);
+    expect(rawFilterParams((input as { where: { officialSite: unknown } }).where.officialSite, officialSites)).toEqual([1, "XX"]);
   });
 
   it("takes the frequency and the band of an official site's permit antennas from the permit's label", async () => {
@@ -153,7 +147,7 @@ describe("resolveSharedSibling", () => {
     const [lookup] = lookups(officialSitesTable);
     expect(lookup).toMatchObject({ operation: "select", table: officialSitesTable, clauses: { limit: [1] } });
     expect(dialect.sqlToQuery(lookup?.clauses.where?.[0] as SQL).params).toEqual([2, 8, 8, "jv_member", "jv_member"]);
-    expect(lookup?.clauses.orderBy?.map((order) => queryOf(order).sql)).toEqual(['"official"."sites"."id" asc']);
+    expect(lookup?.clauses.orderBy).toEqual([asc(officialSites.id)]);
     expect(dbMock.query.stations.findFirst).not.toHaveBeenCalled();
     expect(dbMock.pendingResults()).toBe(0);
   });

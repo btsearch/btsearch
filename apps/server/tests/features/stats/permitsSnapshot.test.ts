@@ -1,6 +1,5 @@
 import { statsSnapshots } from "@openbts/drizzle";
 import type { SQLWrapper } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getSnapshotDelta, takeStatsSnapshot } from "../../../src/features/stats/permitsSnapshot.js";
@@ -9,17 +8,12 @@ import { dbMock } from "../../helpers/boundaries.js";
 
 type ConflictClause = { target: unknown[]; targetWhere?: unknown; set: Record<string, SQLWrapper> };
 
-const dialect = new PgDialect();
 const KEY = [statsSnapshots.snapshot_date, statsSnapshots.operator_id, statsSnapshots.rat, statsSnapshots.label_mhz, statsSnapshots.label_variant];
 
 function inserts() {
   return dbMock.calls
     .filter((call) => call.operation === "insert" && call.table === "stats_snapshots")
     .map((call) => ({ rows: call.values as Record<string, unknown>[], conflict: call.clauses.onConflictDoUpdate?.[0] as ConflictClause }));
-}
-
-function setOf(conflict: ConflictClause): Record<string, string> {
-  return Object.fromEntries(Object.entries(conflict.set).map(([column, value]) => [column, dialect.sqlToQuery(value.getSQL()).sql]));
 }
 
 afterEach(() => {
@@ -63,11 +57,8 @@ describe("the permit snapshot", () => {
     expect(everyBand?.conflict.target).toEqual(KEY);
     expect(byLabel?.conflict.targetWhere).toBeUndefined();
     expect(everyBand?.conflict.targetWhere).toBeUndefined();
-    expect(setOf(byLabel!.conflict)).toEqual({
-      unique_stations_count: "excluded.unique_stations_count",
-      permits_count: "excluded.permits_count",
-    });
-    expect(setOf(everyBand!.conflict)).toEqual({ unique_stations_count: "excluded.unique_stations_count" });
+    expect(Object.keys(byLabel!.conflict.set)).toEqual(["unique_stations_count", "permits_count"]);
+    expect(Object.keys(everyBand!.conflict.set)).toEqual(["unique_stations_count"]);
   });
 
   it("writes nothing when there are no permits", async () => {

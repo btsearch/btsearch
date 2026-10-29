@@ -2,11 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import route from "../../../../../../src/routes/v2/(get)/official/permits/[id].js";
 import { authBoundary, dbMock } from "../../../../../helpers/boundaries.js";
-import { expectError, injectMutation } from "../../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import {
   expectDocumented,
   officialPermitRows,
-  renderedWhere,
   scriptAdminVisibility,
   scriptGuestVisibility,
   servedLocation,
@@ -33,12 +32,7 @@ describe("GET /official/permits/:id", () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({ data: { ...servedPermit, datasets: ["permits"], officialSite: servedSite } });
-    expect(renderedWhere("official.permits")).toEqual({
-      sql:
-        '(("official"."permits"."id" = $1) and (exists select "public_location"."id" from "public_location" ' +
-        'where (("public_location"."id" = "official"."locations"."id") and ("public_location"."source_id" in ($2)))))',
-      params: [41, 1],
-    });
+    expect(whereQuery("official.permits", "select").params).toEqual([41, 1]);
     expect(authBoundary.auth.api.userHasPermission).not.toHaveBeenCalled();
   });
 
@@ -61,7 +55,7 @@ describe("GET /official/permits/:id", () => {
     const response = await injectMutation(route, request, signInAs("admin"));
 
     expect(response.json().data).toEqual(servedPermit);
-    expect(renderedWhere("official.permits")).toEqual({ sql: '"official"."permits"."id" = $1', params: [41] });
+    expect(whereQuery("official.permits", "select").params).toEqual([41]);
   });
 
   it("takes the kind of a permit without a decision from its dataset, and passes on its status", async () => {

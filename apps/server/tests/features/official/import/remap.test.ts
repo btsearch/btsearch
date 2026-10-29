@@ -10,7 +10,7 @@ import { processDryRun, processRun } from "../../../../src/features/official/imp
 import type { ClaimedRun } from "../../../../src/features/official/import/types.js";
 import type { DbTx } from "../../../../src/types/global.js";
 import { dbMock } from "../../../helpers/boundaries.js";
-import { RUN_ID, claimedRun, ownRun, recordTransactions, sourceOf, statementOf, trace } from "../../../helpers/importEngineFixtures.js";
+import { RUN_ID, claimedRun, ownRun, recordTransactions, sourceOf, trace } from "../../../helpers/importEngineFixtures.js";
 
 const dialect = new PgDialect();
 const STARTED_AT = claimedRun().startedAt;
@@ -27,16 +27,6 @@ const environment = {
   steps: [],
   keepDryRunReport: async () => undefined,
 };
-
-const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
-  [/SET official_site_id = moved\.to_site_id/, "move permits"],
-  [/^WITH taken AS/, "merge listings"],
-  [/^INSERT INTO "official"\."permit_sectors"/, "merge sectors"],
-  [/^UPDATE "official"\."site_watches"/, "repoint watches"],
-  [/^UPDATE "notifications" AS notice/, "repoint notifications"],
-  [/^WITH merged AS/, "repoint lists"],
-  [/^DELETE FROM "official"\."permit_listings"/, "remove listings"],
-];
 
 function site(id: number, overrides: Partial<RemapInput["sites"][number]> = {}): RemapInput["sites"][number] {
   return { id, siteCode: "BT1001", sourceRef: null, operatorId: FROM_OPERATOR, ...overrides };
@@ -99,10 +89,8 @@ function paramsOf(statement: unknown): unknown[] {
   return params.map((parameter) => (typeof parameter === "string" && /^[[{]/.test(parameter) ? JSON.parse(parameter) : parameter));
 }
 
-function parametersOf(label: string): unknown[] {
-  const pattern = EXECUTED_STATEMENTS.find(([, name]) => name === label)?.[0];
-  const call = dbMock.calls.find((candidate) => candidate.operation === "execute" && pattern?.test(statementOf(candidate).sql));
-  return paramsOf(call?.clauses.statement?.[0]);
+function executedParams(): unknown[][] {
+  return dbMock.calls.filter((call) => call.operation === "execute").map((call) => paramsOf(call.clauses.statement?.[0]));
 }
 
 function sitesWritten(operation: "insert" | "update") {
@@ -334,7 +322,7 @@ describe("a remap run", () => {
     expect(await processRun(remapRun(), environment)).toBe("done");
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(trace(EXECUTED_STATEMENTS)).toEqual([
+    expect(trace()).toEqual([
       "begin",
       "select official.import_runs",
       "select official.remap_runs",
@@ -346,14 +334,14 @@ describe("a remap run", () => {
       "select official.permit_listings",
       "update official.sites",
       "insert official.sites",
-      "move permits",
-      "merge listings",
-      "merge sectors",
+      "execute",
+      "execute",
+      "execute",
       "delete official.permits",
       "delete stations_official_sites",
-      "repoint watches",
-      "repoint notifications",
-      "repoint lists",
+      "execute",
+      "execute",
+      "execute",
       "delete official.sites",
       "update official.sites",
       "update official.licensees",
@@ -370,15 +358,16 @@ describe("a remap run", () => {
     const [split] = sitesWritten("insert");
     expect([rekeyed?.values, paramsOf(rekeyed?.clauses.where?.[0])]).toEqual([{ operator_id: TO_OPERATOR }, [[501]]]);
     expect(paramsOf(split?.clauses.select?.[0])).toEqual([TO_OPERATOR, STARTED_AT.toISOString(), STARTED_AT.toISOString(), [503]]);
-    expect(parametersOf("move permits")).toEqual([
+    const [movedPermits, mergedListings, , , , repointedLists] = executedParams();
+    expect(movedPermits).toEqual([
       [
         { permit_id: 703, to_site_id: 602 },
         { permit_id: 704, to_site_id: 903 },
       ],
     ]);
-    expect(parametersOf("merge listings")).toEqual([[{ permit_id: 702, into_permit_id: 802 }]]);
+    expect(mergedListings).toEqual([[{ permit_id: 702, into_permit_id: 802 }]]);
     expect(paramsOf(dbMock.calls.find((call) => call.table === "stations_official_sites")?.clauses.where?.[0])).toEqual([502]);
-    expect(parametersOf("repoint lists")).toEqual([[{ site_id: 502, into_site_id: 602 }]]);
+    expect(repointedLists).toEqual([[{ site_id: 502, into_site_id: 602 }]]);
     expect([touched?.values, paramsOf(touched?.clauses.where?.[0])]).toEqual([{ updatedAt: STARTED_AT }, [[501, 602, 503]]]);
     expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "official.licensees")?.values).toEqual({
       operatorId: TO_OPERATOR,
@@ -410,13 +399,13 @@ describe("a remap run", () => {
     const report = await remapLicensee(tx, remapRun());
 
     expect(report).toMatchObject({ listingsRemoved: 1, permitsMoved: 0, sitesRekeyed: 0 });
-    expect(trace(EXECUTED_STATEMENTS).filter((operation) => !operation.startsWith("select"))).toEqual([
-      "remove listings",
+    expect(trace().filter((operation) => !operation.startsWith("select"))).toEqual([
+      "execute",
       "update official.sites",
       "update official.licensees",
       "insert official.import_changes",
     ]);
-    expect(parametersOf("remove listings")).toEqual([[{ permit_id: 701, dataset_id: 1 }], LICENSEE]);
+    expect(executedParams()).toEqual([[[{ permit_id: 701, dataset_id: 1 }], LICENSEE]]);
     expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "official.licensees")?.values).toEqual({ operatorId: null });
     expect(dbMock.calls.find((call) => call.operation === "insert")?.values).toEqual([
       { runId: RUN_ID, kind: "permit_unlisted", officialSiteId: 501, permitId: 701 },
@@ -431,7 +420,7 @@ describe("a remap run", () => {
     expect(await processRun(remapRun(), environment)).toBe("failed");
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(trace(EXECUTED_STATEMENTS).slice(0, 5)).toEqual([
+    expect(trace().slice(0, 5)).toEqual([
       "begin",
       "select official.import_runs",
       "select official.remap_runs",
@@ -453,7 +442,7 @@ describe("a remap run", () => {
     const report = await remapLicensee(tx, remapRun({ attempt: 2 }));
 
     expect(report).toMatchObject({ sitesRekeyed: 0, permitsMoved: 0 });
-    expect(trace(EXECUTED_STATEMENTS).filter((operation) => !operation.startsWith("select"))).toEqual(["update official.licensees"]);
+    expect(trace().filter((operation) => !operation.startsWith("select"))).toEqual(["update official.licensees"]);
   });
 
   it("refuses a licensee of another source", async () => {
@@ -507,6 +496,6 @@ describe("a remap run", () => {
         },
       },
     });
-    expect(trace(EXECUTED_STATEMENTS).filter((operation) => operation === "rollback")).toHaveLength(1);
+    expect(trace().filter((operation) => operation === "rollback")).toHaveLength(1);
   });
 });

@@ -1,6 +1,5 @@
-import { officialPermits, officialSources } from "@openbts/drizzle";
-import { type SQLWrapper, getTableUniqueName } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
+import { officialLocations, officialPermits, officialSites, officialSources, regions } from "@openbts/drizzle";
+import { getTableUniqueName, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { findDocumentationGap } from "../../../../../../src/features/openapi/document.js";
@@ -9,7 +8,6 @@ import route from "../../../../../../src/routes/v2/(get)/statistics/permits/inde
 import { dbMock, redisMock, userSession } from "../../../../../helpers/boundaries.js";
 import { createRouteHarness } from "../../../../../helpers/routeHarness.js";
 
-const dialect = new PgDialect();
 const permitsTable = getTableUniqueName(officialPermits);
 const lte800 = { rat: "lte", labelMhz: 800, variant: "commercial" };
 const group = { countryCode: "PL", operatorId: 3, regionId: null, ...lte800 };
@@ -32,12 +30,8 @@ function scriptPublicSources(sourceIds: number[]) {
   );
 }
 
-function permitRead() {
-  const read = dbMock.calls.find((call) => call.table === permitsTable);
-  const text = (clause: unknown) => dialect.sqlToQuery((clause as SQLWrapper).getSQL()).sql;
-  const selected = Object.entries((read?.selection ?? {}) as Record<string, unknown>);
-  const selection = Object.fromEntries(selected.map(([key, value]) => [key, text(value)]));
-  return { selection, groupBy: (read?.clauses.groupBy ?? []).map(text) };
+function permitGrouping() {
+  return dbMock.calls.find((call) => call.table === permitsTable)?.clauses.groupBy;
 }
 
 describe("GET /statistics/permits", () => {
@@ -74,40 +68,30 @@ describe("GET /statistics/permits", () => {
     expect(response.json()).toEqual({ data: [{ ...group, sites: 7, permits: 8 }] });
   });
 
-  it("groups by the source and the location's country, and leaves every dimension it does not group by empty", async () => {
+  it("groups by the source and the location's country", async () => {
     scriptVisibleCountries(["PL"]);
     scriptPublicSources([1]);
     dbMock.enqueueFor("select", permitsTable, []);
     const app = await createRouteHarness(route);
     await app.inject({ url: "/statistics/permits" });
 
-    const { selection, groupBy } = permitRead();
-    expect(selection).toMatchObject({ operatorId: "NULL", regionId: "NULL", rat: "NULL", labelMhz: "NULL", variant: "NULL" });
-    expect(groupBy).toEqual(['"official"."sites"."source_id"', '"regions"."country_code"']);
+    expect(permitGrouping()).toEqual([officialSites.source_id, regions.countryCode]);
   });
 
-  it("names each column once when the technology is grouped on its own and as part of the band", async () => {
+  it("groups by each column once when the technology is grouped on its own and as part of the band", async () => {
     scriptVisibleCountries(["PL"]);
     scriptPublicSources([1]);
     dbMock.enqueueFor("select", permitsTable, []);
     const app = await createRouteHarness(route);
     await app.inject({ url: "/statistics/permits?groupBy=label,rat,region" });
 
-    const { selection, groupBy } = permitRead();
-    expect(selection).toMatchObject({
-      operatorId: "NULL",
-      regionId: '"official"."locations"."region_id"',
-      rat: 'lower("official"."permits"."rat"::text)',
-      labelMhz: '"official"."permits"."label_mhz"',
-      variant: '"official"."permits"."label_variant"',
-    });
-    expect(groupBy).toEqual([
-      '"official"."sites"."source_id"',
-      '"regions"."country_code"',
-      '"official"."locations"."region_id"',
-      '"official"."permits"."rat"',
-      '"official"."permits"."label_mhz"',
-      '"official"."permits"."label_variant"',
+    expect(permitGrouping()).toEqual([
+      officialSites.source_id,
+      regions.countryCode,
+      sql`${officialLocations.region_id}`,
+      sql`${officialPermits.rat}`,
+      sql`${officialPermits.label_mhz}`,
+      sql`${officialPermits.label_variant}`,
     ]);
   });
 

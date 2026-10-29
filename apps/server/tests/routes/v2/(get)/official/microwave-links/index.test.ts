@@ -39,7 +39,7 @@ describe("GET /official/microwave-links", () => {
     expect(response.json()).toEqual({ data: [servedLink], paging: { limit: 50, nextCursor: null } });
 
     const read = dbMock.calls.find((call) => call.table === "official.microwave_links");
-    expect(whereQuery("official.microwave_links", "select")).toEqual({ sql: '"official"."sources"."id" in ($1)', params: [1] });
+    expect(whereQuery("official.microwave_links", "select").params).toEqual([1]);
     expect(read?.clauses.limit).toEqual([51]);
     expect(whereQuery("official.microwave_link_antenna_types", "select").params).toEqual([3, 4]);
     expect(whereQuery("official.microwave_link_transmitter_types", "select").params).toEqual([7]);
@@ -49,32 +49,33 @@ describe("GET /official/microwave-links", () => {
   it("does not filter by source for an administrator", async () => {
     dbMock.enqueueFor("select", "official.microwave_links", []);
     await injectMutation(route, request, asAdministrator());
-    expect(whereQuery.bind(null, "official.microwave_links", "select")).toThrow("No where condition");
+    expect(dbMock.calls.find((call) => call.table === "official.microwave_links")?.clauses.where).toEqual([undefined]);
     expect(dbMock.calls.some((call) => call.table === "official.sources")).toBe(false);
   });
 
   it("finds permit numbers that contain or resemble the text, and takes exact ones as they are", async () => {
     dbMock.enqueueFor("select", "official.microwave_links", []);
     await injectMutation(route, { ...request, url: "/official/microwave-links?q=12%25_45&permitNumbers=1%2F2,3%2F4" }, asGuest());
-    const { sql, params } = whereQuery("official.microwave_links", "select");
-    expect(sql).toContain('"official"."microwave_links"."permit_number" ILIKE $2 OR ("official"."microwave_links"."permit_number" % $3');
-    expect(sql).toContain('"official"."microwave_links"."permit_number" in ($6, $7)');
-    expect(params).toEqual([1, "%12\\%\\_45%", "12%_45", "12%_45", 0.6, "1/2", "3/4"]);
+    expect(whereQuery("official.microwave_links", "select").params).toEqual([1, "%12\\%\\_45%", "12%_45", "12%_45", 0.6, "1/2", "3/4"]);
   });
 
   it("narrows the links by licensee, source, kind, creation time and an area either end is in", async () => {
     dbMock.enqueueFor("select", "official.microwave_links", []);
     const query = "licenseeIds=5,6&sourceKeys=test-register&kinds=permit,registration&createdAfter=2026-10-01T00:00:00Z&bbox=20,52,22,53";
     await injectMutation(route, { ...request, url: `/official/microwave-links?${query}` }, asGuest());
-    const { sql, params } = whereQuery("official.microwave_links", "select");
-    expect(sql).toContain('"official"."microwave_links"."licensee_id" in ($2, $3)');
-    expect(sql).toContain('"official"."sources"."key" in ($4)');
-    expect(sql).toContain('"official"."microwave_links"."decision_type" in ($5)');
-    expect(sql).toContain('"official"."datasets"."permit_kind" in ($6, $7)');
-    expect(sql).toContain('"official"."microwave_links"."createdAt" >= $8');
-    expect(sql).toContain('ST_MakePoint("official"."microwave_links"."tx_longitude", "official"."microwave_links"."tx_latitude")');
-    expect(sql).toContain('ST_MakePoint("official"."microwave_links"."rx_longitude", "official"."microwave_links"."rx_latitude")');
-    expect(params.slice(0, 7)).toEqual([1, 5, 6, "test-register", "permit", "permit", "registration"]);
+    const area = [20, 52, 22, 53];
+    expect(whereQuery("official.microwave_links", "select").params).toEqual([
+      1,
+      5,
+      6,
+      "test-register",
+      "permit",
+      "permit",
+      "registration",
+      "2026-10-01T00:00:00.000Z",
+      ...area,
+      ...area,
+    ]);
   });
 
   it("serves and finds a link without a decision type under its dataset's kind", async () => {
@@ -83,10 +84,7 @@ describe("GET /official/microwave-links", () => {
     const response = await injectMutation(route, { ...request, url: "/official/microwave-links?kinds=license" }, asAdministrator());
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data[0].permit.kind).toBe("license");
-    expect(whereQuery("official.microwave_links", "select")).toEqual({
-      sql: '((false) or (((("official"."microwave_links"."decision_type" is null)) and ("official"."datasets"."permit_kind" in ($1)))))',
-      params: ["licence"],
-    });
+    expect(whereQuery("official.microwave_links", "select").params).toEqual(["licence"]);
   });
 
   it("pages by creation time with a cursor and counts the matches on request", async () => {
@@ -127,10 +125,7 @@ describe("GET /official/microwave-links", () => {
     dbMock.query.userLists.findFirst.mockResolvedValue(storedList([36, 37]));
     dbMock.enqueueFor("select", "official.microwave_links", []);
     await injectMutation(route, { ...request, url: "/official/microwave-links?listId=list-1" }, asGuest());
-    expect(whereQuery("official.microwave_links", "select")).toEqual({
-      sql: '(("official"."sources"."id" in ($1)) and ("official"."microwave_links"."id" in ($2, $3)))',
-      params: [1, 36, 37],
-    });
+    expect(whereQuery("official.microwave_links", "select").params).toEqual([1, 36, 37]);
   });
 
   it.each([

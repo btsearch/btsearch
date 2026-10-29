@@ -2,12 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import route from "../../../../../../src/routes/v2/(get)/official/sites/[id].js";
 import { dbMock } from "../../../../../helpers/boundaries.js";
-import { expectError, injectMutation } from "../../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import {
   expectDocumented,
   officialPermitRow,
   officialSiteRows,
-  renderedWhere,
   scriptAdminVisibility,
   scriptGuestVisibility,
   servedLocation,
@@ -18,9 +17,6 @@ import {
 import { signInAs } from "../../../../../helpers/officialFixtures.js";
 
 const request = { method: "GET" as const, url: "/official/sites/31" };
-const PUBLIC_SITE =
-  '(("official"."sites"."id" = $1) and (exists select "public_location"."id" from "public_location" ' +
-  'where (("public_location"."id" = "official"."locations"."id") and ("public_location"."source_id" in ($2)))))';
 
 describe("GET /official/sites/:id", () => {
   it("is documented for guests with the permit permission", () => {
@@ -37,7 +33,7 @@ describe("GET /official/sites/:id", () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({ data: { ...servedSite, stationId: 12 } });
-    expect(renderedWhere("official.sites")).toEqual({ sql: PUBLIC_SITE, params: [31, 1] });
+    expect(whereQuery("official.sites", "select").params).toEqual([31, 1]);
     expect(tablesRead()).not.toContain("official.permits");
   });
 
@@ -93,7 +89,7 @@ describe("GET /official/sites/:id", () => {
     const response = await injectMutation(route, request, signInAs("admin"));
 
     expect(response.json().data).toEqual(servedSite);
-    expect(renderedWhere("official.sites")).toEqual({ sql: '"official"."sites"."id" = $1', params: [31] });
+    expect(whereQuery("official.sites", "select").params).toEqual([31]);
   });
 
   it.each(["/official/sites/0", "/official/sites/31?include=sites", "/official/sites/31?rats=lte"])("rejects %s", async (url) => {

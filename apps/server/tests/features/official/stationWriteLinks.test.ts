@@ -1,5 +1,5 @@
 import { stations } from "@openbts/drizzle";
-import type { SQL } from "drizzle-orm";
+import { type SQL, inArray, or } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,11 +49,17 @@ function readsGroups(call: DatabaseCall): boolean {
 }
 
 function locksGroups(call: DatabaseCall): boolean {
-  return call.operation === "select" && call.table === "stations" && call.clauses.for !== undefined && whereOf(call).sql.includes("link_group");
+  const selection = call.selection;
+  const isIdProjection = typeof selection === "object" && selection !== null && Object.keys(selection).join() === "id";
+  return call.operation === "select" && call.table === "stations" && call.clauses.for?.[0] === "no key update" && isIdProjection;
 }
 
-function groupReads(): { sql: string; params: unknown[] }[] {
-  return dbMock.calls.filter(readsGroups).map((call) => ({ sql: whereOf(call).sql, params: whereOf(call).params }));
+function groupReads(): unknown[] {
+  return dbMock.calls.filter(readsGroups).map((call) => call.clauses.where?.[0]);
+}
+
+function groupsOf(stationIds: number[], locationIds: number[] = []) {
+  return or(inArray(stations.id, stationIds), inArray(stations.location_id, locationIds));
 }
 
 function correctedGroups(): unknown[] {
@@ -107,7 +113,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     const response = await app.inject({ method: "POST", url: "/stations", payload: { station: { siteId: "A1", operatorId: 1 } } });
 
     expect(response.statusCode, errors.map(String).join("\n")).toBe(201);
-    expect(groupReads()).toEqual([{ sql: '(("stations"."id" in ($1)) or (false))', params: [1] }]);
+    expect(groupReads()).toEqual([groupsOf([1])]);
     expect(correctedGroups()).toEqual([[A1]]);
     expect(dbMock.calls.find(writes("insert", "stations_official_sites"))?.values).toEqual([{ station_id: 1, official_site_id: 501 }]);
     expectLinkedInsideTheWrite(writes("insert", "stations"));
@@ -135,7 +141,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     const response = await app.inject({ method: "PATCH", url: "/stations/1", payload: { station: { siteId: "B2" } } });
 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
-    expect(groupReads().map(({ params }) => params)).toEqual([[1], [1]]);
+    expect(groupReads()).toEqual([groupsOf([1]), groupsOf([1])]);
     expect(correctedGroups()).toEqual([[A1, { operatorId: 1, siteId: "B2" }]]);
     expect(dbMock.calls.findIndex(readsGroups)).toBeLessThan(dbMock.calls.findIndex(writes("update", "stations")));
     expectLinkedInsideTheWrite(writes("update", "stations"));
@@ -152,10 +158,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     });
 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
-    expect(groupReads()).toEqual([
-      { sql: '(("stations"."id" in ($1)) or (false))', params: [1] },
-      { sql: '(("stations"."id" in ($1)) or (false))', params: [1] },
-    ]);
+    expect(groupReads()).toEqual([groupsOf([1]), groupsOf([1])]);
     expect(correctedGroups()).toEqual([[A1]]);
     expectLinkedInsideTheWrite(writes("update", "stations"));
   });
@@ -171,10 +174,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     });
 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
-    expect(groupReads()).toEqual([
-      { sql: '(("stations"."id" in ($1)) or (false))', params: [1] },
-      { sql: '(("stations"."id" in ($1)) or ("stations"."location_id" in ($2)))', params: [1, 2] },
-    ]);
+    expect(groupReads()).toEqual([groupsOf([1]), groupsOf([1], [2])]);
     expect(correctedGroups()).toEqual([[A1, { operatorId: 2, siteId: "B7" }]]);
     expectLinkedInsideTheWrite(writes("update", "locations"));
   });
@@ -222,7 +222,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     const response = await app.inject(approval);
 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
-    expect(groupReads()).toEqual([{ sql: '(("stations"."id" in ($1)) or (false))', params: [12] }]);
+    expect(groupReads()).toEqual([groupsOf([12])]);
     expect(correctedGroups()).toEqual([[proposed]]);
     expectLinkedInsideTheWrite(writes("insert", "stations"));
     expect(dbMock.calls.findIndex(locksGroups)).toBeLessThan(dbMock.calls.findIndex(writes("update", "submissions")));
@@ -236,7 +236,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     const response = await app.inject(approval);
 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
-    expect(groupReads().map(({ params }) => params)).toEqual([[12], [12]]);
+    expect(groupReads()).toEqual([groupsOf([12]), groupsOf([12])]);
     expect(correctedGroups()).toEqual([
       [
         { operatorId: 7, siteId: "PROPOSED-12" },
@@ -326,7 +326,7 @@ describe("a station write relinks its groups inside its own transaction", () => 
     const response = await app.inject({ method: "PATCH", url: "/locations/7", payload: { latitude: 52, longitude: 21.25 } });
 
     expect(response.statusCode, errors.map(String).join("\n") || response.body).toBe(200);
-    expect(groupReads()).toEqual([{ sql: '((false) or ("stations"."location_id" in ($1)))', params: [7] }]);
+    expect(groupReads()).toEqual([groupsOf([], [7])]);
     expect(correctedGroups()).toEqual([[A1, { operatorId: 2, siteId: "B7" }]]);
     expectLinkedInsideTheWrite(writes("update", "locations"));
 
@@ -377,7 +377,7 @@ describe("a revert relinks what it restored", () => {
 
     await applyRevertPlan(tx, audit, [restored], false);
 
-    expect(groupReads().map(({ params }) => params)).toEqual([[1], [1]]);
+    expect(groupReads()).toEqual([groupsOf([1]), groupsOf([1])]);
     expect(dbMock.calls.findIndex(readsGroups)).toBeLessThan(dbMock.calls.findIndex(writes("update", "stations")));
     expect(dbMock.calls.findIndex(locksGroups)).toBeGreaterThan(dbMock.calls.findLastIndex(writes("update", "stations")));
     expect(correctedGroups()).toEqual([[{ operatorId: 1, siteId: "B2" }, A1]]);
@@ -393,7 +393,7 @@ describe("a revert relinks what it restored", () => {
 
     await applyRevertPlan(tx, audit, [restored], false);
 
-    expect(groupReads()).toEqual([{ sql: '(("stations"."id" in ($1, $2)) or (false))', params: [1, 5] }]);
+    expect(groupReads()).toEqual([groupsOf([1, 5])]);
     expect(correctedGroups()).toEqual([[A1, { operatorId: 2, siteId: "B7" }]]);
   });
 

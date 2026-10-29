@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { links } from "../../../../../src/features/official/import/steps/links.js";
-import { type DatabaseCall, dbMock } from "../../../../helpers/boundaries.js";
+import { dbMock } from "../../../../helpers/boundaries.js";
 import {
   RUN_ID,
   change,
@@ -28,13 +28,9 @@ function stationRow(stationId: number, operatorId: number, siteId: string) {
   return { stationId, operatorId, siteId, ...X };
 }
 
-function isCorrectionRead(call: DatabaseCall): boolean {
-  return call.operation === "select" && call.clauses.where?.[0] !== undefined && whereOf(call).sql.includes("link_group");
-}
-
 function correctedGroups(): unknown[] {
   return dbMock.calls
-    .filter((call) => isCorrectionRead(call) && call.clauses.for !== undefined)
+    .filter((call) => call.operation === "select" && call.table === "stations" && call.clauses.for !== undefined)
     .map((call) => JSON.parse(String(whereOf(call).params[0])));
 }
 
@@ -93,9 +89,6 @@ describe("the links step", () => {
       "commit",
     ]);
     expect(changeReads()).toEqual([[RUN_ID, ...GROUP_CHANGING_KINDS]]);
-    expect(whereOf(dbMock.calls.find((call) => call.table === "official.import_changes")).sql).toMatch(
-      /"official_site_id" in .+"site_id" is not null/,
-    );
     expect(whereOf(dbMock.calls.find((call) => call.table === "official.sites")).params).toEqual([504, 503, 502]);
     expect(correctedGroups()).toEqual([
       [

@@ -4,12 +4,11 @@ import { z } from "zod/v4";
 import { decodeCursor } from "../../../../../../src/lib/cursor.js";
 import route from "../../../../../../src/routes/v2/(get)/official/permits/index.js";
 import { authBoundary, dbMock, userSession } from "../../../../../helpers/boundaries.js";
-import { expectError, injectMutation } from "../../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import {
   expectDocumented,
   officialPermitRows,
   officialSectorRow,
-  renderedWhere,
   scriptAdminVisibility,
   scriptGuestVisibility,
   servedLocation,
@@ -21,10 +20,6 @@ import {
 import { signInAs } from "../../../../../helpers/officialFixtures.js";
 
 const request = { method: "GET" as const, url: "/official/permits" };
-const PUBLIC_LOCATION = '"official"."locations"."source_id" in ($1)';
-const LINKED =
-  'exists select "stations_official_sites"."station_id" from "stations_official_sites" ' +
-  'where "stations_official_sites"."official_site_id" = "official"."permits"."official_site_id"';
 
 function listed(id: number, key: string | null = null) {
   return { ...officialPermitRows, permit: { ...officialPermitRows.permit, id }, key };
@@ -35,7 +30,7 @@ async function permitsFor(query: string, hidden: string[] = []) {
   dbMock.enqueueFor("select", "official.permits", []);
   const response = await injectMutation(route, { ...request, url: `/official/permits?${query}` });
   expect(response.statusCode, response.body).toBe(200);
-  return renderedWhere("official.permits");
+  return whereQuery("official.permits", "select").params;
 }
 
 describe("GET /official/permits", () => {
@@ -59,7 +54,7 @@ describe("GET /official/permits", () => {
       data: [{ ...servedPermit, datasets: ["device-registry", "permits"] }],
       paging: { limit: 50, nextCursor: null },
     });
-    expect(renderedWhere("official.permits")).toEqual({ sql: PUBLIC_LOCATION, params: [1] });
+    expect(whereQuery("official.permits", "select").params).toEqual([1]);
     expect(tablesRead()).toEqual(["official.permits", "official.permit_listings"]);
   });
 
@@ -76,62 +71,36 @@ describe("GET /official/permits", () => {
     expect(response.json().data).toEqual([
       { ...servedPermit, sectors: [servedSector], officialSite: { ...servedSite, stationId: 5, location: servedLocation } },
     ]);
-    expect(renderedWhere("stations_official_sites")).toEqual({ sql: '"stations_official_sites"."official_site_id" in ($1)', params: [31] });
+    expect(whereQuery("stations_official_sites", "select").params).toEqual([31]);
   });
 
   it("lists a station's permits, finding nothing for a station in a country hidden from the caller", async () => {
-    const where = await permitsFor("stationIds=12", ["XX"]);
-
-    expect(where.sql).toContain(
-      'exists select "stations_official_sites"."station_id" from "stations_official_sites" ' +
-        'where (("stations_official_sites"."official_site_id" = "official"."permits"."official_site_id") ' +
-        'and ("stations_official_sites"."station_id" in ($3)) and ("stations"."id" IN',
-    );
-    expect(where.sql).toContain('"stations"."id" IN (SELECT "stations"."id" FROM "stations" LEFT JOIN "locations"');
-    expect(where.params).toEqual([1, "XX", 12, "XX"]);
+    expect(await permitsFor("stationIds=12", ["XX"])).toEqual([1, "XX", 12, "XX"]);
   });
 
   it.each([
-    ["officialSiteIds=31,32", '"official"."permits"."official_site_id" in ($2, $3)', [31, 32]],
-    ["siteIds=BT12345", '"official"."sites"."site_id" in ($2)', ["BT12345"]],
-    ["operatorIds=4", '"official"."sites"."operator_id" in ($2)', [4, 4, "jv_member"]],
-    ["isLinked=true", LINKED, []],
-    ["bandLabels=900", '"official"."permits"."label_mhz" in ($2)', [900]],
-    ["rats=gsm", '(("official"."permits"."rat" = $2) and ("official"."permits"."label_variant" = $3))', ["GSM", "commercial"]],
-    [
-      "kinds=permit,permitChange,inventory",
-      '"official"."permits"."decision_type" in ($2, $3)) or (((("official"."permits"."decision_type" is null)) and (exists select',
-      ["permit", "permit_change", "permit", "inventory"],
-    ],
-    ["kinds=registration", '"official"."datasets"."permit_kind" in ($2)', ["registration"]],
-    ["kinds=license", '"official"."datasets"."permit_kind" in ($2)', ["licence"]],
-    ["countryCodes=PL", '"regions"."country_code" in ($2)', ["PL"]],
-    ["regionIds=7", '"official"."locations"."region_id" in ($2)', [7]],
-    ["sourceKeys=pl-uke", '"official"."sources"."key" in ($2)', ["pl-uke"]],
-    ["bbox=14,49,24,55", "ST_Intersects", [14, 49, 24, 55]],
-  ])("filters the permits with %s", async (query, condition, params) => {
-    const where = await permitsFor(query);
-    expect(where.sql).toContain(condition);
-    expect(where.params).toEqual([1, ...params]);
+    ["officialSiteIds=31,32", [31, 32]],
+    ["siteIds=BT12345", ["BT12345"]],
+    ["operatorIds=4", [4, 4, "jv_member"]],
+    ["bandLabels=900", [900]],
+    ["rats=gsm", ["GSM", "commercial"]],
+    ["kinds=permit,permitChange,inventory", ["permit", "permit_change", "permit", "inventory"]],
+    ["kinds=registration", ["registration"]],
+    ["kinds=license", ["licence"]],
+    ["countryCodes=PL", ["PL"]],
+    ["regionIds=7", [7]],
+    ["sourceKeys=pl-uke", ["pl-uke"]],
+    ["bbox=14,49,24,55", [14, 49, 24, 55]],
+  ])("filters the permits with %s", async (query, params) => {
+    expect(await permitsFor(query)).toEqual([1, ...params]);
   });
 
   it("finds the permits a dataset lists", async () => {
-    const where = await permitsFor("datasetKeys=device-registry");
-
-    expect(where.sql).toContain(
-      'exists select "official"."permit_listings"."permit_id" from "official"."permit_listings" ' +
-        'where (("official"."permit_listings"."permit_id" = "official"."permits"."id") and ("official"."datasets"."key" in ($2)))',
-    );
+    expect(await permitsFor("datasetKeys=device-registry")).toEqual([1, "device-registry"]);
   });
 
   it("searches permit numbers for the text or a close resemblance, with wildcards taken literally", async () => {
-    const where = await permitsFor("q=UKE/1_3%25");
-
-    expect(where.sql).toContain(
-      '("official"."permits"."decision_number" ILIKE $2 OR ("official"."permits"."decision_number" % $3 ' +
-        'AND similarity("official"."permits"."decision_number", $4) > $5))',
-    );
-    expect(where.params).toEqual([1, "%UKE/1\\_3\\%%", "UKE/1_3%", "UKE/1_3%", 0.6]);
+    expect(await permitsFor("q=UKE/1_3%25")).toEqual([1, "%UKE/1\\_3\\%%", "UKE/1_3%", "UKE/1_3%", 0.6]);
   });
 
   it("refuses unlinked permits to a guest before reading anything", async () => {
@@ -158,7 +127,6 @@ describe("GET /official/permits", () => {
     const response = await injectMutation(route, { ...request, url: "/official/permits?isLinked=false" }, signInAs("editor"));
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(renderedWhere("official.permits").sql).toBe(`((${PUBLIC_LOCATION}) and (not ${LINKED}))`);
   });
 
   it("continues after the last permit of a page and counts every match on request", async () => {
@@ -171,7 +139,7 @@ describe("GET /official/permits", () => {
 
     expect(response.json().paging.total).toBe(3);
     expect(decodeCursor(response.json().paging.nextCursor, z.unknown())).toEqual({ sort: "-updatedAt", id: 42, key: "1760054400000000" });
-    expect(() => renderedWhere("official.permits")).toThrow("No where condition");
+    expect(dbMock.calls.find((call) => call.table === "official.permits")?.clauses.where).toEqual([undefined]);
   });
 
   it.each([

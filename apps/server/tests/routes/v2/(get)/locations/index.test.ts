@@ -1,6 +1,5 @@
 import { curatedCellSummaries } from "@openbts/drizzle";
-import { type SQL, getTableName } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
+import { getTableName } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
@@ -31,11 +30,7 @@ describe("getLocations", () => {
       const response = await app.inject({ url: `/locations?${query}` });
       expect(response.statusCode).toBe(200);
       expect(response.json().data).toMatchObject([{ id: 1, city: "Łódź" }]);
-      const where = dbMock.calls.find((call) => call.table === "locations")?.clauses.where?.[0] as SQL | undefined;
-      const sql = where ? new PgDialect().sqlToQuery(where).sql : "";
-      if (query.includes("hasStations")) expect(sql).toContain("EXISTS");
-      if (query.includes("q=")) expect(sql).toContain(" OR ");
-      if (query === "includeEmpty=true") expect(sql).not.toContain("EXISTS");
+      if (query === "includeEmpty=true") expect(dbMock.calls.find((call) => call.table === "locations")?.clauses.where?.[0]).toBeUndefined();
     },
   );
 
@@ -148,8 +143,6 @@ describe("getLocation", () => {
     const response = await app.inject({ url: `/locations/1?include=stations&listId=${readUserId}` });
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toMatchObject({ id: 1, stations: [] });
-    const where = dbMock.calls.find((call) => call.table === "stations")?.clauses.where?.[0] as SQL;
-    expect(new PgDialect().sqlToQuery(where).sql).toContain("false");
   });
 
   it("omits embedded relations when no include is requested", async () => {

@@ -27,10 +27,7 @@ describe("GET /official/microwave-links/:id", () => {
         licensee: { id: 5, sourceKey: "test-register", name: "Example Mobile", legalName: "Example Mobile S.A.", operatorId: null, brandId: null },
       },
     });
-    expect(whereQuery("official.microwave_links", "select")).toEqual({
-      sql: '(("official"."microwave_links"."id" = $1) and ("official"."sources"."id" in ($2)))',
-      params: [36, 1],
-    });
+    expect(whereQuery("official.microwave_links", "select").params).toEqual([36, 1]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 

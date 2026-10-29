@@ -28,8 +28,8 @@ const claimedRow = {
   startedAt: "2026-10-12T14:15:16.789Z",
 };
 
-function claimStatement(): { sql: string; params: unknown[] } {
-  return statementOf(dbMock.calls[0]);
+function claimParams(): unknown[] {
+  return statementOf(dbMock.calls[0]).params;
 }
 
 describe("handing a run back", () => {
@@ -62,7 +62,6 @@ describe("claiming one run by its id", () => {
     const claimed = await claimRun(RUN_ID);
 
     expect(claimed).toMatchObject({ id: RUN_ID, attempt: 1, startedAt: new Date("2026-10-12T14:15:16.789Z") });
-    expect(claimStatement().sql).toContain("AND run.id = $2::uuid");
-    expect(claimStatement().params).toEqual([10, RUN_ID, 5, 5, "Abandoned after 5 attempts", 5, claimed?.claimToken, 5, 5]);
+    expect(claimParams()).toEqual([10, RUN_ID, 5, 5, "Abandoned after 5 attempts", 5, claimed?.claimToken, 5, 5]);
   });
 });

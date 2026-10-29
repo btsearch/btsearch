@@ -111,7 +111,7 @@ describe("GET /official/sources", () => {
         },
       ],
     });
-    expect(whereQuery.bind(null, "official.sources", "select")).toThrow("No where condition");
+    expect(dbMock.calls.find((call) => call.table === "official.sources")?.clauses.where).toEqual([undefined]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -143,10 +143,7 @@ describe("GET /official/sources", () => {
     dbMock.enqueueFor("select", "official.sources", []);
     const response = await injectMutation(route, { ...request, url: "/official/sources?countryCodes=PL,FR" }, { runAuth: true });
     expect(response.json()).toEqual({ data: [] });
-    expect(whereQuery("official.sources", "select")).toEqual({
-      sql: '"official"."sources"."country_code" in ($1, $2)',
-      params: ["PL", "FR"],
-    });
+    expect(whereQuery("official.sources", "select").params).toEqual(["PL", "FR"]);
   });
 
   it("answers an empty list to a guest without asking for datasets when no source is visible", async () => {

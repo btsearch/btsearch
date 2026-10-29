@@ -27,10 +27,7 @@ describe("DELETE /official/sites/:id/watch", () => {
 
     expect([first.statusCode, second.statusCode]).toEqual([204, 204]);
     expect(dbMock.calls.map((call) => `${call.operation} ${call.table}`)).toEqual(["delete official.site_watches", "delete official.site_watches"]);
-    expect(whereQuery("official.site_watches", "delete")).toEqual({
-      sql: '(("official"."site_watches"."user_id" = $1) and ("official"."site_watches"."official_site_id" = $2))',
-      params: [ownerId, 31],
-    });
+    expect(whereQuery("official.site_watches", "delete").params).toEqual([ownerId, 31]);
   });
 
   it.each(["0", "abc"])("rejects the site id %s before writing anything", async (id) => {

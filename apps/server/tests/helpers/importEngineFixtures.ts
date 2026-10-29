@@ -128,23 +128,16 @@ export function runStep(
   return runAfterSteps(scope, [step], archive);
 }
 
-export function statementOf(call: DatabaseCall | undefined): { sql: string; params: unknown[] } {
-  const statement = queryOf(call?.clauses.statement?.[0]);
-  return { sql: statement.sql.replace(/\s+/g, " ").trim(), params: statement.params };
+export function statementOf(call: DatabaseCall | undefined): { params: unknown[] } {
+  return { params: queryOf(call?.clauses.statement?.[0]).params };
 }
 
-export function whereOf(call: DatabaseCall | undefined): { sql: string; params: unknown[] } {
-  const condition = queryOf(call?.clauses.where?.[0]);
-  return { sql: condition.sql, params: condition.params };
+export function whereOf(call: DatabaseCall | undefined): { params: unknown[] } {
+  return { params: queryOf(call?.clauses.where?.[0]).params };
 }
 
-export function trace(labels: readonly (readonly [RegExp, string])[] = []): string[] {
-  return dbMock.calls.map((call) => {
-    if (call.operation !== "execute") return [call.operation, call.table].filter(Boolean).join(" ");
-
-    const { sql } = statementOf(call);
-    return labels.find(([pattern]) => pattern.test(sql))?.[1] ?? sql;
-  });
+export function trace(): string[] {
+  return dbMock.calls.map((call) => [call.operation, call.table].filter(Boolean).join(" "));
 }
 
 export function valuesOf(operation: string, table: string): unknown[] {

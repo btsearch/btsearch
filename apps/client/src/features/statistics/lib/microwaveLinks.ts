@@ -167,7 +167,7 @@ export function findPreviousMonthChange(
   startsOn: string,
 ): { change: number; previousMonth: string } | null {
   const currentMonth = toPeriodKey(startsOn, "month");
-  const previousMonth = trend.months.filter((month) => month < currentMonth).at(-1);
+  const previousMonth = [...trend.months].reverse().find((month) => month < currentMonth);
   if (previousMonth === undefined) return null;
 
   const previousLinks = trend.points.filter((point) => point.date === previousMonth).reduce((sum, point) => sum + point.value, 0);

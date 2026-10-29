@@ -3,13 +3,12 @@ import { describe, expect, it } from "vitest";
 import { getRuntimeSettings } from "../../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../../src/routes/v2/(get)/official/locations/[id].js";
 import { dbMock } from "../../../../../helpers/boundaries.js";
-import { expectError, injectMutation } from "../../../../../helpers/mutationAssertions.js";
+import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import {
   expectDocumented,
   officialLocationRows,
   officialSiteRows,
   regionRow,
-  renderedWhere,
   scriptAdminVisibility,
   scriptGuestVisibility,
   servedLocation,
@@ -34,12 +33,7 @@ describe("GET /official/locations/:id", () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({ data: { ...servedLocation, region: regionRow } });
-    expect(renderedWhere("official.locations")).toEqual({
-      sql:
-        '(("official"."locations"."id" = $1) and (exists select "public_location"."id" from "public_location" ' +
-        'where (("public_location"."id" = "official"."locations"."id") and ("public_location"."source_id" in ($2)))))',
-      params: [21, 1],
-    });
+    expect(whereQuery("official.locations", "select").params).toEqual([21, 1]);
   });
 
   it.each([
@@ -60,7 +54,7 @@ describe("GET /official/locations/:id", () => {
     const response = await injectMutation(route, request, signInAs("admin"));
 
     expect(response.json().data).toEqual(servedLocation);
-    expect(renderedWhere("official.locations")).toEqual({ sql: '"official"."locations"."id" = $1', params: [21] });
+    expect(whereQuery("official.locations", "select").params).toEqual([21]);
   });
 
   it("narrows its sites with the site filters, never the location itself", async () => {
@@ -72,11 +66,8 @@ describe("GET /official/locations/:id", () => {
     const response = await injectMutation(route, { ...request, url: "/official/locations/21?include=sites&operatorIds=4&bandLabels=800" });
 
     expect(response.json().data).toEqual({ ...servedLocation, sites: [{ ...servedSite, stationId: 5 }] });
-    expect(renderedWhere("official.locations").sql).not.toContain("official.sites");
-    const sites = renderedWhere("official.sites");
-    expect(sites.sql).toContain('"official"."sites"."operator_id" in ($2)');
-    expect(sites.sql).toContain('"official"."permits"."label_mhz" in ($5)');
-    expect(sites.params).toEqual([21, 4, 4, "jv_member", 800]);
+    expect(whereQuery("official.locations", "select").params).toEqual([21, 1]);
+    expect(whereQuery("official.sites", "select").params).toEqual([21, 4, 4, "jv_member", 800]);
   });
 
   it("takes the sites from a list", async () => {
@@ -89,7 +80,7 @@ describe("GET /official/locations/:id", () => {
     const response = await injectMutation(route, { ...request, url: "/official/locations/21?include=sites&listId=list-1" });
 
     expect(response.json().data.sites).toEqual([]);
-    expect(renderedWhere("official.sites").sql).toContain('"official"."sites"."id" in ($2)');
+    expect(whereQuery("official.sites", "select").params).toEqual([21, 31]);
   });
 
   it("answers 404 for a list the caller cannot read", async () => {

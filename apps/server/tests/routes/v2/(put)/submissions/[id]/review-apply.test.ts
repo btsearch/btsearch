@@ -3,7 +3,7 @@ import { getTableName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import route from "../../../../../../src/routes/v2/(put)/submissions/[id]/review.js";
-import { dbMock, queryOf, setCountryFeatures, userSession } from "../../../../../helpers/boundaries.js";
+import { dbMock, setCountryFeatures, userSession } from "../../../../../helpers/boundaries.js";
 import { cellInputs, radioTables, storedCell } from "../../../../../helpers/cellWriteFixtures.js";
 import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import { readDate } from "../../../../../helpers/readFixtures.js";
@@ -179,9 +179,8 @@ describe("submission approval application", () => {
 
     expectError(await injectMutation(route, request, options), 409, "DUPLICATE_ENTRY", message);
     expect(dbMock.transaction).toHaveBeenCalled();
-    expect(
-      dbMock.calls.some((call) => call.operation === "execute" && queryOf(call.clauses.statement?.[0]).sql.includes("pg_advisory_xact_lock")),
-    ).toBe(true);
+    const identityRead = dbMock.calls.findIndex((call) => call.operation === "select" && call.table === getTableName(radioTables[input.rat]));
+    expect(dbMock.calls[identityRead - 1]?.operation).toBe("execute");
     expect(whereQuery(getTableName(radioTables[input.rat]), "select").params).toContain(7);
     expect(dbMock.calls.some((call) => call.operation === "update" && call.table === "submissions")).toBe(false);
   });

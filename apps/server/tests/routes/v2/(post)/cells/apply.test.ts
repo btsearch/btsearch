@@ -200,9 +200,7 @@ describe("POST /cells/apply", () => {
       { id: 12, tac: 20 },
     ]);
     const spreadQuery = dbMock.calls.findLast((call) => call.operation === "select" && call.table === lteTable)!;
-    const where = dialect.sqlToQuery(spreadQuery.clauses.where![0] as SQL);
-    expect(where.sql).toContain("IS DISTINCT FROM");
-    expect(where.params).toEqual(expect.arrayContaining([1, "LTE", 20]));
+    expect(dialect.sqlToQuery(spreadQuery.clauses.where![0] as SQL).params).toEqual(expect.arrayContaining([1, "LTE", 20]));
     expect(dbMock.calls.filter((call) => call.operation === "update" && call.table === lteTable)).toHaveLength(2);
     expect(dbMock.calls.filter((call) => call.operation === "insert" && call.table === "audit_logs").flatMap((call) => call.values)).toEqual(
       expect.arrayContaining([

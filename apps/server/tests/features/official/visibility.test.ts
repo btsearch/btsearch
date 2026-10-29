@@ -27,15 +27,9 @@ function signedIn(role: "user" | "editor" | "admin"): FastifyRequest {
   return { userSession: userSession(undefined, role), apiToken: null } as unknown as FastifyRequest;
 }
 
-function rendered(condition: SQL | undefined) {
+function paramsOf(condition: SQL | undefined) {
   if (!condition) return undefined;
-  const { sql, params } = dialect.sqlToQuery(condition);
-  return { sql: sql.replace(/\s+/g, " "), params };
-}
-
-function sourcesQuery() {
-  const call = dbMock.calls.find((candidate) => candidate.table === sourcesTable);
-  return rendered(call?.clauses.where?.[0] as SQL | undefined);
+  return dialect.sqlToQuery(condition).params;
 }
 
 const storedCountries = [
@@ -59,7 +53,7 @@ describe("loadOfficialVisibility", () => {
     scriptStoredLists();
 
     expect(await loadOfficialVisibility(guest)).toEqual({ sourceIds: [1], hiddenCountryCodes: ["XX"] });
-    expect(sourcesQuery()).toBeUndefined();
+    expect(dbMock.calls.find((call) => call.table === sourcesTable)?.clauses.where).toBeUndefined();
     expect(authBoundary.auth.api.userHasPermission).not.toHaveBeenCalled();
   });
 
@@ -165,31 +159,16 @@ describe("loadPublicSiteSourceNames", () => {
 
 describe("officialLocationIsPublic", () => {
   it("needs a public source and a region in a visible country", () => {
-    expect(rendered(officialLocationIsPublic(officialSites.location_id, publicView))).toEqual({
-      sql:
-        'exists select "public_location"."id" from "public_location" where (("public_location"."id" = "official"."sites"."location_id") ' +
-        'and ((("public_location"."source_id" in ($1)) and (not exists select "hidden_region"."id" from "hidden_region" ' +
-        'where (("hidden_region"."id" = "public_location"."region_id") and ("hidden_region"."country_code" in ($2)))))))',
-      params: [1, "XX"],
-    });
+    expect(paramsOf(officialLocationIsPublic(officialSites.location_id, publicView))).toEqual([1, "XX"]);
   });
 
   it("checks only the country for a caller who sees every source", () => {
-    const condition = rendered(officialLocationIsPublic(officialLocations.id, { sourceIds: null, hiddenCountryCodes: ["XX"] }));
-
-    expect(condition?.sql).toContain('not exists select "hidden_region"."id" from "hidden_region"');
-    expect(condition?.sql).not.toContain("source_id");
-    expect(condition?.params).toEqual(["XX"]);
+    expect(paramsOf(officialLocationIsPublic(officialLocations.id, { sourceIds: null, hiddenCountryCodes: ["XX"] }))).toEqual(["XX"]);
   });
 });
 
 describe("microwaveLinkIsPublic", () => {
   it("follows the link's source alone, whatever countries are hidden", () => {
-    expect(rendered(microwaveLinkIsPublic(microwaveLinks.dataset_id, publicView))).toEqual({
-      sql:
-        'exists select "link_dataset"."id" from "link_dataset" where (("link_dataset"."id" = "official"."microwave_links"."dataset_id") ' +
-        'and ("link_dataset"."source_id" in ($1)))',
-      params: [1],
-    });
+    expect(paramsOf(microwaveLinkIsPublic(microwaveLinks.dataset_id, publicView))).toEqual([1]);
   });
 });

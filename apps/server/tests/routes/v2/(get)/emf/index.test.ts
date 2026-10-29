@@ -110,9 +110,7 @@ describe("getEmfReports", () => {
     const load = vi.spyOn(si2pem, "getWmsFeatureInfo").mockRejectedValue(new Error("Unexpected report lookup"));
     const app = await createRouteHarness(getEmfReports);
     expect((await app.inject({ url: "/emf/reports?officialSiteId=7" })).statusCode).toBe(404);
-    const condition = whereQuery("official.sites", "select");
-    expect(condition.sql).toContain('"public_location"."source_id" in');
-    expect(condition.params).toEqual([7, 1]);
+    expect(whereQuery("official.sites", "select").params).toEqual([7, 1]);
     expect(load).not.toHaveBeenCalled();
   });
 

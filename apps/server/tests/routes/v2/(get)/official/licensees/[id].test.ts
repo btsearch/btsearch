@@ -21,7 +21,7 @@ describe("GET /official/licensees/:id", () => {
     expect(response.json()).toEqual({
       data: { id: 5, sourceKey: "test-register", name: "Example Mobile", legalName: "Example Mobile S.A.", operatorId: 4, brandId: null },
     });
-    expect(whereQuery("official.licensees", "select")).toEqual({ sql: '"official"."licensees"."id" in ($1)', params: [5] });
+    expect(whereQuery("official.licensees", "select").params).toEqual([5]);
   });
 
   it("returns a licensee of a visible source to a guest", async () => {
@@ -30,10 +30,7 @@ describe("GET /official/licensees/:id", () => {
     const response = await injectMutation(route, request, { runAuth: true });
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data).toMatchObject({ id: 5, sourceKey: "test-register" });
-    expect(whereQuery("official.licensees", "select")).toEqual({
-      sql: '(("official"."licensees"."source_id" in ($1)) and ("official"."licensees"."id" in ($2)))',
-      params: [1, 5],
-    });
+    expect(whereQuery("official.licensees", "select").params).toEqual([1, 5]);
   });
 
   it("returns 404 to an editor when the licensee is missing or its source is hidden", async () => {

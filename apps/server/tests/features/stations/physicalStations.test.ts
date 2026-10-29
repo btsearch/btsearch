@@ -115,7 +115,7 @@ describe("findHostStationIds", () => {
     dbMock.enqueueFor("select", "stations", rows);
 
     expect(await findHostStationIds(stationsAt(1, 2, 3, 4, 5, 5))).toEqual(referenceHosts(rows));
-    expect(dbMock.select).toHaveBeenCalledTimes(1);
+    expect(dbMock.calls).toHaveLength(1);
   });
 
   it("examines candidates linearly for a page of 1500 locations", async () => {
@@ -139,7 +139,7 @@ describe("findHostStationIds", () => {
 
     expect(await findHostStationIds(stationsAt(...locationIds))).toEqual(new Map(locationIds.map((locationId) => [locationId, 1500 + locationId])));
     expect(candidateReads).toBeLessThanOrEqual(rows.length * 10);
-    expect(dbMock.select).toHaveBeenCalledTimes(1);
+    expect(dbMock.calls).toHaveLength(1);
   });
 
   it("reads only the stored host where the country lists no official sites", async () => {

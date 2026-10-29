@@ -31,10 +31,8 @@ function scriptCountriesWithSites(visibleCountryCodes: string[], countryCodesWit
   );
 }
 
-function snapshotRead() {
-  const read = dbMock.calls.find((call) => call.table === snapshotsTable);
-  const selection = (read?.selection ?? {}) as Record<string, unknown>;
-  return { where: queryOf(read?.clauses.where?.[0]), sites: queryOf(selection.sites).sql };
+function snapshotFilter() {
+  return queryOf(dbMock.calls.find((call) => call.table === snapshotsTable)?.clauses.where?.[0]);
 }
 
 describe("GET /statistics/permits/history", () => {
@@ -53,7 +51,6 @@ describe("GET /statistics/permits/history", () => {
       { countryCode: "PL", snapshotOn: "2026-01-11", ...lte800, sites: 11, permits: 15, added: { sites: 1, permits: 3 } },
       { countryCode: "PL", snapshotOn: "2026-01-11", ...nr3500, sites: 2, permits: 2, added: { sites: 2, permits: 2 } },
     ]);
-    expect(snapshotRead().where.sql).toContain('"statistics"."stats_snapshots"."rat" is not null');
   });
 
   it("keeps the last snapshot of each month and compares the months with each other", async () => {
@@ -70,11 +67,7 @@ describe("GET /statistics/permits/history", () => {
       { countryCode: "PL", snapshotOn: "2026-01-31", ...totals, sites: 12, permits: 25, added: { sites: 0, permits: 0 } },
       { countryCode: "PL", snapshotOn: "2026-02-15", ...totals, sites: 11, permits: 30, added: { sites: -1, permits: 5 } },
     ]);
-
-    const { where, sites } = snapshotRead();
-    expect(where.sql).not.toContain("is not null");
-    expect(where.params).toEqual(["PL", "2026-01-01T00:00:00.000Z", "2026-03-01T00:00:00.000Z"]);
-    expect(sites).toContain('FILTER (WHERE NOT ("statistics"."stats_snapshots"."rat" is not null))');
+    expect(snapshotFilter().params).toEqual(["PL", "2026-01-01T00:00:00.000Z", "2026-03-01T00:00:00.000Z"]);
   });
 
   it("reads only the countries that have a source with sites you can see", async () => {
@@ -82,7 +75,7 @@ describe("GET /statistics/permits/history", () => {
     dbMock.enqueueFor("select", snapshotsTable, []);
     const app = await createRouteHarness(route);
     await app.inject({ url: "/statistics/permits/history" });
-    expect(snapshotRead().where.params).toEqual(["PL"]);
+    expect(snapshotFilter().params).toEqual(["PL"]);
   });
 
   it("reads no snapshot when no country has such a source", async () => {

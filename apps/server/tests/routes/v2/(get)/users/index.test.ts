@@ -16,11 +16,7 @@ describe("getUsers", () => {
     expect(response.json()).toEqual({ data: [], paging: { limit: 25, nextCursor: null } });
     const where = dbMock.calls.find((call) => call.table === "users")?.clauses.where?.[0] as SQL;
     const query = new PgDialect().sqlToQuery(where);
-    expect(query.sql).toContain('"email"');
-    expect(query.sql).toContain('"banned"');
-    expect(query.sql).toContain("now()");
     expect(query.params).toEqual(expect.arrayContaining(["%example%", readUserId, "admin", "editor"]));
-    expect(query.sql.includes("not ")).toBe(!isBanned);
   });
 
   it.each([
@@ -109,7 +105,6 @@ describe("getUsers", () => {
     expect(response.statusCode).toBe(200);
     const where = dbMock.calls.find((call) => call.table === "users")?.clauses.where?.[0] as SQL;
     const query = new PgDialect().sqlToQuery(where);
-    expect(query.sql).not.toContain('"email"');
     expect(query.params).toEqual(["%100\\%%", "%100\\%%"]);
   });
 

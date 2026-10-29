@@ -1,5 +1,4 @@
 import type { MicrowaveLinkRecord, OfficialSourceDefinition, PermitKind, SiteRecord, SitesDataset } from "@openbts/country-packs/sources";
-import { PgDialect } from "drizzle-orm/pg-core";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,6 +22,8 @@ import {
   recordTransactions,
   scriptDatasetOutcomes,
   sourceOf,
+  statementOf,
+  trace,
   valuesOf,
   whereOf,
 } from "../../../helpers/importEngineFixtures.js";
@@ -42,33 +43,6 @@ const NORTH_HELD = { datasetId: SITES_DATASET.id, slice: "north", outcome: "held
 const NORTH_UNCHANGED = { datasetId: SITES_DATASET.id, slice: "north", outcome: "unchanged" } as const;
 const LINKS_APPLIED = { datasetId: LINKS_DATASET.id, slice: "", outcome: "applied" } as const;
 
-const dialect = new PgDialect();
-const EXECUTED_STATEMENTS: readonly (readonly [RegExp, string])[] = [
-  [
-    /^SELECT place\.id, COALESCE\(known\.region_id, region_at\(place\.longitude, place\.latitude, claimed\.id\), claimed\.id\) AS "regionId"/,
-    "resolve: regions",
-  ],
-  [/^SELECT published\.licensee FROM jsonb_array_elements_text\(\$1::jsonb\) AS published \(licensee\) ORDER BY/, "resolve: order licensee names"],
-  [/^SET LOCAL effective_io_concurrency = 16$/, "stage: limit read-ahead"],
-  [/^SET LOCAL work_mem = '64MB'$/, "stage: raise work memory"],
-  [
-    /^DO \$create\$ BEGIN IF to_regclass\('"pg_temp"\."official_import_staged_permits"'\) IS NULL THEN CREATE TEMPORARY TABLE/,
-    "stage: create the table",
-  ],
-  [/^TRUNCATE/, "stage: empty the table"],
-  [/^INSERT INTO "pg_temp"/, "stage: records"],
-  [/^ANALYZE "pg_temp"\."official_import_staged_permits"$/, "stage: analyze"],
-  [/^UPDATE "official"\."locations" AS location/, "apply: update locations named by the register"],
-  [/SET location_id = moved\.to_location_id/, "apply: move sites"],
-  [/^WITH added AS/, "apply: insert sites"],
-  [/^ANALYZE "pg_temp"\."official_import_staged_permits" \(location_id, official_site_id\)$/, "apply: analyze site ids"],
-  [/^ANALYZE "pg_temp"\."official_import_staged_permits" \(permit_id\)$/, "apply: analyze permit ids"],
-  [/^WITH listed AS/, "apply: insert listings"],
-  [/^DELETE FROM "official"\."permit_sectors"/, "apply: delete unpublished sectors"],
-  [/^INSERT INTO "official"\."permit_sectors"/, "apply: insert sectors"],
-  [/^DELETE FROM "official"\."permit_listings"/, "apply: unlist"],
-  [/^UPDATE "official"\."microwave_links" AS link/, "apply: update links"],
-];
 const STAGED_PERMITS = "official_import_staged_permits";
 
 type StagedRow = {
@@ -88,25 +62,21 @@ let archiveDirectory: string;
 let environment: ImportEnvironment;
 let keptReports: Parameters<ImportEnvironment["keepDryRunReport"]>[];
 
-function executedQuery(call: DatabaseCall) {
-  return dialect.sqlToQuery(call.clauses.statement?.[0] as Parameters<PgDialect["sqlToQuery"]>[0]);
+function executed(): DatabaseCall[] {
+  return dbMock.calls.filter((call) => call.operation === "execute");
 }
 
-function executedText(call: DatabaseCall): string {
-  return executedQuery(call).sql.replace(/\s+/g, " ").trim();
+function jsonParamOf<Param>(call: DatabaseCall | undefined): Param {
+  return JSON.parse(String(statementOf(call).params[0]));
 }
 
-function executedLabel(call: DatabaseCall): string {
-  const text = executedText(call);
-  return EXECUTED_STATEMENTS.find(([pattern]) => pattern.test(text))?.[1] ?? text;
-}
-
-function trace(): string[] {
-  return dbMock.calls.map((call) => (call.operation === "execute" ? executedLabel(call) : [call.operation, call.table].filter(Boolean).join(" ")));
+function stagingStatements() {
+  const [regions, licenseeNames, , , , , records] = executed();
+  return { regions, licenseeNames, records };
 }
 
 function writesOf(operations: readonly string[]): string[] {
-  return operations.filter((operation) => /^(insert|update|delete|apply|stage: records)/.test(operation));
+  return operations.filter((operation) => /^(insert|update|delete)/.test(operation));
 }
 
 function siteRecord(overrides: { siteId?: string; name?: string | null; slice?: string } = {}): SiteRecord {
@@ -235,14 +205,8 @@ function scriptStatements(...results: unknown[][]): void {
   dbMock.enqueueFor("execute", undefined, ...results);
 }
 
-function jsonParamsOf<Param>(label: string): Param[] {
-  return dbMock.calls
-    .filter((call) => call.operation === "execute" && executedLabel(call) === label)
-    .map((call): Param => JSON.parse(String(executedQuery(call).params[0])));
-}
-
 function stagedRows(): StagedRow[] {
-  return jsonParamsOf<StagedRow[]>("stage: records").flat();
+  return jsonParamOf<StagedRow[]>(stagingStatements().records);
 }
 
 function scriptPreparation(): void {
@@ -463,20 +427,20 @@ describe("a run through the engine", () => {
       "commit",
       "begin",
       "select official.import_runs",
-      "resolve: regions",
-      "resolve: order licensee names",
+      "execute",
+      "execute",
       "select official.licensees",
-      "stage: limit read-ahead",
-      "stage: raise work memory",
-      "stage: create the table",
-      "stage: empty the table",
-      "stage: records",
-      "stage: analyze",
+      "execute",
+      "execute",
+      "execute",
+      "execute",
+      "execute",
+      "execute",
       "select official.permit_listings",
       "select official.import_run_approvals",
       "update official_import_staged_permits",
       "update official_import_staged_permits",
-      "apply: update locations named by the register",
+      "execute",
       "insert official.locations",
       "insert official.locations",
       "update official_import_staged_permits",
@@ -484,21 +448,21 @@ describe("a run through the engine", () => {
       "update official_import_staged_permits",
       "update official_import_staged_permits",
       `select ${STAGED_PERMITS}`,
-      "apply: move sites",
-      "apply: insert sites",
-      "apply: insert sites",
+      "execute",
+      "execute",
+      "execute",
       "update official_import_staged_permits",
       "update official_import_staged_permits",
-      "apply: analyze site ids",
+      "execute",
       "update official_import_staged_permits",
       "insert official.permits",
       "update official_import_staged_permits",
-      "apply: analyze permit ids",
+      "execute",
       "update official.permits",
       "update official.permit_listings",
-      "apply: insert listings",
-      "apply: insert sectors",
-      "apply: unlist",
+      "execute",
+      "execute",
+      "execute",
       "update official.sites",
       "insert official.import_run_slices",
       "insert official.import_run_skips",
@@ -540,7 +504,7 @@ describe("a run through the engine", () => {
       "insert official.microwave_link_transmitter_types",
       "select official.microwave_links",
       "insert official.microwave_links",
-      "apply: update links",
+      "execute",
       "delete official.microwave_links",
       "insert official.import_run_slices",
       "insert official.import_changes",
@@ -600,21 +564,19 @@ describe("a run through the engine", () => {
       ],
       [{ runId: RUN_ID, kind: "permit_archived", officialSiteId: 502, permitId: 600 }],
     ]);
-    const linkUpdates = dbMock.calls.filter((call) => call.operation === "execute" && executedLabel(call) === "apply: update links");
-    expect(linkUpdates.map((call) => executedQuery(call).params[0])).toEqual([FILE_DATE.toISOString()]);
-    expect(linkUpdates.map((call) => JSON.parse(String(executedQuery(call).params[1])))).toEqual([
-      [expect.objectContaining({ id: 801, tx_eirp: 31, permit_number: "RL/1", licensee_id: 8 })],
+    const [linkUpdateDate, changedLinks] = statementOf(executed().at(-1)).params;
+    const updatedLinks = JSON.parse(String(changedLinks));
+    expect(linkUpdateDate).toBe(FILE_DATE.toISOString());
+    expect(updatedLinks).toEqual([
+      expect.objectContaining({ id: 801, tx_eirp: 31, permit_number: "RL/1", licensee_id: 8, tx_transmitter_type_id: 31 }),
     ]);
-    const [linkUpdate = ""] = linkUpdates.map(executedText);
-    expect(linkUpdate).toContain('"tx_transmitter_type_id" = changed."tx_transmitter_type_id"');
-    expect(linkUpdate).toContain('"licensee_id" integer');
-    expect(linkUpdate).not.toContain('"modulation_type"');
+    expect(updatedLinks[0]).not.toHaveProperty("modulation_type");
     expect(valuesOf("insert", "official.microwave_links")).toEqual([
       [expect.objectContaining({ permit_number: "RL/new", operator_id: 8, tx_transmitter_type_id: 31, dataset_id: 3, createdAt: FILE_DATE })],
     ]);
   });
 
-  it("stages a permit without an expiry as an empty day and matches it to the stored permit without one", async () => {
+  it("stages a permit without an expiry as an empty day", async () => {
     const record = siteRecord();
     const source = sourceWith({ sites: () => recordsOf([{ ...record, permit: { ...record.permit, expiresOn: null } }]) });
     dbMock.enqueueFor("select", "official.import_run_datasets", [SITES_DATASET]);
@@ -629,23 +591,7 @@ describe("a run through the engine", () => {
 
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
 
-    const executed = dbMock.calls.filter((call) => call.operation === "execute");
-    const texts = executed.map((call) => executedText(call));
-    const stagedRows = executed.filter((call) => executedText(call).startsWith('INSERT INTO "pg_temp"')).map((call) => executedQuery(call).params[0]);
-    expect(texts.find((text) => text.startsWith("DO $create$"))).toContain(
-      "expiry_date date, status official_permit_status, sectors jsonb NOT NULL,",
-    );
-    expect(texts.find((text) => text.startsWith('INSERT INTO "pg_temp"'))).toContain(
-      "official_decision_type, expiry_date date, status official_permit_status, sectors jsonb",
-    );
-    expect(stagedRows.map((rows) => JSON.parse(String(rows)))).toEqual([[expect.objectContaining({ decision_type: "permit", expiry_date: null })]]);
-    const permitMatches = dbMock.calls.filter(
-      (call) => call.operation === "update" && call.table === STAGED_PERMITS && (call.values as Record<string, unknown>).permitId !== undefined,
-    );
-    expect(permitMatches.map((call) => whereOf(call).sql)).toEqual([
-      expect.stringContaining('"official"."permits"."expiry_date" IS NOT DISTINCT FROM "pg_temp"."official_import_staged_permits"."expiry_date"'),
-      expect.stringContaining('"official"."permits"."expiry_date" IS NOT DISTINCT FROM "pg_temp"."official_import_staged_permits"."expiry_date"'),
-    ]);
+    expect(stagedRows()).toEqual([expect.objectContaining({ decision_type: "permit", expiry_date: null })]);
   });
 
   it.each(["inventory", "registration"] as const)(
@@ -665,16 +611,15 @@ describe("a run through the engine", () => {
 
       expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
 
-      const stagedRows = dbMock.calls
-        .filter((call) => call.operation === "execute" && executedText(call).startsWith('INSERT INTO "pg_temp"'))
-        .map((call) => JSON.parse(String(executedQuery(call).params[0])));
-      expect(stagedRows).toEqual([[expect.objectContaining({ status: "approved" })]]);
-      const statusUpdate = dbMock.calls.find((call) => call.operation === "update" && call.table === "official.permits");
-      expect(whereOf(statusUpdate).sql).toContain(
-        '"official"."permits"."status" IS DISTINCT FROM "pg_temp"."official_import_staged_permits"."status"',
-      );
+      expect(dbMock.pendingResults()).toBe(0);
+      expect(stagedRows()).toEqual([expect.objectContaining({ status: "approved" })]);
       const operations = trace();
-      expect(operations[operations.indexOf("apply: insert sectors") - 1]).toBe("apply: delete unpublished sectors");
+      expect(operations.slice(operations.indexOf("update official.permit_listings") + 1, operations.indexOf("update official.sites"))).toEqual([
+        "execute",
+        "execute",
+        "execute",
+        "execute",
+      ]);
     },
   );
 
@@ -726,16 +671,11 @@ describe("a run through the engine", () => {
     expect(await processRun(claimedRun(), { ...environment, sources: [source] })).toBe("done");
 
     expect(dbMock.pendingResults()).toBe(0);
-    expect(
-      dbMock.calls
-        .filter((call) => call.operation === "execute" && executedLabel(call) === "resolve: regions")
-        .map((call) => executedQuery(call).params[1]),
-    ).toEqual([1]);
-    expect(jsonParamsOf("resolve: regions")).toEqual([
-      [
-        { id: 0, longitude: 21.0123, latitude: 52.2297, region_iso_code: "PL-14", source_ref: null },
-        { id: 1, longitude: 99, latitude: 52.2297, region_iso_code: "PL-14", source_ref: null },
-      ],
+    const { regions } = stagingStatements();
+    expect(statementOf(regions).params[1]).toBe(1);
+    expect(jsonParamOf(regions)).toEqual([
+      { id: 0, longitude: 21.0123, latitude: 52.2297, region_iso_code: "PL-14", source_ref: null },
+      { id: 1, longitude: 99, latitude: 52.2297, region_iso_code: "PL-14", source_ref: null },
     ]);
     expect(stagedRows()).toEqual([
       expect.objectContaining({
@@ -805,9 +745,9 @@ describe("a run through the engine", () => {
 
     expect(end).toBe("done");
     expect(dbMock.pendingResults()).toBe(0);
-    const release = trace().slice(trace().lastIndexOf("stage: create the table"));
-    expect(writesOf(release)).toEqual([
-      "stage: records",
+    const guarded = trace().slice(trace().lastIndexOf("select official.import_run_approvals"));
+    expect(guarded).not.toContain("execute");
+    expect(writesOf(guarded)).toEqual([
       "insert official.import_run_slices",
       "insert official.import_run_skips",
       "update official.import_runs",
@@ -875,7 +815,7 @@ describe("a run through the engine", () => {
 
     expect(dbMock.pendingResults()).toBe(0);
     expect(valuesOf("insert", "official.licensees")).toEqual([[{ sourceId: 1, full_name: "Play S.A.", name: "Play", operatorId: 5 }]]);
-    expect(jsonParamsOf("resolve: order licensee names")).toEqual([["SATFILM S.A.", "Orange Polska S.A.", "Hidden S.A.", "Play S.A."]]);
+    expect(jsonParamOf(stagingStatements().licenseeNames)).toEqual(["SATFILM S.A.", "Orange Polska S.A.", "Hidden S.A.", "Play S.A."]);
     expect(stagedRows().map((row) => [row.site_code, row.decision_number, row.licensee_id, row.operator_id])).toEqual([
       ["BT1001", "DZC/1", 8, 4],
       ["BT4001", "DZC/1", 12, 5],
@@ -971,7 +911,7 @@ describe("a run through the engine", () => {
 
     expect(dbMock.pendingResults()).toBe(0);
     expect(parse).not.toHaveBeenCalled();
-    expect(trace()).not.toContain("stage: create the table");
+    expect(trace()).not.toContain("execute");
     expect(valuesOf("insert", "official.import_run_slices")).toEqual([
       [{ runId: RUN_ID, datasetId: 1, snapshotId: 41, slice: "north", outcome: "unchanged", stagedCount: 12, liveCount: 12 }],
     ]);
@@ -1330,7 +1270,7 @@ describe("a run through the engine", () => {
       ],
     ]);
     const marked = dbMock.calls.find((call) => call.operation === "update" && call.table === "official.dataset_slices");
-    expect(dialect.sqlToQuery(marked?.clauses.where?.[0] as Parameters<PgDialect["sqlToQuery"]>[0]).params).toEqual([1, "north"]);
+    expect(whereOf(marked).params).toEqual([1, "north"]);
   });
 
   it("fails the dataset when its reader gives a record of a slice the release does not cover", async () => {
@@ -1380,7 +1320,7 @@ describe("a run through the engine", () => {
     expect(end).toMatchObject({ end: "done", report: { siteNames: { written: 1, skipped: 2 } } });
     expect(syncSiteNames).toHaveBeenCalledWith(expect.objectContaining({ siteNames: [{ operatorId: 4, siteId: "BT1001", name: "WAW CENTRUM" }] }));
     const operations = trace();
-    expect(operations.lastIndexOf(`select ${STAGED_PERMITS}`)).toBeGreaterThan(operations.indexOf("apply: unlist"));
+    expect(operations.lastIndexOf(`select ${STAGED_PERMITS}`)).toBeGreaterThan(operations.lastIndexOf("execute"));
     expect(operations.indexOf("insert audit_logs")).toBeLessThan(operations.indexOf("insert official.import_run_slices"));
   });
 

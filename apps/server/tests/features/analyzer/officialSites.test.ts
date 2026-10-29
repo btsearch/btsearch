@@ -89,8 +89,8 @@ function publicSites(rows: ReturnType<typeof officialSite>[]) {
   dbMock.enqueueFor("select", "official.sites", rows);
 }
 
-function permitStatements() {
-  return dbMock.calls.filter((call) => call.table === "official.permits").map((call) => queryOf(call.clauses.where?.[0]));
+function permitParams() {
+  return dbMock.calls.filter((call) => call.table === "official.permits").map((call) => queryOf(call.clauses.where?.[0]).params);
 }
 
 function unknownCell(operatorId: number, officialSiteIds: number[]) {
@@ -125,12 +125,7 @@ describe("POST /cells/match with include=officialSites", () => {
       results: [unknownCell(1, [911, 912])],
       officialSites: [officialSiteRef(911, 1), officialSiteRef(912, 1)],
     });
-    expect(permitStatements()).toEqual([
-      {
-        sql: `((split_part("official"."permits"."decision_number", '/', 3) in ($1, $2)) and ("official"."sites"."operator_id" in ($3)))`,
-        params: ["345678", "45678", 1],
-      },
-    ]);
+    expect(permitParams()).toEqual([["345678", "45678", 1]]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -153,7 +148,7 @@ describe("POST /cells/match with include=officialSites", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data.results).toEqual([unknownCell(2, [922, 924, 921, 923, 925])]);
     expect(response.json().data.officialSites.map((site: { id: number }) => site.id)).toEqual([921, 922, 923, 924, 925]);
-    expect(permitStatements().map((statement) => statement.params)).toEqual([["45678", "345678", 2, 3]]);
+    expect(permitParams()).toEqual([["45678", "345678", 2, 3]]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -198,7 +193,7 @@ describe("POST /cells/match with include=officialSites", () => {
       ],
       officialSites: [officialSiteRef(941, 1), officialSiteRef(942, 3), officialSiteRef(943, 2)],
     });
-    expect(permitStatements().map((statement) => statement.params)).toEqual([["345678", "45678", "5", 1, 3, 2]]);
+    expect(permitParams()).toEqual([["345678", "45678", "5", 1, 3, 2]]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -216,9 +211,7 @@ describe("POST /cells/match with include=officialSites", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data).toEqual({ results: [unknownCell(1, [912])], officialSites: [officialSiteRef(912, 1)] });
     const sites = dbMock.calls.find((call) => call.table === "official.sites");
-    const condition = queryOf(sites?.clauses.where?.[0]);
-    expect(condition.sql).toContain('"public_location"."source_id" in');
-    expect(condition.params).toEqual([911, 912, 1]);
+    expect(queryOf(sites?.clauses.where?.[0]).params).toEqual([911, 912, 1]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 

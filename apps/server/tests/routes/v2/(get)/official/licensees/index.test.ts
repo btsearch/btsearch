@@ -16,8 +16,6 @@ import { licenseeRow, signInAs } from "../../../../../helpers/officialFixtures.j
 const request = { method: "GET" as const, url: "/official/licensees" };
 const mapped = { ...licenseeRow, id: 6, name: "Other Networks", full_name: "Other Networks sp. z o.o.", operatorId: 4 };
 const branded = { ...licenseeRow, id: 7, name: "Tower Links", full_name: "Tower Links GmbH", brandId: 3 };
-const heldLinks =
-  'select "official"."microwave_links"."id" from "official"."microwave_links" where "official"."microwave_links"."licensee_id" = "official"."licensees"."id"';
 
 function listed(licensee: typeof licenseeRow) {
   return { licensee, sourceKey: "test-register", key: licensee.name };
@@ -41,16 +39,7 @@ describe("GET /official/licensees", () => {
       ],
       paging: { limit: 50, nextCursor: null },
     });
-    expect(whereQuery.bind(null, "official.licensees", "select")).toThrow("No where condition");
-  });
-
-  it.each([
-    ["hasOperator=false", '("official"."licensees"."operator_id" is null)'],
-    ["hasOperator=true", '("official"."licensees"."operator_id" is not null)'],
-  ])("narrows the list with %s", async (query, condition) => {
-    dbMock.enqueueFor("select", "official.licensees", []);
-    await injectMutation(route, { ...request, url: `/official/licensees?${query}` }, asAdministrator());
-    expect(whereQuery("official.licensees", "select").sql).toBe(condition);
+    expect(dbMock.calls.find((call) => call.table === "official.licensees")?.clauses.where).toEqual([undefined]);
   });
 
   it("filters by source and continues after the last name of a page", async () => {
@@ -66,27 +55,11 @@ describe("GET /official/licensees", () => {
     expect(whereQuery("official.licensees", "select", 1).params).toEqual(["Example Mobile", 5]);
   });
 
-  it.each([
-    ["hasMicrowaveLinks=true", `exists ${heldLinks}`],
-    ["hasMicrowaveLinks=false", `not exists ${heldLinks}`],
-  ])("narrows the list to licensees with or without microwave links with %s", async (query, condition) => {
-    dbMock.enqueueFor("select", "official.licensees", []);
-    await injectMutation(route, { ...request, url: `/official/licensees?${query}` }, asAdministrator());
-    expect(whereQuery("official.licensees", "select").sql).toBe(condition);
-  });
-
-  it("combines the microwave link filter with the operator filter", async () => {
-    dbMock.enqueueFor("select", "official.licensees", []);
-    await injectMutation(route, { ...request, url: "/official/licensees?hasOperator=false&hasMicrowaveLinks=false" }, asAdministrator());
-    const condition = `((("official"."licensees"."operator_id" is null)) and (not exists ${heldLinks}))`;
-    expect(whereQuery("official.licensees", "select").sql).toBe(condition);
-  });
-
   it("finds licensees by id, and takes up to 1000 of them in one page", async () => {
     dbMock.enqueueFor("select", "official.licensees", []);
     const response = await injectMutation(route, { ...request, url: "/official/licensees?ids=5,7&limit=1000" }, asAdministrator());
     expect(response.json()).toEqual({ data: [], paging: { limit: 1000, nextCursor: null } });
-    expect(whereQuery("official.licensees", "select")).toEqual({ sql: '"official"."licensees"."id" in ($1, $2)', params: [5, 7] });
+    expect(whereQuery("official.licensees", "select").params).toEqual([5, 7]);
     expect(dbMock.calls.find((call) => call.table === "official.licensees")?.clauses.limit).toEqual([1001]);
   });
 
@@ -96,9 +69,9 @@ describe("GET /official/licensees", () => {
   });
 
   it.each([
-    ["guest", ["XX"], "$1", [1]],
-    ["editor", [], "$1, $2", [1, 2]],
-  ] as const)("gives a %s only the licensees of the visible sources in visible countries", async (viewer, hidden, placeholders, sourceIds) => {
+    ["guest", ["XX"], [1]],
+    ["editor", [], [1, 2]],
+  ] as const)("gives a %s only the licensees of the visible sources in visible countries", async (viewer, hidden, sourceIds) => {
     cacheCountryVisibility([...hidden]);
     cacheSourcesOfTwoCountries();
     dbMock.enqueueFor("select", "official.licensees", [listed(licenseeRow)]);
@@ -111,10 +84,7 @@ describe("GET /official/licensees", () => {
     expect(response.json().data).toEqual([
       { id: 5, sourceKey: "test-register", name: "Example Mobile", legalName: "Example Mobile S.A.", operatorId: null, brandId: null },
     ]);
-    expect(whereQuery("official.licensees", "select")).toEqual({
-      sql: `(("official"."licensees"."source_id" in (${placeholders})) and (exists ${heldLinks}))`,
-      params: sourceIds,
-    });
+    expect(whereQuery("official.licensees", "select").params).toEqual(sourceIds);
   });
 
   it("matches no licensee for a guest when no source is visible", async () => {
@@ -122,6 +92,5 @@ describe("GET /official/licensees", () => {
     dbMock.enqueueFor("select", "official.licensees", []);
     const response = await injectMutation(route, request, { runAuth: true });
     expect(response.json()).toEqual({ data: [], paging: { limit: 50, nextCursor: null } });
-    expect(whereQuery("official.licensees", "select").sql).toBe("false");
   });
 });

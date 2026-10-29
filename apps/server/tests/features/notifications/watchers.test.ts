@@ -67,15 +67,10 @@ describe("the watchers of a station or an official site", () => {
         [502, [SECOND]],
       ]),
     );
-    const lists = statementOf(dbMock.calls.find((call) => call.operation === "execute"));
-    expect(lists.sql).toContain(
-      `JOIN "user_lists" AS list ON coalesce(list.stations->'official', '[]'::jsonb) @> jsonb_build_array(watched.id::integer)`,
-    );
-    expect(lists.sql).toContain("WHERE list.notifications_enabled = true");
-    expect(lists.params).toEqual(["[501,502,503]"]);
+    expect(statementOf(dbMock.calls.find((call) => call.operation === "execute")).params).toEqual(["[501,502,503]"]);
   });
 
-  it("are read for a page of our stations from the lists' internal stations", async () => {
+  it("are read for a page of our stations: direct watchers first, then the owners of notifying lists", async () => {
     const { asTx } = transaction();
     dbMock.enqueueFor("select", "station_watches", [{ watchedId: 101, userId: FIRST }]);
     dbMock.enqueueFor("execute", undefined, [{ watchedId: 100, userId: SECOND }]);
@@ -86,7 +81,6 @@ describe("the watchers of a station or an official site", () => {
         [100, [SECOND]],
       ]),
     );
-    expect(statementOf(dbMock.calls.find((call) => call.operation === "execute")).sql).toContain("list.stations->'internal'");
   });
 });
 

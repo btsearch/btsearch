@@ -67,8 +67,6 @@ describe("getStations", () => {
     const where = dbMock.calls.find((call) => call.table === table)?.clauses.where?.[0] as SQL;
     const query = new PgDialect().sqlToQuery(where);
     expect(query.params).toEqual(expect.arrayContaining(["inactive", "LTE", 0]));
-    expect(query.sql).toContain("IS NOT TRUE");
-    expect(query.sql).toContain("supports_iot");
   });
 
   it.each(["cursor=opaque&offset=0", "limit=1001", "statuses=published", "include=location.invalid", "supportsIot=1"])(

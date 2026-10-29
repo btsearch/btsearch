@@ -1,5 +1,5 @@
-import type { SQL } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
+import { stationComments } from "@openbts/drizzle";
+import { asc } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { encodeCursor } from "../../../../../src/lib/cursor.js";
@@ -27,8 +27,7 @@ describe("GET /comments", () => {
     expect(query.params).toEqual(expect.arrayContaining([7, actor, "pending", "%\\%\\_%"]));
     const call = dbMock.calls.find((entry) => entry.table === "station_comments");
     expect(call?.clauses.offset).toEqual([4]);
-    const direction = new PgDialect().sqlToQuery(call?.clauses.orderBy?.[0] as SQL);
-    expect(direction.sql).toContain("asc");
+    expect(call?.clauses.orderBy).toEqual([asc(stationComments.createdAt), asc(stationComments.id)]);
   });
 
   it("requires an authenticated actor", async () => {

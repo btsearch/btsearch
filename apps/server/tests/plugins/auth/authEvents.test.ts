@@ -104,7 +104,7 @@ function forgetDatabaseCalls() {
 }
 
 function answerWithStoredRows(table: string, rows: () => Row[]) {
-  dbMock.enqueueFor("select", table, { then: (resolve: (value: Row[]) => void) => resolve(rows()) });
+  dbMock.enqueueReadFor("select", table, rows);
 }
 
 function storedUser(id: unknown): Row {

@@ -1,4 +1,5 @@
-import type { SQL } from "drizzle-orm";
+import { stationComments } from "@openbts/drizzle";
+import { type SQL, asc, desc } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
@@ -125,8 +126,8 @@ describe("getUserComments", () => {
     const call = dbMock.calls.find((entry) => entry.table === "station_comments");
     const where = new PgDialect().sqlToQuery(call?.clauses.where?.[0] as SQL);
     expect(where.params).toEqual(expect.arrayContaining([readUserId, "approved", "US", 1]));
-    const order = new PgDialect().sqlToQuery(call?.clauses.orderBy?.[0] as SQL).sql;
-    expect(order).toContain(sort === "createdAt" ? "asc" : "desc");
+    const direction = sort === "createdAt" ? asc : desc;
+    expect(call?.clauses.orderBy).toEqual([direction(stationComments.createdAt), direction(stationComments.id)]);
   });
 
   it("returns a public profile's empty approved collection with a total", async () => {

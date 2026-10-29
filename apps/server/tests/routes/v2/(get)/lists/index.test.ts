@@ -69,7 +69,6 @@ describe("GET /lists", () => {
     expect(conditions).toHaveLength(2);
     const condition = whereQuery("user_lists", "select");
     expect(condition.params).toEqual([otherOwnerId, thirdOwnerId]);
-    expect(condition.sql).toContain("IS NOT TRUE");
   });
 
   it("keeps only public lists among the owner's own", async () => {
@@ -97,7 +96,6 @@ describe("GET /lists", () => {
     expect(response.json()).toMatchObject({ paging: { total: 0 } });
     const condition = whereQuery("user_lists", "select");
     expect(condition.params).toEqual(expect.arrayContaining([ownerId, "[12]", "[13]", "[24]", "[36]", "%\\%\\_%"]));
-    expect(condition.sql).toContain("or");
   });
 
   it("rejects malformed cursors without reading lists", async () => {

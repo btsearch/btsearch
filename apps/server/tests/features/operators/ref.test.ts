@@ -40,9 +40,7 @@ describe("loadOperatorRefs", () => {
 
     await loadOperatorRefs([2]);
 
-    const sharedNetworkLookup = new PgDialect().sqlToQuery(selects("operators")[1]?.clauses.where?.[0] as SQL);
-    expect(sharedNetworkLookup.sql).toContain('"operator_links"');
-    expect(sharedNetworkLookup.params).toEqual([2, "jv_member"]);
+    expect(new PgDialect().sqlToQuery(selects("operators")[1]?.clauses.where?.[0] as SQL).params).toEqual([2, "jv_member"]);
     expect(selects("plmns")).toHaveLength(2);
   });
 

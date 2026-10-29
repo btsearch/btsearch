@@ -3,7 +3,6 @@ import { expect } from "vitest";
 
 import { findDocumentationGap } from "../../src/features/openapi/document.js";
 import { authBoundary, cacheInRedis, dbMock } from "./boundaries.js";
-import { whereQuery } from "./mutationAssertions.js";
 
 const importedAt = new Date("2026-10-01T00:00:00.000Z");
 const changedAt = new Date("2026-10-10T00:00:00.000Z");
@@ -135,11 +134,6 @@ export function scriptUserVisibility(sourceIds: number[] = [1]): void {
 
 export function scriptAdminVisibility(): void {
   scriptGuestVisibility([]);
-}
-
-export function renderedWhere(table: string, position = 0): { sql: string; params: unknown[] } {
-  const { sql, params } = whereQuery(table, "select", position);
-  return { sql: sql.replace(/\s+/g, " "), params };
 }
 
 export function tablesRead(): string[] {

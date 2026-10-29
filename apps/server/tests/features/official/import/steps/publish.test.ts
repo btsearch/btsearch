@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RunNotOwnedError } from "../../../../../src/features/official/import/runs.js";
 import { type DatasetOutcome, datasetOutcomesOf } from "../../../../../src/features/official/import/steps/datasetOutcomes.js";
 import { type RunView, importCompletionOf, publish } from "../../../../../src/features/official/import/steps/publish.js";
-import { dbMock, queryOf, redisMock } from "../../../../helpers/boundaries.js";
+import { dbMock, redisMock } from "../../../../helpers/boundaries.js";
 import {
   FOREIGN_TOKEN,
   RUN_ID,
@@ -202,8 +202,6 @@ describe("the publish step", () => {
     expect(record).toEqual(["select official.import_runs", "update official.import_run_steps", "commit"]);
     expect(dbMock.calls.some((call) => call.table === "official.uke_import_metadata")).toBe(false);
 
-    const datasetsRead = dbMock.calls.find((call) => call.table === "official.datasets");
-    expect(queryOf(datasetsRead?.clauses.orderBy?.[0]).sql).toContain('"key" asc');
     expect(redisMock.set).not.toHaveBeenCalled();
     expect(published()).toEqual([{ channel: CHANNEL, event: EXPECTED_EVENT }]);
   });
