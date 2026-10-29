@@ -6,6 +6,7 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { open } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { Agent, fetch } from "undici";
 import type { z } from "zod/v4";
 
 import { isZipContainer } from "./archive.js";
@@ -18,9 +19,15 @@ export type FileHead = { sizeBytes: number | null; etag: string | null; lastModi
 
 const ZIP_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 
+const http1Agent = new Agent({ allowH2: false });
+
 export function timedFetch(signal: AbortSignal, timeoutMs: number): typeof fetch {
   return (input, init) =>
-    fetch(input, { ...init, signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs), ...(init?.signal ? [init.signal] : [])]) });
+    fetch(input, {
+      ...init,
+      dispatcher: http1Agent,
+      signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs), ...(init?.signal ? [init.signal] : [])]),
+    });
 }
 
 function headerDate(value: string | null): Date | null {

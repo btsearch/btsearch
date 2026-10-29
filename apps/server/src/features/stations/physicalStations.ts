@@ -15,9 +15,11 @@ export const physicalStationSchema = createSelectSchema(stations)
 
 export type PhysicalStation = z.infer<typeof physicalStationSchema>;
 
-const hasOfficialSite = exists(
-  db.select({ stationId: stationsOfficialSites.station_id }).from(stationsOfficialSites).where(eq(stationsOfficialSites.station_id, stations.id)),
-).mapWith(Boolean);
+function hasOfficialSite() {
+  return exists(
+    db.select({ stationId: stationsOfficialSites.station_id }).from(stationsOfficialSites).where(eq(stationsOfficialSites.station_id, stations.id)),
+  ).mapWith(Boolean);
+}
 
 export async function findPhysicalStations(locationId: number): Promise<Map<number, PhysicalStation>> {
   const rows = await db
@@ -26,7 +28,7 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
       station_id: stations.station_id,
       status: stations.status,
       operator: operators,
-      hasOfficialSite,
+      hasOfficialSite: hasOfficialSite(),
     })
     .from(stations)
     .innerJoin(operators, eq(operators.id, stations.operator_id))
@@ -59,7 +61,7 @@ export async function findHostStationIds(
       countryCode: regions.countryCode,
       operatorId: operatorLinks.operatorId,
       sharedNetworkId: operatorLinks.relatedOperatorId,
-      hasOfficialSite,
+      hasOfficialSite: hasOfficialSite(),
     })
     .from(stations)
     .innerJoin(locations, eq(locations.id, stations.location_id))
