@@ -910,7 +910,8 @@ export function FloatingNav() {
   };
 
   const handleVisibleNavTouchStart = (event: TouchEvent<HTMLElement>) => {
-    if (!isMobile || event.touches.length !== 1) {
+    const isInsideNav = event.target instanceof Node && event.currentTarget.contains(event.target);
+    if (!isMobile || !isInsideNav || event.touches.length !== 1) {
       clearVisibleNavSwipe();
       return;
     }

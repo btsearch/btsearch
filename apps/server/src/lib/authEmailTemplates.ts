@@ -48,7 +48,7 @@ const copy: Record<AuthEmailLocale, LocalizedAuthEmailCopy> = {
       heading: "Potwierdź adres e-mail",
       introduction: "Kliknij poniższy przycisk, aby potwierdzić ten adres w serwisie BTSearch",
       action: "Potwierdź adres e-mail",
-      securityNote: "Jeśli nie próbowałeś potwierdzić tego adresu, możesz zignorować tę wiadomość",
+      securityNote: "Jeśli nie próbowałeś(-aś) potwierdzić tego adresu, możesz zignorować tę wiadomość",
     },
     passwordReset: {
       subject: "Ustaw nowe hasło",

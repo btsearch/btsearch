@@ -1,4 +1,5 @@
 import type { CountryPack } from "../core/registry.ts";
+import { DEFAULT_EARFCN } from "./earfcn.ts";
 
 export const gb: CountryPack = {
   countryCode: "GB",
@@ -7,4 +8,5 @@ export const gb: CountryPack = {
   conventions: {
     gnbidLength: () => 22,
   },
+  defaultEarfcn: DEFAULT_EARFCN,
 };

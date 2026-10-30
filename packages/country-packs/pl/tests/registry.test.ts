@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { defaultConventions } from "../../core/conventions.ts";
-import { capabilitiesFor, conventionsFor, countryCodesWith, knownGnbidLength } from "../../core/registry.ts";
+import { capabilitiesFor, conventionsFor, countryCodesWith, defaultLteEarfcn, knownGnbidLength } from "../../core/registry.ts";
 import { pl } from "../index.ts";
 import { PLAY, TMOBILE, WITHOUT_PLMN } from "./operators.ts";
 
@@ -89,6 +89,15 @@ void test("knows a gNB ID length by PLMN only where it differs from the default"
   assert.equal(knownGnbidLength("234", "15"), 22);
   assert.equal(knownGnbidLength("235", "02"), 22);
   assert.equal(knownGnbidLength("262", "01"), null);
+});
+
+void test("looks a default EARFCN up by the operator's primary PLMN in every pack", () => {
+  assert.equal(defaultLteEarfcn("26001", 2600, "TDD"), 37900);
+  assert.equal(defaultLteEarfcn("23415", 2600, "FDD"), 2850);
+  assert.equal(defaultLteEarfcn("23415", 2600, "TDD"), 37900);
+  assert.equal(defaultLteEarfcn("23430", 2600, "TDD"), null);
+  assert.equal(defaultLteEarfcn("23431", 1800, "FDD"), null);
+  assert.equal(defaultLteEarfcn("26201", 1800, "FDD"), null);
 });
 
 const TERRAIN_PROFILES = { receiverBounds: { south: 48.8, north: 55.2, west: 13.8, east: 24.5 } };

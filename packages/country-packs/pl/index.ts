@@ -6,6 +6,7 @@ import { normalizeGeocodedPlace } from "./conventions/geocoding.ts";
 import { formatIdentifier, identifierKinds } from "./conventions/identifiers.ts";
 import { equivalentEnbids, sharedSite } from "./conventions/networks.ts";
 import { suggestOperatorName } from "./conventions/operatorName.ts";
+import { DEFAULT_EARFCN } from "./earfcn.ts";
 import { PLAY_PLMN } from "./operators.ts";
 
 export const pl: CountryPack = {
@@ -29,4 +30,5 @@ export const pl: CountryPack = {
     hoistedTac,
     normalizeGeocodedPlace,
   },
+  defaultEarfcn: DEFAULT_EARFCN,
 };

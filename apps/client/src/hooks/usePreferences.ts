@@ -289,7 +289,7 @@ function resolveProfile(): PreferenceProfile {
   const override = readStorageValue(PROFILE_OVERRIDE_KEY);
   if (override === "desktop" || override === "mobile") return override;
   if (typeof window === "undefined") return DEFAULT_PROFILE;
-  return window.innerWidth < MOBILE_WIDTH ? "mobile" : "desktop";
+  return Math.min(window.screen.width, window.screen.height) < MOBILE_WIDTH ? "mobile" : "desktop";
 }
 
 function handleResize() {
