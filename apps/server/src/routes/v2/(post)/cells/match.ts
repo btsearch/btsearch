@@ -13,7 +13,7 @@ const schemaRoute = {
   description:
     "Tells you, for each cell a phone saw, whether the cell or at least its base station is known. " +
     "Nothing is changed. The request is only counted in the log analyzer usage statistics. " +
-    "Cells are only matched against active stations, and networks or stations in countries you cannot access are reported as unknown. " +
+    "Cells of inactive stations are not matched, and networks or stations in countries you cannot access are reported as unknown. " +
     "You can send 30 requests per minute. Signed in as an editor you can send 120, and administrators are not limited. " +
     "With an API key the limit is always 30.",
   querystring: cellMatchQuerySchema,

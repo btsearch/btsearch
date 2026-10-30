@@ -45,6 +45,7 @@ import { stationCountryCode, stationPlacementMatches } from "../stations/country
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, toCell } from "../stations/serialize.js";
+import { DEFAULT_STATION_STATUSES } from "../stations/status.js";
 import { type OfficialSiteMatches, type UnmatchedCell, findCandidateSiteIds, findOfficialSites } from "./officialSites.js";
 
 type Network = {
@@ -56,7 +57,7 @@ type Network = {
   hasGuestCells: boolean;
   isMatchable: boolean;
 };
-type MatchScope = { hiddenCountryCodes: readonly string[]; publishedOnly: boolean; followsAnalyzerSwitch: boolean };
+type MatchScope = { hiddenCountryCodes: readonly string[]; skipsInactive: boolean; followsAnalyzerSwitch: boolean };
 export type SystemCellMatch = { result: CellMatchResult; officialSiteIds: number[] };
 type StoredCell = CellRows & { operatorId: number | null; through?: "extraCode" | "missingCode" };
 type IdentifierPair = [number, number];
@@ -83,7 +84,7 @@ const VALUES_PER_QUERY = 1000;
 const NETWORK_MATCH_RANKS: Record<CellNetworkMatch, number> = { own: 0, extraCode: 1, partner: 2, missingCode: 3 };
 const STORED_CELL_COLUMNS = { cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells, operatorId: stations.operator_id };
 export const SHARED_AREA_FIELDS = new Set<string>(["tac", "lac"]);
-const SYSTEM_SCOPE: MatchScope = { hiddenCountryCodes: [], publishedOnly: false, followsAnalyzerSwitch: false };
+const SYSTEM_SCOPE: MatchScope = { hiddenCountryCodes: [], skipsInactive: false, followsAnalyzerSwitch: false };
 
 function identityKey(operatorId: number, ...values: (number | string)[]): string {
   return `${operatorId}:${values.join(":")}`;
@@ -158,7 +159,7 @@ function inChannelIdentifiers(
 }
 
 function scopeConditions(scope: MatchScope): SQL[] {
-  const statusConditions = scope.publishedOnly ? [eq(stations.status, "published")] : [];
+  const statusConditions = scope.skipsInactive ? [inArray(stations.status, DEFAULT_STATION_STATUSES)] : [];
   return [...statusConditions, ...stationAreaConditions({}, scope.hiddenCountryCodes)];
 }
 
@@ -677,7 +678,7 @@ export async function matchCells(
   observed: readonly ObservedCell[],
   include: readonly CellMatchInclude[],
 ): Promise<CellMatchAnswer> {
-  const scope: MatchScope = { hiddenCountryCodes: await loadHiddenCountryCodes(req), publishedOnly: true, followsAnalyzerSwitch: true };
+  const scope: MatchScope = { hiddenCountryCodes: await loadHiddenCountryCodes(req), skipsInactive: true, followsAnalyzerSwitch: true };
   const { networks, featuresByStation, matches } = await matchInScope(scope, observed);
   const results = matches.map(({ result }) => result);
   const stationIds = unique(results.flatMap((result) => result.stationId ?? []));

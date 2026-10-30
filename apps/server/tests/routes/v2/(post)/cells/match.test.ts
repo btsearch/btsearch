@@ -107,7 +107,7 @@ describe("POST /cells/match", () => {
     });
     const query = dbMock.calls.find((call) => call.table === "cells")?.clauses.where?.[0];
     const sql = new PgDialect().sqlToQuery(query as Parameters<PgDialect["sqlToQuery"]>[0]);
-    expect(sql.params).toContain("published");
+    expect(sql.params).toEqual(expect.arrayContaining(["published", "pending"]));
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -271,7 +271,7 @@ describe("POST /cells/match", () => {
     });
     const guestLookup = dbMock.calls.filter((call) => call.table === "cell_plmns")[1]?.clauses.where?.[0];
     const { params } = new PgDialect().sqlToQuery(guestLookup as Parameters<PgDialect["sqlToQuery"]>[0]);
-    expect(params).toEqual(expect.arrayContaining([plmn, 100, 2, "published"]));
+    expect(params).toEqual(expect.arrayContaining([plmn, 100, 2, "published", "pending"]));
   });
 
   it("prefers the operator's own cell over one that broadcasts its code", async () => {
