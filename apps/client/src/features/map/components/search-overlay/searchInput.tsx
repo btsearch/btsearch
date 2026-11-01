@@ -1,12 +1,14 @@
-import { AlertCircleIcon, Cancel01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, AlertCircleIcon, Cancel01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { AnimatePresence } from "motion/react";
 import { type KeyboardEvent, type ReactNode, type RefObject, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { QueryProblem } from "../../searchAutocomplete";
 import type { ParsedFilter } from "../../types";
-import { Reveal } from "./mapFilterMotion";
+import { FadeItem, Reveal } from "./mapFilterMotion";
 import { SearchProblemNote } from "./searchProblemNote";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,7 @@ type SearchInputProps = {
   onFixQuery: () => void;
   onClearSearch: () => void;
   onMobileExpand: () => void;
+  onAddFilter?: () => void;
   mode: "results" | "map";
   showModeControl: boolean;
   onModeChange: (mode: "results" | "map") => void;
@@ -104,6 +107,7 @@ export function SearchInput({
   onFixQuery,
   onClearSearch,
   onMobileExpand,
+  onAddFilter,
   mode,
   showModeControl,
   onModeChange,
@@ -210,10 +214,24 @@ export function SearchInput({
         {filterSlot}
       </div>
 
-      <Reveal shown={isFocused && showModeControl}>
+      <Reveal shown={isFocused && (showModeControl || onAddFilter !== undefined)}>
         <div className="flex items-center justify-end gap-2 px-2.5 pb-2 md:px-3">
-          <span className="text-[11px] leading-4 text-muted-foreground">{t("search.modeShow")}</span>
-          <SearchModeControl mode={mode} onModeChange={onModeChange} />
+          <AnimatePresence initial={false}>
+            {onAddFilter ? (
+              <FadeItem key="add-filter" className="mr-auto">
+                <Button variant="ghost" size="xs" onPointerDown={(event) => event.preventDefault()} onClick={onAddFilter}>
+                  <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" aria-hidden="true" />
+                  {t("search.addFilter")}
+                </Button>
+              </FadeItem>
+            ) : null}
+          </AnimatePresence>
+          {showModeControl ? (
+            <>
+              <span className="text-[11px] leading-4 text-muted-foreground">{t("search.modeShow")}</span>
+              <SearchModeControl mode={mode} onModeChange={onModeChange} />
+            </>
+          ) : null}
         </div>
       </Reveal>
 

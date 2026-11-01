@@ -192,6 +192,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     invalidChipIndexes,
     queryProblem,
     activeOverlay,
+    overlayToOpen,
     containerRef,
     inputRef,
     focusedChipIndex,
@@ -203,6 +204,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     handleKeyDown: handleChipKeyDown,
     selectAssistOption,
     openChipPicker,
+    openAllFilters,
     goBack,
     forgetRecent,
     rememberQuery,
@@ -322,7 +324,8 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const isMobileSearchExpanded = mobileExpanded || showAssist || showResults;
   const isMobileSearchCollapsed = isMobile && !isMobileSearchExpanded && !isFocused;
   const showMobileMapContext = isMobileSearchCollapsed && mapContext !== undefined;
-  const opensAssist = shownAssist !== null && (shownAssist.view !== "keywords" || searchMode !== "results");
+  const opensAssist = shownAssist !== null && overlayToOpen === "assist";
+  const canAddFilter = shownAssist?.view === "home" && overlayToOpen === "results";
 
   let navigationOptions: SearchOption[] = EMPTY_RESULTS;
   if (showAssist || (!showResults && opensAssist)) navigationOptions = assistOptions;
@@ -651,6 +654,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               onFixQuery={fixQueryProblem}
               onClearSearch={clearSearch}
               onMobileExpand={handleMobileExpand}
+              onAddFilter={canAddFilter ? openAllFilters : undefined}
               mode={searchMode}
               showModeControl={supportsMapMode && !isOfficialSource}
               onModeChange={handleSearchModeChange}

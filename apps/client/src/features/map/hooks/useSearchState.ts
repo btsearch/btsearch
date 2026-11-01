@@ -52,11 +52,17 @@ type UseSearchStateArgs = {
 
 const REMEMBERED_TEXT_MIN_LENGTH = 3;
 
-function computeOverlay(input: string, context: SearchContext, resultsEnabled: boolean): OverlayType {
-  if (context.kind === "empty" || context.kind === "value") return "assist";
+function computeOverlay(input: string, context: SearchContext, hasFilters: boolean, resultsEnabled: boolean): OverlayType {
+  if (context.kind === "empty") return hasFilters && resultsEnabled ? "results" : "assist";
+  if (context.kind === "value") return "assist";
   if (context.kind === "word") return resultsEnabled ? "results" : "assist";
   if (resultsEnabled && input.trim() !== "") return "results";
   return null;
+}
+
+function computeOverlayToOpen(state: SearchState, keywords: readonly FilterKeyword[], resultsEnabled: boolean): OverlayType {
+  if (state.picker || state.showAllFilters) return "assist";
+  return computeOverlay(state.inputValue, getSearchContext(state.inputValue, keywords), state.parsedFilters.length > 0, resultsEnabled);
 }
 
 function hasUnclosedQuote(input: string): boolean {
@@ -118,7 +124,7 @@ export function useSearchState({
     return freshSearchState(
       filters,
       remainingText,
-      opensFromUrl ? computeOverlay(remainingText, getSearchContext(remainingText, filterKeywords), resultsEnabled) : null,
+      opensFromUrl ? computeOverlay(remainingText, getSearchContext(remainingText, filterKeywords), filters.length > 0, resultsEnabled) : null,
     );
   });
   const [isFocused, setIsFocused] = useState(false);
@@ -150,6 +156,7 @@ export function useSearchState({
   const debouncedInput = useDebouncedValue(queryText.trim(), 500);
 
   const statsSearchMode = !resultsEnabled || debouncedInput === "" ? "bounds" : "search";
+  const overlayToOpen = computeOverlayToOpen(searchState, filterKeywords, resultsEnabled);
 
   const assist = useMemo((): SearchAssist | null => {
     if (picker) {
@@ -190,8 +197,8 @@ export function useSearchState({
     if (nextQuery !== externalQuery) onQueryChange?.(nextQuery);
   }
 
-  function overlayFor(input: string, withResults = resultsEnabled): OverlayType {
-    return computeOverlay(input, getSearchContext(input, filterKeywords), withResults);
+  function overlayFor(input: string, filters: ParsedFilter[]): OverlayType {
+    return computeOverlay(input, getSearchContext(input, filterKeywords), filters.length > 0, resultsEnabled);
   }
 
   function rememberQuery() {
@@ -206,7 +213,7 @@ export function useSearchState({
   function applyQuery(nextQuery: string) {
     const { filters, remainingText } = parseFilters(nextQuery);
     publishQuery(filters, withoutUnfinishedValue(remainingText, filterKeywords));
-    setSearchState(freshSearchState(filters, remainingText, overlayFor(remainingText)));
+    setSearchState(freshSearchState(filters, remainingText, overlayFor(remainingText, filters)));
     inputRef.current?.focus();
   }
 
@@ -220,7 +227,7 @@ export function useSearchState({
     if (containerRef.current?.contains(relatedTarget) && !excludedFocusRegion?.contains(relatedTarget)) return;
     setIsFocused(false);
     rememberQuery();
-    setSearchState((current) => ({ ...withoutPicker(current), activeOverlay: null, focusedChipIndex: null }));
+    setSearchState((current) => ({ ...withoutPicker(current), activeOverlay: null, focusedChipIndex: null, showAllFilters: false }));
   }
 
   function handleInputChange(e: ChangeEvent<HTMLInputElement>) {
@@ -237,7 +244,7 @@ export function useSearchState({
 
       if (detected.length > parsedFilters.length) {
         publishQuery(detected, remainingText);
-        setSearchState(freshSearchState(detected, remainingText, overlayFor(remainingText)));
+        setSearchState(freshSearchState(detected, remainingText, overlayFor(remainingText, detected)));
         return;
       }
     }
@@ -248,14 +255,19 @@ export function useSearchState({
       inputValue: value,
       focusedChipIndex: null,
       showAllFilters: false,
-      activeOverlay: overlayFor(value),
+      activeOverlay: overlayFor(value, current.parsedFilters),
     }));
   }
 
   function applyAutocomplete(keyword: string) {
     const nextInput = replaceLastSearchToken(inputValue, keyword);
     publishQuery(parsedFilters, withoutUnfinishedValue(nextInput, filterKeywords));
-    setSearchState((current) => ({ ...current, inputValue: nextInput, showAllFilters: false, activeOverlay: overlayFor(nextInput) }));
+    setSearchState((current) => ({
+      ...current,
+      inputValue: nextInput,
+      showAllFilters: false,
+      activeOverlay: overlayFor(nextInput, current.parsedFilters),
+    }));
     inputRef.current?.focus();
   }
 
@@ -285,7 +297,7 @@ export function useSearchState({
         inputValue: isSingle ? base : "",
         picker: isSingle ? null : { key: keyword.key.slice(0, -1), chipIndex: nextFilters.length - 1, savedInput: base },
         focusedChipIndex: null,
-        activeOverlay: isSingle ? overlayFor(base) : "assist",
+        activeOverlay: isSingle ? overlayFor(base, nextFilters) : "assist",
       }));
       inputRef.current?.focus();
       return;
@@ -305,7 +317,11 @@ export function useSearchState({
 
     publishQuery(nextFilters, picker.savedInput);
     if (isSingle) {
-      setSearchState((current) => ({ ...withoutPicker(current), parsedFilters: nextFilters, activeOverlay: overlayFor(picker.savedInput) }));
+      setSearchState((current) => ({
+        ...withoutPicker(current),
+        parsedFilters: nextFilters,
+        activeOverlay: overlayFor(picker.savedInput, nextFilters),
+      }));
     } else {
       setSearchState((current) => ({
         ...current,
@@ -336,7 +352,7 @@ export function useSearchState({
     setSearchState((current) => ({
       ...withoutPicker(current),
       focusedChipIndex: focusChip ? picker.chipIndex : null,
-      activeOverlay: overlayFor(picker.savedInput),
+      activeOverlay: overlayFor(picker.savedInput, current.parsedFilters),
     }));
     inputRef.current?.focus();
   }
@@ -346,7 +362,12 @@ export function useSearchState({
       closePicker(false);
       return;
     }
-    setSearchState((current) => ({ ...current, inputValue: finishedInput, showAllFilters: false, activeOverlay: overlayFor(finishedInput) }));
+    setSearchState((current) => ({
+      ...current,
+      inputValue: finishedInput,
+      showAllFilters: false,
+      activeOverlay: overlayFor(finishedInput, current.parsedFilters),
+    }));
     inputRef.current?.focus();
   }
 
@@ -354,7 +375,11 @@ export function useSearchState({
     if (!picker) return;
     const nextFilters = parsedFilters.filter((_, index) => index !== picker.chipIndex);
     publishQuery(nextFilters, picker.savedInput);
-    setSearchState((current) => ({ ...withoutPicker(current), parsedFilters: nextFilters, activeOverlay: overlayFor(picker.savedInput) }));
+    setSearchState((current) => ({
+      ...withoutPicker(current),
+      parsedFilters: nextFilters,
+      activeOverlay: overlayFor(picker.savedInput, nextFilters),
+    }));
     inputRef.current?.focus();
   }
 
@@ -390,7 +415,10 @@ export function useSearchState({
   function removeFilter(filter: ParsedFilter) {
     const nextFilters = parsedFilters.filter((item) => item !== filter);
     publishQuery(nextFilters, queryText);
-    setSearchState((current) => ({ ...withoutPicker(current), parsedFilters: nextFilters, focusedChipIndex: null }));
+    setSearchState((current) => {
+      const next = { ...withoutPicker(current), parsedFilters: nextFilters, focusedChipIndex: null };
+      return { ...next, activeOverlay: current.activeOverlay === null ? null : computeOverlayToOpen(next, filterKeywords, resultsEnabled) };
+    });
     inputRef.current?.focus();
   }
 
@@ -398,7 +426,10 @@ export function useSearchState({
     const nextFilters = parsedFilters.filter((_, index) => index !== chipIndex);
     publishQuery(nextFilters, finishedInput);
     if (parsedFilters.length <= 1) {
-      setSearchState((current) => ({ ...current, parsedFilters: nextFilters, focusedChipIndex: null }));
+      setSearchState((current) => {
+        const next = { ...current, parsedFilters: nextFilters, focusedChipIndex: null };
+        return { ...next, activeOverlay: current.activeOverlay === null ? null : computeOverlayToOpen(next, filterKeywords, resultsEnabled) };
+      });
       inputRef.current?.focus();
     } else {
       setSearchState((current) => ({ ...current, parsedFilters: nextFilters, focusedChipIndex: Math.min(chipIndex, parsedFilters.length - 2) }));
@@ -416,7 +447,7 @@ export function useSearchState({
       parsedFilters: nextFilters,
       inputValue: nextInput,
       focusedChipIndex: null,
-      activeOverlay: overlayFor(nextInput),
+      activeOverlay: overlayFor(nextInput, nextFilters),
     }));
     inputRef.current?.focus();
   }
@@ -488,12 +519,12 @@ export function useSearchState({
   function openOverlay(nextResultsEnabled = resultsEnabled) {
     setSearchState((current) => ({
       ...current,
-      activeOverlay: current.picker ? "assist" : overlayFor(current.inputValue, nextResultsEnabled),
+      activeOverlay: computeOverlayToOpen(current, filterKeywords, nextResultsEnabled),
     }));
   }
 
   function closeOverlay() {
-    setSearchState((current) => ({ ...withoutPicker(current), activeOverlay: null }));
+    setSearchState((current) => ({ ...withoutPicker(current), activeOverlay: null, showAllFilters: false }));
   }
 
   return {
@@ -510,6 +541,7 @@ export function useSearchState({
     isFocused,
     parsedFilters,
     activeOverlay,
+    overlayToOpen,
 
     containerRef,
     inputRef,
@@ -524,6 +556,7 @@ export function useSearchState({
     handleKeyDown,
     selectAssistOption,
     openChipPicker,
+    openAllFilters,
     goBack,
     forgetRecent,
     rememberQuery,

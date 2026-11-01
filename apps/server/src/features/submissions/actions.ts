@@ -63,6 +63,7 @@ import {
 } from "../cells/ratCellPersistence.js";
 import { deleteLocationWithPhotos } from "../locations/deleteWithPhotos.js";
 import { type StructureChange, assertOwnerFitsAfterWrite } from "../locations/structure.js";
+import type { LocationRow } from "../locations/write.js";
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
 import { correctStationLinks, findStationGroups } from "../official/links.js";
@@ -78,7 +79,7 @@ import { assertMayLackSiteId, isPlaceholderSiteId, placeholderSiteId, takeStatio
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
 import type { StructureOwnerRow } from "../structures/serialize.js";
 import { findOrCreateNamedOwner } from "../structures/write.js";
-import type { ChangeCell, SubmissionChange } from "./create.js";
+import type { ChangeCell, SubmissionChange, submissionsSelectSchema } from "./create.js";
 import {
   type ProposedLocationChanges,
   type ProposedLocationRow,
@@ -100,7 +101,6 @@ import { lockSubmission } from "./lock.js";
 import type { ProposedSectorRow } from "./serialize.js";
 import { getSubmissionStationLabels, stationLabelMetadata } from "./stationLabels.js";
 
-type LocationRow = NonNullable<Awaited<ReturnType<DbTx["query"]["locations"]["findFirst"]>>>;
 type LocationChange = { op: "create"; old?: never; new: LocationRow } | { op: "update"; old: LocationRow; new: LocationRow };
 type UpsertLocationResult = { locationId: number; change: LocationChange | null; createdOwner: StructureOwnerRow | null };
 type LocationValues = ProposedStructureChange & {
@@ -259,7 +259,7 @@ type ProposedCellSectorRef = {
   sector_unassigned?: boolean;
 };
 
-type SubmissionRow = NonNullable<Awaited<ReturnType<typeof db.query.submissions.findFirst>>>;
+type SubmissionRow = z.infer<typeof submissionsSelectSchema>;
 type ApprovalDraft = {
   type: SubmissionRow["type"];
   stationId: number | null;
