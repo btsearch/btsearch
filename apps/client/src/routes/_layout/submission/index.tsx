@@ -8,7 +8,7 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 type SubmissionSearch = {
   station?: string;
   edit?: string;
-  officialSite?: string;
+  officialSite?: number;
 };
 
 function SubmissionsPage() {
@@ -36,7 +36,10 @@ export const Route = createFileRoute("/_layout/submission/")({
   validateSearch: (search: Record<string, unknown>): SubmissionSearch => ({
     station: search.station as string | undefined,
     edit: search.edit as string | undefined,
-    officialSite: typeof search.officialSite === "string" || typeof search.officialSite === "number" ? String(search.officialSite) : undefined,
+    officialSite:
+      typeof search.officialSite === "number" && Number.isSafeInteger(search.officialSite) && search.officialSite > 0
+        ? search.officialSite
+        : undefined,
   }),
   staticData: {
     titleKey: "items.submitStation",

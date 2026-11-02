@@ -1,10 +1,9 @@
-import type { OfficialSite } from "@openbts/shared/contract";
 import { OFFICIAL_SITE_INCLUDES } from "@openbts/shared/contract/constants";
 import { type QueryClient, queryOptions, skipToken } from "@tanstack/react-query";
 
 import { auditOperationKeys } from "@/features/admin/audit-operations/queries";
 import { hasMapLocationsSource } from "@/features/map/api";
-import { fetchOfficialSites } from "@/features/official/api";
+import { fetchOfficialSite } from "@/features/official/api";
 import { officialKeys } from "@/features/official/queries";
 import { editingKeys } from "@/features/station-editing/data/keys";
 
@@ -29,7 +28,6 @@ type InvalidateStationUpdateQueriesOptions = {
 };
 
 const REGISTER_SITE_STALE_TIME = 1000 * 60 * 5;
-const FIRST_SITE_ONLY = 1;
 
 export function createConservativeStationImpact(stationId: number | null): StationUpdateImpact {
   return {
@@ -47,15 +45,10 @@ export function createConservativeStationImpact(stationId: number | null): Stati
   };
 }
 
-async function fetchRegisterSite(siteId: string, signal: AbortSignal): Promise<OfficialSite | null> {
-  const page = await fetchOfficialSites({ siteIds: [siteId], include: [...OFFICIAL_SITE_INCLUDES], limit: FIRST_SITE_ONLY }, signal);
-  return page.data.at(0) ?? null;
-}
-
-export function registerSiteQueryOptions(siteId: string | undefined) {
+export function registerSiteQueryOptions(siteId: number | undefined) {
   return queryOptions({
     queryKey: [...officialKeys.all, "register-prefill", siteId] as const,
-    queryFn: siteId === undefined ? skipToken : ({ signal }) => fetchRegisterSite(siteId, signal),
+    queryFn: siteId === undefined ? skipToken : ({ signal }) => fetchOfficialSite(siteId, OFFICIAL_SITE_INCLUDES, signal),
     staleTime: REGISTER_SITE_STALE_TIME,
   });
 }

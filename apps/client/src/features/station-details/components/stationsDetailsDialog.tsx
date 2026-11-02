@@ -107,7 +107,7 @@ function OfficialSiteDialogPanel({
   const shareSourcePrefix = officialSource ? `${officialSource.shortName}: ` : "";
   const sharePlace = location ? [location.city, location.address].filter(Boolean).join(" ") : "";
   const internalStationId = data?.stationId ?? null;
-  const registerSiteId = data !== undefined && internalStationId === null ? data.siteId : null;
+  const registerSiteId = data !== undefined && internalStationId === null ? data.id : null;
   const permits = site?.permits;
   const hasPermits = permits !== undefined && permits.length > 0;
   const listsBandsOnly = hasPermits && permits.every((permit) => permit.kind === "inventory");

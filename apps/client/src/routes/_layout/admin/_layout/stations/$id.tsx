@@ -24,7 +24,7 @@ type SavedStationRouteProps = {
 };
 
 type NewStationRouteProps = {
-  registerSiteId?: string;
+  registerSiteId?: number;
 };
 
 type StationLoadFailureProps = {
@@ -149,7 +149,10 @@ function StationEditorRoute() {
 export const Route = createFileRoute("/_layout/admin/_layout/stations/$id")({
   component: StationEditorRoute,
   validateSearch: (search: Record<string, unknown>) => ({
-    officialSite: typeof search.officialSite === "string" || typeof search.officialSite === "number" ? String(search.officialSite) : undefined,
+    officialSite:
+      typeof search.officialSite === "number" && Number.isSafeInteger(search.officialSite) && search.officialSite > 0
+        ? search.officialSite
+        : undefined,
   }),
   staticData: {
     mainClassName: "overflow-hidden max-md:pb-0",

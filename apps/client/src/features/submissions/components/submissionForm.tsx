@@ -24,7 +24,7 @@ import { isNotFound } from "@/lib/api";
 type SubmissionFormProps = {
   stationId: number | null;
   submissionId: string | null;
-  registerSiteId: string | null;
+  registerSiteId: number | null;
 };
 
 type FreshSubmissionFormProps = Pick<SubmissionFormProps, "stationId" | "registerSiteId">;
@@ -47,7 +47,7 @@ type TargetFormProps = {
 };
 
 type RegisterStationFormProps = TargetFormProps & {
-  registerSiteId: string;
+  registerSiteId: number;
 };
 
 type ExistingStationFormProps = TargetFormProps & {
@@ -81,7 +81,7 @@ function RegisterStationForm({ registerSiteId, controls, onAgain }: RegisterStat
   }
   if (registerSite === undefined || !reference.isReady) return <SubmissionPendingPage target={target} cells={<LoadingPanel />} />;
 
-  const prefill = registerSite === null ? null : toRegisterStationDraft(registerSite, reference, REGISTER_PREFILL_RULES.form);
+  const prefill = toRegisterStationDraft(registerSite, reference, REGISTER_PREFILL_RULES.form);
   return <SubmissionFormPage seed={{ ...EMPTY_SEED, prefill }} controls={controls} onAgain={onAgain} />;
 }
 
