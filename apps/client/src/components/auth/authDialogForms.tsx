@@ -12,8 +12,12 @@ import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { settingsQueryOptions } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
+import { PENDING_APPROVAL_CODE } from "@/lib/auth/errorCodes";
 import { SOCIAL_PROVIDERS, type SocialProviderId } from "@/lib/auth/socialProviders";
+import { socialSignInErrorCallbackURL } from "@/lib/auth/socialSignInError";
+import { queryClient } from "@/lib/queryClient";
 
 const VERIFICATION_EMAIL_RATE_LIMIT_CODE = "VERIFICATION_EMAIL_RATE_LIMITED";
 
@@ -39,6 +43,7 @@ function OAuthButtons() {
       await authClient.signIn.social({
         provider,
         callbackURL: window.location.pathname,
+        errorCallbackURL: socialSignInErrorCallbackURL(window.location.pathname),
       });
     } finally {
       setLoadingProvider(null);
@@ -198,10 +203,12 @@ export function SignInForm({
   onSuccess,
   onSwitchView,
   onTwoFactorRequired,
+  onPendingApproval,
 }: {
   onSuccess: () => void;
   onSwitchView: () => void;
   onTwoFactorRequired: () => void;
+  onPendingApproval: () => void;
 }) {
   const { t } = useTranslation("auth");
   const [error, setError] = useState<string | null>(null);
@@ -211,28 +218,34 @@ export function SignInForm({
   const [resetSent, setResetSent] = useState(false);
 
   const form = useForm({
-    defaultValues: { email: "", password: "" },
+    defaultValues: { login: "", password: "" },
     onSubmit: async ({ value }) => {
       setError(null);
       setVerificationEmail(null);
 
-      await authClient.signIn.email(
-        { email: value.email, password: value.password },
-        {
-          onSuccess(ctx: { data: { twoFactorRedirect?: boolean } }) {
-            if (ctx.data?.twoFactorRedirect) {
-              onTwoFactorRequired();
-              return;
-            }
-            toast.success(t("signIn.success"));
-            onSuccess();
-          },
-          onError(ctx: { error: AuthRequestError }) {
-            setError(ctx.error.message ?? t("unexpectedError"));
-            if (ctx.error.code === "EMAIL_NOT_VERIFIED") setVerificationEmail(value.email);
-          },
+      const login = value.login.trim();
+      const isEmail = login.includes("@");
+      const callbacks = {
+        onSuccess(ctx: { data: { twoFactorRedirect?: boolean } }) {
+          if (ctx.data?.twoFactorRedirect) {
+            onTwoFactorRequired();
+            return;
+          }
+          toast.success(t("signIn.success"));
+          onSuccess();
         },
-      );
+        onError(ctx: { error: AuthRequestError }) {
+          if (ctx.error.code === PENDING_APPROVAL_CODE) {
+            onPendingApproval();
+            return;
+          }
+          setError(ctx.error.message ?? t("unexpectedError"));
+          if (ctx.error.code === "EMAIL_NOT_VERIFIED" && isEmail) setVerificationEmail(login);
+        },
+      };
+
+      if (isEmail) await authClient.signIn.email({ email: login, password: value.password }, callbacks);
+      else await authClient.signIn.username({ username: login, password: value.password }, callbacks);
     },
   });
 
@@ -304,20 +317,20 @@ export function SignInForm({
           }}
           className="space-y-4"
         >
-          <form.Field name="email">
+          <form.Field name="login">
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor="sign-in-email">{t("common:labels.email")}</Label>
+                <Label htmlFor="sign-in-login">{t("signIn.login")}</Label>
                 <Input
-                  id="sign-in-email"
-                  type="email"
+                  id="sign-in-login"
+                  type="text"
                   placeholder={t("common:placeholder.email")}
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
                   required
                   disabled={form.state.isSubmitting}
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
             )}
@@ -327,13 +340,13 @@ export function SignInForm({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="sign-in-password">{t("common:labels.password")}</Label>
-                  <form.Subscribe selector={(s) => s.values.email}>
-                    {(email) => (
+                  <form.Subscribe selector={(s) => s.values.login.trim()}>
+                    {(login) => (
                       <button
                         type="button"
-                        title={!email ? t("signIn.resetPasswordDisabled") : undefined}
-                        disabled={!email || resetLoading || resetSent}
-                        onClick={() => void handleResetPassword(email)}
+                        title={login.includes("@") ? undefined : t("signIn.resetPasswordDisabled")}
+                        disabled={!login.includes("@") || resetLoading || resetSent}
+                        onClick={() => void handleResetPassword(login)}
                         className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         {resetLoading ? <Spinner className="size-3" /> : t("signIn.resetPassword")}
@@ -397,7 +410,15 @@ export function SignInForm({
   );
 }
 
-export function SignUpForm({ onSuccess, onSwitchView }: { onSuccess: () => void; onSwitchView: () => void }) {
+export function SignUpForm({
+  onSuccess,
+  onSwitchView,
+  onPendingApproval,
+}: {
+  onSuccess: () => void;
+  onSwitchView: () => void;
+  onPendingApproval: () => void;
+}) {
   const { t, i18n } = useTranslation("auth");
   const [error, setError] = useState<string | null>(null);
 
@@ -406,7 +427,7 @@ export function SignUpForm({ onSuccess, onSwitchView }: { onSuccess: () => void;
     onSubmit: async ({ value }) => {
       setError(null);
 
-      const { error: signUpError } = await authClient.signUp.email({
+      const { data: signUpData, error: signUpError } = await authClient.signUp.email({
         email: value.email,
         password: value.password,
         name: value.name,
@@ -417,6 +438,11 @@ export function SignUpForm({ onSuccess, onSwitchView }: { onSuccess: () => void;
 
       if (signUpError) {
         setError(signUpError.message ?? t("unexpectedError"));
+        return;
+      }
+      const isApprovalRequired = queryClient.getQueryData(settingsQueryOptions().queryKey)?.isSignUpApprovalRequired === true;
+      if (signUpData?.user.pendingApproval || isApprovalRequired) {
+        onPendingApproval();
         return;
       }
 

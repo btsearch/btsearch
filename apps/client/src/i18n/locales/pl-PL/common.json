@@ -360,7 +360,8 @@
     },
     "unavailable": {
       "admin": "Na konto administratora nie można się zalogować",
-      "banned": "Zablokowane konto nie może mieć sesji"
+      "banned": "Zablokowane konto nie może mieć sesji",
+      "pendingApproval": "Najpierw zatwierdź konto"
     },
     "actingAs": "Działasz jako",
     "sessionUntil": "sesja do {{time}}",

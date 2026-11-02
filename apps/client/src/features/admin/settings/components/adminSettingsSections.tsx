@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { readAnnouncement } from "../utils/settingsUpdate";
 import { DisabledRoutesCard } from "./access/disabledRoutesCard";
 import { SignInCard } from "./access/signInCard";
+import { SignUpApprovalCard } from "./access/signUpApprovalCard";
 import { AnnouncementCard } from "./announcement/announcementCard";
 import { STRETCHED_TWO_COLUMN_CLASS } from "./classNames";
 import { RejectedPhotosCard } from "./cleanup/rejectedPhotosCard";
@@ -26,14 +27,17 @@ export function AdminSettingsSections({ settings }: { settings: Settings }) {
         <MaintenanceCard isMaintenanceMode={settings.isMaintenanceMode} />
       </SettingsSection>
       <SettingsSection id="admin-settings-access" title={t("settings.sections.access")}>
-        {access === undefined ? (
-          <SignInCard isSignInRequired={settings.isSignInRequired} />
-        ) : (
-          <div className={STRETCHED_TWO_COLUMN_CLASS}>
-            <SignInCard isSignInRequired={settings.isSignInRequired} openRoutes={access.openRoutes} />
-            <DisabledRoutesCard entries={access.disabledRoutes} />
-          </div>
-        )}
+        <SettingsStack>
+          {access === undefined ? (
+            <SignInCard isSignInRequired={settings.isSignInRequired} />
+          ) : (
+            <div className={STRETCHED_TWO_COLUMN_CLASS}>
+              <SignInCard isSignInRequired={settings.isSignInRequired} openRoutes={access.openRoutes} />
+              <DisabledRoutesCard entries={access.disabledRoutes} />
+            </div>
+          )}
+          <SignUpApprovalCard isSignUpApprovalRequired={settings.isSignUpApprovalRequired} />
+        </SettingsStack>
       </SettingsSection>
       <SettingsSection id="admin-settings-features" title={t("settings.sections.features")}>
         <div className={STRETCHED_TWO_COLUMN_CLASS}>

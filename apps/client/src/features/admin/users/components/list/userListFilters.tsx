@@ -54,6 +54,7 @@ export function useUserStatusOptions(): UserStatusOption[] {
   return [
     { value: "all", label: t("users.list.status.all") },
     { value: "active", label: t("users.list.status.active") },
+    { value: "pending", label: t("users.list.status.pending") },
     { value: "banned", label: t("users.list.status.banned") },
   ];
 }

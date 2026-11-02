@@ -24,11 +24,14 @@ export type AdminUserChanges = {
   bio?: string | null;
   email?: string;
   isEmailVerified?: boolean;
+  isPendingApproval?: boolean;
   isTwoFactorRequired?: boolean;
   image?: null;
 };
 
 export type BanRequest = { reason: string; expiresInSeconds: number | null };
+
+export type NewUser = { name: string; username: string; email: string; password: string };
 
 export const AUTH_ERROR_CODES = {
   cannotBanYourself: "YOU_CANNOT_BAN_YOURSELF",
@@ -136,6 +139,7 @@ function toAdminUser(payload: unknown): AdminUser {
     isEmailVerified: payload.emailVerified === true,
     role: toUserRole(payload.role),
     isBanned: isBanInForce(payload.banned === true, banExpiresAt, new Date()),
+    isPendingApproval: payload.pendingApproval === true,
     banReason: readText(payload.banReason),
     banExpiresAt,
     isTwoFactorEnabled: payload.twoFactorEnabled === true,
@@ -191,6 +195,7 @@ function toAuthUserData(changes: AdminUserChanges): Record<string, unknown> {
   if (changes.bio !== undefined) data.bio = changes.bio;
   if (changes.email !== undefined) data.email = changes.email;
   if (changes.isEmailVerified !== undefined) data.emailVerified = changes.isEmailVerified;
+  if (changes.isPendingApproval !== undefined) data.pendingApproval = changes.isPendingApproval;
   if (changes.isTwoFactorRequired !== undefined) data.forceTotp = changes.isTwoFactorRequired;
   if (changes.image !== undefined) data.image = changes.image;
   return data;
@@ -224,6 +229,10 @@ async function fetchUserSessions(userId: string): Promise<AdminSession[]> {
     if (session !== null) sessions.push(session);
   }
   return sessions.sort(compareNewestFirst);
+}
+
+export async function createUser({ name, username, email, password }: NewUser): Promise<AdminUser> {
+  return readUserEnvelope(await unwrapAuthResult(authClient.admin.createUser({ name, email, password, data: { username, emailVerified: true } })));
 }
 
 export async function setUserRole(userId: string, role: UserRole): Promise<AdminUser> {

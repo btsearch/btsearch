@@ -11,7 +11,8 @@ export type UserListCriteria = {
   page: number;
 };
 
-const IS_BANNED_BY_STATUS: Record<UserListStatus, boolean | null> = { all: null, active: false, banned: true };
+const IS_BANNED_BY_STATUS: Record<UserListStatus, boolean | null> = { all: null, active: false, pending: false, banned: true };
+const IS_PENDING_APPROVAL_BY_STATUS: Record<UserListStatus, boolean | null> = { all: null, active: false, pending: true, banned: null };
 
 export function readUserListCriteria(search: UserListSearch): UserListCriteria {
   return {
@@ -38,6 +39,7 @@ export function toUserListParams(criteria: UserListCriteria, pageSize: number): 
     search: criteria.query,
     roles: criteria.roles,
     isBanned: IS_BANNED_BY_STATUS[criteria.status],
+    isPendingApproval: IS_PENDING_APPROVAL_BY_STATUS[criteria.status],
     sort: criteria.sort,
     limit: pageSize,
     offset: criteria.page * pageSize,

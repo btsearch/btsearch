@@ -21,25 +21,33 @@ function hasOfficialSite() {
   ).mapWith(Boolean);
 }
 
-export async function findPhysicalStations(locationId: number): Promise<Map<number, PhysicalStation>> {
+export async function findPhysicalStations(locationIds: readonly number[]): Promise<Map<number, PhysicalStation>> {
+  const physicalStations = new Map<number, PhysicalStation>();
+  if (locationIds.length === 0) return physicalStations;
+
   const rows = await db
     .select({
       id: stations.id,
       station_id: stations.station_id,
       status: stations.status,
+      locationId: stations.location_id,
       operator: operators,
       hasOfficialSite: hasOfficialSite(),
     })
     .from(stations)
     .innerJoin(operators, eq(operators.id, stations.operator_id))
-    .where(and(eq(stations.location_id, locationId), inArray(operators.mnc, NETWORKS_PARTNER_MNCS)))
+    .where(and(inArray(stations.location_id, locationIds), inArray(operators.mnc, NETWORKS_PARTNER_MNCS)))
     .orderBy(sql`${stations.status} = 'inactive'`, asc(stations.id));
 
-  const physicalStations = new Map<number, PhysicalStation>();
+  const permittedByLocationAndMnc = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const key = `${row.locationId}:${row.operator.mnc}`;
+    if (row.hasOfficialSite && !permittedByLocationAndMnc.has(key)) permittedByLocationAndMnc.set(key, row);
+  }
+
   for (const station of rows) {
     if (station.hasOfficialSite || station.operator.mnc === null) continue;
-    const siblingMnc = getNetworksSiblingMnc(station.operator.mnc);
-    const physical = rows.find((candidate) => candidate.hasOfficialSite && candidate.operator.mnc === siblingMnc);
+    const physical = permittedByLocationAndMnc.get(`${station.locationId}:${getNetworksSiblingMnc(station.operator.mnc)}`);
     if (!physical) continue;
     const { id, station_id, status, operator } = physical;
     physicalStations.set(station.id, { id, station_id, status, operator });
@@ -116,5 +124,5 @@ export async function findPhysicalStation(
   mnc: number | null | undefined,
 ): Promise<PhysicalStation | undefined> {
   if (locationId === undefined || !isNetworksPartnerMnc(mnc)) return undefined;
-  return (await findPhysicalStations(locationId)).get(stationId);
+  return (await findPhysicalStations([locationId])).get(stationId);
 }

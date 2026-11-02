@@ -90,7 +90,7 @@ export function UserStatusSummary({ account }: { account: UserAccount }) {
   const status = getUserStatus(account);
 
   if (status === "active") return <span className="text-muted-foreground">{getUserStatusLabel(t, status)}</span>;
-  if (status === "unverified") return <UserStatusBadge status={status} />;
+  if (status === "unverified" || status === "pending") return <UserStatusBadge status={status} />;
 
   return (
     <div className="flex min-w-0 items-center gap-2">

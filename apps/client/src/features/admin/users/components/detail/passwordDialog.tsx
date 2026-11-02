@@ -7,15 +7,12 @@ import { setUserPassword, showUserAdminError } from "../../api/authAdmin";
 import { invalidateUserAdminQueries } from "../../api/queryKeys";
 import type { AdminUser } from "../../types";
 import { getAccountName } from "../../utils/identity";
+import { getPasswordLengthProblem } from "../../utils/password";
+import { NewPasswordField } from "../shared/newPasswordField";
 import { DialogNote } from "./userDetailPrimitives";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { PasswordInput } from "@/features/settings/components/passwordInput";
-
-const PASSWORD_MIN_LENGTH = 8;
-const PASSWORD_MAX_LENGTH = 128;
 
 type PasswordFormProps = {
   user: AdminUser;
@@ -34,14 +31,7 @@ function PasswordForm({ user, isPending, onSubmit, onCancel }: PasswordFormProps
   const { t } = useTranslation("admin");
   const passwordId = useId();
   const [password, setPassword] = useState("");
-  const [isTouched, setIsTouched] = useState(false);
-
-  const isTooShort = password.length < PASSWORD_MIN_LENGTH;
-  const isTooLong = password.length > PASSWORD_MAX_LENGTH;
-  const canSubmit = !isTooShort && !isTooLong && !isPending;
-  let errorText: string | null = null;
-  if (isTooLong) errorText = t("users.shared.errors.passwordTooLong");
-  else if (isTouched && password !== "" && isTooShort) errorText = t("common:password.tooShort");
+  const canSubmit = getPasswordLengthProblem(password) === null && !isPending;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,20 +44,7 @@ function PasswordForm({ user, isPending, onSubmit, onCancel }: PasswordFormProps
         <DialogTitle>{t("settings:security.password.setAction")}</DialogTitle>
         <DialogDescription>{t("users.detail.security.password.dialogDescription", { name: getAccountName(user) })}</DialogDescription>
       </DialogHeader>
-      <Field data-invalid={errorText !== null || undefined}>
-        <FieldLabel htmlFor={passwordId}>{t("common:password.new")}</FieldLabel>
-        <PasswordInput
-          id={passwordId}
-          value={password}
-          onChange={setPassword}
-          onBlur={() => setIsTouched(true)}
-          autoComplete="new-password"
-          invalid={errorText !== null}
-          disabled={isPending}
-          required
-        />
-        {errorText !== null ? <FieldError>{errorText}</FieldError> : <FieldDescription>{t("settings:security.password.rules")}</FieldDescription>}
-      </Field>
+      <NewPasswordField id={passwordId} label={t("common:password.new")} value={password} onChange={setPassword} disabled={isPending} />
       <DialogNote>{t("users.detail.security.password.sessionsNote")}</DialogNote>
       <DialogFooter>
         <Button type="button" variant="outline" className="cursor-pointer" disabled={isPending} onClick={onCancel}>

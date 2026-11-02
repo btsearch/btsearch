@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { auditEndpointEvent, rememberEndpointSnapshot } from "../../../src/features/audit/auth/endpoints.js";
 import { consentGiven } from "../../../src/features/audit/auth/events.js";
 import { forgetContributorMeasurements } from "../../../src/features/measurements/contributors/accountDeletion.js";
+import { getRuntimeSettings } from "../../../src/lib/runtimeSettings.js";
 import { accessControl, adminRole, editorRole, userRole } from "../../../src/plugins/auth/permissions.js";
 import type * as openbtsAuthPlugin from "../../../src/plugins/betterauth.plugin.js";
 import { logger } from "../../../src/utils/logger.js";
@@ -34,13 +35,14 @@ const BASE_URL = "http://localhost:3030";
 const AUTH_URL = `${BASE_URL}/api/auth`;
 const ANNA: Person = { email: "anna@example.invalid", password: "anna-admin-password", name: "Anna Admin", username: "anna" };
 const OLEK: Person = { email: "olek@example.invalid", password: "olek-user-password", name: "Olek User", username: "olek" };
+const MARTA: Person = { email: "marta@example.invalid", password: "marta-user-password", name: "Marta New", username: "marta" };
 const BROWSER = { "user-agent": "Test Browser", "x-forwarded-for": "198.51.100.7" };
 
 let store: Store;
 let outbox: { verificationUrls: string[]; resetTokens: string[] };
 let googleProfile: Pick<GoogleProfile, "sub" | "email">;
 
-function createAuth() {
+function createAuth(requireEmailVerification = false) {
   return betterAuth({
     baseURL: BASE_URL,
     secret: "a-test-secret-that-is-long-enough-for-better-auth",
@@ -48,6 +50,8 @@ function createAuth() {
     advanced: { database: { generateId: () => randomUUID() } },
     emailAndPassword: {
       enabled: true,
+      autoSignIn: false,
+      requireEmailVerification,
       sendResetPassword: async ({ token }) => {
         outbox.resetTokens.push(token);
       },
@@ -58,7 +62,7 @@ function createAuth() {
         outbox.verificationUrls.push(url);
       },
     },
-    user: { changeEmail: { enabled: true } },
+    user: { changeEmail: { enabled: true }, additionalFields: { pendingApproval: openbtsAuth.options.user.additionalFields.pendingApproval } },
     socialProviders: {
       google: {
         clientId: "google-client",
@@ -151,10 +155,12 @@ function userSnapshotRows(id: string): Row[] {
   const user = store.user?.find((row) => row.id === id);
   if (user === undefined) return [];
 
-  const { username, name, email, emailVerified, twoFactorEnabled, role, createdAt } = user;
+  const { username, name, email, emailVerified, twoFactorEnabled, role, pendingApproval, createdAt } = user;
   const unbanned = { banned: false, banReason: null, banExpires: null };
   const profile = { image: null, bio: null, forceTotp: false, twoFactorEnabled: twoFactorEnabled ?? false };
-  return [{ id, username, name, email, emailVerified, ...profile, role, ...unbanned, createdAt, grantIds: [] }];
+  return [
+    { id, username, name, email, emailVerified, ...profile, role, ...unbanned, pendingApproval: pendingApproval ?? false, createdAt, grantIds: [] },
+  ];
 }
 
 function storeGithubAccount(userId: string): string {
@@ -544,6 +550,63 @@ describe("better-auth audit events", () => {
         }),
       ]);
       expect(JSON.stringify(audit)).not.toContain(new URL(String(verificationUrl)).searchParams.get("token"));
+    });
+  });
+
+  describe("sign-up approval", () => {
+    function adminRequest(path: string, body: Row): Request {
+      return new Request(`${AUTH_URL}${path}`, {
+        method: "POST",
+        headers: { ...Object.fromEntries(asAnna), origin: BASE_URL, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
+
+    it("keeps a new account from signing in until an administrator approves it, and records the approval", async () => {
+      Object.assign(getRuntimeSettings(), { signUpApprovalRequired: true });
+      const verifyingAuth = createAuth(true);
+      const martaId = await signUp(verifyingAuth, MARTA);
+
+      expect(storedUser(martaId)).toMatchObject({ pendingApproval: true, emailVerified: false });
+      await expect(signIn(verifyingAuth, MARTA)).rejects.toMatchObject({ body: { code: "ACCOUNT_PENDING_APPROVAL" } });
+      await expect(signIn(auth, MARTA)).rejects.toMatchObject({ body: { code: "ACCOUNT_PENDING_APPROVAL" } });
+      await expect(signIn(verifyingAuth, { ...MARTA, password: "a-wrong-password" })).rejects.toMatchObject({
+        body: { code: "INVALID_EMAIL_OR_PASSWORD" },
+      });
+
+      answerWithStoredRows("users", () => userSnapshotRows(martaId));
+      answerWithStoredRows("users", () => userSnapshotRows(martaId));
+      scriptAudit();
+      const response = await auth.handler(
+        adminRequest("/admin/update-user", { userId: martaId, data: { pendingApproval: false, emailVerified: true } }),
+      );
+
+      expect(response.status).toBe(200);
+      const audit = auditCalls();
+      expect(audit.operations).toEqual([expect.objectContaining({ kind: "user.approve", actor_id: annaId })]);
+      expect(audit.entries).toEqual([
+        expect.objectContaining({
+          entity: "users",
+          record_id: martaId,
+          old_values: { pendingApproval: true, emailVerified: false },
+          new_values: { pendingApproval: false, emailVerified: true },
+        }),
+      ]);
+      await expect(signIn(verifyingAuth, MARTA)).resolves.toMatchObject({ token: expect.any(String) });
+    });
+
+    it("records an account an administrator creates, which needs no approval", async () => {
+      Object.assign(getRuntimeSettings(), { signUpApprovalRequired: true });
+      const createdId = () => String(store.user?.find((user) => user.email === MARTA.email)?.id);
+      answerWithStoredRows("users", () => userSnapshotRows(createdId()));
+      scriptAudit();
+      const { password, email, name, username } = MARTA;
+      const response = await auth.handler(adminRequest("/admin/create-user", { email, password, name, data: { username, emailVerified: true } }));
+
+      expect(response.status).toBe(200);
+      expect(storedUser(createdId())).toMatchObject({ pendingApproval: false, emailVerified: true });
+      expect(auditCalls().operations).toContainEqual(expect.objectContaining({ kind: "user.create", actor_id: annaId }));
+      await expect(signIn(auth, MARTA)).resolves.toMatchObject({ token: expect.any(String) });
     });
   });
 

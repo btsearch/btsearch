@@ -365,7 +365,8 @@
     },
     "unavailable": {
       "admin": "You cannot sign in as an administrator",
-      "banned": "A banned account cannot have a session"
+      "banned": "A banned account cannot have a session",
+      "pendingApproval": "Approve the account first"
     },
     "actingAs": "Acting as",
     "sessionUntil": "session until {{time}}",

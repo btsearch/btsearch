@@ -1,6 +1,7 @@
 import type { DialogRootChangeEventDetails } from "@base-ui/react/dialog";
 import { Suspense, lazy, useEffect, useState } from "react";
 
+import { PendingApprovalNotice } from "./pendingApprovalNotice";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { queryClient } from "@/lib/queryClient";
@@ -24,7 +25,7 @@ const formFallback = (
 );
 
 export function AuthDialog({ open, onOpenChange, forced = false }: AuthDialogProps) {
-  const [view, setView] = useState<"signIn" | "signUp" | "totp">("signIn");
+  const [view, setView] = useState<"signIn" | "signUp" | "totp" | "pendingApproval">("signIn");
 
   useEffect(() => {
     if (!open) return;
@@ -44,9 +45,13 @@ export function AuthDialog({ open, onOpenChange, forced = false }: AuthDialogPro
     if (!nextOpen) setView("signIn");
   }
 
-  function handleSuccess() {
+  function close() {
     onOpenChange(false);
     setView("signIn");
+  }
+
+  function handleSuccess() {
+    close();
     queryClient.invalidateQueries();
   }
 
@@ -56,10 +61,17 @@ export function AuthDialog({ open, onOpenChange, forced = false }: AuthDialogPro
         <Suspense fallback={formFallback}>
           {view === "totp" ? (
             <TotpVerifyForm onSuccess={handleSuccess} />
+          ) : view === "pendingApproval" ? (
+            <PendingApprovalNotice onClose={close} />
           ) : view === "signIn" ? (
-            <SignInForm onSuccess={handleSuccess} onSwitchView={() => setView("signUp")} onTwoFactorRequired={() => setView("totp")} />
+            <SignInForm
+              onSuccess={handleSuccess}
+              onSwitchView={() => setView("signUp")}
+              onTwoFactorRequired={() => setView("totp")}
+              onPendingApproval={() => setView("pendingApproval")}
+            />
           ) : (
-            <SignUpForm onSuccess={handleSuccess} onSwitchView={() => setView("signIn")} />
+            <SignUpForm onSuccess={handleSuccess} onSwitchView={() => setView("signIn")} onPendingApproval={() => setView("pendingApproval")} />
           )}
         </Suspense>
       </DialogContent>

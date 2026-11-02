@@ -53,10 +53,9 @@ export function StationPanelBody({
   const currentUserId = session?.user?.id;
   const hasSectors = station !== undefined && station.sectors.length > 0;
   const showComments = settings?.features.comments === true;
-  const showPhotos = settings?.features.photoUploads === true;
   const shownTab: TabId = activeTab === "sectors" && !hasSectors ? "specs" : activeTab;
 
-  const { data: photos } = useQuery({ ...stationPhotoRecordsQueryOptions(stationId), enabled: showPhotos });
+  const { data: photos } = useQuery(stationPhotoRecordsQueryOptions(stationId));
 
   const {
     data: comments,
@@ -74,7 +73,6 @@ export function StationPanelBody({
   const visibleTabs = TAB_OPTIONS.filter((tab) => {
     if (tab.id === "sectors") return hasSectors;
     if (tab.id === "comments") return showComments;
-    if (tab.id === "photos") return showPhotos;
     return true;
   });
 

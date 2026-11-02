@@ -135,7 +135,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
   if (!location) throw new ErrorResponse("NOT_FOUND");
 
-  const physicalStations = await findPhysicalStations(location.id);
+  const physicalStations = await findPhysicalStations([location.id]);
 
   const cleanedStations = location.stations.map((station) => {
     const stationData = { ...station } as StationData & { extra_identificators?: unknown };

@@ -118,6 +118,10 @@
         "action": "Enable"
       }
     },
+    "signUpApproval": {
+      "title": "Approve each sign-up",
+      "description": "New accounts can sign in only after an administrator approves them. No verification email is sent"
+    },
     "signIn": {
       "title": "Sign-in required",
       "description": "Without signing in, neither the site nor the API works. Publishable keys (pk_...) stop working too",
@@ -339,7 +343,8 @@
         "allCountries": "all countries"
       },
       "status": {
-        "banned": "Banned"
+        "banned": "Banned",
+        "pending": "Waiting for approval"
       },
       "ban": {
         "durations": {
@@ -405,6 +410,12 @@
       },
       "moderation": {
         "title": "Moderation",
+        "approval": {
+          "title": "Waiting for approval",
+          "description": "This person can sign in once you approve the account. To reject the sign-up, delete the account",
+          "action": "Approve",
+          "success": "Account approved"
+        },
         "ban": {
           "title": "Ban account",
           "description": "Signs the account out of all devices and blocks sign-in for the chosen time",
@@ -610,12 +621,20 @@
         }
       }
     },
+    "create": {
+      "button": "Add user",
+      "title": "New user",
+      "description": "The user can sign in right away. Share the sign-in details with them",
+      "submit": "Create",
+      "success": "User created"
+    },
     "list": {
       "description": "Accounts, roles and editors' country access",
       "searchPlaceholder": "Name, username or email",
       "status": {
         "all": "All",
         "active": "Active",
+        "pending": "Pending",
         "banned": "Banned"
       },
       "columns": {
@@ -992,6 +1011,8 @@
         "delete": "Editor access revoked"
       },
       "user": {
+        "create": "User created",
+        "approve": "User approved",
         "role": "User role changed",
         "ban": "User banned",
         "unban": "User unbanned",

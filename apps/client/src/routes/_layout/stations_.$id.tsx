@@ -50,7 +50,7 @@ import { getBrandColor, getOperatorBrand } from "@/features/station-details/stat
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
 import { findHostStation, getStationCountryCode, getStationNumber, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { usePreferences } from "@/hooks/usePreferences";
-import { settingsQueryOptions, useSettings } from "@/hooks/useSettings";
+import { useSettings } from "@/hooks/useSettings";
 import { i18n } from "@/i18n";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
@@ -120,7 +120,7 @@ function StationPage() {
     isError: isPhotosError,
     isFetching: isFetchingPhotos,
     refetch: refetchPhotos,
-  } = useQuery({ ...stationPhotoRecordsQueryOptions(stationId), enabled: !!settings?.features.photoUploads });
+  } = useQuery(stationPhotoRecordsQueryOptions(stationId));
 
   if (!station) {
     if (stationError instanceof ApiResponseError && stationError.status === 404) return <StationNotFound />;
@@ -340,10 +340,7 @@ export const Route = createFileRoute("/_layout/stations_/$id")({
   loader: async ({ params }) => {
     const id = parseSEOEntityId(params.id);
     if (id === null) throw notFound();
-    void queryClient
-      .query(settingsQueryOptions())
-      .then((settings) => (settings?.features.photoUploads ? queryClient.query(stationPhotoRecordsQueryOptions(id)) : undefined))
-      .catch(() => undefined);
+    void queryClient.query(stationPhotoRecordsQueryOptions(id)).catch(() => undefined);
     try {
       const [station, sources] = await Promise.all([
         queryClient.query({ ...stationRecordQueryOptions(id), staleTime: "static" }),

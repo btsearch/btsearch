@@ -96,6 +96,9 @@ export const settingsSchema = z.object({
   isSignInRequired: z
     .boolean()
     .describe("When `true`, guests are rejected everywhere except the open routes, the sign-in routes and `GET /settings`"),
+  isSignUpApprovalRequired: z
+    .boolean()
+    .describe("When `true`, a new account can sign in only after an administrator approves it, and no verification email is sent"),
   features: settingsFeaturesSchema.describe(
     "While `submissions`, `photoUploads`, `comments`, `lists`, `measurementUploads` or `observations` is disabled, its routes respond with 403 `FEATURE_DISABLED`. " +
       "Moderating and deleting comments, and deleting the photos of rejected submissions, keep working. " +
@@ -117,6 +120,10 @@ export const settingsUpdateSchema = z
       .boolean()
       .optional()
       .describe("When `true`, guests are rejected everywhere except the open routes, the sign-in routes and `GET /settings`"),
+    isSignUpApprovalRequired: z
+      .boolean()
+      .optional()
+      .describe("When `true`, a new account can sign in only after an administrator approves it, and no verification email is sent"),
     features: settingsFeaturesSchema.partial().strict().refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE).optional(),
     announcement: z
       .object({

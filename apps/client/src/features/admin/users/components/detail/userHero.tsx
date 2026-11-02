@@ -53,6 +53,7 @@ type HeroChipProps = {
 function getImpersonationBlocker(t: TFunction, user: AdminUser): string | undefined {
   if (user.role === "admin") return t("common:impersonation.unavailable.admin");
   if (user.isBanned) return t("common:impersonation.unavailable.banned");
+  if (user.isPendingApproval) return t("common:impersonation.unavailable.pendingApproval");
   return undefined;
 }
 
@@ -174,6 +175,7 @@ export function UserHero({ user, isSelf }: { user: AdminUser; isSelf: boolean })
               </h1>
               <RoleBadge role={user.role} />
               {user.isBanned ? <UserStatusBadge status="banned" /> : null}
+              {user.isPendingApproval ? <UserStatusBadge status="pending" /> : null}
             </div>
             <HeroMeta user={user} />
           </div>

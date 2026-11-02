@@ -13,9 +13,11 @@ import {
   rememberAdministeredUser,
   rememberDeletingUser,
 } from "../../features/audit/auth/userAdministration.js";
+import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import { generateFingerprintFromWebRequest } from "../../utils/fingerprint.js";
 import { logger } from "../../utils/logger.js";
 import { isAppClient, isAppOnlyScope } from "./appClient.js";
+import { refusePendingPasswordSignIn } from "./pendingApproval.js";
 import { APP_ONLY_SCOPES } from "./scopes.js";
 
 type HookCtx = GenericEndpointContext;
@@ -162,6 +164,10 @@ export async function assertSocialSignUpWithinLimit(ctx: HookCtx | null): Promis
   if (key) await checkAccountLimit(key);
 }
 
+export function requiresSignUpApproval(ctx: HookCtx | null): boolean {
+  return ctx !== null && isSignUp(ctx) && getRuntimeSettings().signUpApprovalRequired;
+}
+
 export async function countSignUp(ctx: HookCtx | null): Promise<void> {
   if (!ctx || !isSignUp(ctx)) return;
 
@@ -277,4 +283,5 @@ export const afterAuthHook = createAuthMiddleware(async (ctx) => {
   }
 
   if (ctx.path === "/api-key/create") await settleApiKeyCooldown(ctx, ctx.context.returned);
+  await refusePendingPasswordSignIn(ctx as HookCtx, ctx.context.returned);
 });

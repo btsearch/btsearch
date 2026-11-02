@@ -1,11 +1,11 @@
-import { Delete02Icon, UserBlock01Icon } from "@hugeicons/core-free-icons";
+import { Delete02Icon, UserBlock01Icon, UserCheck01Icon } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { removeUser, showUserAdminError } from "../../api/authAdmin";
+import { removeUser, showUserAdminError, storeUpdatedAccount, updateUserFields } from "../../api/authAdmin";
 import type { AdminUser } from "../../types";
 import { getBanReasonLabel, getBanUntilSentence } from "../../utils/ban";
 import { getAccountName } from "../../utils/identity";
@@ -13,6 +13,7 @@ import { ModerationBanControls } from "./moderationBanControls";
 import { USER_DETAIL_TWO_COLUMN_CLASS } from "./userDetailPrimitives";
 import { USER_DETAIL_SECTION_IDS } from "./userDetailSections";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/features/settings/components/confirmDialog";
 import {
   SETTINGS_DESCRIPTION_CLASS,
@@ -21,6 +22,7 @@ import {
   SettingsMeta,
   SettingsMetaItem,
   SettingsSection,
+  SettingsStack,
 } from "@/features/settings/components/settingsPrimitives";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +49,43 @@ function ModerationCardHeader({ icon, iconTone, title, description, children }: 
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-1.5 max-sm:w-full max-sm:pl-11.5">{children}</div>
     </div>
+  );
+}
+
+function ModerationApprovalCard({ user }: { user: AdminUser }) {
+  const { t } = useTranslation("admin");
+  const queryClient = useQueryClient();
+
+  const approveMutation = useMutation({
+    mutationFn: () => updateUserFields(user.id, { isPendingApproval: false, isEmailVerified: true }),
+    onSuccess: (updatedUser) => {
+      storeUpdatedAccount(queryClient, updatedUser);
+      toast.success(t("users.detail.moderation.approval.success"));
+    },
+    onError: showUserAdminError,
+  });
+
+  return (
+    <SettingsCard>
+      <ModerationCardHeader
+        icon={UserCheck01Icon}
+        iconTone="default"
+        title={t("users.detail.moderation.approval.title")}
+        description={t("users.detail.moderation.approval.description")}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="cursor-pointer"
+          disabled={approveMutation.isPending}
+          onClick={() => approveMutation.mutate()}
+        >
+          {approveMutation.isPending ? <Spinner /> : null}
+          {t("users.detail.moderation.approval.action")}
+        </Button>
+      </ModerationCardHeader>
+    </SettingsCard>
   );
 }
 
@@ -123,10 +162,13 @@ export function ModerationSection({ user, onRemoved }: ModerationSectionProps) {
 
   return (
     <SettingsSection id={USER_DETAIL_SECTION_IDS.moderation} title={t("users.detail.moderation.title")}>
-      <div className={USER_DETAIL_TWO_COLUMN_CLASS}>
-        <ModerationBanCard user={user} />
-        <ModerationDeleteCard user={user} onRemoved={onRemoved} />
-      </div>
+      <SettingsStack>
+        {user.isPendingApproval ? <ModerationApprovalCard user={user} /> : null}
+        <div className={USER_DETAIL_TWO_COLUMN_CLASS}>
+          <ModerationBanCard user={user} />
+          <ModerationDeleteCard user={user} onRemoved={onRemoved} />
+        </div>
+      </SettingsStack>
     </SettingsSection>
   );
 }

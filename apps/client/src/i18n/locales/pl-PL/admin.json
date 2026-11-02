@@ -120,6 +120,10 @@
         "action": "Włącz"
       }
     },
+    "signUpApproval": {
+      "title": "Zatwierdzanie rejestracji",
+      "description": "Nowa osoba zaloguje się dopiero, gdy administrator zatwierdzi jej konto. E-mail weryfikacyjny nie jest wtedy wysyłany"
+    },
     "signIn": {
       "title": "Wymagane logowanie",
       "description": "Bez zalogowania nie działa ani serwis, ani API. Klucze publiczne (pk_...) też przestają działać",
@@ -351,7 +355,8 @@
         "allCountries": "wszystkie kraje"
       },
       "status": {
-        "banned": "Zablokowany"
+        "banned": "Zablokowany",
+        "pending": "Czeka na zatwierdzenie"
       },
       "ban": {
         "durations": {
@@ -421,6 +426,12 @@
       },
       "moderation": {
         "title": "Moderacja",
+        "approval": {
+          "title": "Czeka na zatwierdzenie",
+          "description": "Ta osoba zaloguje się dopiero po zatwierdzeniu konta. Aby odrzucić rejestrację, usuń konto",
+          "action": "Zatwierdź",
+          "success": "Konto zatwierdzone"
+        },
         "ban": {
           "title": "Zablokuj konto",
           "description": "Wylogowuje ze wszystkich urządzeń i nie pozwala się zalogować przez wybrany czas",
@@ -642,12 +653,20 @@
         }
       }
     },
+    "create": {
+      "button": "Dodaj użytkownika",
+      "title": "Nowy użytkownik",
+      "description": "Użytkownik może od razu się zalogować. Przekaż mu dane logowania",
+      "submit": "Utwórz",
+      "success": "Konto utworzone"
+    },
     "list": {
       "description": "Konta, role i uprawnienia redaktorów w krajach",
       "searchPlaceholder": "Nazwa, nazwa użytkownika lub e-mail",
       "status": {
         "all": "Wszyscy",
         "active": "Aktywni",
+        "pending": "Oczekujący",
         "banned": "Zablokowani"
       },
       "columns": {
@@ -1032,6 +1051,8 @@
         "delete": "Odebranie uprawnień redaktora"
       },
       "user": {
+        "create": "Utworzenie użytkownika",
+        "approve": "Zatwierdzenie użytkownika",
         "role": "Zmiana roli użytkownika",
         "ban": "Zablokowanie użytkownika",
         "unban": "Odblokowanie użytkownika",

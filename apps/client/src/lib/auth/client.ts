@@ -22,6 +22,7 @@ export const authClient = createAuthClient({
         forceTotp: { type: "boolean", defaultValue: false, input: false },
         locale: { type: "string", defaultValue: null, input: true },
         bio: { type: "string", defaultValue: null, input: true },
+        pendingApproval: { type: "boolean", defaultValue: false, input: false },
       },
     }),
     adminClient(),

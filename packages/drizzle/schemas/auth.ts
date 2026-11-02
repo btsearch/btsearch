@@ -183,6 +183,7 @@ export const users = AuthSchema.table(
     contactInfo: jsonb("contact_info").$type<{ instagram?: string; facebook?: string; email?: string }>(),
     profileVisibility: text("profile_visibility").notNull().default("private"),
     hunterListing: boolean("hunter_listing").notNull().default(false),
+    pendingApproval: boolean("pending_approval").notNull().default(false),
     cloudPreferences: jsonb("cloud_preferences").$type<CloudPreferences>(),
   },
   (table) => [index("users_email_idx").on(table.email)],

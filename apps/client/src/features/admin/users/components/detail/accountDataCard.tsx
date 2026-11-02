@@ -1,7 +1,6 @@
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { TFunction } from "i18next";
 import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -17,6 +16,7 @@ import {
 } from "../../api/authAdmin";
 import type { AdminUser } from "../../types";
 import { getAccountName, isUploadedAvatar } from "../../utils/identity";
+import { USERNAME_MAX_LENGTH, getUsernameProblem, getUsernameProblemText } from "../../utils/username";
 import { UserAvatar } from "@/components/app/userAvatar";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -30,34 +30,14 @@ import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
 
 const NAME_MAX_LENGTH = 100;
-const USERNAME_MIN_LENGTH = 3;
-const USERNAME_MAX_LENGTH = 25;
 const BIO_MAX_LENGTH = 500;
-const RESERVED_USERNAMES = new Set(["admin", "administrator", "mod", "moderator"]);
-const DISALLOWED_USERNAME_CHARACTERS = /[\s@/!#$%^&*()+={}[\]|\\:;"'<>,?]/;
 const BIO_LINK_PATTERN = /https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}/i;
 const FORM_AVATAR_CLASS = "size-16 *:data-[slot=avatar-fallback]:text-lg";
 
 type AccountDraft = { name: string; username: string; bio: string };
-type UsernameProblem = "length" | "invalid" | "reserved" | "taken";
 
 function toAccountDraft(user: AdminUser): AccountDraft {
   return { name: user.name.trim(), username: (user.username ?? "").trim(), bio: (user.bio ?? "").trim() };
-}
-
-function getUsernameProblem(username: string, takenUsername: string | null): UsernameProblem | null {
-  if (username.length < USERNAME_MIN_LENGTH || username.length > USERNAME_MAX_LENGTH) return "length";
-  if (DISALLOWED_USERNAME_CHARACTERS.test(username)) return "invalid";
-  if (RESERVED_USERNAMES.has(username.toLowerCase())) return "reserved";
-  if (takenUsername !== null && takenUsername.toLowerCase() === username.toLowerCase()) return "taken";
-  return null;
-}
-
-function getUsernameProblemText(t: TFunction, problem: UsernameProblem): string {
-  if (problem === "length") return t("settings:account.username.length", { min: USERNAME_MIN_LENGTH, max: USERNAME_MAX_LENGTH });
-  if (problem === "invalid") return t("settings:account.username.invalid");
-  if (problem === "reserved") return t("settings:account.username.reserved");
-  return t("settings:account.username.taken");
 }
 
 function AccountAvatarRow({ user }: { user: AdminUser }) {

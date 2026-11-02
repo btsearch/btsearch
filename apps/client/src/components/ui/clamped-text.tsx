@@ -16,11 +16,21 @@ type ClampedTextProps = {
   canExpand?: boolean;
   expandLabel?: string;
   className?: string;
+  expandedClassName?: string;
   toggleClassName?: string;
   onExpand?: () => void;
 };
 
-export function ClampedText({ text, lines, canExpand = true, expandLabel, className, toggleClassName, onExpand }: ClampedTextProps) {
+export function ClampedText({
+  text,
+  lines,
+  canExpand = true,
+  expandLabel,
+  className,
+  expandedClassName,
+  toggleClassName,
+  onExpand,
+}: ClampedTextProps) {
   const { t } = useTranslation("common");
   const textRef = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -43,7 +53,7 @@ export function ClampedText({ text, lines, canExpand = true, expandLabel, classN
 
   return (
     <>
-      <p ref={textRef} className={cn("whitespace-pre-line wrap-break-word", !expanded && LINE_CLAMP[lines], className)}>
+      <p ref={textRef} className={cn("whitespace-pre-line wrap-break-word", expanded ? expandedClassName : LINE_CLAMP[lines], className)}>
         {text}
       </p>
       {canExpand && overflowing ? (

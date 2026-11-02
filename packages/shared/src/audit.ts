@@ -46,6 +46,8 @@ export const AUDIT_OPERATION_KINDS = [
   "grant.create",
   "grant.update",
   "grant.delete",
+  "user.create",
+  "user.approve",
   "user.role",
   "user.email",
   "user.password",

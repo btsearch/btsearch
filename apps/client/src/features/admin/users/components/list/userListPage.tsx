@@ -1,7 +1,10 @@
+import { UserAdd01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useNavigate } from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CreateUserDialog } from "../create/createUserDialog";
 import type { UserListCriteria } from "./userListCriteria";
 import type { UserListFilterProps } from "./userListFilters";
 import { UserListMobileFilterRail } from "./userListMobileFilterRail";
@@ -11,6 +14,7 @@ import { useUserListPagination } from "./useUserListPagination";
 import { useUserListRows } from "./useUserListRows";
 import { useUserSearchText } from "./useUserSearchText";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
+import { Button } from "@/components/ui/button";
 import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
 import { STALE_NOTICE_CORNER_CLASS, StaleDataNotice } from "@/components/ui/error-state";
 import { useNavActionTarget } from "@/contexts/navActions";
@@ -26,6 +30,7 @@ export function UserListPage({ criteria, onCriteriaChange }: UserListPageProps) 
   const { t } = useTranslation(["admin", "nav"]);
   const navigate = useNavigate();
   const navActionTarget = useNavActionTarget();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const {
     text: searchText,
     changeText: changeSearchText,
@@ -98,10 +103,17 @@ export function UserListPage({ criteria, onCriteriaChange }: UserListPageProps) 
 
   return (
     <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-3 min-h-0 overflow-hidden">
-      <header className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.users")}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground max-md:hidden">{t("users.list.description")}</p>
+      <header className="flex shrink-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.users")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground max-md:hidden">{t("users.list.description")}</p>
+        </div>
+        <Button type="button" variant="outline" className="shrink-0 cursor-pointer" onClick={() => setIsCreateOpen(true)}>
+          <HugeiconsIcon icon={UserAdd01Icon} data-icon="inline-start" aria-hidden="true" />
+          {t("users.create.button")}
+        </Button>
       </header>
+      <CreateUserDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       {isMobile ? null : <UserListToolbar {...filterProps} />}
       {isMobile && !hasFloatingMobileFilters ? <MobileFilterRailInline>{mobileFilterRail}</MobileFilterRailInline> : null}

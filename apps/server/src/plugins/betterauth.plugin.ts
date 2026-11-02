@@ -30,7 +30,15 @@ import type { UserRole } from "../interfaces/auth.interface.js";
 import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
 import { withRedisDeadline } from "../lib/redisDeadline.js";
 import { isDisposableEmail, isDisposableEmailBlocklistReady } from "./auth/disposableEmailBlocklist.js";
-import { afterAuthHook, assertSocialSignUpWithinLimit, beforeAuthHook, countSignUp, releaseVerificationResendCooldown } from "./auth/hooks.js";
+import {
+  afterAuthHook,
+  assertSocialSignUpWithinLimit,
+  beforeAuthHook,
+  countSignUp,
+  releaseVerificationResendCooldown,
+  requiresSignUpApproval,
+} from "./auth/hooks.js";
+import { assertSignUpApproved, isPendingApproval } from "./auth/pendingApproval.js";
 import { API_KEY_PERMISSIONS, accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
 import { OAUTH_SCOPES, OAUTH_USER_SCOPES } from "./auth/scopes.js";
 
@@ -125,6 +133,11 @@ export const auth = betterAuth({
         defaultValue: null,
         input: true,
       },
+      pendingApproval: {
+        type: "boolean" as const,
+        defaultValue: false,
+        input: false,
+      },
     },
     changeEmail: {
       enabled: true,
@@ -198,6 +211,7 @@ export const auth = betterAuth({
             throw new APIError("SERVICE_UNAVAILABLE", { message: "Registration is temporarily unavailable. Please try again later" });
           if (isDisposableEmail(user.email)) throw new APIError("BAD_REQUEST", { message: "Disposable email addresses are not allowed" });
           await assertSocialSignUpWithinLimit(ctx);
+          if (requiresSignUpApproval(ctx)) return { data: { ...user, pendingApproval: true } };
         },
         after: async (_user, ctx) => {
           rememberCreatedUser(ctx);
@@ -219,6 +233,13 @@ export const auth = betterAuth({
       delete: {
         before: async (user) => {
           await forgetContributorMeasurements(user.id);
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session, ctx) => {
+          await assertSignUpApproved(session.userId, ctx);
         },
       },
     },
@@ -254,6 +275,7 @@ export const auth = betterAuth({
   emailVerification: {
     expiresIn: 60 * 60 * 24,
     sendVerificationEmail: async ({ user, url }, request) => {
+      if (isPendingApproval(user)) return;
       try {
         await sendVerificationEmail(user.email, url, getAuthEmailRecipient(user));
       } catch (error) {

@@ -3,7 +3,7 @@ import type { UserRole, UserSort } from "../../types";
 import { USER_ROLES } from "../../utils/roles";
 import { listSearchValues, parseSearchQuery, parseSearchWholeNumber } from "@/lib/urlSearch";
 
-export type UserListStatus = "all" | "active" | "banned";
+export type UserListStatus = "all" | "active" | "pending" | "banned";
 
 export type UserListSearch = {
   q?: string;
@@ -23,7 +23,7 @@ export function joinRoles(roles: readonly UserRole[]): string | undefined {
 }
 
 function parseStatus(value: unknown): UserListSearch["status"] {
-  return value === "active" || value === "banned" ? value : undefined;
+  return value === "active" || value === "pending" || value === "banned" ? value : undefined;
 }
 
 function parseSort(value: unknown): UserSort | undefined {

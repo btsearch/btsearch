@@ -9,6 +9,7 @@ import { listOfficialLabelMhz } from "@/features/official/labels";
 import { officialBandLabelsQueryOptions } from "@/features/official/queries";
 import { bandsQueryOptions, brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { FALLBACK_BRAND_COLOR, getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { useIsPortrait } from "@/hooks/usePortrait";
 import { type QueryLoadState, hasFailedLoad } from "@/lib/queryLoadState";
 import type { StationSource } from "@/types/station";
 
@@ -72,6 +73,8 @@ const NO_BAND_LABELS_BY_COUNTRY: MapBandLabelsByCountry = new Map();
 const planSelectorsByCountry = new Map<string, PlanSelector>();
 const KEYBIND_OPERATOR_COUNT = 4;
 const FULL_TURN_DEGREES = 360;
+const PORTRAIT_LATITUDE_PADDING_RATIO = 0.5;
+const MAX_MERCATOR_LATITUDE = 85.051129;
 const CODED_CELL_BAND_RANK = 0;
 const UNCODED_CELL_BAND_RANK = 1;
 const lookupsByOperators = new WeakMap<readonly Operator[], MapLookups>();
@@ -309,11 +312,21 @@ export function getMapMaxBounds(countries: readonly Country[]): MapMaxBounds | u
   ];
 }
 
+function padMaxBoundsLatitude([[west, south], [east, north]]: MapMaxBounds): MapMaxBounds {
+  const padding = (north - south) * PORTRAIT_LATITUDE_PADDING_RATIO;
+  return [
+    [west, Math.max(south - padding, -MAX_MERCATOR_LATITUDE)],
+    [east, Math.min(north + padding, MAX_MERCATOR_LATITUDE)],
+  ];
+}
+
 export function useMapMaxBounds(map: MapLibreMap | null): void {
   const { data: countries } = useQuery(countriesQueryOptions());
+  const isPortrait = useIsPortrait();
 
   useEffect(() => {
     if (map === null || countries === undefined) return;
-    map.setMaxBounds(getMapMaxBounds(countries));
-  }, [map, countries]);
+    const maxBounds = getMapMaxBounds(countries);
+    map.setMaxBounds(isPortrait && maxBounds !== undefined ? padMaxBoundsLatitude(maxBounds) : maxBounds);
+  }, [map, countries, isPortrait]);
 }

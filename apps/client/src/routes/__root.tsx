@@ -9,6 +9,7 @@ import { CookieConsentBanner } from "@/components/app/cookieConsentBanner";
 import { ErrorBoundary } from "@/components/app/errorBoundary";
 import { MaintenanceGuard } from "@/components/app/maintenanceGuard";
 import { ReloadPrompt } from "@/components/app/reloadPrompt";
+import { SocialSignInErrorNotice } from "@/components/auth/socialSignInErrorNotice";
 import { PhotoUploadProgressBar } from "@/components/photos/photoUploadProgressBar";
 import { ThemeProvider } from "@/components/preferences/themeProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -130,6 +131,7 @@ function AppProviders({ children }: AppProvidersProps) {
       </AppErrorBoundary>
       <PhotoUploadProgressBar />
       <Toaster />
+      <SocialSignInErrorNotice />
       <ReloadPrompt />
       <CookieConsentBanner />
     </>

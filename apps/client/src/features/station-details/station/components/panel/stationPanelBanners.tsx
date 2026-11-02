@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import type { StationRecord } from "../../types";
 import { StationFlagsStrip } from "./stationFlagsStrip";
+import { ClampedText } from "@/components/ui/clamped-text";
 
 type StationPanelBannersProps = {
   station: StationRecord;
@@ -24,9 +25,13 @@ export function StationPanelBanners({ station, canReviewFlags, onClose }: Statio
             <HugeiconsIcon icon={Note01Icon} className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-semibold">{t("specs.internalNotes")}</p>
-              <p className="max-h-20 overflow-y-auto whitespace-pre-wrap wrap-break-word pr-1 text-xs leading-relaxed text-foreground custom-scrollbar">
-                {notes}
-              </p>
+              <ClampedText
+                text={notes}
+                lines={4}
+                className="text-xs leading-relaxed text-foreground"
+                expandedClassName="max-h-[40dvh] overflow-y-auto pr-1 custom-scrollbar"
+                toggleClassName="text-xs"
+              />
             </div>
           </div>
         </div>

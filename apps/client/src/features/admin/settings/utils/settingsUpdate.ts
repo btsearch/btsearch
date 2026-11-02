@@ -25,6 +25,7 @@ export function applySettingsUpdate(settings: Settings, update: SettingsUpdate):
     ...settings,
     isMaintenanceMode: update.isMaintenanceMode ?? settings.isMaintenanceMode,
     isSignInRequired: update.isSignInRequired ?? settings.isSignInRequired,
+    isSignUpApprovalRequired: update.isSignUpApprovalRequired ?? settings.isSignUpApprovalRequired,
     features: { ...settings.features, ...update.features },
     announcement: update.announcement ? { ...readAnnouncement(settings), ...update.announcement } : settings.announcement,
     access: settings.access && update.access ? { ...settings.access, ...update.access } : settings.access,

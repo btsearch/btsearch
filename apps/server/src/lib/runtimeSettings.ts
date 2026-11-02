@@ -11,6 +11,7 @@ export interface Announcement {
 export interface RuntimeSettings {
   maintenanceEnabled: boolean;
   enforceAuthForAllRoutes: boolean;
+  signUpApprovalRequired: boolean;
   allowedUnauthenticatedRoutes: NonEmptyString[];
   disabledRoutes: NonEmptyString[];
   enableStationComments: boolean;
@@ -29,8 +30,12 @@ export interface RuntimeSettingsPatch extends Partial<Omit<RuntimeSettings, "all
   announcement?: Partial<Announcement>;
 }
 
-type StoredRuntimeSettings = Omit<RuntimeSettings, "maintenanceEnabled" | "measurementUploadsEnabled" | "observationsEnabled"> & {
+type StoredRuntimeSettings = Omit<
+  RuntimeSettings,
+  "maintenanceEnabled" | "signUpApprovalRequired" | "measurementUploadsEnabled" | "observationsEnabled"
+> & {
   maintenanceEnabled?: boolean;
+  signUpApprovalRequired?: boolean;
   measurementUploadsEnabled?: boolean;
   observationsEnabled?: boolean;
 };
@@ -42,6 +47,7 @@ const RESYNC_INTERVAL_MS = 60_000;
 const defaultSettings: RuntimeSettings = {
   maintenanceEnabled: false,
   enforceAuthForAllRoutes: false,
+  signUpApprovalRequired: false,
   allowedUnauthenticatedRoutes: ["/api/v1/auth"] as NonEmptyString[],
   disabledRoutes: [],
   enableStationComments: false,
@@ -67,6 +73,7 @@ function isStoredSettings(obj: unknown): obj is StoredRuntimeSettings {
   return (
     (candidate.maintenanceEnabled === undefined || typeof candidate.maintenanceEnabled === "boolean") &&
     typeof candidate.enforceAuthForAllRoutes === "boolean" &&
+    (candidate.signUpApprovalRequired === undefined || typeof candidate.signUpApprovalRequired === "boolean") &&
     Array.isArray(candidate.allowedUnauthenticatedRoutes) &&
     candidate.allowedUnauthenticatedRoutes.every(isNonEmptyString) &&
     Array.isArray(candidate.disabledRoutes) &&
@@ -94,6 +101,7 @@ function parseSettings(json: string | null): RuntimeSettings | null {
     return {
       ...parsed,
       maintenanceEnabled: parsed.maintenanceEnabled ?? false,
+      signUpApprovalRequired: parsed.signUpApprovalRequired ?? false,
       measurementUploadsEnabled: parsed.measurementUploadsEnabled ?? false,
       observationsEnabled: parsed.observationsEnabled ?? true,
     };
@@ -114,6 +122,7 @@ export function mergeRuntimeSettings(base: RuntimeSettings, patch: RuntimeSettin
   const next: RuntimeSettings = { ...base };
   if (typeof patch.maintenanceEnabled === "boolean") next.maintenanceEnabled = patch.maintenanceEnabled;
   if (typeof patch.enforceAuthForAllRoutes === "boolean") next.enforceAuthForAllRoutes = patch.enforceAuthForAllRoutes;
+  if (typeof patch.signUpApprovalRequired === "boolean") next.signUpApprovalRequired = patch.signUpApprovalRequired;
   if (typeof patch.enableStationComments === "boolean") next.enableStationComments = patch.enableStationComments;
   if (typeof patch.commentQueueEnabled === "boolean") next.commentQueueEnabled = patch.commentQueueEnabled;
   if (typeof patch.submissionsEnabled === "boolean") next.submissionsEnabled = patch.submissionsEnabled;

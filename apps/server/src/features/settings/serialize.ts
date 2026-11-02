@@ -13,6 +13,7 @@ export function toSettings(stored: RuntimeSettings, { isAdministrator }: Setting
   const settings: Settings = {
     isMaintenanceMode: stored.maintenanceEnabled,
     isSignInRequired: stored.enforceAuthForAllRoutes,
+    isSignUpApprovalRequired: stored.signUpApprovalRequired,
     features: {
       submissions: stored.submissionsEnabled,
       photoUploads: stored.photosEnabled,
@@ -37,6 +38,7 @@ export function toSettings(stored: RuntimeSettings, { isAdministrator }: Setting
 export function toRuntimeSettingsPatch({
   isMaintenanceMode,
   isSignInRequired,
+  isSignUpApprovalRequired,
   features,
   announcement,
   access,
@@ -44,6 +46,7 @@ export function toRuntimeSettingsPatch({
   const patch: RuntimeSettingsPatch = {
     maintenanceEnabled: isMaintenanceMode,
     enforceAuthForAllRoutes: isSignInRequired,
+    signUpApprovalRequired: isSignUpApprovalRequired,
     submissionsEnabled: features?.submissions,
     photosEnabled: features?.photoUploads,
     enableStationComments: features?.comments,

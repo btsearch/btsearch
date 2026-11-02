@@ -40,6 +40,7 @@ describe("getUsers", () => {
           banned,
           banExpires,
           banReason: "Reason",
+          pendingApproval: false,
           createdAt: readDate,
         },
       ],
@@ -84,6 +85,7 @@ describe("getUsers", () => {
           banned: true,
           banExpires: new Date("2000-01-01"),
           banReason: "Expired",
+          pendingApproval: true,
           createdAt: readDate,
         },
       ],
@@ -92,7 +94,9 @@ describe("getUsers", () => {
     const response = await app.inject({ url: "/users?include=account&includeTotal=true&limit=1" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      data: [{ id: readUserId, account: { role: "user", isBanned: false, email: "test@example.com", isEmailVerified: true } }],
+      data: [
+        { id: readUserId, account: { role: "user", isBanned: false, isPendingApproval: true, email: "test@example.com", isEmailVerified: true } },
+      ],
       paging: { limit: 1, nextCursor: null, total: 1 },
     });
   });
@@ -114,6 +118,7 @@ describe("getUsers", () => {
     ["q=ok&include=account", 403],
     ["q=ok&roles=admin", 403],
     ["q=ok&isBanned=false", 403],
+    ["q=ok&isPendingApproval=true", 403],
   ])("requires an administrator for privileged queries: %s", async (query, status) => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     const app = await createRouteHarness(getUsers, { session: userSession(readUserId, "editor") });

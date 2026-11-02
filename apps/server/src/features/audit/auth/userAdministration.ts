@@ -27,6 +27,7 @@ const userSnapshotSchema = createSelectSchema(users).pick({
   role: true,
   banReason: true,
   banExpires: true,
+  pendingApproval: true,
   createdAt: true,
 });
 
@@ -45,7 +46,7 @@ const REMOVE_USER_PATH = "/admin/remove-user";
 export const SELF_DELETE_PATH = "/delete-user";
 const BAN_FIELDS = ["banned", "banReason", "banExpires"] as const;
 const PROFILE_FIELDS = ["name", "username", "bio", "emailVerified", "forceTotp", "image"] as const;
-const AUDITED_USER_FIELDS = ["role", "email", "twoFactorEnabled", ...BAN_FIELDS, ...PROFILE_FIELDS] as const;
+const AUDITED_USER_FIELDS = ["role", "email", "twoFactorEnabled", "pendingApproval", ...BAN_FIELDS, ...PROFILE_FIELDS] as const;
 const AUDITED_FIELDS_BY_PATH: Record<string, readonly AuditedUserField[]> = {
   [SET_ROLE_PATH]: ["role"],
   [UPDATE_USER_PATH]: AUDITED_USER_FIELDS,
@@ -78,6 +79,7 @@ async function loadUserSnapshot(userId: string): Promise<UserSnapshot | undefine
       banned: users.banned,
       banReason: users.banReason,
       banExpires: users.banExpires,
+      pendingApproval: users.pendingApproval,
       createdAt: users.createdAt,
       grantIds: sql<string[]>`ARRAY(SELECT ${roleGrants.id} FROM ${roleGrants} WHERE ${roleGrants.userId} = ${userId})`,
     })
@@ -118,6 +120,7 @@ function userChangeKind(fields: readonly AuditedUserField[], after: UserSnapshot
   if (fields.includes("banned")) return after.banned ? "user.ban" : "user.unban";
   if (fields.includes("email")) return "user.email";
   if (fields.includes("twoFactorEnabled")) return after.twoFactorEnabled === true ? "user.two_factor_enable" : "user.two_factor_disable";
+  if (fields.includes("pendingApproval") && !after.pendingApproval) return "user.approve";
   if (after.banned && (fields.includes("banReason") || fields.includes("banExpires"))) return "user.ban";
   return fields.some((field) => field !== "banReason" && field !== "banExpires") ? "user.update" : null;
 }
@@ -187,15 +190,22 @@ async function auditUserChange(ctx: HookCtx, pending: PendingUserAudit, returned
   }
 }
 
+function createdUserKind({ role, banned }: UserSnapshot): AuditOperationKind {
+  if (role !== DEFAULT_ROLE) return "user.role";
+  return banned ? "user.ban" : "user.create";
+}
+
 async function auditCreatedUser(ctx: HookCtx, userId: string): Promise<void> {
   try {
     const [user, session] = await Promise.all([loadUserSnapshot(userId), getSessionFromCtx(ctx)]);
-    if (!user || (user.role === DEFAULT_ROLE && !user.banned)) return;
+    if (!user) return;
 
     const { id, username, role, banned, banReason, banExpires } = user;
-    const kind: AuditOperationKind = role === DEFAULT_ROLE ? "user.ban" : "user.role";
-    await runAuditedOperation(authAuditContext(ctx, session?.user.id ?? null), { kind, metadata: { username } }, (_tx, audit) =>
-      audit.log({ entity: "users", op: "create", recordId: id, new: { role, banned, banReason, banExpires }, metadata: { username } }),
+    await runAuditedOperation(
+      authAuditContext(ctx, session?.user.id ?? null),
+      { kind: createdUserKind(user), metadata: { username } },
+      (_tx, audit) =>
+        audit.log({ entity: "users", op: "create", recordId: id, new: { role, banned, banReason, banExpires }, metadata: { username } }),
     );
   } catch (error) {
     logger.error("auth.userAudit.record", { error });

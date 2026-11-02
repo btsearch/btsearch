@@ -13,6 +13,7 @@ import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSettings } from "@/hooks/useSettings";
 import { isGloballyHandledError } from "@/lib/api";
 import { formatMonthYear, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ export function PhotoGallery({ stationId, canEditStation }: Props) {
   const queryClient = useQueryClient();
   const lightbox = useLightbox();
   const [sortOrder, setSortOrder] = useState<PhotoSortOrder>("desc");
+  const { data: settings } = useSettings();
 
   const { data: photos, isLoading, isFetching, isLoadingError, refetch } = useQuery(stationPhotoRecordsQueryOptions(stationId));
 
@@ -87,7 +89,7 @@ export function PhotoGallery({ stationId, canEditStation }: Props) {
       <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
         <HugeiconsIcon icon={Image01Icon} className="size-10 mb-3 opacity-40" />
         <p className="text-sm font-medium">{t("photos.noPhotos")}</p>
-        <p className="text-xs mt-1 text-muted-foreground">{t("photos.noPhotosHint")}</p>
+        {settings?.features.photoUploads ? <p className="text-xs mt-1 text-muted-foreground">{t("photos.noPhotosHint")}</p> : null}
       </div>
     );
   }

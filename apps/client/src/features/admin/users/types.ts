@@ -35,6 +35,7 @@ export type AdminUser = {
   isEmailVerified: boolean;
   role: UserRole;
   isBanned: boolean;
+  isPendingApproval: boolean;
   banReason: string | null;
   banExpiresAt: string | null;
   isTwoFactorEnabled: boolean;
@@ -62,6 +63,7 @@ export type UserListParams = {
   search: string;
   roles: readonly UserRole[];
   isBanned: boolean | null;
+  isPendingApproval: boolean | null;
   sort: UserSort;
   limit: number;
   offset: number;

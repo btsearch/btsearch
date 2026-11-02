@@ -156,6 +156,7 @@ export const userAccountSchema = z.object({
   isBanned: z.boolean().describe("`false` once `banExpiresAt` has passed"),
   banReason: z.string().nullable(),
   banExpiresAt: z.iso.datetime().nullable().describe("`null` if there is no ban or the ban never expires"),
+  isPendingApproval: z.boolean().describe("`true` until an administrator approves the sign-up"),
   createdAt: z.iso.datetime(),
 });
 export type UserAccount = z.infer<typeof userAccountSchema>;
@@ -186,6 +187,7 @@ export const userListQuerySchema = z
       .optional()
       .describe(`${ADMIN_SESSION_NOTE}. Comma-separated list. Possible values: \`${USER_ROLES.join("`, `")}\``),
     isBanned: booleanQuerySchema.optional().describe(ADMIN_SESSION_NOTE),
+    isPendingApproval: booleanQuerySchema.optional().describe(ADMIN_SESSION_NOTE),
     include: csvEnumSchema(USER_INCLUDES)
       .optional()
       .describe(`${ADMIN_SESSION_NOTE}. Comma-separated list. Possible values: \`${USER_INCLUDES.join("`, `")}\``),

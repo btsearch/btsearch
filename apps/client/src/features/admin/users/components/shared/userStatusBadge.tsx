@@ -1,4 +1,4 @@
-import { Alert02Icon, UserBlock01Icon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, UserBlock01Icon, UserTime01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
@@ -9,6 +9,7 @@ type BadgedUserStatus = Exclude<UserStatus, "active">;
 
 const USER_STATUS_BADGES = {
   unverified: { icon: Alert02Icon, variant: "secondary", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400" },
+  pending: { icon: UserTime01Icon, variant: "secondary", className: "bg-primary/10 text-primary" },
   banned: { icon: UserBlock01Icon, variant: "destructive", className: "" },
 } as const;
 

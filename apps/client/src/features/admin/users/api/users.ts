@@ -16,6 +16,7 @@ function normalizeUserListParams(params: UserListParams): UserListParams {
     search: params.search.trim(),
     roles: USER_ROLES.filter((role) => params.roles.includes(role)),
     isBanned: params.isBanned,
+    isPendingApproval: params.isPendingApproval,
     sort: params.sort,
     limit: params.limit,
     offset: params.offset,
@@ -38,11 +39,12 @@ async function fetchUserRefs(userIds: readonly string[], signal?: AbortSignal): 
 }
 
 async function fetchUserList(params: UserListParams, signal?: AbortSignal): Promise<{ users: AdminListedUser[]; total: number }> {
-  const { search, roles, isBanned, sort, limit, offset } = params;
+  const { search, roles, isBanned, isPendingApproval, sort, limit, offset } = params;
   const query = new URLSearchParams({ include: "account", includeTotal: "true", sort, limit: String(limit), offset: String(offset) });
   if (search !== "") query.set("q", search);
   if (roles.length > 0) query.set("roles", roles.join(","));
   if (isBanned !== null) query.set("isBanned", String(isBanned));
+  if (isPendingApproval !== null) query.set("isPendingApproval", String(isPendingApproval));
 
   const response = await fetchJson<UserList>(`${API_V2_BASE}/users?${query.toString()}`, { signal });
   const users = response.data.map(toAdminListedUser);

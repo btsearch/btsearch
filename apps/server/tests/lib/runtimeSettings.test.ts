@@ -88,6 +88,14 @@ describe("initRuntimeSettings", () => {
     expect(runtime.getRuntimeSettings()).toEqual({ ...older, observationsEnabled: true });
     expect(redisBoundary.set).not.toHaveBeenCalled();
   });
+  it("keeps sign-up approval off for stored settings from before the switch", async () => {
+    const older = olderSettings();
+    delete older.signUpApprovalRequired;
+    stored = JSON.stringify(older);
+    await runtime.initRuntimeSettings();
+    expect(runtime.getRuntimeSettings()).toEqual({ ...older, signUpApprovalRequired: false });
+    expect(redisBoundary.set).not.toHaveBeenCalled();
+  });
   it("loads stored global settings without adding removed country flags", async () => {
     const older = olderSettings();
     stored = JSON.stringify(older);

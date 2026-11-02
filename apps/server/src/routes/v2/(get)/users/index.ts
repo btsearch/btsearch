@@ -1,7 +1,7 @@
 import { users } from "@openbts/drizzle";
 import { USER_SEARCH_MIN_LENGTH, userListQuerySchema, userListSchema } from "@openbts/shared/contract";
 import type { ListedUser, Paging, UserAccount, UserList, UserListQuery, UserRef, UserSort } from "@openbts/shared/contract";
-import { type SQL, and, count, ilike, inArray, not, or, sql } from "drizzle-orm";
+import { type SQL, and, count, eq, ilike, inArray, not, or, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -33,13 +33,15 @@ const schemaRoute = {
 };
 const errorReasons = {
   400: "The `cursor` is invalid, or `q` is shorter than 2 characters and you are not an administrator signed in with a session.",
-  403: "You sent `include=account`, `roles` or `isBanned`, or neither `q` nor `ids`, and you are not an administrator signed in with a session.",
+  403: "You sent `include=account`, `roles`, `isBanned` or `isPendingApproval`, or neither `q` nor `ids`, and you are not an administrator signed in with a session.",
 };
 type ReqQuery = { Querystring: UserListQuery };
 
-function assertOpenToStaff({ q, ids, roles, isBanned, include }: UserListQuery): void {
-  if (include?.includes("account") || roles !== undefined || isBanned !== undefined) {
-    throw new ErrorResponse("INSUFFICIENT_PERMISSIONS", { message: "include=account, roles and isBanned need an admin's session" });
+function assertOpenToStaff({ q, ids, roles, isBanned, isPendingApproval, include }: UserListQuery): void {
+  if (include?.includes("account") || roles !== undefined || isBanned !== undefined || isPendingApproval !== undefined) {
+    throw new ErrorResponse("INSUFFICIENT_PERMISSIONS", {
+      message: "include=account, roles, isBanned and isPendingApproval need an admin's session",
+    });
   }
   if (q !== undefined && q.length < USER_SEARCH_MIN_LENGTH) {
     throw new ErrorResponse("INVALID_QUERY", { message: `q needs at least ${USER_SEARCH_MIN_LENGTH} characters` });
@@ -75,6 +77,7 @@ async function loadAccounts(userIds: string[]): Promise<Map<string, UserAccount>
       banned: users.banned,
       banReason: users.banReason,
       banExpires: users.banExpires,
+      pendingApproval: users.pendingApproval,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -88,6 +91,7 @@ async function loadAccounts(userIds: string[]): Promise<Map<string, UserAccount>
       isBanned: row.banned === true && (row.banExpires === null || row.banExpires > now),
       banReason: row.banReason,
       banExpiresAt: row.banExpires?.toISOString() ?? null,
+      isPendingApproval: row.pendingApproval,
       createdAt: row.createdAt.toISOString(),
     });
   }
@@ -101,7 +105,7 @@ function toListedUser(user: UserRef, account?: UserAccount): ListedUser {
 }
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<UserList>>) {
-  const { q, ids, roles, isBanned, include, sort, limit, cursor, offset, includeTotal } = req.query;
+  const { q, ids, roles, isBanned, isPendingApproval, include, sort, limit, cursor, offset, includeTotal } = req.query;
   if (!req.userSession?.user?.id) throw new ErrorResponse("UNAUTHORIZED");
 
   const isAdmin = await hasStaffPermission(req, { user: ["list"] });
@@ -112,6 +116,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     ids ? inArray(users.id, ids) : undefined,
     roles ? inArray(users.role, roles) : undefined,
     isBanned === undefined ? undefined : bannedIs(isBanned),
+    isPendingApproval === undefined ? undefined : eq(users.pendingApproval, isPendingApproval),
   );
   const keyset = createKeyset(sort, users.id, SORT_COLUMNS, cursor, cursorIdSchema);
 

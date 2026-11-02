@@ -6,7 +6,7 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify";
 import fs from "node:fs/promises";
 import path from "node:path";
-import sharp, { type SharpInput, type SharpOptions } from "sharp";
+import type { SharpInput, SharpOptions } from "sharp";
 import { z } from "zod/v4";
 
 import db from "../../database/psql.js";
@@ -20,6 +20,7 @@ import { hasStaffPermission } from "../access/staff.js";
 import { auditContextFromRequest, runAuditedOperation } from "../audit/index.js";
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { notifyStationWatchers } from "../notifications/service.js";
+import { encodeCommentPhoto } from "./photo.js";
 
 const attachmentInsertSchema = createInsertSchema(attachments);
 const stationCommentSelectSchema = createSelectSchema(stationComments, {
@@ -72,13 +73,7 @@ export async function createStationComment(req: FastifyRequest, stationId: numbe
           sharpOptions = { raw: { width, height, channels: 4 } };
         } else sharpInput = inputBuffer;
 
-        const outputBuffer = await refusingUnreadableImage(() =>
-          sharp(sharpInput, sharpOptions)
-            .rotate()
-            .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true })
-            .webp({ quality: 75 })
-            .toBuffer(),
-        );
+        const outputBuffer = await refusingUnreadableImage(() => encodeCommentPhoto(sharpInput, sharpOptions));
         await fs.writeFile(filePath, outputBuffer);
         const stats = await fs.stat(filePath);
 
