@@ -12,7 +12,7 @@ import {
   renderCLFDescriptionTemplate,
 } from "@openbts/shared/clfExportTemplates";
 import { getBandName } from "@openbts/shared/frequency";
-import { type StructureNoteLanguage, noteNamesStructureType } from "@openbts/shared/structureNotes";
+import { type StructureNoteLanguage, getStructurePhrase } from "@openbts/shared/structureNotes";
 
 import { type StoredStructureType, toStructureType } from "../structures/serialize.js";
 
@@ -464,15 +464,16 @@ function getStructureLabel(cell: CellExportData): string {
   return `${type} (${owner})`;
 }
 
-function namesStructureType(cell: CellExportData, note: string): boolean {
-  if (note === "" || cell.structure_type === null || cell.structure_type === undefined) return false;
-  return noteNamesStructureType(note, toStructureType(cell.structure_type), getStructureLanguage(cell));
+function getStructureTypePhrase(cell: CellExportData, note: string): string | null {
+  if (note === "" || cell.structure_type === null || cell.structure_type === undefined) return null;
+  return getStructurePhrase(getStructureTypeLabel(cell), toStructureType(cell.structure_type), note, getStructureLanguage(cell));
 }
 
 function getStructureDetails(cell: CellExportData): string {
   const note = cell.structure_note?.trim() ?? "";
   const owner = cell.structure_owner ?? "";
-  if (namesStructureType(cell, note)) return owner === "" ? note : `${note} (${owner})`;
+  const typePhrase = getStructureTypePhrase(cell, note);
+  if (typePhrase !== null) return owner === "" ? typePhrase : `${typePhrase} (${owner})`;
 
   return [getStructureLabel(cell), note].filter((part) => part !== "").join(", ");
 }

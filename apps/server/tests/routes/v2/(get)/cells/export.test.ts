@@ -667,6 +667,31 @@ describe("loadNativeExportLines", () => {
       "kosciol pw. św. Anny (PGE)",
     ],
     [
+      "a Polish note that names the type outside Poland",
+      { structure_type: "chimney", structure_owner: null, structure_note: "Komin stalowy" },
+      "Komin stalowy",
+    ],
+    [
+      "the type joined to a note that continues it",
+      { country_code: "PL", structure_type: "chimney", structure_note: "Stalowy" },
+      "komin stalowy (PGE)",
+    ],
+    [
+      "the type joined to a place hint",
+      { country_code: "PL", structure_type: "lattice_tower", structure_owner: null, structure_note: "przy A4" },
+      "wieża kratowa przy A4",
+    ],
+    [
+      "the type joined to a building in the genitive",
+      { country_code: "PL", structure_type: "rooftop", structure_owner: null, structure_note: "Politechniki Krakowskiej" },
+      "dach Politechniki Krakowskiej",
+    ],
+    [
+      "the type before a building in the nominative",
+      { country_code: "PL", structure_type: "rooftop", structure_owner: null, structure_note: "blok mieszkalny" },
+      "dach, blok mieszkalny",
+    ],
+    [
       "the type before a note that names another type",
       { country_code: "PL", structure_type: "rooftop", structure_owner: null, structure_note: "wieża na kamienicy" },
       "dach, wieża na kamienicy",

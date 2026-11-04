@@ -1,5 +1,5 @@
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { type StructureNoteLanguage, noteNamesStructureType } from "@openbts/shared/structureNotes";
+import { type StructureNoteLanguage, getStructurePhrase } from "@openbts/shared/structureNotes";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -71,9 +71,8 @@ function joinDetails(details: readonly (string | null)[]): string {
 
 function getStructureLines(structure: ListRowStructure, typeName: string | null, language: StructureNoteLanguage): StructureLines {
   const { type, note, ownerName } = structure;
-  if (type !== null && note !== null && noteNamesStructureType(note, type, language)) {
-    return { firstLine: note, secondLine: ownerName, summary: joinDetails([note, ownerName]) };
-  }
+  const typePhrase = type !== null && typeName !== null && note !== null ? getStructurePhrase(typeName, type, note, language) : null;
+  if (typePhrase !== null) return { firstLine: typePhrase, secondLine: ownerName, summary: joinDetails([typePhrase, ownerName]) };
 
   return {
     firstLine: typeName ?? structure.textWithoutType,
