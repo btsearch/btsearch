@@ -54,22 +54,22 @@ describe("getStations", () => {
     expect(dbMock.calls.find((call) => call.table === table)?.clauses.limit).toEqual([2]);
   });
 
-  it("translates combined status, band, technology and confirmation filters into one query", async () => {
+  it("translates combined status, band, technology, NR mode and confirmation filters into one query", async () => {
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("select", table, []);
     const app = await createRouteHarness(getStations);
     const response = await app.inject({
       method: "GET",
-      url: "/stations?statuses=inactive&rats=lte&bandIds=unknown&isConfirmed=false&supportsIot=true",
+      url: "/stations?statuses=inactive&rats=lte&bandIds=unknown&isConfirmed=false&nrModes=sa",
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ data: [], paging: { limit: 50, nextCursor: null } });
     const where = dbMock.calls.find((call) => call.table === table)?.clauses.where?.[0] as SQL;
     const query = new PgDialect().sqlToQuery(where);
-    expect(query.params).toEqual(expect.arrayContaining(["inactive", "LTE", 0]));
+    expect(query.params).toEqual(expect.arrayContaining(["inactive", "LTE", 0, "sa"]));
   });
 
-  it.each(["cursor=opaque&offset=0", "limit=1001", "statuses=published", "include=location.invalid", "supportsIot=1"])(
+  it.each(["cursor=opaque&offset=0", "limit=1001", "statuses=published", "include=location.invalid"])(
     "rejects invalid combinations before querying: %s",
     async (query) => {
       const app = await createRouteHarness(getStations);

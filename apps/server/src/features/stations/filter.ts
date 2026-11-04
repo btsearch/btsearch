@@ -1,6 +1,7 @@
 import { cells, lteCells, nrCells, stationPhotoSelections, type stationSectors, type stations } from "@openbts/drizzle";
+import { IOT_RATS, type IotRat, type NrMode } from "@openbts/shared/contract";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
-import { type SQL, and, inArray, or, sql } from "drizzle-orm";
+import { type SQL, and, eq, exists, inArray, or, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { bandCondition } from "../bands/unknown.js";
@@ -10,11 +11,27 @@ import { type StationStatus, buildStatusCondition } from "./status.js";
 type NonIotRat = "GSM" | "UMTS" | "LTE" | "NR";
 
 const NON_IOT_RATS: Record<string, NonIotRat> = { gsm: "GSM", umts: "UMTS", lte: "LTE", nr: "NR" };
-export const IOT_CAPABLE_CELL = sql`(
-  EXISTS (SELECT 1 FROM ${lteCells} WHERE ${lteCells.cell_id} = ${cells.id} AND ${lteCells.supports_iot} = true)
-  OR EXISTS (SELECT 1 FROM ${nrCells} WHERE ${nrCells.cell_id} = ${cells.id} AND ${nrCells.supports_nr_redcap} = true)
-)`;
+const IOT_CELLS: Record<IotRat, SQL> = {
+  lte: sql`EXISTS (SELECT 1 FROM ${lteCells} WHERE ${lteCells.cell_id} = ${cells.id} AND ${lteCells.supports_iot} = true)`,
+  nr: sql`EXISTS (SELECT 1 FROM ${nrCells} WHERE ${nrCells.cell_id} = ${cells.id} AND ${nrCells.supports_nr_redcap} = true)`,
+};
+const IOT_CAPABLE_CELL = iotCellCondition(IOT_RATS);
 const SECTOR_WITHOUT_CELLS_IS_KEPT = sql`true`;
+
+export function iotCellCondition(iotRats: readonly IotRat[]): SQL {
+  const iotCells = iotRats.map((rat) => IOT_CELLS[rat]);
+  return sql`(${sql.join(iotCells, sql` OR `)})`;
+}
+
+export function nrModeCondition(nrModes: NrMode[]): SQL | undefined {
+  if (nrModes.length === 0) return undefined;
+  return exists(
+    db
+      .select({ id: nrCells.cell_id })
+      .from(nrCells)
+      .where(and(eq(nrCells.cell_id, cells.id), inArray(nrCells.type, nrModes))),
+  );
+}
 
 export type StationSinceFilter = { fields: ("createdAt" | "updatedAt")[]; cutoff: Date };
 
@@ -34,11 +51,12 @@ export type StationFilter = {
   includesUnknownBand: boolean;
   nonIotRats: NonIotRat[];
   iotRequested: boolean;
+  nrModes: NrMode[];
   since: StationSinceFilter | null;
   backhaulMediums: BackhaulMedium[];
 };
 
-export type SectorFilter = Pick<StationFilter, "bandIds" | "includesUnknownBand" | "nonIotRats" | "iotRequested">;
+export type SectorFilter = Pick<StationFilter, "bandIds" | "includesUnknownBand" | "nonIotRats" | "iotRequested" | "nrModes">;
 
 export async function resolveStationFilter(params: StationFilterParams): Promise<StationFilter | null> {
   const { operators: operatorMncs, bands: bandValues, rat: rats = [] } = params;
@@ -59,6 +77,7 @@ export async function resolveStationFilter(params: StationFilterParams): Promise
     includesUnknownBand: false,
     nonIotRats: rats.map((rat) => NON_IOT_RATS[rat]).filter((rat): rat is NonIotRat => rat !== undefined),
     iotRequested: rats.includes("iot"),
+    nrModes: [],
     since: params.since,
     backhaulMediums: params.uplink ?? [],
   };
@@ -71,6 +90,7 @@ export function hasStationFilterCriteria(filter: StationFilter): boolean {
     filter.includesUnknownBand ||
     filter.nonIotRats.length > 0 ||
     filter.iotRequested ||
+    filter.nrModes.length > 0 ||
     filter.since !== null ||
     filter.backhaulMediums.length > 0
   );
@@ -83,12 +103,14 @@ export function buildStationFilterConditions(stationFields: typeof stations, fil
   if (operatorIds.length) conditions.push(inArray(stationFields.operator_id, operatorIds));
 
   const bandMatch = bandCondition(cells.band_id, filter);
-  const bandAloneIsNamed = bandMatch !== undefined && nonIotRats.length === 0 && !iotRequested;
+  const nrModeMatch = nrModeCondition(filter.nrModes);
+  const cellIsNamedWithoutRats = (bandMatch !== undefined || nrModeMatch !== undefined) && nonIotRats.length === 0 && !iotRequested;
   const cellConditions: SQL[] = [];
-  if (nonIotRats.length || bandAloneIsNamed) {
+  if (nonIotRats.length || cellIsNamedWithoutRats) {
     const cellMatches: SQL[] = [];
     if (bandMatch) cellMatches.push(bandMatch);
     if (nonIotRats.length) cellMatches.push(inArray(cells.rat, nonIotRats));
+    if (nrModeMatch) cellMatches.push(nrModeMatch);
     cellConditions.push(sql`EXISTS (
       SELECT 1 FROM ${cells}
       WHERE ${cells.station_id} = ${stationFields.id}
@@ -135,7 +157,7 @@ export function buildSectorFilterCondition(
   const { nonIotRats, iotRequested } = filter;
   const bandMatch = bandCondition(cells.band_id, filter);
   const technologyMatch = or(nonIotRats.length ? inArray(cells.rat, nonIotRats) : undefined, iotRequested ? IOT_CAPABLE_CELL : undefined);
-  const requestedCell = and(or(and(bandMatch, technologyMatch), ...otherCellMatches), broadcastMatch);
+  const requestedCell = and(or(and(bandMatch, technologyMatch, nrModeCondition(filter.nrModes)), ...otherCellMatches), broadcastMatch);
   if (!requestedCell) return undefined;
 
   const anyAttachedCellIsRequested = sql`(

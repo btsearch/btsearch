@@ -97,6 +97,11 @@ const BACKHAUL_CHOICES: FilterChoice[] = [
   { value: "xdsl", labelKey: "common:labels.backhaulXdsl", aliases: ["dsl"] },
 ];
 const DUPLEX_CHOICES: FilterChoice[] = [{ value: "FDD" }, { value: "TDD" }, { value: "null", labelKey: "common:labels.unknown", aliases: ["false"] }];
+const NR_MODE_CHOICES: FilterChoice[] = [{ value: "SA" }, { value: "NSA" }];
+const IOT_RAT_CHOICES: FilterChoice[] = [
+  { value: "LTE", tag: "NB-IoT/LTE-M" },
+  { value: "NR", tag: "RedCap" },
+];
 const CELL_TYPE_CHOICES: FilterChoice[] = [
   { value: "macro", labelKey: "stations:cells.cellTypes.macrocell", aliases: ["macrocell"] },
   { value: "micro", labelKey: "stations:cells.cellTypes.microcell", aliases: ["microcell"] },
@@ -151,6 +156,7 @@ export const FILTER_KEYWORDS: KnownFilterKeyword[] = [
   { key: "is_confirmed:", descriptionKey: "isConfirmed", group: "cell", availableOn: ["map", "stations"], valueKind: "boolean" },
   { key: "cell_notes:", descriptionKey: "cellNotes", group: "cell", availableOn: ["map", "stations"], valueKind: "text" },
   { key: "cell_type:", descriptionKey: "cellType", group: "cell", availableOn: ["map", "stations"], valueKind: "choice", choices: CELL_TYPE_CHOICES },
+  { key: "iot_rat:", descriptionKey: "iotRat", group: "cell", availableOn: ["map"], valueKind: "choice", choices: IOT_RAT_CHOICES },
   { key: "lac:", descriptionKey: "lac", group: "gsm", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "cid:", descriptionKey: "cid", group: "gsm", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "rnc:", descriptionKey: "rnc", group: "umts", availableOn: ["map", "stations"], valueKind: "number" },
@@ -164,14 +170,13 @@ export const FILTER_KEYWORDS: KnownFilterKeyword[] = [
   { key: "tac:", descriptionKey: "tac", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "lte_pci:", descriptionKey: "ltePci", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "earfcn:", descriptionKey: "earfcn", group: "lte", availableOn: ["map", "stations"], valueKind: "number" },
-  { key: "supports_iot:", descriptionKey: "supportsIot", group: "lte", availableOn: ["map", "stations"], valueKind: "boolean" },
   { key: "gnbid:", descriptionKey: "gnbid", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "nci:", descriptionKey: "nci", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "nr_clid:", descriptionKey: "nrClid", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "nrtac:", descriptionKey: "nrtac", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "nr_pci:", descriptionKey: "nrPci", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
   { key: "arfcn:", descriptionKey: "arfcn", group: "nr", availableOn: ["map", "stations"], valueKind: "number" },
-  { key: "supports_nr_redcap:", descriptionKey: "supportsNrRedcap", group: "nr", availableOn: ["map", "stations"], valueKind: "boolean" },
+  { key: "nr_mode:", descriptionKey: "nrMode", group: "nr", availableOn: ["map"], valueKind: "choice", choices: NR_MODE_CHOICES },
   { key: "networks_id:", descriptionKey: "networksId", group: "identifiers", availableOn: ["map", "stations"], valueKind: "text" },
   { key: "networks_name:", descriptionKey: "networksName", group: "identifiers", availableOn: ["map", "stations"], valueKind: "text" },
   { key: "mno_name:", descriptionKey: "mnoName", group: "identifiers", availableOn: ["map", "stations"], valueKind: "text" },

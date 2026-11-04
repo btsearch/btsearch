@@ -13,7 +13,7 @@ import {
   normalizeCLFDescriptionTemplates,
   renderClfTemplatePreview,
 } from "@openbts/shared/clfExportTemplates";
-import type { Band, CellExportQuery, Operator, Region } from "@openbts/shared/contract";
+import type { Band, CellExportQuery, IotRat, Operator, Region } from "@openbts/shared/contract";
 import { CELL_EXPORT_TEMPLATE_PARAMS, CELL_RATS, UNKNOWN_BAND } from "@openbts/shared/contract/constants";
 import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
@@ -36,9 +36,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { chooseExportFile, downloadExport, isExportCancelled } from "@/features/clf-export/download";
+import { ClfIotRatSelector } from "@/features/clf-export/iotRatSelector";
 import { ClfOperatorSelector } from "@/features/clf-export/operatorSelector";
 import { bandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
-import { EXTENDED_RAT_OPTIONS } from "@/features/shared/rat";
+import { EXTENDED_RAT_OPTIONS, IOT_RAT_OPTIONS } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
@@ -71,6 +72,7 @@ type ExportDataset = {
 type FormValues = {
   dataset: ExportDataset;
   rat: string[];
+  iotRats: IotRat[];
   format: CLFExportFormat;
   displayNRSeparately: boolean;
 };
@@ -302,12 +304,7 @@ function buildExportUrl(values: FormValues, templateDrafts: CLFDescriptionTempla
 
   const rats = CELL_RATS.filter((rat) => values.rat.includes(rat.toUpperCase()));
   if (rats.length > 0) query.rats = rats;
-  if (values.rat.includes("IOT")) {
-    if (rats.length === 0) {
-      query.rats = ["lte", "nr"];
-      query.supportsIot = true;
-    } else query.includeIot = true;
-  }
+  if (values.rat.includes("IOT")) query.iotRats = values.iotRats;
 
   const templates = normalizeCLFDescriptionTemplates(templateDrafts);
   for (const rat of CLF_DESCRIPTION_TEMPLATE_RATS) {
@@ -315,16 +312,19 @@ function buildExportUrl(values: FormValues, templateDrafts: CLFDescriptionTempla
     if (template) query[CELL_EXPORT_TEMPLATE_PARAMS[rat]] = template;
   }
 
-  if (values.format === "ntm" && values.displayNRSeparately) query.displayNrSeparately = true;
+  if (values.format === "ntm" && values.displayNRSeparately) query.nrModes = ["sa", "nsa"];
 
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) params.set(key, Array.isArray(value) ? value.join(",") : String(value));
   return `${API_V2_BASE}/cells/export?${params.toString()}`;
 }
 
+const ALL_IOT_RATS: IotRat[] = IOT_RAT_OPTIONS.map((option) => option.value);
+
 const INITIAL_VALUES: FormValues = {
   dataset: { countryCode: "PL", operatorIds: undefined, operators: [], regions: [], bands: [] },
   rat: [],
+  iotRats: ALL_IOT_RATS,
   format: "4.0",
   displayNRSeparately: false,
 };
@@ -541,8 +541,14 @@ function ClfExportPage() {
     form.reset({
       ...formValuesFromPreferences(preferences.clfExportFilters),
       rat: form.state.values.rat,
+      iotRats: form.state.values.iotRats,
     });
   }, [form, preferences.clfExportFilters]);
+
+  function handleIotRatsChange(iotRats: IotRat[]) {
+    if (iotRats.length === 0) form.setFieldValue("rat", (rats) => rats.filter((rat) => rat !== "IOT"));
+    else form.setFieldValue("iotRats", iotRats);
+  }
 
   function updateClfExportFilters(update: Partial<clfExportFilters>) {
     const dataset = form.state.values.dataset;
@@ -718,7 +724,10 @@ function ClfExportPage() {
                             <Checkbox
                               id={`rat-${rat.value}`}
                               checked={field.state.value.includes(rat.value)}
-                              onCheckedChange={() => field.handleChange(toggleValue(field.state.value, rat.value))}
+                              onCheckedChange={() => {
+                                if (rat.value === "IOT") form.setFieldValue("iotRats", ALL_IOT_RATS);
+                                field.handleChange(toggleValue(field.state.value, rat.value));
+                              }}
                             />
                             <GenerationTag>{rat.gen}</GenerationTag>
                             <span>{rat.label}</span>
@@ -727,6 +736,15 @@ function ClfExportPage() {
                       </div>
                     )}
                   </form.Field>
+                  <form.Subscribe selector={(state) => state.values.rat.includes("IOT")}>
+                    {(isIotChosen) =>
+                      isIotChosen ? (
+                        <form.Field name="iotRats">
+                          {(field) => <ClfIotRatSelector value={field.state.value} onChange={handleIotRatsChange} />}
+                        </form.Field>
+                      ) : null
+                    }
+                  </form.Subscribe>
                 </fieldset>
 
                 <Separator />

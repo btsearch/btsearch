@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { csvBandIdsSchema } from "./bands.ts";
-import { cellSightingsSchema, stationCellSchema } from "./cells.ts";
+import { NR_MODES, cellSightingsSchema, stationCellSchema } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
@@ -24,7 +24,7 @@ import {
   searchTextSchema,
   usesCursorOrOffset,
 } from "./common.ts";
-import { BACKHAUL_MEDIUMS, CELL_RATS, MAX_LOCATION_LIST_LIMIT } from "./constants.ts";
+import { BACKHAUL_MEDIUMS, CELL_RATS, IOT_RATS, MAX_LOCATION_LIST_LIMIT } from "./constants.ts";
 import { operatorSchema } from "./operators.ts";
 import { regionSchema } from "./regions.ts";
 import {
@@ -192,7 +192,7 @@ export type LocationStation = z.infer<typeof locationStationSchema>;
 
 const LOCATION_STATIONS_NOTE =
   "Only returned with `include=stations` or any `stations.*` value. " +
-  "When the request filters by technology or band (`rats`, `bandIds`, `supportsIot=true`, " +
+  "When the request filters by technology or band (`rats`, `bandIds`, `iotRats`, `nrModes`, " +
   "or `rat:` and `band:` in `q`), each station's `sectors` contain only the sectors that have a matching cell and the sectors that have no cells. " +
   "The same goes for a station that matches `operatorIds` only through cells it broadcasts for those operators";
 
@@ -237,10 +237,14 @@ const OPERATORS_FILTER_NOTE =
   "Matches stations of these operators. For a shared network, the stations of its members match too. " +
   "A station of another operator matches when one of its cells also broadcasts for one of these operators. Comma-separated ids";
 const RATS_FILTER_NOTE =
-  "Matches stations that have a cell of one of these technologies. With `bandIds`, a single cell must match both. " +
+  "Matches stations that have a cell of one of these technologies. With `bandIds` or `nrModes`, a single cell must match all of them. " +
   `Comma-separated list. Possible values: \`${CELL_RATS.join("`, `")}\``;
-const SUPPORTS_IOT_FILTER_NOTE =
-  "`true` matches stations with an LTE cell that supports IoT or an NR cell that supports RedCap. `false` matches stations with neither";
+const IOT_RATS_FILTER_NOTE =
+  "Matches stations with an IoT cell of one of these technologies: `lte` for NB-IoT or LTE-M, `nr` for RedCap. " +
+  "The IoT cell does not have to be the one that matches `rats`, `bandIds` or `nrModes`. Comma-separated list";
+const NR_MODES_FILTER_NOTE =
+  "Matches stations that have an NR cell in one of these modes. With `rats` or `bandIds`, a single cell must match all of them, " +
+  `so \`rats=lte,nr&nrModes=sa\` only matches stations with an NR SA cell. Comma-separated list. Possible values: \`${NR_MODES.join("`, `")}\``;
 const LIST_FILTER_NOTE =
   "Matches only the stations on this list. The list must be public or your own, unless you have the `read_all:user_lists` permission";
 
@@ -249,7 +253,8 @@ export const stationFilterShape = {
   operatorIds: csvIdsSchema.optional().describe(OPERATORS_FILTER_NOTE),
   bandIds: csvBandIdsSchema.optional(),
   rats: csvEnumSchema(CELL_RATS).optional().describe(RATS_FILTER_NOTE),
-  supportsIot: booleanQuerySchema.optional().describe(SUPPORTS_IOT_FILTER_NOTE),
+  iotRats: csvEnumSchema(IOT_RATS).optional().describe(IOT_RATS_FILTER_NOTE),
+  nrModes: csvEnumSchema(NR_MODES).optional().describe(NR_MODES_FILTER_NOTE),
   backhaulMediums: csvEnumSchema(BACKHAUL_MEDIUMS).optional(),
   createdAfter: instantSchema.optional().describe("Matches stations created at or after this time"),
   updatedAfter: instantSchema.optional().describe("Matches stations last changed at or after this time"),

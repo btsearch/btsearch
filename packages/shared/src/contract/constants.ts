@@ -11,6 +11,9 @@ export const UNKNOWN_BAND = "unknown";
 export const CELL_RATS = ["gsm", "umts", "lte", "nr"] as const;
 export type CellRat = (typeof CELL_RATS)[number];
 
+export const IOT_RATS = ["lte", "nr"] as const;
+export type IotRat = (typeof IOT_RATS)[number];
+
 export const GNBID_MIN_LENGTH = 22;
 export const GNBID_MAX_LENGTH = 32;
 export const DEFAULT_GNBID_LENGTH = 24;

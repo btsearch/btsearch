@@ -8,6 +8,7 @@ import {
 } from "@openbts/shared/contract/constants";
 
 import { RAT_OPTIONS } from "../constants";
+import { IOT_RAT, RAT_CHOICE_VALUES, keepRatChoicesWithTheirRat } from "./mapRatChoices";
 import { type OfficialLabelParts, listOfficialRatOptions, toOfficialRatOption } from "@/features/official/labels";
 import type { RatOption } from "@/features/shared/rat";
 import { isCountryCode, isRecordId } from "@/lib/apiValues";
@@ -47,7 +48,6 @@ export type MapFiltersUpdater = (filters: MapFilters) => MapFilters;
 export type MapFiltersChange = MapFilters | MapFiltersUpdater;
 
 export const UNKNOWN_BAND_LABEL = 0;
-export const IOT_RAT = "iot";
 export const DEFAULT_RECENT_DAYS = 30;
 
 const MIN_RECENT_DAYS = 1;
@@ -61,7 +61,7 @@ const RECENT_DATE_FIELDS: ReadonlySet<string> = new Set<MapRecentDateField>(["cr
 export const ESTIMATED_SITE_STATUSES: readonly EstimatedSiteStatus[] = ["unmatched", "suggested", "matched", "ignored"];
 export const DEFAULT_ESTIMATED_SITE_STATUSES: readonly EstimatedSiteStatus[] = ["unmatched", "suggested"];
 const ESTIMATED_SITE_STATUS_SET: ReadonlySet<string> = new Set(ESTIMATED_SITE_STATUSES);
-const INTERNAL_MAP_RATS: ReadonlySet<string> = new Set<string>(RAT_OPTIONS.map((rat) => rat.value));
+const INTERNAL_MAP_RATS: ReadonlySet<string> = new Set<string>([...RAT_OPTIONS.map((rat) => rat.value), ...RAT_CHOICE_VALUES]);
 const STORED_REGISTER_RATS: Readonly<Record<OfficialRatFilter, string>> = {
   nr: "NR",
   lte: "LTE",
@@ -164,7 +164,7 @@ export function sanitizeMapFilters(filters: MapFilters, registerRats?: readonly 
     operatorIds: unique(filters.operatorIds.filter(isRecordId)),
     countryCodes: unique(filters.countryCodes.filter(isCountryCode)),
     bands: unique(filters.bands.filter(isBandLabel)),
-    rat: unique(filters.rat.filter((rat) => knownRats === null || knownRats.has(rat))),
+    rat: keepRatChoicesWithTheirRat(unique(filters.rat.filter((rat) => knownRats === null || knownRats.has(rat)))),
     status: status.length > 0 ? status : [DEFAULT_MAP_STATUS],
     officialStatuses: officialStatuses.length > 0 ? officialStatuses : [...OFFICIAL_PERMIT_STATUSES],
     recentDays: filters.recentDays === null ? null : clampRecentDays(filters.recentDays),
@@ -216,7 +216,8 @@ export function listAppliedMapBands(filters: Pick<MapFilters, "source" | "bands"
 }
 
 export function listAppliedMapRats(filters: Pick<MapFilters, "source" | "rat">): string[] {
-  return filters.source === "official" ? filters.rat : filters.rat.filter((rat) => INTERNAL_MAP_RATS.has(rat));
+  if (filters.source === "official") return filters.rat.filter((rat) => OFFICIAL_RATS_BY_STORED_RAT.has(rat));
+  return filters.rat.filter((rat) => INTERNAL_MAP_RATS.has(rat));
 }
 
 export function listShownOfficialLayers(filters: Pick<MapFilters, "source" | "showStations" | "showHeatmap" | "showRadiolines">): OfficialLayer[] {

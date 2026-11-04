@@ -11,7 +11,6 @@ import { type CellRat, MAX_LOCATION_LIST_LIMIT, MAX_MICROWAVE_LINK_LIST_LIMIT } 
 
 import {
   DEFAULT_MAP_FILTERS,
-  IOT_RAT,
   type MapCountryCapability,
   type MapFilters,
   UNKNOWN_BAND_LABEL,
@@ -21,6 +20,7 @@ import {
   listOfficialRatFilters,
 } from "./mapFilters";
 import { type MapLookups, listBandIdsByLabels } from "./mapLookups";
+import { listIotRats, listNrModes } from "./mapRatChoices";
 import type { MicrowaveLinkListParams, OfficialLocationListParams } from "@/features/official/api";
 import { toV2StationStatus } from "@/features/station-details/station/utils/stations";
 import { MOST_LIST_VALUES, normalizeSearchText } from "@/lib/apiValues";
@@ -110,12 +110,15 @@ function buildStationFilterParams({ filters, lookups }: MapListRequest): URLSear
 
   const params = new URLSearchParams();
   const rats = listCellRats(filters.rat);
+  const iotRats = listIotRats(filters.rat);
+  const nrModes = listNrModes(filters.rat);
 
   params.set("statuses", listV2Statuses(filters.status).join(","));
   setOperatorParams(params, filters.operatorIds);
   if (filters.operatorIds.length > 0) params.set("keepOtherCountries", "true");
   if (rats.length > 0) params.set("rats", rats.join(","));
-  if (filters.rat.includes(IOT_RAT)) params.set("supportsIot", "true");
+  if (iotRats.length > 0) params.set("iotRats", iotRats.join(","));
+  if (nrModes.length > 0) params.set("nrModes", nrModes.join(","));
   if (bandFilter.length > 0) params.set("bandIds", bandFilter.join(","));
   if (filters.uplinkTypes.length > 0) params.set("backhaulMediums", filters.uplinkTypes.join(","));
   setRecentParams(params, filters);

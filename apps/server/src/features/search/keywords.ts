@@ -1,5 +1,5 @@
 import { cells, extraIdentificators, gsmCells, locations, lteCells, nrCells, regions, stations, umtsCells } from "@openbts/drizzle";
-import { MAX_ID, SEARCH_KEYWORDS, STRUCTURE_TYPE_FILTER_VALUES, countryCodeSchema } from "@openbts/shared/contract";
+import { IOT_RATS, MAX_ID, NR_MODES, SEARCH_KEYWORDS, STRUCTURE_TYPE_FILTER_VALUES, countryCodeSchema } from "@openbts/shared/contract";
 import type { SearchKeyword, SearchKeywordValues } from "@openbts/shared/contract";
 import { type SQL, type SQLWrapper, inArray, sql } from "drizzle-orm";
 import { z } from "zod/v4";
@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 import { ErrorResponse } from "../../errors.js";
 import { broadcastsCode, hasPlmn } from "../operators/sharing.js";
 import { stationCountryCode, stationPlacementMatches } from "../stations/country.js";
-import { structureTypeCondition } from "../stations/read.js";
+import { hasIotCell, structureTypeCondition } from "../stations/read.js";
 import {
   FILTER_DEFINITIONS,
   type FilterTable,
@@ -28,7 +28,7 @@ const RAT_TABLES = [
   { key: "lteCells", table: lteCells },
   { key: "nrCells", table: nrCells },
 ] as const;
-const BOOLEAN_KEYWORDS: ReadonlySet<SearchKeyword> = new Set(["has_photo", "has_azimuth", "is_confirmed", "supports_iot", "supports_nr_redcap"]);
+const BOOLEAN_KEYWORDS: ReadonlySet<SearchKeyword> = new Set(["has_photo", "has_azimuth", "is_confirmed"]);
 const DATE_KEYWORDS: ReadonlySet<SearchKeyword> = new Set(["created_after", "created_before", "updated_after", "updated_before"]);
 const PATTERN_KEYWORDS: ReadonlySet<SearchKeyword> = new Set(["bts_id", "cell_notes", "networks_id", "networks_name", "mno_name"]);
 const INTEGER_KEYWORDS: ReadonlySet<SearchKeyword> = new Set([
@@ -62,6 +62,8 @@ const STRUCTURE_TYPES_BY_LOWERCASE = new Map(STRUCTURE_TYPE_FILTER_VALUES.map((t
 
 const booleanSchema = z.stringbool();
 const countryCodesSchema = z.array(countryCodeSchema).min(1);
+const iotRatsSchema = z.array(z.enum(IOT_RATS)).min(1);
+const nrModesSchema = z.array(z.enum(NR_MODES)).min(1);
 const plmnsSchema = z.array(z.string().regex(/^\d{5,6}$/)).min(1);
 const regionCodesSchema = z.array(z.union([z.string().max(3), z.string().regex(REGION_ISO_CODE_PATTERN)])).min(1);
 const termsSchema = z.array(z.string()).min(1);
@@ -149,6 +151,10 @@ function keywordCondition(keyword: SearchKeyword, value: string): KeywordConditi
       const codes = plmnsSchema.parse(splitList(value));
       return { table: "stations", condition: sql`(${hasPlmn(stations.operator_id, codes)} OR ${broadcastsCode(stations.id, codes)})` };
     }
+    case "iot_rat": {
+      const iotRats = iotRatsSchema.parse(splitList(value.toLowerCase()));
+      return { table: "stations", condition: hasIotCell(iotRats) };
+    }
     case "region":
       return regionCondition(value);
     case "city":
@@ -159,6 +165,10 @@ function keywordCondition(keyword: SearchKeyword, value: string): KeywordConditi
       return structureTypesCondition(value);
     case "structure_note":
       return placeCondition(locations.structure_note, value);
+    case "nr_mode": {
+      const nrModes = nrModesSchema.parse(splitList(value.toLowerCase()));
+      return { table: "nrCells", condition: inArray(nrCells.type, nrModes) };
+    }
     case "gps":
       return nearbyCondition(value);
     default:

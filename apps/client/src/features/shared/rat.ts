@@ -1,3 +1,5 @@
+import type { IotRat } from "@openbts/shared/contract";
+
 export const RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"] as const;
 
 export type RatType = (typeof RAT_ORDER)[number];
@@ -30,6 +32,11 @@ const REGISTER_GENERATIONS: ReadonlyMap<string, string> = new Map([
 ]);
 
 export const EXTENDED_RAT_OPTIONS: { value: string; label: string; gen: string }[] = [...RAT_OPTIONS, { value: "IOT", label: "IoT", gen: "NB" }];
+
+export const IOT_RAT_OPTIONS: readonly { value: IotRat; label: string }[] = [
+  { value: "nr", label: "RedCap" },
+  { value: "lte", label: "NB-IoT/LTE-M" },
+];
 
 function getRatCellSpec(rat: string): RatCellSpec | undefined {
   if (rat in RAT_CELL_SPECS) return RAT_CELL_SPECS[rat as RatType];

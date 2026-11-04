@@ -15,7 +15,7 @@ import { buildSecuritySchemes, securityFor } from "./security.js";
 import { TAGS, TAG_GROUPS } from "./tags.js";
 
 const OPENAPI_VERSION = "3.1.0";
-const API_VERSION = "2.0.0";
+const API_VERSION = "2.0.1";
 const MULTIPART_CONTENT_TYPE = "multipart/form-data";
 const ERROR_PLAN_KEY = "x-error-plan";
 const PLUGIN_PLACEHOLDER_DESCRIPTION = "Default Response";

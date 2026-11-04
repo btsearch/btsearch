@@ -12,7 +12,6 @@ import {
   DEFAULT_RECENT_DAYS,
   ESTIMATED_SITE_STATUSES,
   type EstimatedSiteStatus,
-  IOT_RAT,
   type MapFilters,
   type MapFiltersChange,
   type MapRecentDateField,
@@ -23,6 +22,7 @@ import {
   listStoredRegisterRatOptions,
 } from "../../data/mapFilters";
 import { type MapLookups, useCountryBandPlans } from "../../data/mapLookups";
+import { IOT_RAT, RAT_CHOICE_GROUPS } from "../../data/mapRatChoices";
 import { Checkbox } from "./checkbox";
 import { FadeItem, Reveal, SmoothHeight } from "./mapFilterMotion";
 import { type BandPill, listBandPills } from "./mapFilterPanelRules";
@@ -69,6 +69,16 @@ type StandardSectionProps = {
   onToggleRat: (rat: string) => void;
   onClearAllRats: () => void;
   hasKeyHint?: boolean;
+  hasChoiceDivider?: boolean;
+};
+
+type RatChoiceGroup = (typeof RAT_CHOICE_GROUPS)[number];
+
+type RatChoiceRowProps = {
+  groups: readonly RatChoiceGroup[];
+  selectedRats: readonly string[];
+  hasDivider: boolean;
+  onToggleRat: (rat: string) => void;
 };
 
 type BandSectionProps = {
@@ -233,7 +243,45 @@ export function MicrowaveLinkOperatorsSection({
   );
 }
 
-export function StandardSection({ filters, onToggleRat, onClearAllRats, hasKeyHint = true }: StandardSectionProps) {
+function RatChoiceRow({ groups, selectedRats, hasDivider, onToggleRat }: RatChoiceRowProps) {
+  const { t } = useTranslation("main");
+
+  return (
+    <Reveal shown={groups.length > 0} className="pt-1.5 pb-0.5">
+      <SmoothHeight contentClassName="flex flex-wrap items-center gap-1.5">
+        <AnimatePresence initial={false}>
+          {groups.flatMap((group, index) => {
+            const choices = (
+              <FadeItem key={group.rat} className="items-center gap-1">
+                <span className="text-[11px] text-muted-foreground">{t(group.labelKey)}</span>
+                {group.options.map((option) => (
+                  <FacetPill
+                    key={option.value}
+                    active={selectedRats.includes(option.value)}
+                    onClick={() => onToggleRat(option.value)}
+                    className="h-6 px-2 text-[11px]"
+                  >
+                    {option.label}
+                  </FacetPill>
+                ))}
+              </FadeItem>
+            );
+            if (index === 0 || !hasDivider) return [choices];
+
+            return [
+              <FadeItem key={`${group.rat}-divider`} className="items-center">
+                <span aria-hidden="true" className="mx-0.5 h-3.5 w-px bg-border" />
+              </FadeItem>,
+              choices,
+            ];
+          })}
+        </AnimatePresence>
+      </SmoothHeight>
+    </Reveal>
+  );
+}
+
+export function StandardSection({ filters, onToggleRat, onClearAllRats, hasKeyHint = true, hasChoiceDivider = true }: StandardSectionProps) {
   const { t } = useTranslation(["main", "common"]);
   const isDatabaseSource = filters.source === "internal";
   const registerRatsQuery = useQuery({ ...officialBandLabelsQueryOptions(), select: listMapRegisterRatOptions, enabled: !isDatabaseSource });
@@ -280,6 +328,12 @@ export function StandardSection({ filters, onToggleRat, onClearAllRats, hasKeyHi
           })}
         </AnimatePresence>
       </SmoothHeight>
+      <RatChoiceRow
+        groups={isDatabaseSource ? RAT_CHOICE_GROUPS.filter((group) => filters.rat.includes(group.rat)) : []}
+        selectedRats={filters.rat}
+        hasDivider={hasChoiceDivider}
+        onToggleRat={onToggleRat}
+      />
     </FilterPanelSection>
   );
 }

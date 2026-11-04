@@ -6,6 +6,7 @@ import { DEFAULT_LIST_STATION_STATUSES, LIST_STATION_STATUSES, isDefaultListStat
 import { RAT_OPTIONS } from "@/features/map/constants";
 import { DEFAULT_MAP_FILTERS, type MapFilters, type MapFiltersChange, type MapRecentDateField } from "@/features/map/data/mapFilters";
 import type { MapBandLabelsByCountry } from "@/features/map/data/mapLookups";
+import { RAT_CHOICE_VALUES } from "@/features/map/data/mapRatChoices";
 import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
 
 export type StationsListVariant = "public" | "admin";
@@ -70,7 +71,7 @@ const COLUMN_SORTS: Record<StationsListSortColumn, ColumnSorts> = {
 const BY_RELEVANCE: StationsListSortState = { column: null, isDescending: false, isByRelevance: true };
 const mapFiltersByListFilters = new WeakMap<StationsListFilters, MapFilters>();
 
-export const STATIONS_LIST_RATS: readonly string[] = RAT_OPTIONS.map((rat) => rat.value);
+export const STATIONS_LIST_RATS: readonly string[] = [...RAT_OPTIONS.map((rat) => rat.value), ...RAT_CHOICE_VALUES];
 export const STATIONS_LIST_MISSING: readonly StationsListMissing[] = ["photos", "sectors", "structure", "unconfirmed"];
 export const STATIONS_LIST_SORTS: readonly StationsListSort[] = Object.values(COLUMN_SORTS).flatMap((sorts) => [sorts.ascending, sorts.descending]);
 export const DEFAULT_STATIONS_LIST_SORT: StationsListSort = "-updated";

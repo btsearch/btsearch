@@ -8,6 +8,7 @@ import {
   clearMapFilters,
   countActiveMapFilters,
 } from "../data/mapFilters";
+import { toggleMapRat } from "../data/mapRatChoices";
 import { toggleValue } from "@/lib/utils";
 import type { StationStatus } from "@/types/station";
 
@@ -32,7 +33,7 @@ export function useFilterHandlers({ filters, operators, countries, onFiltersChan
   }
 
   function handleToggleRat(rat: string) {
-    onFiltersChange((current) => ({ ...current, rat: toggleValue(current.rat, rat) }));
+    onFiltersChange((current) => ({ ...current, rat: toggleMapRat(current.rat, rat) }));
   }
 
   function handleToggleStatus(status: StationStatus) {

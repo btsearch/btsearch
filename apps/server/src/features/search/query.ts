@@ -15,7 +15,17 @@ type QueriedStations = {
   narrowsStations: boolean;
 };
 
-const NARROWING_FILTERS = ["operatorIds", "bandIds", "rats", "supportsIot", "backhaulMediums", "createdAfter", "updatedAfter", "listId"] as const;
+const NARROWING_FILTERS = [
+  "operatorIds",
+  "bandIds",
+  "rats",
+  "iotRats",
+  "nrModes",
+  "backhaulMediums",
+  "createdAfter",
+  "updatedAfter",
+  "listId",
+] as const;
 
 export function queriedStations(
   query: StationFilterQuery & { q?: string },

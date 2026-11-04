@@ -1,5 +1,6 @@
 import type { MapCapabilities } from "./data/mapCountries";
 import { DEFAULT_RECENT_DAYS, type MapFiltersUpdater, changeMapFilterSource, clearMapFilters } from "./data/mapFilters";
+import { toggleMapRat } from "./data/mapRatChoices";
 import { toggleValue } from "@/lib/utils";
 
 const OPERATOR_KEYS = ["1", "2", "3", "4"];
@@ -29,7 +30,7 @@ export function getMapFilterKeybindUpdater(key: string, shiftKey: boolean, conte
     if (normalizedKey === "f") return clearMapFilters;
     const rat = RAT_KEYBINDS[normalizedKey];
     if (rat === undefined) return undefined;
-    return (filters) => ({ ...filters, rat: toggleValue(filters.rat, rat) });
+    return (filters) => ({ ...filters, rat: toggleMapRat(filters.rat, rat) });
   }
 
   switch (normalizedKey) {

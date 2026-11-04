@@ -86,6 +86,18 @@ describe("searchStations", () => {
     expect(new PgDialect().sqlToQuery(where).params).toEqual(expect.arrayContaining(["church", "rooftop", "%Mariacki%"]));
   });
 
+  it("finds NR modes written in any letter case by keyword", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", getTableName(stations), [{ station: { ...readStation, id: 1 }, rank: null, field: null, value: null }]);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    const app = await createRouteHarness(searchStations);
+    const response = await app.inject({ url: "/search?q=nr_mode:SA" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ data: [{ id: 1, match: null }] });
+    const where = dbMock.calls.find((call) => call.table === getTableName(stations))?.clauses.where?.[0] as SQL;
+    expect(new PgDialect().sqlToQuery(where).params).toContain("sa");
+  });
+
   it("counts an empty offset page independently instead of reporting a zero total", async () => {
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("select", getTableName(stations), [], [{ total: 3 }]);
@@ -101,6 +113,8 @@ describe("searchStations", () => {
     "q=staus:active",
     "q=gps:999,1",
     "q=structure_type:roof",
+    "q=nr_mode:standalone",
+    "q=iot_rat:gsm",
     "q=ok&cursor=broken",
     "q=ok&cursor=broken&offset=1",
     "q=%20%20",

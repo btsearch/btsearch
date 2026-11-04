@@ -470,7 +470,7 @@ describe("getCellsExport", () => {
     dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
     dbMock.enqueueFor("select", "cells", [{ lastModified: null }]);
     const app = await createRouteHarness(getCellsExport);
-    const response = await app.inject({ method: "HEAD", url: "/cells/export?format=ntm&supportsIot=false" });
+    const response = await app.inject({ method: "HEAD", url: "/cells/export?format=ntm" });
     expect(response.statusCode).toBe(200);
     expect(response.headers).not.toHaveProperty("last-modified");
     expect(dbMock.calls.some((call) => call.table === getTableName(stations))).toBe(false);
@@ -480,13 +480,13 @@ describe("getCellsExport", () => {
   });
 
   it.each([
-    { filters: "rats=gsm&includeIot=true", rats: ["GSM", "LTE", "NR"], lteIotOnly: true, nrIotOnly: true },
-    { filters: "rats=gsm,umts&includeIot=true", rats: ["GSM", "UMTS", "LTE", "NR"], lteIotOnly: true, nrIotOnly: true },
-    { filters: "rats=lte&includeIot=true", rats: ["LTE", "NR"], lteIotOnly: false, nrIotOnly: true },
-    { filters: "rats=nr&includeIot=true", rats: ["LTE", "NR"], lteIotOnly: true, nrIotOnly: false },
-    { filters: "rats=lte,nr&includeIot=true", rats: ["LTE", "NR"], lteIotOnly: false, nrIotOnly: false },
-    { filters: "rats=gsm&includeIot=true&supportsIot=false", rats: ["GSM"], lteIotOnly: false, nrIotOnly: false },
-    { filters: "rats=lte,nr&supportsIot=true", rats: ["LTE", "NR"], lteIotOnly: true, nrIotOnly: true },
+    { filters: "rats=gsm&iotRats=lte,nr", rats: ["GSM", "LTE", "NR"], lteIotOnly: true, nrIotOnly: true },
+    { filters: "rats=gsm,umts&iotRats=lte,nr", rats: ["GSM", "UMTS", "LTE", "NR"], lteIotOnly: true, nrIotOnly: true },
+    { filters: "rats=lte&iotRats=lte,nr", rats: ["LTE", "NR"], lteIotOnly: false, nrIotOnly: true },
+    { filters: "rats=nr&iotRats=lte,nr", rats: ["LTE", "NR"], lteIotOnly: true, nrIotOnly: false },
+    { filters: "rats=lte,nr&iotRats=lte,nr", rats: ["LTE", "NR"], lteIotOnly: false, nrIotOnly: false },
+    { filters: "iotRats=lte,nr", rats: ["LTE", "NR"], lteIotOnly: true, nrIotOnly: true },
+    { filters: "iotRats=nr", rats: ["NR"], lteIotOnly: false, nrIotOnly: true },
   ])("preserves selected RATs and IoT filtering for $filters", async ({ filters, rats, lteIotOnly, nrIotOnly }) => {
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("select", "cells", [{ lastModified: null }]);
@@ -502,16 +502,28 @@ describe("getCellsExport", () => {
   });
 
   it.each([
-    "format=csv",
-    "format=ntm&displayNrSeparately=1",
-    "format=ntm&includeIot=1",
-    "format=ntm&updatedAfter=2026-01-01",
-    "format=ntm&templateLte=%20",
-  ])("rejects invalid export options: %s", async (query) => {
+    { filters: "format=ntm", nrModes: ["sa"] },
+    { filters: "format=4.0", nrModes: ["sa"] },
+    { filters: "format=ntm&nrModes=sa,nsa", nrModes: ["sa", "nsa"] },
+  ])("exports only the asked NR modes, standalone by default, for $filters", async ({ filters, nrModes }) => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "cells", [{ lastModified: null }]);
     const app = await createRouteHarness(getCellsExport);
-    expect((await app.inject({ url: `/cells/export?${query}` })).statusCode).toBe(400);
-    expect(dbMock.calls).toHaveLength(0);
+    const response = await app.inject({ method: "HEAD", url: `/cells/export?${filters}` });
+    expect(response.statusCode).toBe(200);
+    const where = dbMock.calls.find((call) => call.table === "cells")?.clauses.where?.[0] as SQL;
+    const query = new PgDialect().sqlToQuery(where);
+    expect(query.params.filter((value) => value === "sa" || value === "nsa")).toEqual(nrModes);
   });
+
+  it.each(["format=csv", "format=4.0&nrModes=nsa", "format=ntm&updatedAfter=2026-01-01", "format=ntm&templateLte=%20"])(
+    "rejects invalid export options: %s",
+    async (query) => {
+      const app = await createRouteHarness(getCellsExport);
+      expect((await app.inject({ url: `/cells/export?${query}` })).statusCode).toBe(400);
+      expect(dbMock.calls).toHaveLength(0);
+    },
+  );
 });
 
 describe("readCellExportChunks", () => {

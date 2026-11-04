@@ -16,6 +16,7 @@ import {
 import { DEFAULT_STATION_STATUSES, UNKNOWN_STRUCTURE_TYPE } from "@openbts/shared/contract";
 import type {
   Bbox,
+  IotRat,
   Location,
   LocationInclude,
   LocationListQuery,
@@ -49,13 +50,14 @@ import { DATABASE_STRUCTURE_TYPES, type StructureOwnerRow } from "../structures/
 import { stationCountries, stationCountryCode, stationPlacementMatches } from "./country.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "./countryFeatures.js";
 import {
-  IOT_CAPABLE_CELL,
   type SectorFilter,
   type StationFilter,
   buildHasPhotosCondition,
   buildHasSectorsCondition,
   buildSectorFilterCondition,
   buildStationFilterConditions,
+  iotCellCondition,
+  nrModeCondition,
 } from "./filter.js";
 import { findHostStationIds } from "./physicalStations.js";
 import { DATABASE_RATS, DATABASE_STATUSES, type StationRow, toBackhaul, toSector, toStation, toStationCell, toStationLocation } from "./serialize.js";
@@ -99,16 +101,13 @@ export const locationColumns = {
   createdAt: locations.createdAt,
 };
 
-function iotCondition(supportsIot: boolean): SQL {
-  const capable = sql`EXISTS (
-    SELECT 1 FROM ${cells}
-    WHERE ${cells.station_id} = ${stations.id}
-    AND (
-      EXISTS (SELECT 1 FROM ${lteCells} WHERE ${lteCells.cell_id} = ${cells.id} AND ${lteCells.supports_iot} = true)
-      OR EXISTS (SELECT 1 FROM ${nrCells} WHERE ${nrCells.cell_id} = ${cells.id} AND ${nrCells.supports_nr_redcap} = true)
-    )
-  )`;
-  return supportsIot ? capable : sql`NOT ${capable}`;
+export function hasIotCell(iotRats: readonly IotRat[]): SQL {
+  return exists(
+    db
+      .select({ id: cells.id })
+      .from(cells)
+      .where(and(eq(cells.station_id, stations.id), iotCellCondition(iotRats))),
+  );
 }
 
 export async function findVisibleLocation(req: FastifyRequest, locationId: number): Promise<LocationRows> {
@@ -184,17 +183,22 @@ export function stationFilterConditions(
     ...splitBandFilter(query.bandIds),
     nonIotRats: (query.rats ?? []).map((rat) => DATABASE_RATS[rat]),
     iotRequested: false,
+    nrModes: query.nrModes ?? [],
     since: null,
     backhaulMediums: query.backhaulMediums ?? [],
   };
   const conditions = buildStationFilterConditions(stations, filter);
 
   if (query.operatorIds?.length) {
-    const cellMatch = and(bandCondition(cells.band_id, filter), filter.nonIotRats.length ? inArray(cells.rat, filter.nonIotRats) : undefined);
+    const cellMatch = and(
+      bandCondition(cells.band_id, filter),
+      filter.nonIotRats.length ? inArray(cells.rat, filter.nonIotRats) : undefined,
+      nrModeCondition(filter.nrModes),
+    );
     const guestMatch = guestStationCondition(stations.id, query.operatorIds, cellMatch);
     conditions.push(operatorCondition(query.operatorIds, query.keepOtherCountries === true, countryFrom, guestMatch));
   }
-  if (query.supportsIot !== undefined) conditions.push(iotCondition(query.supportsIot));
+  if (query.iotRats) conditions.push(hasIotCell(query.iotRats));
   if (query.hasPhotos !== undefined) conditions.push(buildHasPhotosCondition(stations.id, query.hasPhotos));
   if (query.hasSectors !== undefined) conditions.push(buildHasSectorsCondition(stationSectors, stations.id, query.hasSectors));
   if (query.isConfirmed !== undefined) conditions.push(flagCondition(stations.is_confirmed, query.isConfirmed));
@@ -209,8 +213,9 @@ export function sectorFilterCondition(query: StationFilterQuery, keywordCellMatc
     ...splitBandFilter(query.bandIds),
     nonIotRats: (query.rats ?? []).map((rat) => DATABASE_RATS[rat]),
     iotRequested: false,
+    nrModes: query.nrModes ?? [],
   };
-  const otherCellMatches = [keywordCellMatch, query.supportsIot === true ? IOT_CAPABLE_CELL : undefined];
+  const otherCellMatches = [keywordCellMatch, query.iotRats ? iotCellCondition(query.iotRats) : undefined];
   const condition = buildSectorFilterCondition(stationSectors, filter, otherCellMatches);
   if (!query.operatorIds?.length) return condition;
 

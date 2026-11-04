@@ -30,6 +30,7 @@ import {
   toStoredStationsListSort,
 } from "./stationsListFilters";
 import { type MapRecentDateField, UNKNOWN_BAND_LABEL } from "@/features/map/data/mapFilters";
+import { keepRatChoicesWithTheirRat } from "@/features/map/data/mapRatChoices";
 import { normalizeSearchText } from "@/lib/apiValues";
 
 type RecentDateWord = "created" | "updated";
@@ -82,7 +83,7 @@ export function readStationsListFilters(search: ListUrlSearch, variant: Stations
     countryCodes: parseUrlCountryCodes(search.countries),
     operatorIds: parseUrlIds(search.operators),
     regionIds: parseUrlIds(search.regions),
-    rats: parseUrlEnum(search.rats, STATIONS_LIST_RATS),
+    rats: keepRatChoicesWithTheirRat(parseUrlEnum(search.rats, STATIONS_LIST_RATS)),
     bands: parseUrlNumbers(search.bands, UNKNOWN_BAND_LABEL, LARGEST_BAND_LABEL),
     statuses: statuses.length > 0 ? statuses : [...DEFAULT_LIST_STATION_STATUSES],
     structureTypes: parseUrlEnum(search.structures, LIST_STRUCTURE_TYPES),

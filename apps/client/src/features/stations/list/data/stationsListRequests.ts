@@ -8,8 +8,8 @@ import { LIST_STATION_STATUSES, isDefaultListStationStatuses } from "./listStati
 import { LIST_STRUCTURE_TYPES, UNKNOWN_STRUCTURE_TYPE_WORD } from "./listStructures";
 import { orderWords, sortUniqueCountryCodes, sortUniqueNumbers } from "./listUrlValues";
 import { DEFAULT_STATIONS_LIST_SORT, type StationsListFilters, type StationsListSort, type StationsListVariant } from "./stationsListFilters";
-import { IOT_RAT } from "@/features/map/data/mapFilters";
 import type { MapLookups } from "@/features/map/data/mapLookups";
+import { listIotRats, listNrModes } from "@/features/map/data/mapRatChoices";
 import { listBandFilterEntries, listCellRats, setOperatorParams, setRecentParams } from "@/features/map/data/mapRequests";
 import { parseFilters } from "@/features/map/filters";
 import { STATION_INCLUDE } from "@/features/station-details/station/api";
@@ -81,7 +81,8 @@ function setStationFilterParams(params: URLSearchParams, filters: StationsListFi
   setOperatorParams(params, sortUniqueNumbers(filters.operatorIds));
   setListParam(params, "regionIds", sortUniqueNumbers(filters.regionIds));
   setListParam(params, "rats", listCellRats(filters.rats));
-  if (filters.rats.includes(IOT_RAT)) params.set("supportsIot", "true");
+  setListParam(params, "iotRats", listIotRats(filters.rats));
+  setListParam(params, "nrModes", listNrModes(filters.rats));
   setListParam(params, "structureTypes", listStructureTypeEntries(filters, variant));
   setListParam(params, "backhaulMediums", orderWords(BACKHAUL_MEDIUMS, filters.backhaulMediums));
   setRecentParams(params, filters);

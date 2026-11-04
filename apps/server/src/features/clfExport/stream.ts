@@ -1,11 +1,10 @@
 // oxlint-disable no-await-in-loop
 import { bands, cells, locations, lteCells, nrCells, operators, regions, stations } from "@openbts/drizzle";
 import { type CLFDescriptionTemplates, CLF_DESCRIPTION_TEMPLATE_RATS } from "@openbts/shared/clfExportTemplates";
-import { CELL_EXPORT_TEMPLATE_PARAMS, CELL_RATS, type CellExportQuery, type CellRat } from "@openbts/shared/contract";
+import { CELL_EXPORT_TEMPLATE_PARAMS, CELL_RATS, type CellExportQuery, type CellRat, type IotRat, type NrMode } from "@openbts/shared/contract";
 import { type SQL, and, asc, eq, gt, gte, inArray, isNotNull, max, or, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
-import { flagCondition } from "../../lib/conditions.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
 import { operatedBy } from "../operators/sharing.js";
 import { guestStationCondition, stationPlacementConditions } from "../stations/read.js";
@@ -23,6 +22,7 @@ export type CellExport = {
 const STATION_PAGE_SIZE = 2000;
 const STATION_BATCH_SIZE = 500;
 const LINES_PER_CHUNK = 200;
+const DEFAULT_NR_MODES: NrMode[] = ["sa"];
 
 function toConvertOptions(query: CellExportQuery): ConvertOptions {
   const templates: CLFDescriptionTemplates = {};
@@ -30,12 +30,7 @@ function toConvertOptions(query: CellExportQuery): ConvertOptions {
     const template = query[CELL_EXPORT_TEMPLATE_PARAMS[rat]];
     if (template !== undefined) templates[rat] = template;
   }
-  return { templates, displayNRSeparately: query.format === "ntm" && query.displayNrSeparately === true };
-}
-
-function iotConditions(column: typeof lteCells.supports_iot | typeof nrCells.supports_nr_redcap, supportsIot: boolean | undefined): SQL[] {
-  if (supportsIot === undefined) return [];
-  return [flagCondition(column, supportsIot)];
+  return { templates, displayNRSeparately: query.nrModes?.includes("nsa") === true };
 }
 
 export function buildCellExport(query: CellExportQuery, hiddenCountryCodes: readonly string[]): CellExport {
@@ -53,23 +48,24 @@ export function buildCellExport(query: CellExportQuery, hiddenCountryCodes: read
   if (bandMatch) cellConditions.push(bandMatch);
   if (query.updatedAfter) cellConditions.push(gte(cells.updatedAt, new Date(query.updatedAfter)));
 
-  const isIotOnly = query.supportsIot === true;
-  const includeIot = query.includeIot === true && query.supportsIot !== false;
-  const isAsked = (rat: CellRat) => !query.rats || query.rats.includes(rat);
-  const isLteAsked = isAsked("lte");
-  const isNrAsked = isAsked("nr");
+  const exportsEveryCell = query.rats === undefined && query.iotRats === undefined;
+  const isWholeRatExported = (rat: CellRat) => exportsEveryCell || query.rats?.includes(rat) === true;
+  const areIotCellsExported = (rat: IotRat) => query.iotRats?.includes(rat) === true;
   return {
     stationConditions,
     operatorIds: query.operatorIds,
     cells: {
       cellConditions,
-      lteConditions: iotConditions(lteCells.supports_iot, includeIot && !isLteAsked ? true : query.supportsIot),
-      nrConditions: iotConditions(nrCells.supports_nr_redcap, includeIot && !isNrAsked ? true : query.supportsIot),
+      lteConditions: isWholeRatExported("lte") ? [] : [eq(lteCells.supports_iot, true)],
+      nrConditions: [
+        inArray(nrCells.type, query.nrModes ?? DEFAULT_NR_MODES),
+        ...(isWholeRatExported("nr") ? [] : [eq(nrCells.supports_nr_redcap, true)]),
+      ],
       rats: {
-        gsm: isAsked("gsm") && !isIotOnly,
-        umts: isAsked("umts") && !isIotOnly,
-        lte: isLteAsked || includeIot,
-        nr: isNrAsked || includeIot,
+        gsm: isWholeRatExported("gsm"),
+        umts: isWholeRatExported("umts"),
+        lte: isWholeRatExported("lte") || areIotCellsExported("lte"),
+        nr: isWholeRatExported("nr") || areIotCellsExported("nr"),
       },
     },
     convertOptions: toConvertOptions(query),

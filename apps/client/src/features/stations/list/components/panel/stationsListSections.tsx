@@ -14,6 +14,7 @@ import {
 import type { StationsListPanel } from "../../data/stationsListPanel";
 import { ListCountrySection, ListOperatorSection, ListRegionSection, ListStructureSection } from "./listPanelSections";
 import { BackhaulSection, BandSection, RecentDaysFilter, StandardSection } from "@/features/map/components/search-overlay/mapFilterSections";
+import { toggleMapRat } from "@/features/map/data/mapRatChoices";
 import { FacetPill, FilterPanelSection } from "@/features/shared/filterPanel";
 import { toV2StationStatus } from "@/features/station-details/station/utils/stations";
 import { StationStatusPills } from "@/features/stations/components/stationStatusFilter";
@@ -69,9 +70,10 @@ export function StationsStandardSection({ panel, onFiltersChange }: StationsList
   return (
     <StandardSection
       filters={panel.mapFilters}
-      onToggleRat={(rat) => onFiltersChange((current) => ({ ...current, rats: toggleValue(current.rats, rat) }))}
+      onToggleRat={(rat) => onFiltersChange((current) => ({ ...current, rats: toggleMapRat(current.rats, rat) }))}
       onClearAllRats={() => onFiltersChange((current) => ({ ...current, rats: [] }))}
       hasKeyHint={false}
+      hasChoiceDivider={false}
     />
   );
 }
