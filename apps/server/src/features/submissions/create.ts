@@ -435,6 +435,7 @@ export async function validateChange(input: SubmissionChange, handling: "review"
           rat: cell.rat,
           bandId: cell.band_id,
           details: cell.details as { pci?: number | null; earfcn?: number | null; arfcn?: number | null } | undefined,
+          sectorId: cell.target_sector_id,
           excludeCellId: cell.target_cell_id ?? undefined,
         })),
       allModifiedCellIds,

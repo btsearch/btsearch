@@ -124,7 +124,12 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     const nrDetails = cellData.details as z.infer<typeof nrCellsUpdateSchema> | undefined;
     const effectiveDetails =
       existing.rat === "LTE" ? { ...existing.lte, ...lteDetails } : existing.rat === "NR" ? { ...existing.nr, ...nrDetails } : cellData.details;
-    return { rat: existing.rat, band_id: effectiveBandId, details: effectiveDetails };
+    return {
+      rat: existing.rat,
+      band_id: effectiveBandId,
+      details: effectiveDetails,
+      sector_id: cellData.sector_id !== undefined ? cellData.sector_id : existing.sector_id,
+    };
   });
 
   validateCellDuplicates(effectiveCells);
@@ -156,6 +161,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         rat: cell.rat,
         bandId: cell.band_id,
         details: cell.details as { pci?: number | null; earfcn?: number | null; arfcn?: number | null } | null | undefined,
+        sectorId: cell.sector_id,
       })),
       allModifiedCellIds,
     ),

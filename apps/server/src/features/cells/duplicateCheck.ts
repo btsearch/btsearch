@@ -14,7 +14,7 @@ import {
   toIdentityDetails,
 } from "./identityDuplicateSpecs.js";
 import { type NetworkOwner, loadNetworkOwner } from "./networkWrites.js";
-import { type PciDuplicateDetails, type PciDuplicateSpec, getPciDuplicateKey, getPciDuplicateSpec } from "./pciDuplicateSpecs.js";
+import { type PciDuplicateKeySource, type PciDuplicateSpec, getPciDuplicateKey, getPciDuplicateSpec } from "./pciDuplicateSpecs.js";
 
 type CellIdentityDuplicateEntry = {
   values: Record<string, number>;
@@ -38,17 +38,13 @@ type PciDuplicateEntry = {
   bandId: number;
   enbid?: number;
   type?: "nsa" | "sa";
+  sectorId?: number;
   pci: number;
   channel?: number | null;
   excludeCellId?: number;
 };
 
-export interface PciDuplicateSource {
-  rat?: string | null;
-  bandId?: number | null;
-  details?: PciDuplicateDetails | null;
-  excludeCellId?: number;
-}
+export type PciDuplicateSource = PciDuplicateKeySource & { excludeCellId?: number };
 
 type PciDuplicateCheckSpec = PciDuplicateSpec & {
   table: typeof lteCells | typeof nrCells;
@@ -366,6 +362,7 @@ function getPciDuplicateEntriesByRat(sources: PciDuplicateSource[]): Map<string,
     };
     if (duplicateKey.rat === "LTE" && source.details.enbid !== null && source.details.enbid !== undefined) entry.enbid = source.details.enbid;
     if (duplicateKey.rat === "NR" && source.details.type !== null && source.details.type !== undefined) entry.type = source.details.type;
+    if (duplicateKey.rat === "NR" && source.sectorId !== null && source.sectorId !== undefined) entry.sectorId = source.sectorId;
     entries.push(entry);
     entriesByRat.set(duplicateKey.rat, entries);
   }
@@ -476,16 +473,17 @@ async function checkPciDuplicatesForSpec(
 ): Promise<void> {
   if (entries.length === 0) return;
 
-  const conditions = entries.map((entry) =>
-    and(
+  const conditions = entries.map((entry) => {
+    const inOtherSector = entry.sectorId !== undefined ? ne(cells.sector_id, entry.sectorId) : undefined;
+    return and(
       eq(cells.band_id, entry.bandId),
       eq(spec.pciColumn, entry.pci),
       spec.enbidColumn !== undefined && entry.enbid !== undefined ? eq(spec.enbidColumn, entry.enbid) : undefined,
-      spec.typeColumn !== undefined && entry.type !== undefined ? eq(spec.typeColumn, entry.type) : undefined,
+      spec.typeColumn !== undefined && entry.type !== undefined ? or(eq(spec.typeColumn, entry.type), inOtherSector) : undefined,
       entry.channel !== null && entry.channel !== undefined ? or(isNull(spec.channelColumn), eq(spec.channelColumn, entry.channel)) : undefined,
       entry.excludeCellId !== undefined ? ne(spec.cellIdColumn, entry.excludeCellId) : undefined,
-    ),
-  );
+    );
+  });
 
   const existing = await db
     .select({ pci: spec.pciColumn })

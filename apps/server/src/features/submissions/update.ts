@@ -127,6 +127,7 @@ function getPciDuplicateSources(cells: ProposedCellInput[]) {
       rat: cell.rat,
       bandId: cell.band_id,
       details: cell.details as Record<string, unknown> | undefined,
+      sectorId: cell.target_sector_id,
       excludeCellId: cell.target_cell_id ?? undefined,
     }));
 }

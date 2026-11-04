@@ -33,12 +33,31 @@ describe("validateCellDuplicates", () => {
     expect(() => validateCellDuplicates([short, long])).toThrow("Duplicate NCI (1638402) found in NR cells");
   });
 
-  it("allows an NSA and an SA cell with one PCI on the same band and ARFCN", () => {
+  it("lets an NSA and an SA cell share a PCI on one band and ARFCN unless their sectors differ", () => {
     const nsa = { rat: "NR", band_id: 5, details: { type: "nsa", pci: 144, arfcn: 635616 } };
-    const sa = { rat: "NR", band_id: 5, details: { type: "sa", pci: 144, arfcn: 635616, gnbid: 244670, clid: 115, gnbid_length: 28 } };
+    const sa = { rat: "NR", band_id: 5, details: { type: "sa", pci: 144, arfcn: 635616 } };
 
     expect(() => validateCellDuplicates([nsa, sa])).not.toThrow();
+    expect(() =>
+      validateCellDuplicates([
+        { ...nsa, target_sector_id: 1 },
+        { ...sa, target_sector_id: 1 },
+      ]),
+    ).not.toThrow();
+    expect(() => validateCellDuplicates([{ ...nsa, target_sector_id: 1 }, sa])).not.toThrow();
     expect(() => validateCellDuplicates([nsa, nsa])).toThrow("Duplicate PCI 144 found on the same band in NR cells");
+    expect(() =>
+      validateCellDuplicates([
+        { ...nsa, target_sector_id: 1 },
+        { ...sa, target_sector_id: 2 },
+      ]),
+    ).toThrow("Duplicate PCI 144");
+    expect(() =>
+      validateCellDuplicates([
+        { ...nsa, sector_id: 1 },
+        { ...sa, sector_id: 2 },
+      ]),
+    ).toThrow("Duplicate PCI 144");
   });
 
   it("ignores deleted cells and unknown identities", () => {

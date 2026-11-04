@@ -21,7 +21,7 @@ import { z } from "zod/v4";
 import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateKey } from "../cells/identityDuplicateSpecs.js";
-import { type PciDuplicateDetails, getPciDuplicateKey } from "../cells/pciDuplicateSpecs.js";
+import { type PciDuplicateDetails, type PciDuplicateKeySource, canSharePci, getPciDuplicateKey } from "../cells/pciDuplicateSpecs.js";
 import { gnbidLengthSchema } from "../cells/ratCellSchemas.js";
 import type { StructureChange } from "../locations/structure.js";
 import { findPlacementCountryCode } from "../stations/country.js";
@@ -374,6 +374,8 @@ interface CellWithDetails {
   operation?: string | null;
   band_id?: number | null;
   details?: unknown;
+  sector_id?: number | null;
+  target_sector_id?: number | null;
 }
 
 const STATION_OWNER_NETWORK = "owner";
@@ -393,21 +395,31 @@ export function validateCellDuplicates(cells: CellWithDetails[], cellNetworks: r
     for (const key of keys) seenIdentityKeys.add(key);
   }
 
-  const seenPciKeysByRat = new Map<string, Set<string>>();
-  for (const cell of cells) {
-    if (cell.operation === "delete") continue;
-    const duplicateKey = getPciDuplicateKey({
-      rat: cell.rat,
-      bandId: cell.band_id,
-      details: cell.details as PciDuplicateDetails | undefined,
-    });
+  validatePciDuplicates(
+    cells
+      .filter((cell) => cell.operation !== "delete")
+      .map((cell) => ({
+        rat: cell.rat,
+        bandId: cell.band_id,
+        details: cell.details as PciDuplicateDetails | undefined,
+        sectorId: cell.target_sector_id ?? cell.sector_id,
+      })),
+  );
+}
+
+export function validatePciDuplicates(sources: readonly PciDuplicateKeySource[]): void {
+  const seenByKey = new Map<string, PciDuplicateKeySource[]>();
+  for (const source of sources) {
+    const duplicateKey = getPciDuplicateKey(source);
     if (!duplicateKey) continue;
 
-    const seen = seenPciKeysByRat.get(duplicateKey.rat) ?? new Set<string>();
-    if (seen.has(duplicateKey.key))
+    const key = `${duplicateKey.rat}:${duplicateKey.key}`;
+    const seen = seenByKey.get(key) ?? [];
+    if (seen.some((other) => !canSharePci(source, other))) {
       throw new ErrorResponse("BAD_REQUEST", { message: `Duplicate PCI ${duplicateKey.pci} found on the same band in ${duplicateKey.rat} cells` });
-    seen.add(duplicateKey.key);
-    seenPciKeysByRat.set(duplicateKey.rat, seen);
+    }
+    seen.push(source);
+    seenByKey.set(key, seen);
   }
 }
 

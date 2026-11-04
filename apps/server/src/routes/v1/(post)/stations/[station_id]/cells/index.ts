@@ -111,6 +111,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         rat: cell.rat,
         bandId: cell.band_id,
         details: cell.details as { pci?: number | null; earfcn?: number | null; arfcn?: number | null } | undefined,
+        sectorId: cell.sector_id,
       })),
     ),
   ]);

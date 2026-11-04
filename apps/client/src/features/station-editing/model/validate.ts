@@ -2,6 +2,7 @@ import { conventionsFor } from "@openbts/country-packs";
 import { isChannelValidForBand } from "@openbts/shared/bandCatalog";
 import { RESERVED_SITE_ID_PREFIX } from "@openbts/shared/contract";
 import type { Band, Operator, Region, StationIdentifierKind } from "@openbts/shared/contract";
+import { canShareNrPci } from "@openbts/shared/pciSharing";
 
 import { countCellEntries } from "./bodies";
 import { findNodeName, getAreaValue, getRowKind, movesStationAlone, normalizeText } from "./changes";
@@ -378,9 +379,8 @@ function getPciKey(cell: CellDraft): string | null {
   return `${cell.bandId}:${node}${pci}:${channel ?? ""}`;
 }
 
-function isNsaAndSaOfOneSector(cell: CellDraft, other: CellDraft): boolean {
-  if (cell.rat !== "nr" || (cell.mode === "sa") === (other.mode === "sa")) return false;
-  return cell.sectorKey === null || other.sectorKey === null || cell.sectorKey === other.sectorKey;
+function canSharePci(cell: CellDraft, other: CellDraft): boolean {
+  return cell.rat === "nr" && canShareNrPci({ mode: cell.mode, sector: cell.sectorKey }, { mode: other.mode, sector: other.sectorKey });
 }
 
 function groupCells(cells: readonly CellDraft[], written: ReadonlySet<DraftKey>, getKey: (cell: CellDraft) => string | null): CellGroup[] {
@@ -413,7 +413,7 @@ function validateDuplicates(session: EditSession, rat: Rat, cells: readonly Cell
       errors.push(toError(cellTarget(cell, cellIdField), "stations:edit.errors.cellIdentityDuplicate", { fields: getIdentityLabel(session, rat) }));
     }
     const pciGroup = pciGroups.find((group) => group.cells.includes(cell));
-    if (pciGroup?.cells.some((other) => other !== cell && !isNsaAndSaOfOneSector(cell, other))) {
+    if (pciGroup?.cells.some((other) => other !== cell && !canSharePci(cell, other))) {
       errors.push(toError(cellTarget(cell, "pci"), "stations:edit.errors.pciDuplicate", { pci: getCellNumber(cell, "pci") ?? "" }));
     }
   }

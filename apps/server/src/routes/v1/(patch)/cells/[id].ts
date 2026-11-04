@@ -78,7 +78,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   assertCanMutateStationCells(station);
   assertCellUpdateFitsStoredRat(cell, req.body);
 
-  if (req.body.details || req.body.band_id !== undefined) {
+  if (req.body.details || req.body.band_id !== undefined || req.body.sector_id !== undefined) {
     if (req.body.details) {
       const storedIdentity = cell.rat === "LTE" ? cell.lte : cell.rat === "NR" ? cell.nr : null;
       const identityDetails = { ...storedIdentity, ...(req.body.details as object) } as Record<string, unknown>;
@@ -111,7 +111,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
               type: nrDetails?.type !== undefined ? nrDetails.type : cell.nr?.type,
             }
           : null;
-    await checkPciDuplicate(cell.station_id, { rat: cell.rat, bandId: effectiveBandId, details: effectiveDetails, excludeCellId: id });
+    const sectorId = req.body.sector_id !== undefined ? req.body.sector_id : cell.sector_id;
+    await checkPciDuplicate(cell.station_id, { rat: cell.rat, bandId: effectiveBandId, details: effectiveDetails, sectorId, excludeCellId: id });
   }
 
   if (req.body.band_id !== undefined || req.body.rat !== undefined || req.body.details !== undefined) {

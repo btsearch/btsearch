@@ -96,6 +96,7 @@ import {
   stampSubmissionCountry,
   stripUnchangedProposalData,
   type umtsSelectSchema,
+  validatePciDuplicates,
 } from "./helpers.js";
 import { lockSubmission } from "./lock.js";
 import type { ProposedSectorRow } from "./serialize.js";
@@ -935,22 +936,30 @@ async function applyProposedSectors(
   return { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors };
 }
 
-async function checkProposedPciDuplicates(stationId: number | null, proposedCellRows: ProposedCellRow[]): Promise<void> {
+async function checkProposedPciDuplicates(
+  stationId: number | null,
+  proposedCellRows: ProposedCellRow[],
+  sectorIdByLocalId: ReadonlyMap<string, number>,
+  targetCellsMap: ReadonlyMap<number, TargetCellRow>,
+): Promise<void> {
   if (!stationId) return;
 
   const allModifiedCellIds = proposedCellRows.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
-  await checkPciDuplicates(
-    stationId,
-    proposedCellRows
-      .filter((cell) => cell.operation !== "delete")
-      .map((cell) => ({
+  const sources = proposedCellRows
+    .filter((cell) => cell.operation !== "delete")
+    .map((cell) => {
+      const proposedSectorId = resolveProposedCellSectorId(cell, sectorIdByLocalId);
+      const storedSectorId = cell.target_cell_id === null ? null : (targetCellsMap.get(cell.target_cell_id)?.sector_id ?? null);
+      return {
         rat: cell.rat,
         bandId: cell.band_id,
         details: cell.rat === "LTE" ? cell.lte : cell.nr,
+        sectorId: proposedSectorId === undefined ? storedSectorId : proposedSectorId,
         excludeCellId: cell.target_cell_id ?? undefined,
-      })),
-    allModifiedCellIds,
-  );
+      };
+    });
+  validatePciDuplicates(sources);
+  await checkPciDuplicates(stationId, sources, allModifiedCellIds);
 }
 
 function getProposedRATDetails(proposed: ProposedCellRow, rat: NormalRat): ProposedCellRow["gsm" | "umts" | "lte" | "nr"] | null {
@@ -1853,11 +1862,11 @@ async function applyChange(
 
   const { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors } = await applyProposedSectors(tx, stationId, draft.proposedSectorRows);
 
-  await checkProposedPciDuplicates(stationId, draft.proposedCellRows);
   const targetCellsArr = await targetCellsPromise;
   const strayCell = targetCellsArr.find((targetCell) => targetCell.station_id !== stationId);
   if (strayCell) throw new ErrorResponse("CONFLICT", { message: `Target cell ${strayCell.id} is on another station` });
   const targetCellsMap = new Map(targetCellsArr.map((targetCell) => [targetCell.id, targetCell] as const));
+  await checkProposedPciDuplicates(stationId, draft.proposedCellRows, sectorIdByLocalId, targetCellsMap);
   const cellChanges = await applyProposedCells(tx, draft.proposedCellRows, stationId, targetCellsMap, sectorIdByLocalId, change?.cells ?? []);
   if (takesPlaceholder && stationId) await assertMayLackSiteId(tx, stationId);
   const destinationIds = change === null ? [] : getDestinationStationIds(change);

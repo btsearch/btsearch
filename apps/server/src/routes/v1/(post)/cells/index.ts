@@ -69,6 +69,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
         rat: req.body.rat,
         bandId: req.body.band_id,
         details: req.body.details as { pci?: number | null; earfcn?: number | null; arfcn?: number | null },
+        sectorId: req.body.sector_id,
       });
     }
 

@@ -112,49 +112,57 @@ export function addMissingLteCells(cells: readonly CellDraft[], countryCode: str
   return [...cells.slice(0, insertIndex), ...additions, ...cells.slice(insertIndex)];
 }
 
-function fillFromSamePci(cells: readonly CellDraft[], isMember: CellTest): readonly CellDraft[] {
-  const sectorsByPci = new Map<number, DraftKey>();
-  for (const cell of cells) {
-    const pci = getCellNumber(cell, "pci");
-    if (!isMember(cell) || pci === null || cell.sectorKey === null || sectorsByPci.has(pci)) continue;
-    sectorsByPci.set(pci, cell.sectorKey);
-  }
-  if (sectorsByPci.size === 0) return cells;
+type SectorSource = { isSource: CellTest; getKey: (cell: CellDraft) => string | null };
 
-  return cells.map((cell) => {
-    const pci = getCellNumber(cell, "pci");
-    if (!isMember(cell) || cell.sectorKey !== null || pci === null) return cell;
-
-    const sectorKey = sectorsByPci.get(pci);
-    return sectorKey === undefined ? cell : patchCell(cell, { sectorKey });
-  });
+function getPciOnBandKey(cell: CellDraft): string | null {
+  const pci = getCellNumber(cell, "pci");
+  return pci === null || cell.bandId === null ? null : `${cell.bandId}:${pci}`;
 }
 
-function fillNrFromLte(cells: readonly CellDraft[]): readonly CellDraft[] {
-  const lteSectorsByPci = new Map<number, DraftKey | null>();
-  for (const cell of cells) {
-    const pci = getCellNumber(cell, "pci");
-    if (!isKeptLteCell(cell) || pci === null || cell.sectorKey === null) continue;
+function getPciKey(cell: CellDraft): string | null {
+  const pci = getCellNumber(cell, "pci");
+  return pci === null ? null : String(pci);
+}
 
-    const known = lteSectorsByPci.get(pci);
-    if (known === undefined) lteSectorsByPci.set(pci, cell.sectorKey);
-    else if (known !== cell.sectorKey) lteSectorsByPci.set(pci, null);
+const SECTOR_SOURCES: Record<Rat, readonly SectorSource[]> = {
+  nr: [
+    { isSource: isKeptNrCell, getKey: getPciOnBandKey },
+    { isSource: isKeptNrCell, getKey: getPciKey },
+    { isSource: isKeptLteCell, getKey: getPciKey },
+  ],
+  lte: [
+    { isSource: isKeptLteCell, getKey: getPciOnBandKey },
+    { isSource: isKeptLteCell, getKey: getPciKey },
+  ],
+  umts: [],
+  gsm: [],
+};
+
+function fillSectorsFrom(cells: readonly CellDraft[], isTarget: CellTest, { isSource, getKey }: SectorSource): readonly CellDraft[] {
+  const sectorsByKey = new Map<string, DraftKey | null>();
+  for (const cell of cells) {
+    const key = getKey(cell);
+    if (!isSource(cell) || key === null || cell.sectorKey === null) continue;
+
+    const known = sectorsByKey.get(key);
+    if (known === undefined) sectorsByKey.set(key, cell.sectorKey);
+    else if (known !== cell.sectorKey) sectorsByKey.set(key, null);
   }
-  if (lteSectorsByPci.size === 0) return cells;
+  if (sectorsByKey.size === 0) return cells;
 
   return cells.map((cell) => {
-    const pci = getCellNumber(cell, "pci");
-    if (!isKeptNrCell(cell) || cell.sectorKey !== null || pci === null) return cell;
+    const key = getKey(cell);
+    if (!isTarget(cell) || cell.sectorKey !== null || key === null) return cell;
 
-    const sectorKey = lteSectorsByPci.get(pci) ?? null;
+    const sectorKey = sectorsByKey.get(key) ?? null;
     return sectorKey === null ? cell : patchCell(cell, { sectorKey });
   });
 }
 
 export function assignSectorsByPci(cells: readonly CellDraft[], rat: Rat): readonly CellDraft[] {
-  if (rat === "lte") return keepUnchanged(cells, fillFromSamePci(cells, isKeptLteCell));
-  if (rat === "nr") return keepUnchanged(cells, fillNrFromLte(fillFromSamePci(cells, isKeptNrCell)));
-  return cells;
+  const isTarget: CellTest = (cell) => cell.rat === rat && !cell.isDeleted;
+  const filled = SECTOR_SOURCES[rat].reduce((next, source) => fillSectorsFrom(next, isTarget, source), cells);
+  return keepUnchanged(cells, filled);
 }
 
 export function confirmCells(cells: readonly CellDraft[], rat: Rat, scope: ConfirmScope): readonly CellDraft[] {

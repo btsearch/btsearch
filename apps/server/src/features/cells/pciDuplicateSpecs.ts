@@ -1,3 +1,5 @@
+import { type NrPciCell, canShareNrPci } from "@openbts/shared/pciSharing";
+
 export type PciDuplicateDetails = Record<string, unknown> & {
   pci?: number | null;
   enbid?: number | null;
@@ -8,6 +10,7 @@ export type PciDuplicateKeySource = {
   rat?: string | null;
   bandId?: number | null;
   details?: PciDuplicateDetails | null;
+  sectorId?: number | null;
 };
 
 export type PciDuplicateKey = {
@@ -43,6 +46,14 @@ export function getPciDuplicateKey(source: PciDuplicateKeySource): PciDuplicateK
 
   const channel = source.details[spec.channelField];
   const channelKey = typeof channel === "number" ? channel.toString() : typeof channel === "string" ? channel : "";
-  const nodeKey = spec.rat === "LTE" ? `${enbid}:` : `${source.details.type ?? ""}:`;
+  const nodeKey = spec.rat === "LTE" ? `${enbid}:` : "";
   return { rat: spec.rat, pci, key: `${source.bandId}:${nodeKey}${pci}:${channelKey}` };
+}
+
+function toNrPciCell(source: PciDuplicateKeySource): NrPciCell {
+  return { mode: source.details?.type, sector: source.sectorId ?? null };
+}
+
+export function canSharePci(cell: PciDuplicateKeySource, other: PciDuplicateKeySource): boolean {
+  return cell.rat === "NR" && canShareNrPci(toNrPciCell(cell), toNrPciCell(other));
 }

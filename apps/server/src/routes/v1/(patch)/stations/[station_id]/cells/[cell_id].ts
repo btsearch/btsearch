@@ -127,7 +127,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   assertCellUpdateSetsNoNsaFields(cell, req.body);
 
-  if (req.body.details || req.body.band_id !== undefined) {
+  if (req.body.details || req.body.band_id !== undefined || req.body.sector_id !== undefined) {
     const effectiveBandId = req.body.band_id ?? cell.band_id;
     const lteDetails = req.body.details as z.infer<typeof lteCellsUpdateSchema> | undefined;
     const nrDetails = req.body.details as z.infer<typeof nrCellsUpdateSchema> | undefined;
@@ -145,7 +145,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
               type: nrDetails?.type !== undefined ? nrDetails.type : cell.nr?.type,
             }
           : null;
-    await checkPciDuplicate(station_id, { rat: cell.rat, bandId: effectiveBandId, details: effectiveDetails, excludeCellId: cell_id });
+    const sectorId = req.body.sector_id !== undefined ? req.body.sector_id : cell.sector_id;
+    await checkPciDuplicate(station_id, { rat: cell.rat, bandId: effectiveBandId, details: effectiveDetails, sectorId, excludeCellId: cell_id });
   }
 
   {
