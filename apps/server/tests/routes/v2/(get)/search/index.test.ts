@@ -74,6 +74,18 @@ describe("searchStations", () => {
     expect(new PgDialect().sqlToQuery(where).params).toEqual(expect.arrayContaining(["LTE", "inactive"]));
   });
 
+  it("finds structure types written in any letter case and structure notes by keyword", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", getTableName(stations), [{ station: { ...readStation, id: 1 }, rank: null, field: null, value: null }]);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    const app = await createRouteHarness(searchStations);
+    const response = await app.inject({ url: "/search?q=structure_type:Church,rooftop%20structure_note:Mariacki" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ data: [{ id: 1, match: null }] });
+    const where = dbMock.calls.find((call) => call.table === getTableName(stations))?.clauses.where?.[0] as SQL;
+    expect(new PgDialect().sqlToQuery(where).params).toEqual(expect.arrayContaining(["church", "rooftop", "%Mariacki%"]));
+  });
+
   it("counts an empty offset page independently instead of reporting a zero total", async () => {
     dbMock.enqueueFor("select", "countries", []);
     dbMock.enqueueFor("select", getTableName(stations), [], [{ total: 3 }]);
@@ -84,14 +96,19 @@ describe("searchStations", () => {
     expect(dbMock.calls.filter((call) => call.table === getTableName(stations))).toHaveLength(2);
   });
 
-  it.each(["q=rat:invalid", "q=staus:active", "q=gps:999,1", "q=ok&cursor=broken", "q=ok&cursor=broken&offset=1", "q=%20%20"])(
-    "rejects invalid search expressions: %s",
-    async (query) => {
-      dbMock.enqueueFor("select", "countries", []);
-      const app = await createRouteHarness(searchStations);
-      const response = await app.inject({ url: `/search?${query}` });
-      expect(response.statusCode).toBe(400);
-      expect(dbMock.calls.some((call) => call.table === getTableName(stations))).toBe(false);
-    },
-  );
+  it.each([
+    "q=rat:invalid",
+    "q=staus:active",
+    "q=gps:999,1",
+    "q=structure_type:roof",
+    "q=ok&cursor=broken",
+    "q=ok&cursor=broken&offset=1",
+    "q=%20%20",
+  ])("rejects invalid search expressions: %s", async (query) => {
+    dbMock.enqueueFor("select", "countries", []);
+    const app = await createRouteHarness(searchStations);
+    const response = await app.inject({ url: `/search?${query}` });
+    expect(response.statusCode).toBe(400);
+    expect(dbMock.calls.some((call) => call.table === getTableName(stations))).toBe(false);
+  });
 });

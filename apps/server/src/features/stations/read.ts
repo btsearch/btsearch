@@ -250,7 +250,7 @@ export function locationAreaConditions(query: AreaFilterQuery, hiddenCountryCode
   return conditions;
 }
 
-function structureTypeCondition(types: StructureTypeFilter | undefined): SQL | undefined {
+export function structureTypeCondition(types: StructureTypeFilter | undefined): SQL | undefined {
   if (!types) return undefined;
 
   const storedTypes = types.flatMap((type) => (type === UNKNOWN_STRUCTURE_TYPE ? [] : [DATABASE_STRUCTURE_TYPES[type]]));

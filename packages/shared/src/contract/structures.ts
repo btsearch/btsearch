@@ -10,15 +10,19 @@ export const STRUCTURE_TYPES = [
   "mast",
   "rooftopMast",
   "rooftop",
+  "buildingTower",
+  "facade",
   "chimney",
   "church",
   "waterTower",
+  "floodlightTower",
   "silo",
   "pole",
+  "advertisingPylon",
+  "relocatableMast",
   "mobileMast",
   "tunnel",
   "indoor",
-  "other",
 ] as const;
 export type StructureType = (typeof STRUCTURE_TYPES)[number];
 
@@ -26,8 +30,9 @@ export const STRUCTURE_NOTE_MAX_LENGTH = 150;
 export const STRUCTURE_OWNER_NAME_MAX_LENGTH = 100;
 
 const STRUCTURE_TYPE_NOTE =
-  "`tower` is a tower of unknown construction, `pole` is a lamp post, a power pylon or an advertising pylon, " +
-  "and `mobileMast` is a temporary or relocatable mast";
+  "`tower` is a tower of unknown construction, `buildingTower` is a tower that is part of a building, such as a town hall's, " +
+  "`pole` is a lamp post or a power pylon, `relocatableMast` is a mast on a ballast base that can be moved, " +
+  "and `mobileMast` is a mast on a vehicle or a trailer";
 const OWNER_COUNTRY_NOTE = "`null` for an owner that is not tied to a single country";
 
 const structureOwnerNameSchema = z.string().trim().min(1).max(STRUCTURE_OWNER_NAME_MAX_LENGTH);

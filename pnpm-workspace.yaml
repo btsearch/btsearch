@@ -23,3 +23,15 @@ minimumReleaseAgeExclude:
   - "@btsearch/rf-engine-linux-x64-gnu@0.1.5"
   - "@btsearch/rf-engine-linux-arm64-gnu@0.1.5"
   - maplibre-gl@6.7.0
+  - "@better-auth/api-key@1.7.16"
+  - "@better-auth/core@1.7.16"
+  - "@better-auth/drizzle-adapter@1.7.16"
+  - "@better-auth/kysely-adapter@1.7.16"
+  - "@better-auth/memory-adapter@1.7.16"
+  - "@better-auth/mongo-adapter@1.7.16"
+  - "@better-auth/oauth-provider@1.7.16"
+  - "@better-auth/passkey@1.7.16"
+  - "@better-auth/prisma-adapter@1.7.16"
+  - "@better-auth/telemetry@1.7.16"
+  - better-auth@1.7.16
+  - better-call@1.4.5

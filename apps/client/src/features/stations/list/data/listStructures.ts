@@ -20,15 +20,19 @@ const STRUCTURE_TYPE_WORDS: Record<StructureType, StructureType> = {
   mast: "mast",
   rooftopMast: "rooftopMast",
   rooftop: "rooftop",
+  buildingTower: "buildingTower",
+  facade: "facade",
   chimney: "chimney",
   church: "church",
   waterTower: "waterTower",
+  floodlightTower: "floodlightTower",
   silo: "silo",
   pole: "pole",
+  advertisingPylon: "advertisingPylon",
+  relocatableMast: "relocatableMast",
   mobileMast: "mobileMast",
   tunnel: "tunnel",
   indoor: "indoor",
-  other: "other",
 };
 
 export const LIST_STRUCTURE_TYPES: readonly StructureType[] = Object.values(STRUCTURE_TYPE_WORDS);

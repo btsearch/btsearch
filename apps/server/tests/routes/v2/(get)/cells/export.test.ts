@@ -636,6 +636,48 @@ describe("loadNativeExportLines", () => {
     expect(dbMock.pendingResults()).toBe(0);
   });
 
+  it.each<[title: string, structure: Partial<StationExportMetadata>, written: string]>([
+    ["type, owner and note", {}, "rooftop (PGE), property detail"],
+    ["a note without a type or owner", { structure_type: null, structure_owner: null }, "property detail"],
+    [
+      "a note that names the type",
+      { country_code: "PL", structure_type: "church", structure_owner: null, structure_note: "Kościół Mariacki" },
+      "Kościół Mariacki",
+    ],
+    [
+      "a note that names the type with another word",
+      { country_code: "PL", structure_type: "church", structure_owner: null, structure_note: "wieża Bazyliki Mariackiej" },
+      "wieża Bazyliki Mariackiej",
+    ],
+    [
+      "the owner after a note that names the type",
+      { country_code: "PL", structure_type: "church", structure_note: "kosciol pw. św. Anny" },
+      "kosciol pw. św. Anny (PGE)",
+    ],
+    [
+      "the type before a note that names another type",
+      { country_code: "PL", structure_type: "rooftop", structure_owner: null, structure_note: "wieża na kamienicy" },
+      "dach, wieża na kamienicy",
+    ],
+    [
+      "the type before a note that only starts with its letters",
+      { structure_type: "tower", structure_note: "Towerlink site" },
+      "tower (PGE), Towerlink site",
+    ],
+  ])("writes %s as the structure details", async (_title, structure, written) => {
+    const { metadata, rows } = mixedExportRows();
+    const first = metadata[0];
+    if (!first) throw new Error("Missing station fixture");
+    Object.assign(first, structure);
+    const selection = { ...nativeSelection(), rats: { gsm: true, umts: false, lte: false, nr: false } };
+    dbMock.enqueueFor("select", getTableName(stations), metadata);
+    dbMock.enqueueFor("select", "cells", rows.gsmRows);
+    dbMock.enqueueFor("select", "station_sectors", rows.stationSectorRows);
+    const lines = await loadNativeExportLines(selection, [1, 2], "4.0", { templates: { GSM: "{structure_details}" } });
+    expect(lines).toEqual([`310260;00123;00045;0;0;0;-1;${written};1;FIRST_123;0;0;0;0;0;FIRST`]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
   it("keeps arbitrary legacy station conditions on the original full-payload path", async () => {
     const { rows } = mixedExportRows();
     enqueueExportRows(rows);

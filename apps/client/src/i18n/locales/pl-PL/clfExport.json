@@ -94,7 +94,8 @@
       "structure": "Obiekt i właściciel",
       "structure_type": "Rodzaj obiektu",
       "structure_owner": "Właściciel obiektu",
-      "structure_note": "Opis obiektu"
+      "structure_note": "Opis obiektu",
+      "structure_details": "Obiekt, właściciel i opis"
     }
   },
   "exportSuccess": "Plik CLF wyeksportowany pomyślnie!",

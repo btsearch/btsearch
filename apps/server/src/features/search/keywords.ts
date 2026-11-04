@@ -1,5 +1,5 @@
 import { cells, extraIdentificators, gsmCells, locations, lteCells, nrCells, regions, stations, umtsCells } from "@openbts/drizzle";
-import { MAX_ID, SEARCH_KEYWORDS, countryCodeSchema } from "@openbts/shared/contract";
+import { MAX_ID, SEARCH_KEYWORDS, STRUCTURE_TYPE_FILTER_VALUES, countryCodeSchema } from "@openbts/shared/contract";
 import type { SearchKeyword, SearchKeywordValues } from "@openbts/shared/contract";
 import { type SQL, type SQLWrapper, inArray, sql } from "drizzle-orm";
 import { z } from "zod/v4";
@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import { ErrorResponse } from "../../errors.js";
 import { broadcastsCode, hasPlmn } from "../operators/sharing.js";
 import { stationCountryCode, stationPlacementMatches } from "../stations/country.js";
+import { structureTypeCondition } from "../stations/read.js";
 import {
   FILTER_DEFINITIONS,
   type FilterTable,
@@ -57,6 +58,7 @@ const LATEST_YEAR = 2200;
 const GPS_RADIUS_METERS = 1000;
 const GPS_BOX_DEGREES = 0.1;
 const REGION_ISO_CODE_PATTERN = /^[A-Z]{2}-[A-Z0-9]{1,3}$/;
+const STRUCTURE_TYPES_BY_LOWERCASE = new Map(STRUCTURE_TYPE_FILTER_VALUES.map((type) => [type.toLowerCase(), type]));
 
 const booleanSchema = z.stringbool();
 const countryCodesSchema = z.array(countryCodeSchema).min(1);
@@ -103,6 +105,16 @@ function placeCondition(column: typeof locations.city | typeof locations.address
   return { table: "locations", condition: sql`(${sql.join(matches, sql` OR `)})` };
 }
 
+function structureTypesCondition(value: string): KeywordCondition {
+  const types = termsSchema.parse(splitList(value)).map((term) => {
+    const type = STRUCTURE_TYPES_BY_LOWERCASE.get(term.toLowerCase());
+    if (type === undefined) throw new Error(`Unknown structure type "${term}"`);
+    return type;
+  });
+
+  return { table: "locations", condition: structureTypeCondition(types) ?? sql`false` };
+}
+
 function nearbyCondition(value: string): KeywordCondition {
   const [latitude, longitude] = parseCoordinates(value);
   const point = sql`ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)`;
@@ -143,6 +155,10 @@ function keywordCondition(keyword: SearchKeyword, value: string): KeywordConditi
       return placeCondition(locations.city, value);
     case "address":
       return placeCondition(locations.address, value);
+    case "structure_type":
+      return structureTypesCondition(value);
+    case "structure_note":
+      return placeCondition(locations.structure_note, value);
     case "gps":
       return nearbyCondition(value);
     default:

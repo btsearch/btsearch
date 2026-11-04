@@ -1,4 +1,5 @@
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { type StructureNoteLanguage, noteNamesStructureType } from "@openbts/shared/structureNotes";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -7,6 +8,7 @@ import { EmptyValue } from "@/components/ui/emptyValue";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HighlightedText } from "@/features/shared/HighlightedText";
 import { StructureTypeIcon } from "@/features/station-details/station/components/structureTypeIcon";
+import { getStructureNoteLanguage } from "@/features/station-details/station/utils/structure";
 import type { ListRowStructure } from "@/features/stations/list/data/listStructures";
 import { formatFullDate, formatShortDate } from "@/lib/format";
 import { getCountryName } from "@/lib/geo/countryName";
@@ -35,6 +37,12 @@ type ListStructureCellProps = {
   isFolding?: boolean;
 };
 
+type StructureLines = {
+  firstLine: string | null;
+  secondLine: string | null;
+  summary: string;
+};
+
 type ListDateProps = {
   value: string;
   label: string;
@@ -59,6 +67,19 @@ export const LIST_CUT_FIRST_CLASS = "shrink-[999999]";
 
 function joinDetails(details: readonly (string | null)[]): string {
   return details.filter((detail) => detail !== null).join(LIST_DETAIL_SEPARATOR);
+}
+
+function getStructureLines(structure: ListRowStructure, typeName: string | null, language: StructureNoteLanguage): StructureLines {
+  const { type, note, ownerName } = structure;
+  if (type !== null && note !== null && noteNamesStructureType(note, type, language)) {
+    return { firstLine: note, secondLine: ownerName, summary: joinDetails([note, ownerName]) };
+  }
+
+  return {
+    firstLine: typeName ?? structure.textWithoutType,
+    secondLine: structure.secondLine,
+    summary: joinDetails([typeName, ...structure.tooltipDetails]),
+  };
 }
 
 export function ListCell({ className, children }: { className?: string; children: ReactNode }) {
@@ -127,10 +148,9 @@ export function ListPlaceCell({
 }
 
 export function ListStructureCell({ structure, isFolding = false }: ListStructureCellProps) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const typeName = structure.typeKey === null ? null : t(structure.typeKey);
-  const firstLine = typeName ?? structure.textWithoutType;
-  const summary = joinDetails([typeName, ...structure.tooltipDetails]);
+  const { firstLine, secondLine, summary } = getStructureLines(structure, typeName, getStructureNoteLanguage(i18n.language));
   const content = (
     <>
       {structure.type === null ? null : <StructureTypeIcon type={structure.type} className="size-4.5 shrink-0 text-foreground/80" />}
@@ -142,7 +162,7 @@ export function ListStructureCell({ structure, isFolding = false }: ListStructur
       {isFolding && summary !== "" ? <span className="sr-only @min-[870px]:hidden">{summary}</span> : null}
       <span className={cn("min-w-0 flex-1", isFolding ? "hidden @min-[870px]:block" : null)}>
         <span className="block truncate text-[13px] leading-5">{firstLine ?? <EmptyValue />}</span>
-        {structure.secondLine === null ? null : <span className={cn("block truncate", SECOND_LINE_CLASS)}>{structure.secondLine}</span>}
+        {secondLine === null ? null : <span className={cn("block truncate", SECOND_LINE_CLASS)}>{secondLine}</span>}
       </span>
     </>
   );
@@ -158,9 +178,10 @@ export function ListStructureCell({ structure, isFolding = false }: ListStructur
 }
 
 export function ListStructureLine({ structure }: { structure: ListRowStructure }) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const typeName = structure.typeKey === null ? null : t(structure.typeKey);
-  const text = typeName === null ? structure.textWithoutType : joinDetails([typeName, structure.secondLine]);
+  const { firstLine, secondLine } = getStructureLines(structure, typeName, getStructureNoteLanguage(i18n.language));
+  const text = typeName === null ? structure.textWithoutType : joinDetails([firstLine, secondLine]);
 
   return (
     <span className="flex min-w-0 flex-1 items-center gap-1.5">

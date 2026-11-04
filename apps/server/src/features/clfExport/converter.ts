@@ -12,8 +12,9 @@ import {
   renderCLFDescriptionTemplate,
 } from "@openbts/shared/clfExportTemplates";
 import { getBandName } from "@openbts/shared/frequency";
+import { type StructureNoteLanguage, noteNamesStructureType } from "@openbts/shared/structureNotes";
 
-import type { StoredStructureType } from "../structures/serialize.js";
+import { type StoredStructureType, toStructureType } from "../structures/serialize.js";
 
 export type ClfFormat = ClfExportFormat;
 export type DescriptionTemplates = CLFDescriptionTemplates;
@@ -39,44 +40,53 @@ const MCC_LENGTH = 3;
 const SHORTEST_PLMN_LENGTH = 5;
 type StructureTypeLabels = Record<StoredStructureType, string>;
 
-const STRUCTURE_TYPE_LABELS: StructureTypeLabels = {
-  lattice_tower: "lattice tower",
-  tubular_tower: "tubular tower",
-  concrete_tower: "concrete tower",
-  tower: "tower",
-  mast: "mast",
-  rooftop_mast: "rooftop mast",
-  rooftop: "rooftop",
-  chimney: "chimney",
-  church: "church",
-  water_tower: "water tower",
-  silo: "silo",
-  pole: "pole",
-  mobile_mast: "mobile mast",
-  tunnel: "tunnel",
-  indoor: "indoor",
-  other: "",
-};
-const STRUCTURE_TYPE_LABELS_BY_COUNTRY: Record<string, StructureTypeLabels> = {
-  PL: {
+const STRUCTURE_TYPE_LABELS: Record<StructureNoteLanguage, StructureTypeLabels> = {
+  en: {
+    lattice_tower: "lattice tower",
+    tubular_tower: "tubular tower",
+    concrete_tower: "concrete tower",
+    tower: "tower",
+    mast: "mast",
+    rooftop_mast: "rooftop mast",
+    rooftop: "rooftop",
+    building_tower: "building tower",
+    facade: "facade",
+    chimney: "chimney",
+    church: "church",
+    water_tower: "water tower",
+    floodlight_tower: "floodlight tower",
+    silo: "silo",
+    pole: "pole",
+    advertising_pylon: "advertising pylon",
+    relocatable_mast: "relocatable mast",
+    mobile_mast: "mobile mast",
+    tunnel: "tunnel",
+    indoor: "indoor",
+  },
+  pl: {
     lattice_tower: "wieża kratowa",
     tubular_tower: "wieża rurowa",
     concrete_tower: "wieża strunobetonowa",
     tower: "wieża",
     mast: "maszt",
     rooftop_mast: "maszt na dachu",
-    rooftop: "dach budynku",
+    rooftop: "dach",
+    building_tower: "wieża budynku",
+    facade: "elewacja",
     chimney: "komin",
     church: "kościół",
     water_tower: "wieża ciśnień",
+    floodlight_tower: "wieża oświetleniowa",
     silo: "silos",
     pole: "słup",
+    advertising_pylon: "pylon reklamowy",
+    relocatable_mast: "maszt przestawny",
     mobile_mast: "maszt mobilny",
     tunnel: "tunel",
     indoor: "wewnątrz budynku",
-    other: "",
   },
 };
+const STRUCTURE_LANGUAGE_BY_COUNTRY: Record<string, StructureNoteLanguage> = { PL: "pl" };
 
 export interface CellExportData {
   cid: number;
@@ -438,11 +448,13 @@ function getNRTemplateVars(cell: CellExportData): Record<string, string> {
   };
 }
 
+function getStructureLanguage(cell: CellExportData): StructureNoteLanguage {
+  return STRUCTURE_LANGUAGE_BY_COUNTRY[cell.country_code ?? ""] ?? "en";
+}
+
 function getStructureTypeLabel(cell: CellExportData): string {
   if (cell.structure_type === null || cell.structure_type === undefined) return "";
-
-  const labels = STRUCTURE_TYPE_LABELS_BY_COUNTRY[cell.country_code ?? ""] ?? STRUCTURE_TYPE_LABELS;
-  return labels[cell.structure_type];
+  return STRUCTURE_TYPE_LABELS[getStructureLanguage(cell)][cell.structure_type];
 }
 
 function getStructureLabel(cell: CellExportData): string {
@@ -450,6 +462,19 @@ function getStructureLabel(cell: CellExportData): string {
   const owner = cell.structure_owner ?? "";
   if (type === "" || owner === "") return type || owner;
   return `${type} (${owner})`;
+}
+
+function namesStructureType(cell: CellExportData, note: string): boolean {
+  if (note === "" || cell.structure_type === null || cell.structure_type === undefined) return false;
+  return noteNamesStructureType(note, toStructureType(cell.structure_type), getStructureLanguage(cell));
+}
+
+function getStructureDetails(cell: CellExportData): string {
+  const note = cell.structure_note?.trim() ?? "";
+  const owner = cell.structure_owner ?? "";
+  if (namesStructureType(cell, note)) return owner === "" ? note : `${note} (${owner})`;
+
+  return [getStructureLabel(cell), note].filter((part) => part !== "").join(", ");
 }
 
 function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
@@ -461,6 +486,7 @@ function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
     structure_type: getStructureTypeLabel(cell),
     structure_owner: cell.structure_owner,
     structure_note: cell.structure_note,
+    structure_details: getStructureDetails(cell),
     cell_type: getCellTypeLabel(cell),
     uplink: cell.backhaul_medium,
     notes: cell.notes,

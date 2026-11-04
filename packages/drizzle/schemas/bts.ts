@@ -55,15 +55,19 @@ export const StructureType = pgEnum("structure_type", [
   "mast",
   "rooftop_mast",
   "rooftop",
+  "building_tower",
+  "facade",
   "chimney",
   "church",
   "water_tower",
+  "floodlight_tower",
   "silo",
   "pole",
+  "advertising_pylon",
+  "relocatable_mast",
   "mobile_mast",
   "tunnel",
   "indoor",
-  "other",
 ]);
 export const OfficialSchema = pgSchema("official");
 export const StatisticsSchema = pgSchema("statistics");
@@ -301,6 +305,7 @@ export const locations = pgTable(
     index("locations_updated_at_idx").on(t.updatedAt),
     index("locations_city_fold_trgm_idx").using("gin", sql`fold_text(${t.city}) gin_trgm_ops`),
     index("locations_address_fold_trgm_idx").using("gin", sql`fold_text(${t.address}) gin_trgm_ops`),
+    index("locations_structure_note_fold_trgm_idx").using("gin", sql`fold_text(${t.structure_note}) gin_trgm_ops`),
     unique("locations_lonlat_unique").on(t.longitude, t.latitude),
   ],
 );

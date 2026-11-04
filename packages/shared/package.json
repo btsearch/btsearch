@@ -53,6 +53,10 @@
       "types": "./src/permitLabel.ts",
       "default": "./dist/src/permitLabel.js"
     },
+    "./structureNotes": {
+      "types": "./src/structureNotes.ts",
+      "default": "./dist/src/structureNotes.js"
+    },
     "./contract": {
       "types": "./src/contract/index.ts",
       "default": "./dist/src/contract/index.js"

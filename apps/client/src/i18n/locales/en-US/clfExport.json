@@ -94,7 +94,8 @@
       "structure": "Structure and owner",
       "structure_type": "Structure type",
       "structure_owner": "Structure owner",
-      "structure_note": "Structure note"
+      "structure_note": "Structure note",
+      "structure_details": "Structure, owner and note"
     }
   },
   "exportSuccess": "CLF file exported successfully!",

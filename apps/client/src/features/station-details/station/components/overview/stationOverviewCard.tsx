@@ -11,7 +11,7 @@ import { BackhaulItem } from "./backhaulItem";
 import { EmfReportsItem } from "./emfReportsItem";
 import { IdentifierItems, SiteIdItem } from "./identifierItems";
 import { CoordinatesItem, ElevationItem, RegionItem } from "./locationItems";
-import { StructureNoteItem, StructureOwnerItem, StructureTypeItem } from "./structureItems";
+import { StructureOwnerItem, StructureTypeItem } from "./structureItems";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getLocationMapHash } from "@/features/map/mapLinks";
@@ -65,7 +65,6 @@ export function StationOverviewGrid({ station }: StationOverviewGridProps): Reac
       {structure.owner !== null ? <StructureOwnerItem owner={structure.owner} /> : null}
       <EmfReportsItem station={station} />
       <IdentifierItems identifiers={identifiers} operator={operator} />
-      {structure.note ? <StructureNoteItem note={structure.note} /> : null}
       {backhaul !== null ? <BackhaulItem backhaul={backhaul} /> : null}
       {location !== null ? <ElevationItem latitude={location.latitude} longitude={location.longitude} /> : null}
     </div>

@@ -70,6 +70,8 @@
       "gps": "Współrzędne GPS (lat,lng)",
       "city": "Nazwa miejscowości",
       "address": "Adres",
+      "structureType": "Rodzaj obiektu",
+      "structureNote": "Opis obiektu",
       "region": "Kod województwa (np. MAZ, SL, WP)",
       "band": "Częstotliwość w MHz (np. 800, 1800, 2100)",
       "duplex": "Tryb duplex pasma (FDD, TDD, null/false)",

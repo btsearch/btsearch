@@ -70,6 +70,8 @@
       "gps": "GPS coordinates (lat,lng)",
       "city": "City name",
       "address": "Address",
+      "structureType": "Structure type",
+      "structureNote": "Structure note",
       "region": "Region code (for example MAZ, SL, WP)",
       "band": "Frequency in MHz (for example 800, 1800, 2100)",
       "duplex": "Band duplex (FDD, TDD, null/false)",

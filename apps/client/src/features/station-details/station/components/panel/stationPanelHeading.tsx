@@ -57,6 +57,7 @@ export function StationPanelHeading({ station, brands, operators, locationStatio
         <StationStructureLine
           location={station.location}
           ownerBrand={getStructureOwnerBrand(station.location?.structure.owner ?? null, brands, operators)}
+          showNote
         />
       }
       status={<StationStatusBadge status={toV1StationStatus(station.status)} statusChangedAt={station.statusChangedAt} />}

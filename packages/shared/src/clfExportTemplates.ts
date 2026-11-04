@@ -31,11 +31,11 @@ export const CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT = {
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_TEMPLATE_DEFAULTS = {
-  GSM: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
-  UMTS: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
-  LTE: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type} [5G {nr_band}:{nr_pcis}]",
-  NR_NSA: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
-  NR: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
+  GSM: "{unconfirmed_prefix} [{station_id}] {location} - {structure_details} | {notes} | {sector_tag} {cell_type}",
+  UMTS: "{unconfirmed_prefix} [{station_id}] {location} - {structure_details} | {notes} | {sector_tag} {cell_type}",
+  LTE: "{unconfirmed_prefix} [{station_id}] {location} - {structure_details} | {notes} | {sector_tag} {cell_type} [5G {nr_band}:{nr_pcis}]",
+  NR_NSA: "{unconfirmed_prefix} [{station_id}] {location} - {structure_details} | {notes} | {sector_tag} {cell_type}",
+  NR: "{unconfirmed_prefix} [{station_id}] {location} - {structure_details} | {notes} | {sector_tag} {cell_type}",
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [
@@ -52,6 +52,7 @@ export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [
   "structure_type",
   "structure_owner",
   "structure_note",
+  "structure_details",
   "cell_type",
   "uplink",
   "notes",
@@ -104,6 +105,7 @@ const CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES = {
   structure_type: "maszt na dachu",
   structure_owner: "Emitel",
   structure_note: "blok mieszkalny, 11 pięter",
+  structure_details: "maszt na dachu (Emitel), blok mieszkalny, 11 pięter",
   cell_type: "pico",
   uplink: "fiber",
   notes: "dach bloku mieszkalnego",

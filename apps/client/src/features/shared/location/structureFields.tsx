@@ -1,5 +1,6 @@
 import type { StructureType } from "@openbts/shared/contract";
-import { type ReactNode, useId } from "react";
+import { findStructureTypeInNote } from "@openbts/shared/structureNotes";
+import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { PICKER_FIELD_CLASS } from "./fieldClasses";
@@ -64,6 +65,7 @@ function FieldNotes({ presentation, errorId }: FieldNotesProps) {
 export function LocationStructureFields({ value: structure, onChange, ownerOptions, isDisabled, presentations }: LocationStructureFieldsProps) {
   const { t } = useTranslation();
   const fieldId = useId();
+  const [isTypeFromNote, setIsTypeFromNote] = useState(false);
   const typeLook = presentations?.type ?? EMPTY_PRESENTATION;
   const ownerLook = presentations?.owner ?? EMPTY_PRESENTATION;
   const noteLook = presentations?.note ?? EMPTY_PRESENTATION;
@@ -75,6 +77,22 @@ export function LocationStructureFields({ value: structure, onChange, ownerOptio
   const ownerErrorId = `${ownerLabelId}-error`;
   const noteErrorId = `${noteId}-error`;
 
+  function changeType(choice: string | null) {
+    setIsTypeFromNote(false);
+    onChange({ type: toStructureType(choice) });
+  }
+
+  function changeNote(note: string) {
+    if (structure.type !== null && !isTypeFromNote) {
+      onChange({ note });
+      return;
+    }
+
+    const noteType = findStructureTypeInNote(note);
+    setIsTypeFromNote(noteType !== null);
+    onChange(noteType === structure.type ? { note } : { note, type: noteType });
+  }
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
@@ -82,7 +100,7 @@ export function LocationStructureFields({ value: structure, onChange, ownerOptio
           <Label id={typeLabelId} className="text-xs">
             {t("common:structure.type")}
           </Label>
-          <Select value={structure.type ?? NO_TYPE} onValueChange={(choice) => onChange({ type: toStructureType(choice) })} disabled={isDisabled}>
+          <Select value={structure.type ?? NO_TYPE} onValueChange={changeType} disabled={isDisabled}>
             <SelectTrigger
               aria-labelledby={typeLabelId}
               aria-invalid={typeLook.error !== undefined || undefined}
@@ -146,7 +164,7 @@ export function LocationStructureFields({ value: structure, onChange, ownerOptio
           placeholder={t("stations:edit.location.structureNotePlaceholder")}
           value={structure.note}
           maxLength={EDIT_LIMITS.structureNote}
-          onChange={(event) => onChange({ note: event.target.value })}
+          onChange={(event) => changeNote(event.target.value)}
           disabled={isDisabled}
           aria-invalid={noteLook.error !== undefined || undefined}
           aria-describedby={noteLook.error === undefined ? undefined : noteErrorId}

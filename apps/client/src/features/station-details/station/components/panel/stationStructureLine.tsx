@@ -1,7 +1,8 @@
+import { noteNamesStructureType } from "@openbts/shared/structureNotes";
 import { useTranslation } from "react-i18next";
 
 import type { Brand, StationLocationRecord } from "../../types";
-import { getStructureTypeKey } from "../../utils/structure";
+import { getStructureNoteLanguage, getStructureTypeKey } from "../../utils/structure";
 import { StructureTypeIcon } from "../structureTypeIcon";
 import { BrandMark } from "@/components/cellular/brandMark";
 
@@ -20,11 +21,14 @@ function MiddleDot() {
 }
 
 export function StationStructureLine({ location, ownerBrand, showNote = false }: StationStructureLineProps) {
-  const { t } = useTranslation(["stationDetails", "common"]);
+  const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const address = location?.address || null;
   const structureType = location?.structure.type ?? null;
   const owner = location?.structure.owner ?? null;
   const note = showNote ? location?.structure.note || null : null;
+  const typeName = structureType === null ? null : t(getStructureTypeKey(structureType));
+  const isTypeInNote =
+    structureType !== null && note !== null && noteNamesStructureType(note, structureType, getStructureNoteLanguage(i18n.language));
 
   if (address === null && structureType === null && owner === null && note === null) return <>{t("dialog.btsStation")}</>;
 
@@ -34,9 +38,9 @@ export function StationStructureLine({ location, ownerBrand, showNote = false }:
       {structureType !== null ? (
         <>
           {address !== null ? <MiddleDot /> : null}
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex max-w-full min-w-0 items-center gap-1">
             <StructureTypeIcon type={structureType} className="size-3 shrink-0" />
-            {t(getStructureTypeKey(structureType))}
+            <span className="min-w-0 wrap-break-word">{isTypeInNote ? note : typeName}</span>
           </span>
         </>
       ) : null}
@@ -49,7 +53,7 @@ export function StationStructureLine({ location, ownerBrand, showNote = false }:
           </span>
         </>
       ) : null}
-      {note !== null ? (
+      {note !== null && !isTypeInNote ? (
         <>
           {address !== null || structureType !== null || owner !== null ? <MiddleDot /> : null}
           <span className="min-w-0 max-w-full wrap-break-word">{note}</span>

@@ -18,15 +18,19 @@ const CONTRACT_STRUCTURE_TYPES = {
   mast: "mast",
   rooftop_mast: "rooftopMast",
   rooftop: "rooftop",
+  building_tower: "buildingTower",
+  facade: "facade",
   chimney: "chimney",
   church: "church",
   water_tower: "waterTower",
+  floodlight_tower: "floodlightTower",
   silo: "silo",
   pole: "pole",
+  advertising_pylon: "advertisingPylon",
+  relocatable_mast: "relocatableMast",
   mobile_mast: "mobileMast",
   tunnel: "tunnel",
   indoor: "indoor",
-  other: "other",
 } as const satisfies Record<StoredStructureType, StructureType>;
 
 export const DATABASE_STRUCTURE_TYPES: Record<StructureType, StoredStructureType> = {
@@ -37,15 +41,19 @@ export const DATABASE_STRUCTURE_TYPES: Record<StructureType, StoredStructureType
   mast: "mast",
   rooftopMast: "rooftop_mast",
   rooftop: "rooftop",
+  buildingTower: "building_tower",
+  facade: "facade",
   chimney: "chimney",
   church: "church",
   waterTower: "water_tower",
+  floodlightTower: "floodlight_tower",
   silo: "silo",
   pole: "pole",
+  advertisingPylon: "advertising_pylon",
+  relocatableMast: "relocatable_mast",
   mobileMast: "mobile_mast",
   tunnel: "tunnel",
   indoor: "indoor",
-  other: "other",
 };
 
 const STORED_STRUCTURE_TYPES: ReadonlySet<string> = new Set(Object.values(DATABASE_STRUCTURE_TYPES));

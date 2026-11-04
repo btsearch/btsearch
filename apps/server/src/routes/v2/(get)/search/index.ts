@@ -23,7 +23,7 @@ const schemaRoute = {
     "Keywords are written as `name:value`, for example `rat:lte band:1800`, with commas between alternative values " +
     "and quotes around values that contain spaces. There are keywords for the operator and country (`plmn:`, `country:`), " +
     "the station's status and dates (`status:`, `created_after:`), technology and band (`rat:`, `band:`), " +
-    "cell identifiers (`enbid:`, `cid:`) and the place (`city:`, `region:`, `gps:`). " +
+    "cell identifiers (`enbid:`, `cid:`), the place (`city:`, `region:`, `gps:`) and the structure (`structure_type:`, `structure_note:`). " +
     "The `is_confirmed:` keyword checks a station's cells, unlike `isConfirmed`.\n\n" +
     "You can page through roughly 100000 results. After that, `nextCursor` is `null`.",
   querystring: searchQuerySchema,

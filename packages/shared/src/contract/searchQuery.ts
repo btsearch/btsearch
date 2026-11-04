@@ -44,6 +44,8 @@ export const SEARCH_KEYWORDS = [
   "region",
   "city",
   "address",
+  "structure_type",
+  "structure_note",
   "networks_id",
   "networks_name",
   "mno_name",

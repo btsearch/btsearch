@@ -1,7 +1,8 @@
-import type { SearchKeyword } from "@openbts/shared/contract";
+import { STRUCTURE_TYPES, type SearchKeyword, UNKNOWN_STRUCTURE_TYPE } from "@openbts/shared/contract";
 
 import type { FilterChoice, FilterKeyword } from "./types";
 import { RAT_ORDER } from "@/features/shared/rat";
+import { getStructureTypeKey } from "@/features/station-details/station/utils/structure";
 
 export { RAT_ORDER };
 
@@ -102,6 +103,10 @@ const CELL_TYPE_CHOICES: FilterChoice[] = [
   { value: "pico", labelKey: "stations:cells.cellTypes.picocell", aliases: ["picocell"] },
   { value: "femto", labelKey: "stations:cells.cellTypes.femtocell", aliases: ["femtocell"] },
 ];
+const STRUCTURE_TYPE_CHOICES: FilterChoice[] = [
+  ...STRUCTURE_TYPES.map((type) => ({ value: type, labelKey: getStructureTypeKey(type) })),
+  { value: UNKNOWN_STRUCTURE_TYPE, labelKey: "main:filters.withoutStructure" },
+];
 
 export const FILTER_KEYWORDS: KnownFilterKeyword[] = [
   { key: "bts_id:", descriptionKey: "btsId", group: "common", availableOn: ["map", "stations"], valueKind: "text" },
@@ -133,6 +138,15 @@ export const FILTER_KEYWORDS: KnownFilterKeyword[] = [
   { key: "gps:", descriptionKey: "gps", group: "location", availableOn: ["map", "stations"], valueKind: "gps" },
   { key: "country:", descriptionKey: "country", group: "location", availableOn: ["map"], valueKind: "country" },
   { key: "region:", descriptionKey: "region", group: "location", availableOn: ["map"], valueKind: "region", example: "MAZ, SL" },
+  {
+    key: "structure_type:",
+    descriptionKey: "structureType",
+    group: "location",
+    availableOn: ["map"],
+    valueKind: "choice",
+    choices: STRUCTURE_TYPE_CHOICES,
+  },
+  { key: "structure_note:", descriptionKey: "structureNote", group: "location", availableOn: ["map", "stations"], valueKind: "text" },
   { key: "duplex:", descriptionKey: "duplex", group: "cell", availableOn: ["map", "stations"], valueKind: "choice", choices: DUPLEX_CHOICES },
   { key: "is_confirmed:", descriptionKey: "isConfirmed", group: "cell", availableOn: ["map", "stations"], valueKind: "boolean" },
   { key: "cell_notes:", descriptionKey: "cellNotes", group: "cell", availableOn: ["map", "stations"], valueKind: "text" },
