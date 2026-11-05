@@ -22,6 +22,7 @@ import { UserDetailSkeleton } from "@/features/admin/users/components/detail/use
 import { UserHero } from "@/features/admin/users/components/detail/userHero";
 import { parseUserId } from "@/features/admin/users/utils/userId";
 import { useNavMode } from "@/hooks/usePreferences";
+import { useSettings } from "@/hooks/useSettings";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { cn } from "@/lib/utils";
 
@@ -105,9 +106,10 @@ function UserNotFound() {
 }
 
 function UserDetailPreload({ userId }: { userId: string }) {
+  const { data: settings } = useSettings();
   usePrefetchQuery(userSessionsQueryOptions(userId));
   usePrefetchQuery(hasPasswordQueryOptions(userId));
-  usePrefetchQuery(userActivityQueryOptions(userId));
+  usePrefetchQuery(userActivityQueryOptions(userId, settings?.features.submissions === true));
   usePrefetchQuery(accountHistoryQueryOptions(userId));
 
   return null;

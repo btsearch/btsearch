@@ -2,7 +2,7 @@ import { Search01Icon, Sorting05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { Brand, Operator } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTable } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -17,7 +17,7 @@ import {
   getDataTableViewState,
 } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
+import { ErrorState, PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { adminSubmissionsQueryOptions, clampSubmissionListPage, getSubmissionListPageCount } from "@/features/admin/submissions/api";
 import {
@@ -53,6 +53,7 @@ import { brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { useListPanelScope } from "@/features/stations/list/data/listPanel";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useSettledSession } from "@/hooks/useSettledSession";
@@ -464,6 +465,15 @@ function AdminSubmissionsListPage() {
   );
 }
 
+function AdminSubmissionsRoute() {
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissions");
+
+  if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
+  if (isDisabled) return <Navigate to="/admin" replace />;
+
+  return <AdminSubmissionsListPage />;
+}
+
 export const Route = createFileRoute("/_layout/admin/_layout/submissions/")({
   validateSearch: (search: Record<string, unknown>): AdminSubmissionsSearch => ({
     page: typeof search.page === "number" && search.page >= 0 ? Math.floor(search.page) : 0,
@@ -472,7 +482,7 @@ export const Route = createFileRoute("/_layout/admin/_layout/submissions/")({
     station: typeof search.station === "number" && Number.isSafeInteger(search.station) && search.station > 0 ? search.station : undefined,
     siteId: typeof search.siteId === "string" && search.siteId ? search.siteId : undefined,
   }),
-  component: AdminSubmissionsListPage,
+  component: AdminSubmissionsRoute,
   staticData: {
     titleKey: "items.submissions",
     i18nNamespace: "nav",

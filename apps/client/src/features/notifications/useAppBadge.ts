@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { unreadNotificationCountQueryOptions } from "./api";
+import { useSettings } from "@/hooks/useSettings";
 import { API_V2_BASE, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
@@ -17,13 +18,14 @@ export function useAppBadge() {
   const { data: session } = authClient.useSession();
   const isSignedIn = !!session?.user;
   const isAdmin = session?.user?.role === "admin";
+  const { data: settings } = useSettings();
 
   const pendingQuery = useQuery({
     queryKey: ["pending-submissions-count", "v2"],
     queryFn: ({ signal }) => fetchPendingSubmissionCount(signal),
     refetchInterval: 60_000,
     staleTime: 30_000,
-    enabled: isAdmin,
+    enabled: isAdmin && settings?.features.submissions === true,
   });
 
   const unreadCountQuery = useQuery({ ...unreadNotificationCountQueryOptions(), enabled: isSignedIn && !isAdmin });

@@ -45,7 +45,7 @@ export type NavConfigItem = {
   href?: string;
   icon: IconSvgElement;
   allowedRoles?: string[];
-  requiresSetting?: "lists";
+  requiresSetting?: "lists" | "submissions";
   requiresAccess?: "countries";
   requiresCapability?: "kmz" | "emf";
 };
@@ -150,7 +150,7 @@ export const adminNavConfig: NavConfigSection[] = [
       { titleKey: "items.users", url: "/admin/users", allowedRoles: ["admin"], icon: UserGroupIcon },
       { titleKey: "items.stations", url: "/admin/stations", allowedRoles: ["admin", "editor"], icon: AirportTowerIcon },
       { titleKey: "items.locations", url: "/admin/locations", allowedRoles: ["admin", "editor"], icon: Location01Icon },
-      { titleKey: "items.submissions", url: "/admin/submissions", allowedRoles: ["admin", "editor"], icon: SentIcon },
+      { titleKey: "items.submissions", url: "/admin/submissions", allowedRoles: ["admin", "editor"], icon: SentIcon, requiresSetting: "submissions" },
       { titleKey: "items.observationFlags", url: "/admin/observation-flags", allowedRoles: ["admin", "editor"], icon: Flag02Icon },
       { titleKey: "items.officialImport", url: "/admin/official-import", allowedRoles: ["admin"], icon: Upload04Icon },
       { titleKey: "items.measurements", url: "/admin/measurements", allowedRoles: ["admin"], icon: SmartPhone01Icon },

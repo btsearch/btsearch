@@ -16,6 +16,7 @@ import {
   SettingsRowError,
   SettingsRowSkeleton,
 } from "@/features/settings/components/settingsPrimitives";
+import { useSettings } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
 
 type ContributionRowProps = {
@@ -118,7 +119,8 @@ function ContributionRows({ userId, counts }: ContributionRowsProps) {
 
 export function ActivityContributionCard({ user }: { user: AdminUser }) {
   const { t } = useTranslation("admin");
-  const { data: counts, isError, isFetching, refetch } = useQuery(userActivityQueryOptions(user.id));
+  const { data: settings } = useSettings();
+  const { data: counts, isError, isFetching, refetch } = useQuery(userActivityQueryOptions(user.id, settings?.features.submissions === true));
 
   return (
     <SettingsCard>

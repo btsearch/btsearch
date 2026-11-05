@@ -1,9 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Navigate, createFileRoute } from "@tanstack/react-router";
 
+import { PageErrorState } from "@/components/ui/error-state";
 import { SubmissionReviewPage } from "@/features/admin/submissions/components/submissionReviewPage";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 function SubmissionDetailPage() {
   const { id } = Route.useParams();
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissions");
+
+  if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
+  if (isDisabled) return <Navigate to="/admin" replace />;
 
   return <SubmissionReviewPage key={id} submissionId={id} />;
 }

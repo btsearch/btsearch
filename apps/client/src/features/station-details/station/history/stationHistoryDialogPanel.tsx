@@ -19,6 +19,7 @@ import { useReferenceAccess } from "@/features/admin/reference/access/useReferen
 import { useFloatingDialogFocus } from "@/features/floating-dialogs/hooks/useFloatingDialogFocus";
 import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "@/features/floating-dialogs/types";
 import { brandsQueryOptions } from "@/features/shared/lookups";
+import { useSettings } from "@/hooks/useSettings";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,7 @@ export function StationHistoryDialogPanel({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const { data: session } = useSettledSession();
+  const { data: settings } = useSettings();
   const { data: brands } = useQuery(brandsQueryOptions());
   const { canOpenCountries: canOpenAuditLog } = useReferenceAccess();
   const names = useHistoryNames();
@@ -131,7 +133,7 @@ export function StationHistoryDialogPanel({
   useImperativeHandle(bodyRef, () => scrollContainerRef.current!);
   useFloatingDialogFocus(windowRef, closeButtonRef, !modal);
 
-  const canOpenAdminHistory = canOpenAuditLog || session?.user?.role === "editor";
+  const canOpenAdminHistory = canOpenAuditLog || (session?.user?.role === "editor" && settings?.features.submissions === true);
   const brand = findBrand(brands, operatorBrandId);
   const adminHistoryLabel = canOpenAuditLog ? t("history.openAuditLog") : t("common:labels.submissions");
   const items = data?.pages.flatMap((page) => page.data) ?? [];

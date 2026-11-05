@@ -40,7 +40,8 @@ async function fetchTotal(path: string, filters: Record<string, string>, signal?
   }
 }
 
-async function fetchSubmissionCounts(userId: string, signal?: AbortSignal): Promise<SubmissionCounts | null> {
+async function fetchSubmissionCounts(userId: string, areSubmissionsOn: boolean, signal?: AbortSignal): Promise<SubmissionCounts | null> {
+  if (!areSubmissionsOn) return null;
   const filters = { submitters: "all", submitterIds: userId };
   const [total, pending, rejected] = await Promise.all([
     fetchTotal("submissions", filters, signal),
@@ -61,9 +62,9 @@ async function fetchCommentCounts(userId: string, signal?: AbortSignal): Promise
   return { total, pending, approved: Math.max(0, total - pending) };
 }
 
-async function fetchUserActivityCounts(userId: string, signal?: AbortSignal): Promise<UserActivityCounts> {
+async function fetchUserActivityCounts(userId: string, areSubmissionsOn: boolean, signal?: AbortSignal): Promise<UserActivityCounts> {
   const [submissions, comments, auditOperations] = await Promise.all([
-    fetchSubmissionCounts(userId, signal),
+    fetchSubmissionCounts(userId, areSubmissionsOn, signal),
     fetchCommentCounts(userId, signal),
     fetchTotal("audit-operations", { userIds: userId }, signal),
   ]);
@@ -92,10 +93,10 @@ async function fetchProfileVisibility(username: string | null, signal?: AbortSig
   }
 }
 
-export function userActivityQueryOptions(userId: string) {
+export function userActivityQueryOptions(userId: string, areSubmissionsOn: boolean) {
   return queryOptions({
-    queryKey: userAdminKeys.activity(userId),
-    queryFn: ({ signal }) => fetchUserActivityCounts(userId, signal),
+    queryKey: [...userAdminKeys.activity(userId), { areSubmissionsOn }],
+    queryFn: ({ signal }) => fetchUserActivityCounts(userId, areSubmissionsOn, signal),
     staleTime: USER_DETAIL_PRELOAD_STALE_TIME,
   });
 }
