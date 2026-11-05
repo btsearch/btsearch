@@ -24,7 +24,7 @@
     "@better-auth/drizzle-adapter": "1.7.16",
     "@better-auth/oauth-provider": "1.7.16",
     "@better-auth/passkey": "1.7.16",
-    "@btsearch/rf-engine": "0.1.5",
+    "@btsearch/rf-engine": "0.1.9",
     "@fastify/cors": "11.4.0",
     "@fastify/multipart": "10.1.7",
     "@fastify/static": "10.1.8",
