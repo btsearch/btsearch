@@ -10,6 +10,10 @@ const COMBINING_MARKS = /\p{Mn}/gu;
 const WHITESPACE = /\s+/g;
 const FORMER_REMARK = /\((dawn|byl|d\. |formerly|previously)[^()]*\)/g;
 const FORMER_PHRASE = /\b(dawn\w*|byl(a|e|y|ego|ej|ych|ym|ymi)?|former)\b[^,;()/-]*?(?=\s(na|przy|obok|kolo|on|at|near)\s|[,;()/-]|$)/g;
+const FORMER_WORDS = "dawniej|wczesniej|poprzednio|formerly|previously";
+const FORMER_START = new RegExp(`^\\(?(${FORMER_WORDS})\\b`);
+const FORMER_OWNER_REMARK = new RegExp(`^(\\((${FORMER_WORDS}) [^()]*\\)|(${FORMER_WORDS}) (?!.* - )[^()/]*)$`);
+const ENCLOSING_BRACKETS = /^\((.*)\)$/;
 const PL_PREPOSITIONS = "przy|kolo|obok|blisko|niedaleko|naprzeciw(ko)?|na|nad|pod|przed|za|w|we|z|ze|u|od|do|wzdluz|wsrod|miedzy|poza";
 const PL_ADJECTIVE =
   "(stalow|metalow|ceglan|murowan|zelbetow|betonow|strunobetonow|kratow|rurow|drewnian|kamienn|wolnostojac|tymczasow|nisk|wysok|widokow|obserwacyjn|radiow|telewizyjn)(ie|y|a|e|i)";
@@ -66,7 +70,7 @@ const TYPE_RULES: Record<StructureNoteLanguage, readonly TypeRule[]> = {
 
 const CONTINUATION_RULES: Record<StructureNoteLanguage, ContinuationRules> = {
   pl: {
-    words: new RegExp(`^((${PL_PREPOSITIONS}|dawniej)\\b|(${PL_ADJECTIVE} )*${PL_ADJECTIVE}($|[,;(/-]| [,;(/-]| (${PL_PREPOSITIONS})\\b))`),
+    words: new RegExp(`^((${PL_PREPOSITIONS})\\b|(${PL_ADJECTIVE} )*${PL_ADJECTIVE}($|[,;(/-]| [,;(/-]| (${PL_PREPOSITIONS})\\b))`),
     names: /^([(/]|\S*(ego|ej|ych|ich|ni|cy|cji|ji|ii|u)\b|\S*[yi] \S*(ego|ej|ych|ich)\b|\S*ow \S*(ych|ich)\b)/,
   },
   en: {
@@ -104,9 +108,15 @@ function noteNamesStructureType(note: string, type: StructureType): boolean {
 function continueStructureType(typeName: string, note: string, language: StructureNoteLanguage): string | null {
   const folded = foldText(note);
   const rules = CONTINUATION_RULES[language];
+  if (FORMER_START.test(folded)) return null;
   if (rules.words.test(folded)) return `${typeName} ${note.charAt(0).toLowerCase()}${note.slice(1)}`;
   if (rules.names.test(folded)) return `${typeName} ${note}`;
   return null;
+}
+
+export function getFormerOwnerRemark(note: string): string | null {
+  if (!FORMER_OWNER_REMARK.test(foldText(note))) return null;
+  return note.trim().replace(ENCLOSING_BRACKETS, "$1");
 }
 
 export function getStructurePhrase(typeName: string, type: StructureType, note: string, language: StructureNoteLanguage): string | null {

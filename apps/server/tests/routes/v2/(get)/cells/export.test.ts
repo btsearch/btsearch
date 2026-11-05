@@ -687,6 +687,16 @@ describe("loadNativeExportLines", () => {
       "dach Politechniki Krakowskiej",
     ],
     [
+      "a former name next to the owner",
+      { country_code: "PL", structure_type: "rooftop", structure_note: "(dawniej ZKE S.A.)" },
+      "dach (PGE, dawniej ZKE S.A.)",
+    ],
+    [
+      "a former name apart from the type without an owner",
+      { country_code: "PL", structure_type: "lattice_tower", structure_owner: null, structure_note: "dawniej Centertel NMT" },
+      "wieża kratowa, dawniej Centertel NMT",
+    ],
+    [
       "the type before a building in the nominative",
       { country_code: "PL", structure_type: "rooftop", structure_owner: null, structure_note: "blok mieszkalny" },
       "dach, blok mieszkalny",

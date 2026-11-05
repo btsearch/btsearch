@@ -12,7 +12,7 @@ import {
   renderCLFDescriptionTemplate,
 } from "@openbts/shared/clfExportTemplates";
 import { getBandName } from "@openbts/shared/frequency";
-import { type StructureNoteLanguage, getStructurePhrase } from "@openbts/shared/structureNotes";
+import { type StructureNoteLanguage, getFormerOwnerRemark, getStructurePhrase } from "@openbts/shared/structureNotes";
 
 import { type StoredStructureType, toStructureType } from "../structures/serialize.js";
 
@@ -457,11 +457,13 @@ function getStructureTypeLabel(cell: CellExportData): string {
   return STRUCTURE_TYPE_LABELS[getStructureLanguage(cell)][cell.structure_type];
 }
 
-function getStructureLabel(cell: CellExportData): string {
-  const type = getStructureTypeLabel(cell);
-  const owner = cell.structure_owner ?? "";
+function joinTypeAndOwner(type: string, owner: string): string {
   if (type === "" || owner === "") return type || owner;
   return `${type} (${owner})`;
+}
+
+function getStructureLabel(cell: CellExportData): string {
+  return joinTypeAndOwner(getStructureTypeLabel(cell), cell.structure_owner ?? "");
 }
 
 function getStructureTypePhrase(cell: CellExportData, note: string): string | null {
@@ -472,6 +474,9 @@ function getStructureTypePhrase(cell: CellExportData, note: string): string | nu
 function getStructureDetails(cell: CellExportData): string {
   const note = cell.structure_note?.trim() ?? "";
   const owner = cell.structure_owner ?? "";
+  const ownerRemark = owner === "" ? null : getFormerOwnerRemark(note);
+  if (ownerRemark !== null) return joinTypeAndOwner(getStructureTypeLabel(cell), `${owner}, ${ownerRemark}`);
+
   const typePhrase = getStructureTypePhrase(cell, note);
   if (typePhrase !== null) return owner === "" ? typePhrase : `${typePhrase} (${owner})`;
 

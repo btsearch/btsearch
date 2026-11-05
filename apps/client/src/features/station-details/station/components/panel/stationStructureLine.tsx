@@ -1,4 +1,4 @@
-import { getStructurePhrase } from "@openbts/shared/structureNotes";
+import { getFormerOwnerRemark, getStructurePhrase } from "@openbts/shared/structureNotes";
 import { useTranslation } from "react-i18next";
 
 import type { Brand, StationLocationRecord } from "../../types";
@@ -31,6 +31,8 @@ export function StationStructureLine({ location, ownerBrand, showNote = false }:
     structureType !== null && typeName !== null && note !== null
       ? getStructurePhrase(typeName, structureType, note, getStructureNoteLanguage(i18n.language))
       : null;
+  const ownerRemark = owner !== null && note !== null ? getFormerOwnerRemark(note) : null;
+  const shownNote = typePhrase === null && ownerRemark === null ? note : null;
 
   if (address === null && structureType === null && owner === null && note === null) return <>{t("dialog.btsStation")}</>;
 
@@ -51,14 +53,14 @@ export function StationStructureLine({ location, ownerBrand, showNote = false }:
           {address !== null || structureType !== null ? <MiddleDot /> : null}
           <span className="inline-flex items-center gap-1">
             {ownerBrand !== null ? <BrandMark brand={ownerBrand} size={12} /> : null}
-            {owner.name}
+            {ownerRemark === null ? owner.name : `${owner.name} (${ownerRemark})`}
           </span>
         </>
       ) : null}
-      {note !== null && typePhrase === null ? (
+      {shownNote !== null ? (
         <>
           {address !== null || structureType !== null || owner !== null ? <MiddleDot /> : null}
-          <span className="min-w-0 max-w-full wrap-break-word">{note}</span>
+          <span className="min-w-0 max-w-full wrap-break-word">{shownNote}</span>
         </>
       ) : null}
     </span>
