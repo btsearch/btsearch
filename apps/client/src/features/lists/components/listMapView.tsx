@@ -290,7 +290,7 @@ export function ListMapView({ uuid }: { uuid: string }): JSX.Element {
   const { preferences } = usePreferences();
 
   return (
-    <LibreMap center={POLAND_CENTER} zoom={6} minZoom={5} className={preferences.navMode === "floating" ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}>
+    <LibreMap center={POLAND_CENTER} zoom={6} minZoom={3} className={preferences.navMode === "floating" ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}>
       <ListMapInner uuid={uuid} />
     </LibreMap>
   );

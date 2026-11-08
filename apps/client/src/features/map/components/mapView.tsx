@@ -319,7 +319,7 @@ export default function MapView() {
     <LibreMap
       center={saved?.center ?? POLAND_CENTER}
       zoom={saved?.zoom ?? 7}
-      minZoom={5}
+      minZoom={3}
       transformRequest={transformCrowdTileRequest}
       className={preferences.navMode === "floating" ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}
     >
