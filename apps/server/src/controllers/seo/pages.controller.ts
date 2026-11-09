@@ -1,4 +1,4 @@
-import { conventionsFor } from "@openbts/country-packs";
+import { conventionsFor, formatIdentifier } from "@openbts/country-packs";
 import { bands, cells, extraIdentificators, locations, operators, regions, stations } from "@openbts/drizzle";
 import {
   type JsonLdObject,
@@ -176,7 +176,7 @@ async function buildStationFragment(id: number): Promise<string | null> {
       stationCode: station.stationCode,
       status: station.status,
       operatorName: station.operatorName,
-      networksLabel: station.networksId ? conventionsFor(station.countryCode).formatIdentifier("networksId", String(station.networksId)) : null,
+      networksLabel: station.networksId ? formatIdentifier(conventionsFor(station.countryCode), "networksId", String(station.networksId)) : null,
       city: station.city,
       address: station.extraAddress || station.address,
       regionName: station.regionName,

@@ -7,6 +7,7 @@ import type z from "zod";
 
 import type { DbTx } from "../../types/global.ts";
 import {
+  assertNrIdentityFits,
   gsmInsertSchema,
   gsmUpdateSchema,
   lteInsertSchema,
@@ -100,6 +101,7 @@ export async function updateRATCellDetailsReturning(
         .set({ ...details, updatedAt: new Date() })
         .where(eq(nrCells.cell_id, cellId))
         .returning();
+      if (updated) assertNrIdentityFits(updated);
       return updated ?? null;
     }
   }
@@ -173,6 +175,7 @@ export async function insertRATCellDetailsReturning(
           supports_nr_redcap: details.supports_nr_redcap,
         })
         .returning();
+      if (inserted) assertNrIdentityFits(inserted);
       return inserted ?? null;
     }
   }

@@ -44,13 +44,14 @@ export const draftRadios = [
       bandId: 4,
       mode: "sa",
       gnbid: 123456,
+      gnbidLength: 24,
       clid: 7,
       tac: 16777215,
       pci: 1007,
       arfcn: 630000,
       supportsRedCap: true,
     },
-    details: { type: "sa", gnbid: 123456, gnbid_length: null, clid: 7, nrtac: 16777215, pci: 1007, arfcn: 630000, supports_nr_redcap: true },
+    details: { type: "sa", gnbid: 123456, gnbid_length: 24, clid: 7, nrtac: 16777215, pci: 1007, arfcn: 630000, supports_nr_redcap: true },
     table: "proposed_nr_cells",
     identityTable: "nr_cells",
   },
@@ -425,8 +426,11 @@ export function scriptExistingDraftCreate(fixture: DraftFixture, targets: Return
   scriptDraftSerialization(fixture);
 }
 
-export function scriptDraftTranslation(fixture: DraftFixture): void {
+type OperatorNetwork = { countryCode: string; primaryPlmn: string | null };
+
+export function scriptDraftTranslation(fixture: DraftFixture, operatorNetwork?: OperatorNetwork): void {
   dbMock.enqueueFor("select", "operators", [{ id: 7, countryCode: "PL" }]);
+  if (operatorNetwork !== undefined) dbMock.enqueueFor("select", "operators", [operatorNetwork]);
   if (fixture.input.location?.regionId !== undefined) {
     dbMock.enqueueFor("select", "regions", [{ id: 1, countryCode: "PL" }]);
     if (fixture.input.location.latitude !== undefined) dbMock.enqueueFor("execute", undefined, [{ regionId: 1 }]);
@@ -494,12 +498,12 @@ function scriptDraftBatchSerialization(fixtures: DraftFixture[], role = "user"):
   if (fixtures.some((fixture) => fixture.cells.length > 0)) dbMock.enqueueFor("select", "bands", []);
 }
 
-export function scriptDraftCreate(fixture: DraftFixture): void {
-  scriptDraftBatchCreate([fixture]);
+export function scriptDraftCreate(fixture: DraftFixture, operatorNetwork?: OperatorNetwork): void {
+  scriptDraftBatchCreate([fixture], operatorNetwork);
 }
 
-export function scriptDraftBatchCreate(fixtures: DraftFixture[]): void {
-  for (const fixture of fixtures) scriptDraftTranslation(fixture);
+export function scriptDraftBatchCreate(fixtures: DraftFixture[], operatorNetwork?: OperatorNetwork): void {
+  for (const fixture of fixtures) scriptDraftTranslation(fixture, operatorNetwork);
   dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
   scriptDraftGeography();
   for (const fixture of fixtures) {

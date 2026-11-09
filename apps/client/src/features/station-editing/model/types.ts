@@ -1,4 +1,13 @@
-import type { BackhaulMedium, CellType, LocationMove, NrMode, StationBase, StationIdentifierKind, StationStatus } from "@openbts/shared/contract";
+import type {
+  BackhaulMedium,
+  CellType,
+  LocationMove,
+  NrMode,
+  SharedAreaCode,
+  StationBase,
+  StationIdentifierKind,
+  StationStatus,
+} from "@openbts/shared/contract";
 
 import type { StructureDraft } from "@/features/shared/location/types";
 
@@ -136,7 +145,7 @@ export type EditSession = {
   kind: EditKind;
   action: EditAction;
   countryCode: string | null;
-  hoistedTac: boolean;
+  sharedAreaCode: SharedAreaCode;
   editsHostStations: boolean;
   live: StationSnapshot | null;
   proposed: StationSnapshot | null;

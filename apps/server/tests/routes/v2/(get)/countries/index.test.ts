@@ -29,9 +29,29 @@ const noCapabilities = {
   officialStatuses: false,
   editableHostStations: true,
 };
+const packConventions = { defaultGnbidLength: 24, sharedAreaCode: { umts: true, lte: true, nr: true }, identifierPrefixes: { networksId: "N!" } };
+const noConventions = { defaultGnbidLength: 24, sharedAreaCode: { umts: true, lte: false, nr: false }, identifierPrefixes: {} };
 const tools = ["analyzer", "measurements"];
-const visible = { code: "PL", isVisible: true, contributions: "open", tools, features, capabilities: packCapabilities, defaultView: null };
-const hidden = { code: "US", isVisible: false, contributions: "closed", tools, features, capabilities: noCapabilities, defaultView: null };
+const visible = {
+  code: "PL",
+  isVisible: true,
+  contributions: "open",
+  tools,
+  features,
+  capabilities: packCapabilities,
+  conventions: packConventions,
+  defaultView: null,
+};
+const hidden = {
+  code: "US",
+  isVisible: false,
+  contributions: "closed",
+  tools,
+  features,
+  capabilities: noCapabilities,
+  conventions: noConventions,
+  defaultView: null,
+};
 const viewColumns = { ...features, viewWest: null, viewSouth: null, viewEast: null, viewNorth: null };
 const polishSource = { id: 1, countryCode: "PL", isVisible: true, layers: ["sites", "microwave_links"] };
 
@@ -114,6 +134,18 @@ describe("getCountries", () => {
       ["PL", false],
       ["FR", false],
       ["GB", true],
+    ]);
+  });
+
+  it("takes the numbering conventions from the country's pack, and the defaults where there is none", async () => {
+    dbMock.query.countries.findMany.mockResolvedValue(["PL", "GB", "FR"].map((code) => ({ ...visible, ...viewColumns, code })));
+    scriptSourceCapabilities([], []);
+    const app = await createRouteHarness(getCountries);
+    const countries: { code: string; conventions: unknown }[] = (await app.inject({ method: "GET", url: "/countries" })).json().data;
+    expect(countries.map(({ code, conventions }) => [code, conventions])).toEqual([
+      ["PL", packConventions],
+      ["GB", { ...noConventions, defaultGnbidLength: 22 }],
+      ["FR", noConventions],
     ]);
   });
 

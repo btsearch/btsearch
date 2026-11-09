@@ -41,6 +41,25 @@ describe("updateRATCellDetailsReturning", () => {
 
     expect(await updateRATCellDetailsReturning(tx, "GSM", 1, { bsic: 0 }, bsicCountry)).toBeNull();
   });
+
+  it.each([
+    { stored: { gnbid: 2 ** 24, gnbid_length: 24, clid: 0 }, message: "A 24-bit gNBID can be at most 16777215" },
+    { stored: { gnbid: 2 ** 24, gnbid_length: null, clid: 0 }, message: "A 24-bit gNBID can be at most 16777215" },
+    { stored: { gnbid: 1, gnbid_length: 28, clid: 256 }, message: "With a 28-bit gNBID, the CLID can be at most 255" },
+  ])("refuses an NR change that leaves $stored outside the 36-bit cell identity", async ({ stored, message }) => {
+    dbMock.enqueueFor("update", "nr_cells", [{ cell_id: 1, type: "sa", ...stored }]);
+
+    await expect(updateRATCellDetailsReturning(tx, "NR", 1, { gnbid: stored.gnbid }, pscCountry)).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message,
+    });
+  });
+
+  it("keeps a 28-bit gNBID that would not fit in 24 bits", async () => {
+    dbMock.enqueueFor("update", "nr_cells", [{ cell_id: 1, type: "sa", gnbid: 2 ** 27, gnbid_length: 28, clid: 255 }]);
+
+    expect(await updateRATCellDetailsReturning(tx, "NR", 1, { gnbid: 2 ** 27 }, pscCountry)).toMatchObject({ gnbid: 2 ** 27 });
+  });
 });
 
 describe("insertRATCellDetailsReturning", () => {
@@ -66,5 +85,15 @@ describe("insertRATCellDetailsReturning", () => {
     await insertRATCellDetailsReturning(tx, "UMTS", 1, { lac: 100, rnc: 1, cid: 1, arfcn: 10564, psc: 0 }, pscCountry);
 
     expect(dbMock.calls.find((call) => call.operation === "insert")?.values).toMatchObject({ psc: 0 });
+  });
+
+  it("refuses a new NR cell whose gNBID does not fit its length", async () => {
+    const details = { type: "sa" as const, gnbid: 2 ** 22, gnbid_length: 22, clid: 0 };
+    dbMock.enqueueFor("insert", "nr_cells", [{ cell_id: 1, ...details }]);
+
+    await expect(insertRATCellDetailsReturning(tx, "NR", 1, details, pscCountry)).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: "A 22-bit gNBID can be at most 4194303",
+    });
   });
 });

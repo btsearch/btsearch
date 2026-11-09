@@ -1,10 +1,11 @@
 import { gsmCells, lteCells, nrCells, umtsCells } from "@openbts/drizzle";
-import { BSIC_MAX, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, PSC_MAX } from "@openbts/shared/contract";
+import { BSIC_MAX, DEFAULT_GNBID_LENGTH, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, PSC_MAX } from "@openbts/shared/contract";
 import { createInsertSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod/v4";
 
 import { ErrorResponse, ValidationError } from "../../errors.js";
 import { toFieldPath } from "../../lib/fieldPath.js";
+import { NCI_BITS } from "../observed/cells/identity.js";
 
 export const INSERT_OMIT = { cell_id: true, createdAt: true, updatedAt: true } as const;
 export const UPDATE_OMIT = { cell_id: true, createdAt: true, updatedAt: true } as const;
@@ -101,6 +102,30 @@ export function requireStandaloneTac(details: { type?: string; nrtac?: number | 
   if (details.type === "sa" && (details.nrtac === null || details.nrtac === undefined)) {
     ctx.addIssue({ code: "custom", message: "A TAC is required for an NR SA cell", path: ["nrtac"] });
   }
+}
+
+type NrIdentityValues = { gnbid?: number | null; clid?: number | null; gnbid_length?: number | null };
+type NrIdentityOverflow = { field: "gnbid" | "clid"; message: string };
+
+function nrIdentityOverflows({ gnbid, clid, gnbid_length }: NrIdentityValues): NrIdentityOverflow[] {
+  const gnbidLength = gnbid_length ?? DEFAULT_GNBID_LENGTH;
+  const maxGnbid = 2 ** gnbidLength - 1;
+  const maxClid = 2 ** (NCI_BITS - gnbidLength) - 1;
+  const overflows: NrIdentityOverflow[] = [];
+  if (typeof gnbid === "number" && gnbid > maxGnbid)
+    overflows.push({ field: "gnbid", message: `A ${gnbidLength}-bit gNBID can be at most ${maxGnbid}` });
+  if (typeof clid === "number" && clid > maxClid)
+    overflows.push({ field: "clid", message: `With a ${gnbidLength}-bit gNBID, the CLID can be at most ${maxClid}` });
+  return overflows;
+}
+
+export function refuseNrIdentityOverflows(details: NrIdentityValues, ctx: z.RefinementCtx): void {
+  for (const { field, message } of nrIdentityOverflows(details)) ctx.addIssue({ code: "custom", message, path: [field] });
+}
+
+export function assertNrIdentityFits(row: NrIdentityValues): void {
+  const [overflow] = nrIdentityOverflows(row);
+  if (overflow) throw new ErrorResponse("BAD_REQUEST", { message: overflow.message });
 }
 
 export function assertNsaFieldsUnset(details: z.infer<typeof nrUpdateSchema>, storedType: string | null | undefined): void {

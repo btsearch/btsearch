@@ -1,12 +1,15 @@
 import { z } from "zod/v4";
 
-import { AT_LEAST_ONE_FIELD_ISSUE, countryCodeSchema, csvCountryCodesSchema, hasAnyField, idParamSchema, idSchema } from "./common.ts";
+import { AT_LEAST_ONE_FIELD_ISSUE, countryCodeSchema, csvCountryCodesSchema, csvEnumSchema, hasAnyField, idParamSchema, idSchema } from "./common.ts";
+import { LTE_SEQUENCE_DIGITS, STATION_IDENTIFIER_KINDS } from "./constants.ts";
 
 export const PLMN_ROLES = ["primary", "secondary"] as const;
 export type PlmnRole = (typeof PLMN_ROLES)[number];
 
 export const OPERATOR_LINK_KINDS = ["jvMember"] as const;
 export type OperatorLinkKind = (typeof OPERATOR_LINK_KINDS)[number];
+
+export const OPERATOR_INCLUDES = ["conventions"] as const;
 
 const operatorNameSchema = z.string().trim().min(1).max(100);
 const operatorLegalNameSchema = z.string().trim().min(1).max(250);
@@ -36,6 +39,35 @@ export const operatorLinkSchema = z.object({
 });
 export type OperatorLink = z.infer<typeof operatorLinkSchema>;
 
+export const lteSectorRuleSchema = z.object({
+  clidStep: z.number().int().describe("How much the CLID grows from one sector's cell to the next"),
+  sequenceStart: z
+    .object({
+      eciDigit: z.enum(LTE_SEQUENCE_DIGITS).describe("Which decimal digit of the cell's `eci` is checked, not of its `clid`"),
+      values: z.array(z.number().int()).describe("The digit values that start a sequence"),
+    })
+    .describe("A cell can be the first of a sequence when that digit of its `eci` is one of `values`"),
+  maxSectors: z.number().int().describe("The most sectors a sequence can have. A band's sequence has three unless its cells fill a longer one"),
+});
+export type LteSectorRule = z.infer<typeof lteSectorRuleSchema>;
+
+export const defaultEarfcnSchema = z.object({
+  bandCode: z.string().describe("The band's `code` in `GET /bands`"),
+  earfcn: z.number().int(),
+});
+
+export const operatorConventionsSchema = z.object({
+  gnbidLength: z.number().int().describe("The gNBID length in bits of the operator's NR cells. New cells get it when you leave `gnbidLength` out"),
+  identifierKinds: z
+    .array(z.enum(STATION_IDENTIFIER_KINDS))
+    .describe("The kinds of `identifiers` the operator's stations can have. Direct station changes with other kinds are refused"),
+  lteSectorRule: lteSectorRuleSchema
+    .nullable()
+    .describe("How the operator numbers a station's LTE cells in one band, one cell per sector. `null` if the operator has no fixed pattern"),
+  defaultEarfcns: z.array(defaultEarfcnSchema).describe("The channel to suggest for a new LTE cell of the operator, per band"),
+});
+export type OperatorConventions = z.infer<typeof operatorConventionsSchema>;
+
 export const operatorSchema = z.object({
   id: z.number().int(),
   countryCode: countryCodeSchema,
@@ -50,9 +82,21 @@ export const operatorSchema = z.object({
 });
 export type Operator = z.infer<typeof operatorSchema>;
 
+export const operatorWithConventionsSchema = operatorSchema.extend({
+  conventions: operatorConventionsSchema
+    .optional()
+    .describe("Only returned with `include=conventions`. How the operator numbers its cells and names its stations"),
+});
+export type OperatorWithConventions = z.infer<typeof operatorWithConventionsSchema>;
+
 export const operatorParamsSchema = z.object({ id: idParamSchema });
 
-export const operatorListQuerySchema = z.object({ countryCodes: csvCountryCodesSchema.optional() }).strict();
+export const operatorQuerySchema = z.object({ include: csvEnumSchema(OPERATOR_INCLUDES).optional() }).strict();
+export type OperatorQuery = z.infer<typeof operatorQuerySchema>;
+
+export const operatorListQuerySchema = z
+  .object({ countryCodes: csvCountryCodesSchema.optional(), include: csvEnumSchema(OPERATOR_INCLUDES).optional() })
+  .strict();
 export type OperatorListQuery = z.infer<typeof operatorListQuerySchema>;
 
 const plmnsInputSchema = z

@@ -1,4 +1,4 @@
-import { type LteSectorRule, type OperatorRef, conventionsFor } from "@openbts/country-packs";
+import { type LteSectorRule, type OperatorRef, conventionsFor, isLteSequenceStart } from "@openbts/country-packs";
 
 const LTE_MAX_CLID = 255;
 const DEFAULT_LTE_SECTOR_COUNT = 3;
@@ -64,7 +64,7 @@ function resolveSectorSequence(identities: readonly LTECellIdentity[], rule: Lte
       const startClid = identity.clid - sectorIndex * rule.clidStep;
       const lastClid = startClid + (sectorCount - 1) * rule.clidStep;
       if (startClid < 0 || lastClid > LTE_MAX_CLID) continue;
-      if (!rule.isSequenceStart(getECID(identity.enbid, startClid))) continue;
+      if (!isLteSequenceStart(rule, getECID(identity.enbid, startClid))) continue;
       candidates.set(`${identity.enbid}:${startClid}`, { enbid: identity.enbid, startClid });
     }
   }
@@ -90,8 +90,11 @@ function resolveSectorSequence(identities: readonly LTECellIdentity[], rule: Lte
 }
 
 function getTargetSectorCount(rule: LteSectorRule, identityGroups: readonly (readonly LTECellIdentity[])[]): number {
-  if (!rule.supportsFourthSector) return DEFAULT_LTE_SECTOR_COUNT;
-  return identityGroups.some((identities) => resolveSectorSequence(identities, rule, 4)?.matchedSectorCount === 4) ? 4 : DEFAULT_LTE_SECTOR_COUNT;
+  for (let sectorCount = rule.maxSectors; sectorCount > DEFAULT_LTE_SECTOR_COUNT; sectorCount--) {
+    if (identityGroups.some((identities) => resolveSectorSequence(identities, rule, sectorCount)?.matchedSectorCount === sectorCount))
+      return sectorCount;
+  }
+  return DEFAULT_LTE_SECTOR_COUNT;
 }
 
 export function supportsRemainingLTECells(countryCode: string | null, operator: OperatorRef | null): boolean {
@@ -136,7 +139,7 @@ export function buildRemainingLTECells<T>({
       sectorCount,
     );
     if (sequence === null) continue;
-    if (!rule.supportsFourthSector && group.some((seed) => getSectorIndex(seed.identity, sequence, rule) === null)) continue;
+    if (rule.maxSectors <= DEFAULT_LTE_SECTOR_COUNT && group.some((seed) => getSectorIndex(seed.identity, sequence, rule) === null)) continue;
     const source = group.find((seed) => getSectorIndex(seed.identity, sequence, rule) !== null);
     if (source === undefined) continue;
 

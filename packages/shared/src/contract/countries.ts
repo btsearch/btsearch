@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 
 import { AT_LEAST_ONE_FIELD_ISSUE, countryCodeSchema, hasAnyField } from "./common.ts";
+import { STATION_IDENTIFIER_KINDS } from "./constants.ts";
 
 export const CONTRIBUTION_MODES = ["closed", "open"] as const;
 export type ContributionMode = (typeof CONTRIBUTION_MODES)[number];
@@ -68,6 +69,30 @@ export const countryCapabilitiesSchema = z.object({
 });
 export type CountryCapabilities = z.infer<typeof countryCapabilitiesSchema>;
 
+export const sharedAreaCodeSchema = z.object({
+  umts: z.boolean().describe("A station's UMTS cells share one LAC"),
+  lte: z
+    .boolean()
+    .describe(
+      "A station's LTE cells share one TAC. `POST /cells/apply` then refuses two different new TACs for one station and gives the new TAC to all its LTE cells",
+    ),
+  nr: z.boolean().describe("A station's standalone NR cells share one TAC. `POST /cells/apply` handles it the same way as `lte`"),
+});
+export type SharedAreaCode = z.infer<typeof sharedAreaCodeSchema>;
+
+export const countryConventionsSchema = z.object({
+  defaultGnbidLength: z
+    .number()
+    .int()
+    .describe(
+      "The gNBID length in bits for networks of the country that are not in `GET /operators`. Listed operators have their own, returned with `include=conventions`",
+    ),
+  sharedAreaCode: sharedAreaCodeSchema.describe("Per technology, whether the cells of one station use a single area code"),
+  identifierPrefixes: z
+    .partialRecord(z.enum(STATION_IDENTIFIER_KINDS), z.string())
+    .describe("Text shown in front of a station identifier of that kind, such as `N!`. Values in `identifiers` never include it"),
+});
+
 export const countrySchema = z.object({
   code: countryCodeSchema,
   isVisible: z.boolean().describe(VISIBILITY_NOTE),
@@ -75,6 +100,7 @@ export const countrySchema = z.object({
   tools: z.array(z.enum(COUNTRY_TOOLS)).describe(TOOLS_NOTE),
   features: countryFeaturesSchema.describe("What is collected and shown in the country, while `tools` says what works there"),
   capabilities: countryCapabilitiesSchema,
+  conventions: countryConventionsSchema.describe("How cells are numbered and station identifiers are shown in the country"),
   defaultView: boundingBoxSchema.nullable().describe(DEFAULT_VIEW_NOTE),
 });
 export type Country = z.infer<typeof countrySchema>;

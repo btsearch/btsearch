@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultConventions } from "../../core/conventions.ts";
+import { defaultConventions, formatIdentifier } from "../../core/conventions.ts";
 import { capabilitiesFor, conventionsFor, countryCodesWith, defaultLteEarfcn, knownGnbidLength } from "../../core/registry.ts";
 import { pl } from "../index.ts";
 import { PLAY, TMOBILE, WITHOUT_PLMN } from "./operators.ts";
 
 const HOOKS = [
   "identifierKinds",
-  "formatIdentifier",
+  "identifierPrefixes",
   "validateAddress",
   "suggestOperatorName",
   "equivalentEnbids",
   "sharedSite",
   "lteSectorRule",
   "gnbidLength",
-  "hoistedTac",
+  "sharedAreaCode",
   "normalizeGeocodedPlace",
 ] as const;
 
@@ -28,7 +28,7 @@ void test("gives Poland its own hook for every convention it changes", () => {
     assert.notEqual(conventions[hook], defaultConventions[hook], hook);
   }
   assert.deepEqual(conventions.identifierKinds(TMOBILE), ["networksId", "networksName", "operatorName"]);
-  assert.equal(conventions.formatIdentifier("networksId", "12345"), "N!12345");
+  assert.equal(formatIdentifier(conventions, "networksId", "12345"), "N!12345");
   assert.equal(conventions.validateAddress("teren własny"), "Address must not contain variants of własny");
   assert.equal(conventions.suggestOperatorName({ operator: TMOBILE, siteId: "12345", city: "Łódź", partnerName: null }), "Lodz_12345");
   assert.deepEqual(conventions.equivalentEnbids(TMOBILE, 57), [17, 27, 37, 47, 57, 67, 77, 87, 97]);
@@ -37,7 +37,7 @@ void test("gives Poland its own hook for every convention it changes", () => {
   assert.equal(conventions.gnbidLength(TMOBILE), 24);
   assert.equal(conventions.gnbidLength(PLAY), 28);
   assert.equal(conventions.gnbidLength(WITHOUT_PLMN), 24);
-  assert.equal(conventions.hoistedTac, true);
+  assert.deepEqual(conventions.sharedAreaCode, { umts: true, lte: true, nr: true });
   assert.deepEqual(conventions.normalizeGeocodedPlace({ region: "województwo łódzkie", municipality: "gmina Zgierz" }), {
     region: "Łódzkie",
     municipality: "Zgierz",
@@ -50,7 +50,7 @@ void test("gives every operator in Great Britain a 22-bit gNB ID and the default
   assert.equal(conventions.gnbidLength(TMOBILE), 22);
   assert.equal(conventions.gnbidLength(WITHOUT_PLMN), 22);
   assert.equal(conventions.lteSectorRule, defaultConventions.lteSectorRule);
-  assert.equal(conventions.hoistedTac, false);
+  assert.deepEqual(conventions.sharedAreaCode, { umts: true, lte: false, nr: false });
   assert.deepEqual(capabilitiesFor("GB"), {
     official: false,
     microwaveLinks: false,
@@ -67,14 +67,14 @@ void test("gives the defaults to a country without a pack and to no country", ()
 
     assert.equal(conventions, defaultConventions);
     assert.deepEqual(conventions.identifierKinds(TMOBILE), []);
-    assert.equal(conventions.formatIdentifier("networksId", "12345"), "12345");
+    assert.equal(formatIdentifier(conventions, "networksId", "12345"), "12345");
     assert.equal(conventions.validateAddress("teren własny"), null);
     assert.equal(conventions.suggestOperatorName({ operator: TMOBILE, siteId: "12345", city: "Łódź", partnerName: "LODZ_CENTRUM" }), null);
     assert.deepEqual(conventions.equivalentEnbids(TMOBILE, 345678), [345678]);
     assert.deepEqual(conventions.sharedSite.copies, []);
     assert.equal(conventions.lteSectorRule(TMOBILE), null);
     assert.equal(conventions.gnbidLength(TMOBILE), 24);
-    assert.equal(conventions.hoistedTac, false);
+    assert.deepEqual(conventions.sharedAreaCode, { umts: true, lte: false, nr: false });
     assert.deepEqual(conventions.normalizeGeocodedPlace({ region: "województwo łódzkie", municipality: "gmina Zgierz" }), {
       region: "województwo łódzkie",
       municipality: "gmina Zgierz",

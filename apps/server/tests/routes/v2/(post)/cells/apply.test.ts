@@ -1,4 +1,4 @@
-import { lteCells } from "@openbts/drizzle";
+import { lteCells, nrCells } from "@openbts/drizzle";
 import type { NewCellInput } from "@openbts/shared/contract";
 import { type SQL, getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
@@ -13,7 +13,12 @@ import { BIALYSTOK, siteRecord } from "../../../../helpers/siteRecordFixtures.js
 import { stationRow } from "../../../../helpers/stationFixtures.js";
 
 const lteTable = getTableName(lteCells);
+const nrTable = getTableName(nrCells);
 const dialect = new PgDialect();
+
+function standaloneNrCell(clid: number, tac: number, isConfirmed?: boolean): NewCellInput {
+  return { ...cellInputs.nr, mode: "sa", gnbid: 100, clid, tac, isConfirmed };
+}
 
 async function request(payload: unknown) {
   const errors: Error[] = [];
@@ -32,8 +37,10 @@ function snapshot(row: ReturnType<typeof storedCell>) {
   return { ...cell, gsm, umts, lte, nr };
 }
 
-function prepareLteUpdate(options: { oldTac?: number | null; operatorId?: number | null; countryCode?: string; tools?: string[] } = {}) {
-  const old = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: options.oldTac ?? null }, 11);
+type CellUpdateOptions = { cell?: NewCellInput; oldTac?: number | null; operatorId?: number | null; countryCode?: string; tools?: string[] };
+
+function prepareCellUpdate(options: CellUpdateOptions = {}) {
+  const old = storedCell(options.cell ?? { ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: options.oldTac ?? null }, 11);
   const station = stationRow({ operator_id: options.operatorId ?? null, location: null, sectors: [] });
   const countryCode = options.countryCode ?? "PL";
   dbMock.enqueueFor("select", "stations", [{ station, countryCode }], [{ locationCountry: null, operatorCountry: null }], []);
@@ -49,11 +56,11 @@ function prepareLteUpdate(options: { oldTac?: number | null; operatorId?: number
   return old;
 }
 
-function writeLteUpdate(next: ReturnType<typeof storedCell>, listed = [next]) {
+function writeCellUpdate(next: ReturnType<typeof storedCell>, listed = [next], radioTable = lteTable) {
   dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
   dbMock.enqueueFor("select", "station_photo_selections", [], []);
   dbMock.enqueueFor("update", "cells", []);
-  dbMock.enqueueFor("update", lteTable, [next.radio]);
+  dbMock.enqueueFor("update", radioTable, [next.radio]);
   dbMock.enqueueFor("update", "stations", []);
   dbMock.enqueueFor("select", "cells", [], listed);
   dbMock.enqueueFor("insert", "audit_logs", []);
@@ -138,14 +145,14 @@ describe("POST /cells/apply", () => {
   });
 
   it("confirms an existing cell while preserving its unchanged TAC without spreading it", async () => {
-    const old = prepareLteUpdate({ oldTac: 20 });
+    const old = prepareCellUpdate({ oldTac: 20 });
     const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: 20, isConfirmed: true }, 11);
     dbMock.enqueueFor("select", lteTable, [{ cellId: 11, tac: 20 }]);
     dbMock.query.cells.findMany
       .mockResolvedValueOnce([snapshot(old)])
       .mockResolvedValueOnce([snapshot(old)])
       .mockResolvedValueOnce([snapshot(next)]);
-    writeLteUpdate(next);
+    writeCellUpdate(next);
     const { response, errors } = await request([{ stationId: 1, cells: [{ action: "update", id: 11, notes: "confirmed" }] }]);
     expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(200);
     expect(response.json().data[0].cells[0]).toMatchObject({ id: 11, tac: 20, isConfirmed: true });
@@ -159,14 +166,14 @@ describe("POST /cells/apply", () => {
   });
 
   it("confirms an existing cell when the update names only its id", async () => {
-    const old = prepareLteUpdate({ oldTac: 20 });
+    const old = prepareCellUpdate({ oldTac: 20 });
     const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: 20, isConfirmed: true }, 11);
     dbMock.enqueueFor("select", lteTable, [{ cellId: 11, tac: 20 }]);
     dbMock.query.cells.findMany
       .mockResolvedValueOnce([snapshot(old)])
       .mockResolvedValueOnce([snapshot(old)])
       .mockResolvedValueOnce([snapshot(next)]);
-    writeLteUpdate(next);
+    writeCellUpdate(next);
     const { response, errors } = await request([{ stationId: 1, cells: [{ action: "update", id: 11 }] }]);
     expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(200);
     expect(response.json()).toMatchObject({ data: [{ stationId: 1, cells: [{ id: 11, tac: 20, isConfirmed: true }] }], operationId: 9 });
@@ -177,7 +184,7 @@ describe("POST /cells/apply", () => {
   });
 
   it("spreads a changed TAC to unsubmitted LTE cells on the same station and includes them in the result", async () => {
-    const old = prepareLteUpdate({ oldTac: 10 });
+    const old = prepareCellUpdate({ oldTac: 10 });
     const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: 20, isConfirmed: true }, 11);
     const siblingOld = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 2, tac: 10, isConfirmed: true }, 12);
     const siblingNext = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 2, tac: 20, isConfirmed: true }, 12);
@@ -189,7 +196,7 @@ describe("POST /cells/apply", () => {
       .mockResolvedValueOnce([snapshot(next)])
       .mockResolvedValueOnce([snapshot(siblingOld)])
       .mockResolvedValueOnce([snapshot(siblingNext)]);
-    writeLteUpdate(next, [next, siblingNext]);
+    writeCellUpdate(next, [next, siblingNext]);
     dbMock.enqueueFor("update", lteTable, []);
     dbMock.enqueueFor("update", "cells", []);
     dbMock.enqueueFor("insert", "audit_logs", []);
@@ -213,14 +220,45 @@ describe("POST /cells/apply", () => {
     );
   });
 
+  it("spreads a changed TAC to the station's other standalone NR cells", async () => {
+    const old = prepareCellUpdate({ cell: standaloneNrCell(1, 10) });
+    const next = storedCell(standaloneNrCell(1, 20, true), 11);
+    const siblingOld = storedCell(standaloneNrCell(2, 10, true), 12);
+    const siblingNext = storedCell(standaloneNrCell(2, 20, true), 12);
+    dbMock.enqueueFor("select", nrTable, [{ cellId: 11, tac: 10 }], [{ cellId: 12 }]);
+    dbMock.query.cells.findMany
+      .mockResolvedValueOnce([snapshot(old)])
+      .mockResolvedValueOnce([snapshot(old)])
+      .mockResolvedValueOnce([snapshot(next)])
+      .mockResolvedValueOnce([snapshot(next)])
+      .mockResolvedValueOnce([snapshot(siblingOld)])
+      .mockResolvedValueOnce([snapshot(siblingNext)]);
+    writeCellUpdate(next, [next, siblingNext], nrTable);
+    dbMock.enqueueFor("update", nrTable, []);
+    dbMock.enqueueFor("update", "cells", []);
+    dbMock.enqueueFor("insert", "audit_logs", []);
+    const { response, errors } = await request([{ stationId: 1, cells: [{ action: "update", id: 11, tac: 20 }] }]);
+    expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(200);
+    expect(response.json().data[0].cells).toMatchObject([
+      { id: 11, tac: 20 },
+      { id: 12, tac: 20 },
+    ]);
+    const spreadQuery = dbMock.calls.findLast((call) => call.operation === "select" && call.table === nrTable)!;
+    expect(dialect.sqlToQuery(spreadQuery.clauses.where![0] as SQL).params).toEqual(expect.arrayContaining([1, "NR", "sa", 20]));
+    expect(dbMock.calls.filter((call) => call.operation === "update" && call.table === nrTable).map((call) => call.values)).toMatchObject([
+      { nrtac: 20 },
+      { nrtac: 20 },
+    ]);
+  });
+
   it("writes a changed TAC only to its own cell in a country where cells do not share a station TAC", async () => {
-    const old = prepareLteUpdate({ oldTac: 10, countryCode: "DE" });
+    const old = prepareCellUpdate({ oldTac: 10, countryCode: "DE" });
     const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: 20, isConfirmed: true }, 11);
     dbMock.query.cells.findMany
       .mockResolvedValueOnce([snapshot(old)])
       .mockResolvedValueOnce([snapshot(old)])
       .mockResolvedValueOnce([snapshot(next)]);
-    writeLteUpdate(next);
+    writeCellUpdate(next);
     const { response, errors } = await request([{ stationId: 1, cells: [{ action: "update", id: 11, tac: 20 }] }]);
     expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(200);
     expect(response.json().data[0].cells).toMatchObject([{ id: 11, tac: 20 }]);
@@ -376,15 +414,20 @@ describe("POST /cells/apply", () => {
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
-  it("rejects two changed TAC values for one station before writes", async () => {
-    const input = [
-      { ...cellInputs.lte, rat: "lte" as const, enbid: 100, clid: 1, tac: 10 },
-      { ...cellInputs.lte, rat: "lte" as const, enbid: 100, clid: 2, tac: 20 },
-    ];
+  it.each([
+    {
+      rat: "LTE",
+      input: [
+        { ...cellInputs.lte, rat: "lte" as const, enbid: 100, clid: 1, tac: 10 },
+        { ...cellInputs.lte, rat: "lte" as const, enbid: 100, clid: 2, tac: 20 },
+      ],
+    },
+    { rat: "NR", input: [standaloneNrCell(1, 10), standaloneNrCell(2, 20)] },
+  ])("rejects two changed $rat TAC values for one station before writes", async ({ rat, input }) => {
     prepareBatch([{ stationId: 1, cells: input }], { countryCode: "PL" });
     const { response, errors } = await request([{ stationId: 1, cells: input.map((cell) => ({ action: "create", ...cell })) }]);
     expect(response.statusCode, errors.map((error) => error.stack).join("\n")).toBe(400);
-    expect(response.json().errors[0].message).toContain("Multiple TAC values");
+    expect(response.json().errors[0].message).toContain(`Multiple ${rat} TAC values`);
     expect(response.json().errors[0].details).toEqual([{ field: "0" }]);
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
@@ -426,7 +469,7 @@ describe("POST /cells/apply", () => {
     }
 
     it("closes the station's flags in its operation, names them there and in the answer, and queues their observed cells, where only measurements are on", async () => {
-      const old = prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      const old = prepareCellUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
       const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 100, clid: 1, tac: 20, pci: 301, isConfirmed: true }, 11);
       dbMock.query.cells.findMany
         .mockResolvedValueOnce([snapshot(old)])
@@ -436,7 +479,7 @@ describe("POST /cells/apply", () => {
       dbMock.enqueueFor("select", "observation_flags", [flag, secondFlag]);
       dbMock.enqueueFor("update", "observation_flags", []);
       dbMock.enqueueFor("insert", "match_queue", []);
-      writeLteUpdate(next);
+      writeCellUpdate(next);
 
       const { response, errors } = await request(fix);
 
@@ -460,7 +503,7 @@ describe("POST /cells/apply", () => {
         [{ previous, stationId: 1, station: BIALYSTOK, cells: [{ cellId: 11, clid: 1, channel: 1850, pci: 101 }] }],
         { quietBefore: "2026-10-11" },
       );
-      const old = prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      const old = prepareCellUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
       const next = storedCell({ ...cellInputs.lte, rat: "lte", enbid: 24494, clid: 2, tac: 20, isConfirmed: true }, 11);
       dbMock.query.cells.findMany
         .mockResolvedValueOnce([snapshot(old)])
@@ -471,7 +514,7 @@ describe("POST /cells/apply", () => {
       dbMock.enqueueFor("update", "observation_flags", []);
       dbMock.enqueueFor("select", "observed_cells", [{ id: 51001 }]);
       dbMock.enqueueFor("insert", "match_queue", []);
-      writeLteUpdate(next);
+      writeCellUpdate(next);
 
       const { response, errors } = await request([{ stationId: 1, cells: renumbered?.suggestion.cells, observationFlagIds: [4120] }]);
 
@@ -494,7 +537,7 @@ describe("POST /cells/apply", () => {
         "A bandNotInPlan flag is not applied with this request",
       ],
     ])("refuses %s and writes nothing", async (_title, stored, statusCode, code, message) => {
-      prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      prepareCellUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
       dbMock.enqueueFor("select", lteTable, []);
       dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
       dbMock.enqueueFor("select", "observation_flags", stored);
@@ -508,7 +551,7 @@ describe("POST /cells/apply", () => {
     });
 
     it("fails the whole request when flags closed meanwhile, and names each of them with why it closed", async () => {
-      prepareLteUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
+      prepareCellUpdate({ oldTac: 20, countryCode: "DE", tools: ["measurements"] });
       dbMock.enqueueFor("select", lteTable, []);
       dbMock.enqueueFor("insert", "audit_operations", [{ id: 9 }]);
       dbMock.enqueueFor("select", "observation_flags", [

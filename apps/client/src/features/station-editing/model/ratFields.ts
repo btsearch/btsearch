@@ -1,4 +1,4 @@
-import type { CellType, NrMode } from "@openbts/shared/contract";
+import type { CellType, NrMode, SharedAreaCode } from "@openbts/shared/contract";
 
 export { DEFAULT_GNBID_LENGTH, GNBID_MIN_LENGTH, GNBID_MAX_LENGTH } from "@openbts/shared/contract/constants";
 
@@ -186,8 +186,8 @@ export function getAreaCodeMax(rat: Rat): number {
   return findNumberFieldSpec(rat, getAreaCodeField(rat))?.max ?? MAX_16_BIT;
 }
 
-export function canShareAreaCode(rat: Rat, hoistedTac: boolean): boolean {
-  return hoistedTac || !TAC_RATS.includes(rat);
+export function canShareAreaCode(rat: Rat, sharedAreaCode: SharedAreaCode): boolean {
+  return rat === "gsm" || sharedAreaCode[rat];
 }
 
 export function carriesAreaCode(cell: ModedCell): boolean {

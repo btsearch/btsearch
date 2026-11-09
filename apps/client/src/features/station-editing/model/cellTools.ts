@@ -80,7 +80,7 @@ export function fillLteChannels(cells: readonly CellDraft[], bandsById: Readonly
 }
 
 export function createSeriesCell(source: CellDraft, clid: number, countryCode: string | null): CellDraft {
-  const tac = conventionsFor(countryCode).hoistedTac ? getCellNumber(source, "tac") : null;
+  const tac = conventionsFor(countryCode).sharedAreaCode.lte ? getCellNumber(source, "tac") : null;
   return createCellDraft("lte", {
     bandId: source.bandId,
     cellType: source.cellType ?? DEFAULT_CELL_TYPE,

@@ -2,8 +2,8 @@ import type { StationIdentifierKind } from "@openbts/shared/contract";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OperatorRef } from "../../core/conventions.ts";
-import { formatIdentifier, identifierKinds } from "../conventions/identifiers.ts";
+import { type OperatorRef, formatIdentifier } from "../../core/conventions.ts";
+import { identifierKinds, identifierPrefixes } from "../conventions/identifiers.ts";
 import { FOREIGN_MEMBER, NETWORKS, ORANGE, PLAY, PLUS, TMOBILE, UNRELATED, WITHOUT_PLMN } from "./operators.ts";
 
 const KINDS: [operator: OperatorRef, kinds: StationIdentifierKind[]][] = [
@@ -30,5 +30,5 @@ void test("lists the identifier kinds each operator's stations carry", () => {
 });
 
 void test("shows a NetWorkS id behind N! and leaves the other kinds as they are", () => {
-  for (const [kind, value, shown] of FORMATS) assert.equal(formatIdentifier(kind, value), shown);
+  for (const [kind, value, shown] of FORMATS) assert.equal(formatIdentifier({ identifierPrefixes }, kind, value), shown);
 });

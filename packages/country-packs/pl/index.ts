@@ -1,9 +1,9 @@
 import { gnbidLengthByPlmn } from "../core/conventions.ts";
 import type { CountryPack } from "../core/registry.ts";
 import { validateAddress } from "./conventions/address.ts";
-import { hoistedTac, lteSectorRule } from "./conventions/cells.ts";
+import { lteSectorRule, sharedAreaCode } from "./conventions/cells.ts";
 import { normalizeGeocodedPlace } from "./conventions/geocoding.ts";
-import { formatIdentifier, identifierKinds } from "./conventions/identifiers.ts";
+import { identifierKinds, identifierPrefixes } from "./conventions/identifiers.ts";
 import { equivalentEnbids, sharedSite } from "./conventions/networks.ts";
 import { suggestOperatorName } from "./conventions/operatorName.ts";
 import { DEFAULT_EARFCN } from "./earfcn.ts";
@@ -20,14 +20,14 @@ export const pl: CountryPack = {
   },
   conventions: {
     identifierKinds,
-    formatIdentifier,
+    identifierPrefixes,
     validateAddress,
     suggestOperatorName,
     equivalentEnbids,
     sharedSite,
     lteSectorRule,
     gnbidLength: gnbidLengthByPlmn({ [PLAY_PLMN]: 28 }),
-    hoistedTac,
+    sharedAreaCode,
     normalizeGeocodedPlace,
   },
   defaultEarfcn: DEFAULT_EARFCN,

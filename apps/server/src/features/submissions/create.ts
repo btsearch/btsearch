@@ -31,7 +31,7 @@ import {
   withoutOwnerCode,
 } from "../cells/networkWrites.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
-import { assertCellUpdateFitsStoredRat, refuseNsaFields, requireStandaloneTac } from "../cells/ratCellSchemas.js";
+import { assertCellUpdateFitsStoredRat, refuseNrIdentityOverflows, refuseNsaFields, requireStandaloneTac } from "../cells/ratCellSchemas.js";
 import { backhaulSpeedSchema } from "../stations/backhaul.js";
 import { assertHostStationFits } from "../stations/hostStations.js";
 import { toSiteId } from "../stations/siteIds.js";
@@ -68,7 +68,10 @@ const proposedStationInsert = createInsertSchema(proposedStations)
 export const proposedLocationInsert = createInsertSchema(proposedLocations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .strict();
-export const nrInsertSchema = nrInsertSchemaBase.superRefine(refuseNsaFields).superRefine(requireStandaloneTac);
+export const nrInsertSchema = nrInsertSchemaBase
+  .superRefine(refuseNsaFields)
+  .superRefine(requireStandaloneTac)
+  .superRefine(refuseNrIdentityOverflows);
 export const proposedSectorInsert = createInsertSchema(proposedSectors).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
 const proposedCellInsertBase = createInsertSchema(proposedCells)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, is_confirmed: true, operation: true })

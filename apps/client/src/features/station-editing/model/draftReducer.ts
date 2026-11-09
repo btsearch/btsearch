@@ -1,5 +1,5 @@
 import { conventionsFor } from "@openbts/country-packs";
-import type { LocationMove, StationIdentifierKind } from "@openbts/shared/contract";
+import type { LocationMove, SharedAreaCode, StationIdentifierKind } from "@openbts/shared/contract";
 
 import { findStationLocationId, movesStationAlone } from "./changes";
 import { isSameCodes } from "./networks";
@@ -8,7 +8,7 @@ import {
   EMPTY_BACKHAUL,
   EMPTY_SNAPSHOT,
   IDENTIFIER_KINDS,
-  applyTacRule,
+  applyAreaCodeRule,
   createCellDraft,
   createEmptyPlace,
   createSectorDraft,
@@ -81,7 +81,7 @@ export type DraftAction =
   | { type: "restoreCell"; key: DraftKey }
   | { type: "setAreaCode"; rat: Rat; value: number | null }
   | { type: "unifyAreaCode"; rat: Rat }
-  | { type: "setHoistedTac"; hoistedTac: boolean }
+  | { type: "setSharedAreaCode"; sharedAreaCode: SharedAreaCode }
   | { type: "applyCells"; cells: readonly CellDraft[] }
   | { type: "setEnabledRats"; rats: readonly Rat[] }
   | { type: "setAction"; action: EditAction }
@@ -104,6 +104,7 @@ type NewCellOptions = {
 };
 
 const NO_ERRORS: EditError[] = [];
+const SHARED_EVERYWHERE: SharedAreaCode = { umts: true, lte: true, nr: true };
 const DUPLICATE_CLEARED_NUMBERS: readonly CellNumberField[] = ["pci", "clid", "cid"];
 const NODE_COPIED_TO_NEW_ROW: Partial<Record<Rat, CellNumberField>> = { lte: "enbid", umts: "rnc" };
 const PLACE_VALUE_FIELDS: readonly (keyof PlaceValues)[] = [
@@ -126,14 +127,14 @@ function listEnabledRats(wantedRats: readonly Rat[], cells: readonly CellDraft[]
 }
 
 export function createSession(input: SessionInput): EditSession {
-  const hoistedTac = input.countryCode === null || conventionsFor(input.countryCode).hoistedTac;
-  const initial = applyTacRule(input.initialDraft ?? input.proposed ?? input.live ?? EMPTY_SNAPSHOT, hoistedTac);
+  const sharedAreaCode = input.countryCode === null ? SHARED_EVERYWHERE : conventionsFor(input.countryCode).sharedAreaCode;
+  const initial = applyAreaCodeRule(input.initialDraft ?? input.proposed ?? input.live ?? EMPTY_SNAPSHOT, sharedAreaCode);
 
   return {
     kind: input.kind,
     action: input.action,
     countryCode: input.countryCode,
-    hoistedTac,
+    sharedAreaCode,
     editsHostStations: false,
     live: input.live,
     proposed: input.proposed,
@@ -493,7 +494,7 @@ function withAreaCode(session: EditSession, rat: Rat, areaCode: AreaCode): EditS
 }
 
 function shareAreaCode(session: EditSession, rat: Rat, value: number | null): EditSession {
-  return canShareAreaCode(rat, session.hoistedTac) ? withAreaCode(session, rat, { mode: "shared", value }) : session;
+  return canShareAreaCode(rat, session.sharedAreaCode) ? withAreaCode(session, rat, { mode: "shared", value }) : session;
 }
 
 export function findMostFrequentAreaCode(cells: readonly CellDraft[], rat: Rat): number | null {
@@ -515,16 +516,25 @@ export function findMostFrequentAreaCode(cells: readonly CellDraft[], rat: Rat):
   return winner;
 }
 
-export function findTacRuleChange(session: EditSession, countryCode: string | null): boolean | null {
-  if (countryCode === null) return null;
-
-  const { hoistedTac } = conventionsFor(countryCode);
-  return hoistedTac === session.hoistedTac ? null : hoistedTac;
+function isSameAreaCodeRule(a: SharedAreaCode, b: SharedAreaCode): boolean {
+  return a.umts === b.umts && a.lte === b.lte && a.nr === b.nr;
 }
 
-function setHoistedTac(session: EditSession, hoistedTac: boolean): EditSession {
-  if (session.hoistedTac === hoistedTac) return session;
-  return { ...session, hoistedTac, initial: applyTacRule(session.initial, hoistedTac), draft: applyTacRule(session.draft, hoistedTac) };
+export function findAreaCodeRuleChange(session: EditSession, countryCode: string | null): SharedAreaCode | null {
+  if (countryCode === null) return null;
+
+  const { sharedAreaCode } = conventionsFor(countryCode);
+  return isSameAreaCodeRule(sharedAreaCode, session.sharedAreaCode) ? null : sharedAreaCode;
+}
+
+function setSharedAreaCode(session: EditSession, sharedAreaCode: SharedAreaCode): EditSession {
+  if (isSameAreaCodeRule(session.sharedAreaCode, sharedAreaCode)) return session;
+  return {
+    ...session,
+    sharedAreaCode,
+    initial: applyAreaCodeRule(session.initial, sharedAreaCode),
+    draft: applyAreaCodeRule(session.draft, sharedAreaCode),
+  };
 }
 
 function setEnabledRats(session: EditSession, rats: readonly Rat[]): EditSession {
@@ -653,7 +663,7 @@ function revertAreaCode(session: EditSession, base: StationSnapshot, rat: Rat | 
     return baseRow === undefined ? cell : patchCell(cell, toNumberPatch(field, getCellNumber(baseRow, field)));
   });
   const hasChangedCell = cells.some((cell, index) => cell !== session.draft.cells[index]);
-  const reverted = canShareAreaCode(rat, session.hoistedTac) ? withAreaCode(session, rat, base.areaCodes[rat]) : session;
+  const reverted = canShareAreaCode(rat, session.sharedAreaCode) ? withAreaCode(session, rat, base.areaCodes[rat]) : session;
   return hasChangedCell ? withCells(reverted, cells) : reverted;
 }
 
@@ -669,7 +679,7 @@ function revertToLive(session: EditSession, target: FieldTarget): EditSession {
 }
 
 function rebase(session: EditSession, live: StationSnapshot | null, proposed: StationSnapshot | null): EditSession {
-  const initial = applyTacRule(proposed ?? live ?? EMPTY_SNAPSHOT, session.hoistedTac);
+  const initial = applyAreaCodeRule(proposed ?? live ?? EMPTY_SNAPSHOT, session.sharedAreaCode);
   const enabledRats = listEnabledRats(session.enabledRats, initial.cells);
   return { ...session, live, proposed, initial, draft: initial, enabledRats, serverErrors: NO_ERRORS, isSaveAttempted: false };
 }
@@ -729,8 +739,8 @@ function applyAction(session: EditSession, action: DraftAction): EditSession {
       return shareAreaCode(session, action.rat, action.value);
     case "unifyAreaCode":
       return shareAreaCode(session, action.rat, findMostFrequentAreaCode(session.draft.cells, action.rat));
-    case "setHoistedTac":
-      return setHoistedTac(session, action.hoistedTac);
+    case "setSharedAreaCode":
+      return setSharedAreaCode(session, action.sharedAreaCode);
     case "applyCells":
       return withCells(session, [...action.cells]);
     case "setEnabledRats":

@@ -18,6 +18,12 @@ export const GNBID_MIN_LENGTH = 22;
 export const GNBID_MAX_LENGTH = 32;
 export const DEFAULT_GNBID_LENGTH = 24;
 
+export const LTE_SEQUENCE_DIGITS = ["ones", "tens"] as const;
+export type LteSequenceDigit = (typeof LTE_SEQUENCE_DIGITS)[number];
+
+export const STATION_IDENTIFIER_KINDS = ["networksId", "networksName", "operatorName"] as const;
+export type StationIdentifierKind = (typeof STATION_IDENTIFIER_KINDS)[number];
+
 export const CELL_EXPORT_TEMPLATE_PARAMS = {
   GSM: "templateGsm",
   UMTS: "templateUmts",

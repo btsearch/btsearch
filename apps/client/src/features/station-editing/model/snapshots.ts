@@ -4,6 +4,7 @@ import type {
   Operator,
   Region,
   SectorChange,
+  SharedAreaCode,
   StationCell,
   StationChange,
   StationIdentifier,
@@ -18,7 +19,7 @@ import {
   DEFAULT_NR_MODE,
   RAT_FIELDS,
   RAT_ORDER,
-  TAC_RATS,
+  canShareAreaCode,
   carriesAreaCode,
   getAreaCodeField,
   getCellNumber,
@@ -277,8 +278,8 @@ function copySharedAreaCode(cell: CellDraft, areaCode: AreaCode): CellDraft {
   return { ...cell, numbers };
 }
 
-function splitSharedTacs(snapshot: StationSnapshot): StationSnapshot {
-  const sharedRats = TAC_RATS.filter((rat) => snapshot.areaCodes[rat].mode === "shared");
+function splitSharedAreaCodes(snapshot: StationSnapshot, rats: readonly Rat[]): StationSnapshot {
+  const sharedRats = rats.filter((rat) => snapshot.areaCodes[rat].mode === "shared");
   if (sharedRats.length === 0) return snapshot;
 
   const areaCodes = { ...snapshot.areaCodes };
@@ -287,15 +288,17 @@ function splitSharedTacs(snapshot: StationSnapshot): StationSnapshot {
   return { ...snapshot, cells, areaCodes };
 }
 
-function shareAgreeingTacs(snapshot: StationSnapshot): StationSnapshot {
-  const perCellRats = TAC_RATS.filter((rat) => snapshot.areaCodes[rat].mode === "perCell");
+function shareAgreeingAreaCodes(snapshot: StationSnapshot, rats: readonly Rat[]): StationSnapshot {
+  const perCellRats = rats.filter((rat) => snapshot.areaCodes[rat].mode === "perCell");
   const areaCodes = { ...snapshot.areaCodes };
   for (const rat of perCellRats) areaCodes[rat] = deriveAreaCode(snapshot.cells, rat);
   return perCellRats.every((rat) => areaCodes[rat].mode === "perCell") ? snapshot : { ...snapshot, areaCodes };
 }
 
-export function applyTacRule(snapshot: StationSnapshot, hoistedTac: boolean): StationSnapshot {
-  return hoistedTac ? shareAgreeingTacs(snapshot) : splitSharedTacs(snapshot);
+export function applyAreaCodeRule(snapshot: StationSnapshot, sharedAreaCode: SharedAreaCode): StationSnapshot {
+  const sharingRats = RAT_ORDER.filter((rat) => canShareAreaCode(rat, sharedAreaCode));
+  const splitRats = RAT_ORDER.filter((rat) => !sharingRats.includes(rat));
+  return shareAgreeingAreaCodes(splitSharedAreaCodes(snapshot, splitRats), sharingRats);
 }
 
 function isIdentifierKind(kind: string): kind is StationIdentifierKind {

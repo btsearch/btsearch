@@ -21,7 +21,7 @@ import {
   userRefSchema,
   usesCursorOrOffset,
 } from "./common.ts";
-import { BACKHAUL_MEDIUMS, CELL_RATS, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH } from "./constants.ts";
+import { BACKHAUL_MEDIUMS, CELL_RATS, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, STATION_IDENTIFIER_KINDS } from "./constants.ts";
 import { photoDetailsShape, photoIdSchema, photoUploadShape, photoUrlsSchema } from "./photos.ts";
 import {
   HOST_STATION_CLEARED_WHEN,
@@ -49,9 +49,6 @@ export const ANALYZER_SUBMISSIONS_LIMIT = { max: 100, windowHours: 32 } as const
 
 export const LOCATION_MOVES = ["station", "location"] as const;
 export type LocationMove = (typeof LOCATION_MOVES)[number];
-
-export const STATION_IDENTIFIER_KINDS = ["networksId", "networksName", "operatorName"] as const;
-export type StationIdentifierKind = (typeof STATION_IDENTIFIER_KINDS)[number];
 
 export const REVIEW_DECISIONS = ["approve", "reject"] as const;
 export type ReviewDecision = (typeof REVIEW_DECISIONS)[number];
@@ -276,6 +273,7 @@ const createAction = { action: z.literal("create") };
 const BAND_ID_NOTE = "Must be a band of the cell's technology that is in the country's band plan";
 const NR_MODE_NOTE = `${CELL_FIELD_NOTES.mode}. A standalone cell needs \`tac\`. A non-standalone cell cannot have \`tac\`, \`gnbid\`, \`clid\` or RedCap support`;
 const gnbidLengthSchema = z.number().int().min(GNBID_MIN_LENGTH).max(GNBID_MAX_LENGTH).optional().describe(CELL_FIELD_NOTES.gnbidLength);
+const GNBID_NOTE = `${CELL_FIELD_NOTES.gnbid}. Must be below \`2^gnbidLength\``;
 
 const newCellShape = {
   bandId: idSchema.describe(BAND_ID_NOTE),
@@ -326,9 +324,9 @@ export const newNrCellSchema = z
     rat: z.literal("nr"),
     mode: z.enum(NR_MODES).describe(NR_MODE_NOTE),
     tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
-    gnbid: gnbidSchema.describe(CELL_FIELD_NOTES.gnbid),
-    gnbidLength: gnbidLengthSchema,
-    clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
+    gnbid: gnbidSchema.describe(GNBID_NOTE),
+    gnbidLength: gnbidLengthSchema.describe(`${CELL_FIELD_NOTES.gnbidLength}. Leave it out to use the operator's \`conventions.gnbidLength\``),
+    clid: identifierSchema.describe(`${CELL_FIELD_NOTES.clid}. Must be below \`2^(36 - gnbidLength)\``),
     pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
     arfcn: identifierSchema.describe(CELL_FIELD_NOTES.arfcn),
     supportsRedCap: z.boolean().optional().describe(CELL_FIELD_NOTES.supportsRedCap),
@@ -353,9 +351,9 @@ const cellRadioUpdateShape = {
   cid: identifierSchema.describe(CELL_FIELD_NOTES.cid),
   rnc: identifierSchema.describe(CELL_FIELD_NOTES.rnc),
   enbid: identifierSchema.describe(CELL_FIELD_NOTES.enbid),
-  gnbid: gnbidSchema.describe(CELL_FIELD_NOTES.gnbid),
+  gnbid: gnbidSchema.describe(GNBID_NOTE),
   gnbidLength: gnbidLengthSchema,
-  clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
+  clid: identifierSchema.describe(`${CELL_FIELD_NOTES.clid}. For an NR cell, it must be below \`2^(36 - gnbidLength)\``),
   tac: identifierSchema.describe(`${CELL_FIELD_NOTES.tac}. LTE and standalone NR cells need one, so leave it out only when the cell already has one`),
   pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
   psc: pscSchema,

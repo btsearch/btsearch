@@ -1,6 +1,6 @@
 import { conventionsFor } from "@openbts/country-packs";
-import { cells, lteCells } from "@openbts/drizzle";
-import type { CellApply } from "@openbts/shared/contract";
+import { cells, lteCells, nrCells } from "@openbts/drizzle";
+import type { CellApply, SharedAreaCode } from "@openbts/shared/contract";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 
@@ -8,6 +8,7 @@ import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import { itemRefusal, pointRefusalsAtItem } from "../../lib/itemRefusals.js";
+import type { DbTx } from "../../types/global.js";
 import { actorIdFromRequest } from "../access/access.js";
 import { hasStaffPermission } from "../access/staff.js";
 import { type AuditRecorder, type CellSnapshot, loadCellSnapshots, runAuditedOperation, standaloneAuditContext } from "../audit/index.js";
@@ -21,15 +22,56 @@ import { type AppliedChange, applyDirectChange, finishDirectChange } from "../su
 import type { ChangeCell, SubmissionChange } from "../submissions/create.js";
 import type { StationEdit } from "../submissions/translate.js";
 
+type TacRat = "LTE" | "NR";
 type StoredTacs = ReadonlyMap<number, number | null>;
 type StationChange = {
   stationId: number;
   operatorId: number | null;
   cellNetworks: string[][];
-  hoistedTac: boolean;
+  sharedTacRats: TacRat[];
   change: SubmissionChange;
-  tac?: number;
+  tacs: Partial<Record<TacRat, number>>;
 };
+type SharedTacStore = {
+  areaCode: keyof SharedAreaCode;
+  field: "tac" | "nrtac";
+  carriesTac: (details: Record<string, unknown>) => boolean;
+  loadStored: (cellIds: number[]) => Promise<{ cellId: number; tac: number | null }[]>;
+  findOtherCells: (tx: DbTx, stationId: number, tac: number) => Promise<{ cellId: number }[]>;
+  write: (tx: DbTx, cellIds: number[], tac: number, updatedAt: Date) => Promise<unknown>;
+};
+
+const SHARED_TAC_STORES: Record<TacRat, SharedTacStore> = {
+  LTE: {
+    areaCode: "lte",
+    field: "tac",
+    carriesTac: () => true,
+    loadStored: (cellIds) => db.select({ cellId: lteCells.cell_id, tac: lteCells.tac }).from(lteCells).where(inArray(lteCells.cell_id, cellIds)),
+    findOtherCells: (tx, stationId, tac) =>
+      tx
+        .select({ cellId: lteCells.cell_id })
+        .from(lteCells)
+        .innerJoin(cells, eq(cells.id, lteCells.cell_id))
+        .where(and(eq(cells.station_id, stationId), eq(cells.rat, "LTE"), sql`${lteCells.tac} IS DISTINCT FROM ${tac}`))
+        .orderBy(asc(cells.id)),
+    write: (tx, cellIds, tac, updatedAt) => tx.update(lteCells).set({ tac, updatedAt }).where(inArray(lteCells.cell_id, cellIds)),
+  },
+  NR: {
+    areaCode: "nr",
+    field: "nrtac",
+    carriesTac: (details) => details.type === "sa",
+    loadStored: (cellIds) => db.select({ cellId: nrCells.cell_id, tac: nrCells.nrtac }).from(nrCells).where(inArray(nrCells.cell_id, cellIds)),
+    findOtherCells: (tx, stationId, tac) =>
+      tx
+        .select({ cellId: nrCells.cell_id })
+        .from(nrCells)
+        .innerJoin(cells, eq(cells.id, nrCells.cell_id))
+        .where(and(eq(cells.station_id, stationId), eq(cells.rat, "NR"), eq(nrCells.type, "sa"), sql`${nrCells.nrtac} IS DISTINCT FROM ${tac}`))
+        .orderBy(asc(cells.id)),
+    write: (tx, cellIds, tac, updatedAt) => tx.update(nrCells).set({ nrtac: tac, updatedAt }).where(inArray(nrCells.cell_id, cellIds)),
+  },
+};
+const TAC_RATS: readonly TacRat[] = ["LTE", "NR"];
 type AppliedStation = { stationId: number; applied: AppliedChange };
 type AppliedOperation = { operationId: number; appliedStations: AppliedStation[] };
 type SpreadCell = { id: number; old: CellSnapshot };
@@ -45,12 +87,14 @@ async function prepareItem(req: FastifyRequest, item: CellApply, index: number):
   if (item.observationFlagIds === undefined) await assertAnalyzerEnabled(countryCode);
   else await assertMeasurementsEnabled(countryCode);
   const { change, cellNetworks } = await prepareStationChange(req, toConfirmedEdit(item), (path) => [index, ...path]);
+  const { sharedAreaCode } = conventionsFor(countryCode);
   return {
     stationId: item.stationId,
     operatorId: station.operator_id,
     cellNetworks,
-    hoistedTac: conventionsFor(countryCode).hoistedTac,
+    sharedTacRats: TAC_RATS.filter((rat) => sharedAreaCode[SHARED_TAC_STORES[rat].areaCode]),
     change,
+    tacs: {},
   };
 }
 
@@ -69,52 +113,57 @@ function assertIdentitiesAppearOnce(stationChanges: readonly StationChange[]): v
 }
 
 async function loadStoredTacs(stationChanges: readonly StationChange[]): Promise<StoredTacs> {
-  const lteCellChanges = stationChanges.flatMap(({ change }) => change.cells ?? []).filter((cell) => cell.rat === "LTE");
-  const cellIds = lteCellChanges.flatMap((cell) => cell.target_cell_id ?? []);
-  if (cellIds.length === 0) return new Map();
-
-  const rows = await db.select({ cellId: lteCells.cell_id, tac: lteCells.tac }).from(lteCells).where(inArray(lteCells.cell_id, cellIds));
-  return new Map(rows.map((row) => [row.cellId, row.tac]));
+  const rowsByRat = await Promise.all(
+    TAC_RATS.map(async (rat) => {
+      const cellIds = stationChanges
+        .filter(({ sharedTacRats }) => sharedTacRats.includes(rat))
+        .flatMap(({ change }) => change.cells ?? [])
+        .flatMap((cell) => (cell.rat === rat ? (cell.target_cell_id ?? []) : []));
+      return cellIds.length === 0 ? [] : SHARED_TAC_STORES[rat].loadStored(cellIds);
+    }),
+  );
+  return new Map(rowsByRat.flat().map((row) => [row.cellId, row.tac]));
 }
 
-function changedTac(cell: ChangeCell, storedTacs: StoredTacs): number | undefined {
-  if (cell.rat !== "LTE") return undefined;
+function changedTac(cell: ChangeCell, rat: TacRat, storedTacs: StoredTacs): number | undefined {
+  if (cell.rat !== rat) return undefined;
 
-  const tac = (cell.details as { tac?: number | null } | undefined)?.tac;
+  const tac = (cell.details as Record<string, unknown> | undefined)?.[SHARED_TAC_STORES[rat].field];
   if (typeof tac !== "number") return undefined;
 
   const storedTac = typeof cell.target_cell_id === "number" ? storedTacs.get(cell.target_cell_id) : undefined;
   return storedTac === tac ? undefined : tac;
 }
 
-function withStationTac(stationChange: StationChange, storedTacs: StoredTacs, index: number): StationChange {
-  const { stationId, hoistedTac, change } = stationChange;
-  if (!hoistedTac) return stationChange;
-
-  const tacs = unique((change.cells ?? []).map((cell) => changedTac(cell, storedTacs)));
-  if (tacs.length > 1) throw itemRefusal("BAD_REQUEST", `Multiple TAC values submitted for station ${stationId}`, [index]);
+function withStationTac(stationChange: StationChange, rat: TacRat, storedTacs: StoredTacs, index: number): StationChange {
+  const { stationId, change } = stationChange;
+  const tacs = unique((change.cells ?? []).map((cell) => changedTac(cell, rat, storedTacs)));
+  if (tacs.length > 1) throw itemRefusal("BAD_REQUEST", `Multiple ${rat} TAC values submitted for station ${stationId}`, [index]);
 
   const [tac] = tacs;
   if (tac === undefined) return stationChange;
 
-  const cellsWithTac = change.cells?.map((cell) => (cell.rat === "LTE" ? { ...cell, details: { ...(cell.details as object), tac } } : cell));
-  return { ...stationChange, change: { ...change, cells: cellsWithTac }, tac };
+  const { field, carriesTac } = SHARED_TAC_STORES[rat];
+  const cellsWithTac = change.cells?.map((cell) => {
+    const details = (cell.details ?? {}) as Record<string, unknown>;
+    return cell.rat === rat && carriesTac(details) ? { ...cell, details: { ...details, [field]: tac } } : cell;
+  });
+  return { ...stationChange, change: { ...change, cells: cellsWithTac }, tacs: { ...stationChange.tacs, [rat]: tac } };
 }
 
-async function spreadTac(audit: AuditRecorder, stationId: number, tac: number): Promise<SpreadCell[]> {
+function withStationTacs(stationChange: StationChange, storedTacs: StoredTacs, index: number): StationChange {
+  return stationChange.sharedTacRats.reduce((current, rat) => withStationTac(current, rat, storedTacs, index), stationChange);
+}
+
+async function spreadTac(audit: AuditRecorder, stationId: number, rat: TacRat, tac: number): Promise<SpreadCell[]> {
   const { tx } = audit;
-  const rows = await tx
-    .select({ cellId: lteCells.cell_id })
-    .from(lteCells)
-    .innerJoin(cells, eq(cells.id, lteCells.cell_id))
-    .where(and(eq(cells.station_id, stationId), eq(cells.rat, "LTE"), sql`${lteCells.tac} IS DISTINCT FROM ${tac}`))
-    .orderBy(asc(cells.id));
-  const cellIds = rows.map((row) => row.cellId);
+  const store = SHARED_TAC_STORES[rat];
+  const cellIds = (await store.findOtherCells(tx, stationId, tac)).map((row) => row.cellId);
   if (cellIds.length === 0) return [];
 
   const previousSnapshots = await loadCellSnapshots(tx, cellIds);
   const now = new Date();
-  await tx.update(lteCells).set({ tac, updatedAt: now }).where(inArray(lteCells.cell_id, cellIds));
+  await store.write(tx, cellIds, tac, now);
   await tx.update(cells).set({ updatedAt: now }).where(inArray(cells.id, cellIds));
   const nextSnapshots = await loadCellSnapshots(tx, cellIds);
 
@@ -138,11 +187,16 @@ async function spreadTac(audit: AuditRecorder, stationId: number, tac: number): 
   return spreadCells.map(({ id, old }) => ({ id, old }));
 }
 
-async function applyStationCells(audit: AuditRecorder, { stationId, change, tac }: StationChange): Promise<AppliedChange> {
+async function applyStationCells(audit: AuditRecorder, { stationId, change, tacs }: StationChange): Promise<AppliedChange> {
   const applied = await applyDirectChange(audit, change);
-  if (tac === undefined) return applied;
+  const spreadCells: SpreadCell[] = [];
+  for (const rat of TAC_RATS) {
+    const tac = tacs[rat];
+    // eslint-disable-next-line no-await-in-loop
+    if (tac !== undefined) spreadCells.push(...(await spreadTac(audit, stationId, rat, tac)));
+  }
+  if (spreadCells.length === 0) return applied;
 
-  const spreadCells = await spreadTac(audit, stationId, tac);
   return { ...applied, cellChanges: { ...applied.cellChanges, updated: [...applied.cellChanges.updated, ...spreadCells] } };
 }
 
@@ -170,8 +224,8 @@ export async function applyCells(req: FastifyRequest, items: readonly CellApply[
 
   const prepared = await Promise.all(items.map((item, index) => pointRefusalsAtItem(index, () => prepareItem(req, item, index))));
   assertIdentitiesAppearOnce(prepared);
-  const storedTacs = await loadStoredTacs(prepared.filter(({ hoistedTac }) => hoistedTac));
-  const stationChanges = prepared.map((stationChange, index) => withStationTac(stationChange, storedTacs, index));
+  const storedTacs = await loadStoredTacs(prepared);
+  const stationChanges = prepared.map((stationChange, index) => withStationTacs(stationChange, storedTacs, index));
 
   const flagIds = unique(claims.flatMap((claim) => claim.flagIds));
   const metadata = {

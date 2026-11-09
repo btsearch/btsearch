@@ -353,7 +353,7 @@ export async function renderExportLines(
   const stationLteTacMap = new Map<string, number>();
   if (displayNRSeparately) {
     for (const row of nrRows) {
-      if (row.nr_type === "nsa" && !conventionsFor(row.station_country_code).hoistedTac) {
+      if (row.nr_type === "nsa" && !conventionsFor(row.station_country_code).sharedAreaCode.lte) {
         perCellTacStationKeys.add(networkKey(row.station_pk, row.network));
       }
     }

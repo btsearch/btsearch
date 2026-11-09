@@ -18,7 +18,7 @@ import {
   type SessionInput,
   createSession,
   draftReducer,
-  findTacRuleChange,
+  findAreaCodeRuleChange,
   withNewKey,
 } from "../model/draftReducer";
 import { findSiteStation } from "../model/hostStations";
@@ -124,8 +124,8 @@ export function useStationDraft(input: StationDraftInput): StationDraftApi {
   const reference = useEditReference();
   const featureCountryCode = findDraftCountryCode(session.draft, reference.operatorsById, reference.regionsById, null);
   const countryCode = featureCountryCode ?? session.countryCode;
-  const tacRuleChange = findTacRuleChange(session, countryCode);
-  if (tacRuleChange !== null) send({ type: "setHoistedTac", hoistedTac: tacRuleChange });
+  const areaCodeRuleChange = findAreaCodeRuleChange(session, countryCode);
+  if (areaCodeRuleChange !== null) send({ type: "setSharedAreaCode", sharedAreaCode: areaCodeRuleChange });
   const editsHostStations = countryCode !== null && reference.countriesByCode.get(countryCode)?.capabilities.editableHostStations === true;
   if (editsHostStations !== session.editsHostStations) send({ type: "setHostStationEditing", editsHostStations });
   const lookups = useCountryLookups(reference, countryCode, featureCountryCode);

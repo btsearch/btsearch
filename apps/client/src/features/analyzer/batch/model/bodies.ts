@@ -23,7 +23,6 @@ type PendingEntry = {
 };
 
 const STANDALONE_MODE = "sa";
-const SPREAD_RAT: Rat = "lte";
 
 function toEntryKey(row: BatchRow, numbers: RowNumbers): string {
   return row.cellId === null ? getNewCellKey(row, numbers) : String(row.cellId);
@@ -95,8 +94,17 @@ function toUpdateChange(cellId: number, numbers: RowNumbers, plmns: string[] | u
   return change;
 }
 
-function toBuiltEntry(entry: PendingEntry, mode: SendMode, stationTac: number | null): BuiltEntry[] {
-  const numbers = stationTac !== null && entry.rat === SPREAD_RAT ? { ...entry.numbers, tac: stationTac } : entry.numbers;
+function findStationTac(entry: PendingEntry, spreads: readonly TacSpread[]): number | null {
+  const spread = spreads.find((candidate) => candidate.rat === entry.rat);
+  if (spread === undefined) return null;
+
+  const carriesTac = entry.cellId === null || entry.numbers.tac !== undefined || spread.cellIds.includes(entry.cellId);
+  return carriesTac ? spread.tac : null;
+}
+
+function toBuiltEntry(entry: PendingEntry, mode: SendMode, spreads: readonly TacSpread[]): BuiltEntry[] {
+  const stationTac = findStationTac(entry, spreads);
+  const numbers = stationTac === null ? entry.numbers : { ...entry.numbers, tac: stationTac };
   const change = entry.cellId === null ? toCreateChange({ ...entry, numbers }) : toUpdateChange(entry.cellId, numbers, entry.plmns, mode);
   return change === null ? [] : [{ change, rat: entry.rat, rowIndexes: entry.rowIndexes }];
 }
@@ -105,19 +113,17 @@ export function buildStationEntries(
   stationId: number,
   activeRows: readonly BatchRow[],
   mode: SendMode,
-  spread: TacSpread | null,
+  spreads: readonly TacSpread[],
 ): BuiltStation | null {
-  const spreadPlan = mode === "submit" ? spread : null;
-  const stationTac = spreadPlan === null ? null : spreadPlan.tac;
+  const spreadPlans = mode === "submit" ? spreads : [];
   const pending = listPendingEntries(activeRows, mode);
   const ordered = [...pending.filter((entry) => entry.cellId === null), ...pending.filter((entry) => entry.cellId !== null)];
-  const entries = ordered.flatMap((entry) => toBuiltEntry(entry, mode, stationTac));
+  const entries = ordered.flatMap((entry) => toBuiltEntry(entry, mode, spreadPlans));
 
-  if (spreadPlan !== null) {
-    const ownCellIds = new Set(pending.map((entry) => entry.cellId));
-    for (const cellId of spreadPlan.cellIds) {
-      if (ownCellIds.has(cellId)) continue;
-      entries.push({ change: { action: "update", id: cellId, tac: spreadPlan.tac }, rat: SPREAD_RAT, rowIndexes: [] });
+  const ownCellIds = new Set(pending.map((entry) => entry.cellId));
+  for (const { rat, tac, cellIds } of spreadPlans) {
+    for (const cellId of cellIds) {
+      if (!ownCellIds.has(cellId)) entries.push({ change: { action: "update", id: cellId, tac }, rat, rowIndexes: [] });
     }
   }
   return entries.length === 0 ? null : { stationId, entries };

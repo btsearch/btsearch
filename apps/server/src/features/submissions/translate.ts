@@ -9,6 +9,7 @@ import {
   lteCells,
   nrCells,
   operators,
+  plmns,
   proposedLocations,
   proposedStations,
   regions,
@@ -18,7 +19,7 @@ import {
   submissions,
   umtsCells,
 } from "@openbts/drizzle";
-import { RESERVED_SITE_ID_PREFIX } from "@openbts/shared/contract";
+import { DEFAULT_GNBID_LENGTH, RESERVED_SITE_ID_PREFIX } from "@openbts/shared/contract";
 import type {
   CellEditInput,
   CellRat,
@@ -34,7 +35,7 @@ import type {
   SubmissionUpdate,
   SubmittedLocationInput,
 } from "@openbts/shared/contract";
-import { and, asc, count, eq, inArray } from "drizzle-orm";
+import { type SQL, and, asc, count, eq, inArray } from "drizzle-orm";
 import type { z } from "zod/v4";
 
 import db from "../../database/psql.js";
@@ -213,11 +214,40 @@ function assertCodesEnabled(cell: CellEditInput, features: CountryFeatures): voi
   if (!features.bsic && typeof source.bsic === "number") throw new ErrorResponse("BAD_REQUEST", { message: "bsic is not kept in this country" });
 }
 
-function toCellInput(cell: CellEditInput, targets: ReadonlyMap<number, TargetCell>, features: CountryFeatures): ChangeCell {
+function leavesOutGnbidLength(cell: CellEditInput): boolean {
+  return cell.action === "create" && cell.rat === "nr" && cell.gnbidLength === undefined;
+}
+
+function placementOperatorCondition(stationId: number | null, operatorId: number | null | undefined): SQL | null {
+  if (typeof operatorId === "number") return eq(operators.id, operatorId);
+  if (stationId === null) return null;
+  return inArray(operators.id, db.select({ id: stations.operator_id }).from(stations).where(eq(stations.id, stationId)));
+}
+
+async function findOperatorGnbidLength(stationId: number | null, operatorId: number | null | undefined): Promise<number> {
+  const condition = placementOperatorCondition(stationId, operatorId);
+  if (condition === null) return DEFAULT_GNBID_LENGTH;
+
+  const [operator] = await db
+    .select({ countryCode: operators.countryCode, primaryPlmn: plmns.code })
+    .from(operators)
+    .leftJoin(plmns, and(eq(plmns.operatorId, operators.id), eq(plmns.role, "primary")))
+    .where(condition)
+    .limit(1);
+  return operator === undefined ? DEFAULT_GNBID_LENGTH : conventionsFor(operator.countryCode).gnbidLength(operator);
+}
+
+function toCellInput(
+  cell: CellEditInput,
+  targets: ReadonlyMap<number, TargetCell>,
+  features: CountryFeatures,
+  operatorGnbidLength: number,
+): ChangeCell {
   assertCodesEnabled(cell, features);
 
   if (cell.action === "create") {
     const details = toDetails(cell.rat, cell);
+    if (leavesOutGnbidLength(cell)) details.gnbid_length = operatorGnbidLength;
     assertUnknownTogether(cell.rat, cell, null, details);
     return {
       operation: "add",
@@ -431,7 +461,10 @@ async function translateContent(stationId: number | null, content: ChangeContent
     operatorId: content.station ? content.station.operatorId : storedPlacement?.operatorId,
     withoutLocation: context.detachesLocation,
   };
-  const features = await findPlacementCountryFeatures(placement);
+  const [features, operatorGnbidLength] = await Promise.all([
+    findPlacementCountryFeatures(placement),
+    content.cells?.some(leavesOutGnbidLength) ? findOperatorGnbidLength(stationId, placement.operatorId) : DEFAULT_GNBID_LENGTH,
+  ]);
   await assertSentOwnerFits(stationId, location);
   const proposedOwner = await findProposedOwner(stationId, location, features, context);
 
@@ -446,6 +479,7 @@ async function translateContent(stationId: number | null, content: ChangeContent
         cell.action === "update" && cell.stationId !== undefined && cell.stationId !== stationId
           ? (destinationFeatures.get(cell.stationId) ?? disabledCountryFeatures)
           : features,
+        operatorGnbidLength,
       ),
     ),
   };

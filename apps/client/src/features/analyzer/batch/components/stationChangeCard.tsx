@@ -8,6 +8,7 @@ import type { StationView } from "../model/batchView";
 import { hasRowChanges, listFieldChoices } from "../model/fieldSelection";
 import type { BatchRefusal } from "../model/refusals";
 import type { BatchAction } from "../model/reviewState";
+import { countSpreadCells } from "../model/tacSpread";
 import { getBatchColumns } from "./batchColumns";
 import { ChangeRow, RemoveButton, RestoreButton } from "./changeRow";
 import { PhoneChangeRow } from "./phoneChangeRow";
@@ -138,7 +139,7 @@ export function StationPlaceLine({ view, reference, countText, isPhone, isMuted,
 
 function StationChangeCardInner({ view, reference, refusals, texts, isStaff, isPhone, isLocked, showsCountry, onChange }: StationChangeCardProps) {
   const { t, i18n } = useTranslation();
-  const { station, rows, sectorsById, spread } = view;
+  const { station, rows, sectorsById, spreads } = view;
   const { bandsById } = reference;
   const { language } = i18n;
   const valueContext = useMemo(
@@ -188,7 +189,7 @@ function StationChangeCardInner({ view, reference, refusals, texts, isStaff, isP
   }
 
   const stationRefusals = refusals.filter((refusal) => refusal.stationId === station.id);
-  const spreadCount = spread === null ? 0 : spread.cellIds.length;
+  const spreadCount = countSpreadCells(spreads);
   const changes = t("stations:edit.frame.changeCount", { count: view.changeCount });
   const countText = spreadCount > 0 ? t("cellAnalyzer:batch.tacIncluded", { changes, count: spreadCount }) : changes;
   const rats = RAT_ORDER.filter((rat) => rows.some((row) => getRowRat(row) === rat));
@@ -258,7 +259,7 @@ function StationChangeCardInner({ view, reference, refusals, texts, isStaff, isP
                   isExcluded={!hasRowChanges(row)}
                   isLocked={isLocked}
                   conflict={view.conflicts.get(row.index)}
-                  spreadCount={spread !== null && spread.firstRowIndex === row.index ? spreadCount : null}
+                  spreadCount={spreads.find((spread) => spread.firstRowIndex === row.index)?.cellIds.length ?? null}
                   isBandMissing={isBandMissing(row)}
                   refusals={stationRefusals.filter((refusal) => refusal.rowIndexes.includes(row.index))}
                   networkName={row.network === undefined ? null : getNetworkName(row.network.code, reference.operators)}

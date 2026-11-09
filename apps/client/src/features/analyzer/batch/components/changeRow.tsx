@@ -3,7 +3,7 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { BatchRow, RowValues } from "../model/batchRows";
+import { type BatchRow, type RowValues, getRowRat } from "../model/batchRows";
 import type { RowConflict } from "../model/conflicts";
 import { listFieldChoices } from "../model/fieldSelection";
 import type { BatchRefusal } from "../model/refusals";
@@ -14,7 +14,7 @@ import type { CellColumn } from "@/features/station-editing/components/cells/cel
 import { DELETE_BUTTON_CLASS, RowActionButton } from "@/features/station-editing/components/cells/cellRow";
 import { LockedCellRow, type LockedRowTone } from "@/features/station-editing/components/cells/lockedCellRow";
 import { TEXT_SEPARATOR } from "@/features/station-editing/model/changes";
-import { CELL_NUMBER_LABELS } from "@/features/station-editing/model/ratFields";
+import { CELL_NUMBER_LABELS, RAT_FIELDS } from "@/features/station-editing/model/ratFields";
 import { cn } from "@/lib/utils";
 
 type ChangeRowNotes = {
@@ -120,7 +120,7 @@ export function RowNotes({ row, conflict, spreadCount, isBandMissing, isExcluded
       )}
       {spreadCount === null || spreadCount === 0 ? null : (
         <NoteLine icon={InformationCircleIcon} tone="muted" className={lineClassName}>
-          {t("cellAnalyzer:batch.tacSpread", { count: spreadCount })}
+          {t("cellAnalyzer:batch.tacSpread", { count: spreadCount, rat: RAT_FIELDS[getRowRat(row)].name })}
         </NoteLine>
       )}
       {row.action === "create" ? (

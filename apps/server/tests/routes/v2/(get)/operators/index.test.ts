@@ -46,6 +46,23 @@ describe("getOperators", () => {
     });
   });
 
+  it("adds the conventions with include=conventions, worked out with the shared network's PLMN", async () => {
+    const member = { ...operator, mnc: 26002 };
+    const membership = { operatorId: 1, kind: "jv_member", relatedOperatorId: 2 };
+    dbMock.enqueueFor("select", "countries", [{ code: "PL", isVisible: true }]);
+    dbMock.enqueueFor("select", "operators", [member], [member], [{ ...operator, id: 2, mnc: 26034 }]);
+    dbMock.enqueueFor("select", "plmns", [], [], []);
+    dbMock.enqueueFor("select", "operator_links", [membership], [membership]);
+    const app = await createRouteHarness(getOperators);
+    const response = await app.inject({ method: "GET", url: "/operators?countryCodes=PL&include=conventions" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0].conventions).toMatchObject({
+      gnbidLength: 24,
+      identifierKinds: ["networksId", "networksName", "operatorName"],
+      lteSectorRule: { clidStep: 1, maxSectors: 3 },
+    });
+  });
+
   it("does not load operators from unavailable countries", async () => {
     dbMock.enqueueFor("select", "countries", []);
     const app = await createRouteHarness(getOperators);
@@ -74,6 +91,19 @@ describe("getOperator", () => {
     const response = await app.inject({ method: "GET", url: "/operators/1" });
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toMatchObject({ primaryPlmn: "310260", plmns: [{ mcc: "310", mnc: "260", plmn: "310260", role: "primary" }] });
+    expect(response.json().data).not.toHaveProperty("conventions");
+  });
+
+  it("adds the conventions with include=conventions", async () => {
+    const play = { ...operator, mnc: 26006 };
+    dbMock.enqueueFor("select", "operators", [play], [play], []);
+    dbMock.enqueueFor("select", "plmns", [], [], []);
+    dbMock.enqueueFor("select", "operator_links", [], []);
+    dbMock.enqueueFor("select", "countries", [{ code: "PL", isVisible: true }]);
+    const app = await createRouteHarness(getOperator);
+    const response = await app.inject({ method: "GET", url: "/operators/1?include=conventions" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.conventions).toMatchObject({ gnbidLength: 28, identifierKinds: ["operatorName"] });
   });
 
   it.each([true, false])("returns 404 when the operator is missing or its country is unavailable (%s)", async (exists) => {

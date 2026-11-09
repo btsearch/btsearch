@@ -51,3 +51,7 @@ export function knownGnbidLength(mcc: string, mnc: string): number | null {
 export function defaultLteEarfcn(plmn: string, bandMhz: number, duplex: "FDD" | "TDD"): number | null {
   return defaultLteEarfcnsByPlmn[plmn]?.[bandMhz]?.[duplex] ?? null;
 }
+
+export function defaultLteEarfcns(plmn: string): number[] {
+  return Object.values(defaultLteEarfcnsByPlmn[plmn] ?? {}).flatMap(({ FDD, TDD }) => [FDD, TDD].filter((earfcn) => earfcn !== undefined));
+}

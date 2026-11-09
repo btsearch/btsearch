@@ -19,7 +19,12 @@ function readChangedNumbers(entry: BuiltEntry | undefined): RowNumbers {
 }
 
 function toSpreadLine(cell: Cell): WrittenLine {
-  return { cell, kind: "spread", numbers: cell.rat === "lte" && cell.tac !== null ? { tac: cell.tac } : {}, hasNetworks: false };
+  return {
+    cell,
+    kind: "spread",
+    numbers: (cell.rat === "lte" || cell.rat === "nr") && cell.tac !== null ? { tac: cell.tac } : {},
+    hasNetworks: false,
+  };
 }
 
 function toWrittenLines(cells: readonly Cell[], source: BuiltStation | undefined): WrittenLine[] {

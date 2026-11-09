@@ -63,6 +63,37 @@ describe("POST /submissions", () => {
     });
   });
 
+  it.each([123456, null])("gives a new NR cell with gNBID %s sent without gnbidLength the gNBID length of its operator", async (gnbid) => {
+    const radio = draftRadios[3];
+    const fixture = draftFixture([radio]);
+    const { gnbidLength: _omitted, ...input } = radio.input;
+    fixture.input.cells = [{ ...input, gnbid }];
+    fixture.cells[0] = { ...fixture.cells[0]!, nr: { ...radio.details, gnbid, gnbid_length: 28, proposed_cell_id: 40 } };
+    fixture.snapshot.proposedCells = fixture.cells.map(({ cell, ...rows }) => ({ ...cell, ...rows }));
+    scriptDraftCreate(fixture, { countryCode: "PL", primaryPlmn: "26006" });
+    const response = await injectMutation(route, { ...request, payload: [fixture.input] }, options);
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "proposed_nr_cells")?.values).toMatchObject({
+      gnbid_length: 28,
+    });
+  });
+
+  it.each([
+    { field: "gnbid", identity: { gnbid: 2 ** 24, gnbidLength: 24 } },
+    { field: "clid", identity: { gnbid: 1, gnbidLength: 28, clid: 2 ** 8 } },
+  ])("refuses an NR SA $field that does not fit beside the gNBID length", async ({ field, identity }) => {
+    const radio = draftRadios[3];
+    const fixture = draftFixture([radio]);
+    scriptDraftTranslation(fixture);
+    dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
+    const cells = [{ ...radio.input, ...identity }];
+    const response = await injectMutation(route, { ...request, payload: [{ ...fixture.input, cells }] }, options);
+    expectError(response, 400, "VALIDATION_ERROR");
+    expect(response.json().errors[0].details).toContainEqual(expect.objectContaining({ field: `0/cells/0/${field}` }));
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
   it.each(["location/structure/ownerName", "0/location/structure/ownerName", "1/location/structure/ownerName"])(
     "localizes the disabled proposal field %s independently of server message text",
     (field) => {
@@ -490,19 +521,20 @@ describe("POST /submissions", () => {
         mode: "nsa",
         tac: null,
         gnbid: null,
+        gnbidLength: 24,
         clid: null,
         pci: 0,
         arfcn: 630000,
         supportsRedCap: false,
       },
-      details: { type: "nsa", nrtac: null, gnbid: null, gnbid_length: null, clid: null, pci: 0, arfcn: 630000, supports_nr_redcap: false },
+      details: { type: "nsa", nrtac: null, gnbid: null, gnbid_length: 24, clid: null, pci: 0, arfcn: 630000, supports_nr_redcap: false },
       expected: { mode: "nsa", tac: null, gnbid: null, clid: null, supportsRedCap: false },
     },
     {
       description: "NR SA with zero identifiers",
       index: 3,
-      input: { action: "create", rat: "nr", bandId: 4, mode: "sa", tac: 0, gnbid: 0, clid: 0 },
-      details: { type: "sa", nrtac: 0, gnbid: 0, gnbid_length: null, clid: 0, pci: null, arfcn: null, supports_nr_redcap: false },
+      input: { action: "create", rat: "nr", bandId: 4, mode: "sa", tac: 0, gnbid: 0, gnbidLength: 24, clid: 0 },
+      details: { type: "sa", nrtac: 0, gnbid: 0, gnbid_length: 24, clid: 0, pci: null, arfcn: null, supports_nr_redcap: false },
       expected: { mode: "sa", tac: 0, gnbid: null, clid: 0 },
     },
   ] as const)("preserves $description in the draft and public representation", async ({ index, input, details, expected }) => {
@@ -554,7 +586,7 @@ describe("POST /submissions", () => {
 
   it.each(["tac", "gnbid", "clid", "supportsRedCap"])("rejects standalone field %s on an NR NSA draft with its exact batch field", async (field) => {
     const fixture = draftFixture([draftRadios[3]]);
-    const cell = { action: "create", rat: "nr", bandId: 4, mode: "nsa", [field]: field === "supportsRedCap" ? true : 1 };
+    const cell = { action: "create", rat: "nr", bandId: 4, mode: "nsa", gnbidLength: 24, [field]: field === "supportsRedCap" ? true : 1 };
     scriptDraftTranslation(fixture);
     dbMock.enqueueFor("select", "users", [{ name: "Contributor", username: "contributor" }]);
     const response = await injectMutation(route, { ...request, payload: [{ ...fixture.input, cells: [cell] }] }, options);
@@ -566,7 +598,7 @@ describe("POST /submissions", () => {
   it.each([
     { description: "an LTE cell without a TAC", cell: { action: "create", rat: "lte", bandId: 3, enbid: 1, clid: 1 } },
     { description: "an LTE cell with a null TAC", cell: { action: "create", rat: "lte", bandId: 3, tac: null, enbid: 1, clid: 1 } },
-    { description: "an NR SA cell without a TAC", cell: { action: "create", rat: "nr", bandId: 4, mode: "sa" } },
+    { description: "an NR SA cell without a TAC", cell: { action: "create", rat: "nr", bandId: 4, mode: "sa", gnbidLength: 24 } },
   ])("rejects $description", async ({ cell }) => {
     const fixture = draftFixture([draftRadios[0]]);
     scriptDraftTranslation(fixture);

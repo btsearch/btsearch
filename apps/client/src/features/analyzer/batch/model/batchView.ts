@@ -6,7 +6,7 @@ import { type BuiltStation, type SendMode, buildStationEntries, buildSubmissionI
 import { type RowConflict, findConflicts } from "./conflicts";
 import { hasRowChanges, selectBatchRow } from "./fieldSelection";
 import { type BatchReview, hasRemovals, isRowActive } from "./reviewState";
-import { type TacSpread, planTacSpread } from "./tacSpread";
+import { type TacSpread, countSpreadCells, planTacSpreads } from "./tacSpread";
 
 export type StationRead = { status: "ready"; station: Station } | { status: "gone" };
 export type StationPlace = { countryCode: string | null; regionId: number | null };
@@ -33,7 +33,7 @@ export type StationView = BatchStation & {
   keptRowCount: number;
   changeCount: number;
   conflicts: ReadonlyMap<number, RowConflict>;
-  spread: TacSpread | null;
+  spreads: TacSpread[];
   sectorsById: ReadonlyMap<number, Sector>;
   countryCode: string | null;
   isGone: boolean;
@@ -107,15 +107,15 @@ function toStationView(entry: BatchStation, input: BatchViewInput): StationView 
   if (known !== undefined && known.record === record && hasSameFacts(known.view, facts)) return known.view;
 
   const { activeRows } = facts;
-  const { hoistedTac } = conventionsFor(countryCode);
-  const spread = record === null || !hoistedTac ? null : planTacSpread(activeRows, record.cells ?? []);
+  const { sharedAreaCode } = conventionsFor(countryCode);
+  const spreads = record === null ? [] : planTacSpreads(activeRows, record.cells ?? [], sharedAreaCode);
   const view: StationView = {
     ...facts,
     station,
     sourceRows: entry.rows,
-    changeCount: activeRows.length + (spread === null ? 0 : spread.cellIds.length),
-    conflicts: findConflicts(activeRows, hoistedTac),
-    spread,
+    changeCount: activeRows.length + countSpreadCells(spreads),
+    conflicts: findConflicts(activeRows, sharedAreaCode),
+    spreads,
     sectorsById: record === null ? NO_SECTORS : new Map((record.sectors ?? []).map((sector) => [sector.id, sector])),
   };
 
@@ -136,7 +136,7 @@ function listStationProblems(view: StationView): BatchProblem[] {
 }
 
 function buildStations(views: readonly StationView[], mode: SendMode): BuiltStation[] {
-  return views.flatMap((view) => buildStationEntries(view.station.id, view.activeRows, mode, view.spread) ?? []);
+  return views.flatMap((view) => buildStationEntries(view.station.id, view.activeRows, mode, view.spreads) ?? []);
 }
 
 export function buildBatchView(input: BatchViewInput): BatchView {

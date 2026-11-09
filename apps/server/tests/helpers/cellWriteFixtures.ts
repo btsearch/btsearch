@@ -11,7 +11,7 @@ export const cellInputs = {
   gsm: { rat: "gsm", bandId: 1, lac: 1, cid: 2 },
   umts: { rat: "umts", bandId: 2, rnc: 1, cid: 2 },
   lte: { rat: "lte", bandId: 3, tac: 10, enbid: 100, clid: 1 },
-  nr: { rat: "nr", bandId: 4, mode: "nsa" },
+  nr: { rat: "nr", bandId: 4, mode: "nsa", gnbidLength: 24 },
 } satisfies Record<NewCellInput["rat"], NewCellInput>;
 export const cellBands = [
   { id: 1, rat: "GSM", value: 900, duplex: "FDD", code: "E-GSM900", name: "GSM 900", variant: "commercial" },
