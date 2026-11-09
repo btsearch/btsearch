@@ -43,6 +43,7 @@ import { FacetCountryMark, FacetPill, FilterPanelSection, KbdHint } from "@/feat
 import type { RatOption } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { formatBandMhzLabel, isBandLabelInGhz } from "@/features/station-details/station/utils/bands";
+import { foldText } from "@/lib/foldText";
 import { BACKHAUL_APPEARANCE, backhaulMediumLabelKey } from "@/lib/format/backhaul";
 import { getCountryName } from "@/lib/geo/countryName";
 import { hasFailedLoad } from "@/lib/queryLoadState";
@@ -201,11 +202,10 @@ export function MicrowaveLinkOperatorsSection({
           onValueChange={(values) => onFiltersChange((current) => ({ ...current, radiolineOperators: values.map((operator) => operator.id) }))}
           items={operators}
           itemToStringLabel={(operator) => operator.name}
-          filter={(operator, query, itemToString) => {
-            const needle = query.toLowerCase().trim();
+          filter={(operator, query) => {
+            const needle = foldText(query.trim());
             if (!needle) return true;
-            const label = (itemToString?.(operator) ?? operator.name ?? "").toLowerCase();
-            return label.includes(needle) || operator.legalName.toLowerCase().includes(needle);
+            return foldText(operator.name).includes(needle) || foldText(operator.legalName).includes(needle);
           }}
         >
           <ComboboxChips ref={chipsRef} className="custom-scrollbar max-h-24 min-h-8 overflow-x-hidden overflow-y-auto overscroll-contain text-sm">

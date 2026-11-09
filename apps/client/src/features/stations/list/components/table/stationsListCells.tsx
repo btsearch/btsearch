@@ -193,7 +193,7 @@ export function StationMatchLine({ matchLine, operatorName, className }: Station
       <span className="min-w-0 truncate">
         {label}{" "}
         <span className="font-mono">
-          <HighlightedText text={matchLine.value} query={matchLine.value.toLocaleLowerCase()} />
+          <HighlightedText text={matchLine.value} query={matchLine.value} />
         </span>
         {cellsText === null ? null : (
           <>

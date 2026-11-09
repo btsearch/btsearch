@@ -2,9 +2,9 @@ import { BAND_RATS } from "@openbts/shared/contract/constants";
 
 import { UNKNOWN_BAND_LABEL } from "./data/mapFilters";
 import type { MapLookups } from "./data/mapLookups";
-import { foldSearchText } from "./searchAutocomplete";
 import type { FilterKeyword } from "./types";
 import type { BrandLook } from "@/components/cellular/brandMark";
+import { foldText } from "@/lib/foldText";
 import { getCountryName } from "@/lib/geo/countryName";
 
 export type ValueOption = {
@@ -119,9 +119,9 @@ export function listValueOptions(
 }
 
 export function filterValueOptions(options: readonly ValueOption[], typed: string): ValueOption[] {
-  const wanted = foldSearchText(typed.trim());
+  const wanted = foldText(typed.trim());
   if (wanted === "") return [...options];
-  return options.filter((option) => foldSearchText(option.label).includes(wanted) || foldSearchText(option.value).includes(wanted));
+  return options.filter((option) => foldText(option.label).includes(wanted) || foldText(option.value).includes(wanted));
 }
 
 export function acceptsTypedValue(keyword: FilterKeyword): boolean {

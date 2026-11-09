@@ -1,13 +1,13 @@
 import type { SearchMatch, StationStatus } from "@openbts/shared/contract";
 
 import { type ListRowStructure, toListRowStructure, toShownText } from "./listStructures";
-import { findTextMark, listMarkedTexts } from "./listTextMarks";
 import type { StationsListHit, StationsListPageData } from "./stationsListRequests";
 import type { BrandLook } from "@/components/cellular/brandMark";
 import type { MapLookups } from "@/features/map/data/mapLookups";
 import { getCellTechnologyBands } from "@/features/map/utils";
 import { type OperatorMark, listOperatorMarks } from "@/features/shared/operatorMarks";
 import type { RatType } from "@/features/shared/rat";
+import { findTextMark, listMarkedTexts } from "@/features/shared/textMarks";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { toRatType } from "@/features/station-details/station/utils/bands";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";

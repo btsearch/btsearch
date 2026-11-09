@@ -8,6 +8,7 @@ import { type Loadable, toLoadable } from "../shared/loadable";
 import type { OperatorListSort } from "./operatorListCriteria";
 import { listCountryOptions } from "@/features/admin/users/utils/grants";
 import { brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
+import { foldText } from "@/lib/foldText";
 import { getCountryName } from "@/lib/geo/countryName";
 
 export type OperatorNetworkRef = {
@@ -40,8 +41,8 @@ const WHITESPACE = /\s+/g;
 
 function matchesSearch(operator: Operator, searchText: string, plmnText: string): boolean {
   if (searchText === "") return true;
-  if (operator.name.toLowerCase().includes(searchText) || operator.legalName.toLowerCase().includes(searchText)) return true;
-  if (operator.shortCode !== null && operator.shortCode.toLowerCase().includes(searchText)) return true;
+  if (foldText(operator.name).includes(searchText) || foldText(operator.legalName).includes(searchText)) return true;
+  if (operator.shortCode !== null && foldText(operator.shortCode).includes(searchText)) return true;
   return plmnText !== "" && operator.plmns.some((plmn) => plmn.plmn.includes(plmnText));
 }
 
@@ -73,7 +74,7 @@ export function useOperatorListRows({ searchText, countryCodes, sort }: Operator
   const existingCountryCodes = new Set(countryOptions.map((country) => country.code));
   const selectedCountryCodes = countries === undefined ? countryCodes : countryCodes.filter((code) => existingCountryCodes.has(code));
   const selectedCountries = new Set(selectedCountryCodes);
-  const normalizedSearch = searchText.trim().toLowerCase();
+  const normalizedSearch = foldText(searchText.trim());
   const plmnSearch = normalizedSearch.replace(WHITESPACE, "");
 
   function findBrand(brandId: number | null): Brand | null {

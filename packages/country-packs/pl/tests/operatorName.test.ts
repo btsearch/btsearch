@@ -21,10 +21,11 @@ const COMPUTED: NameCase[] = [
   [TMOBILE, "12345", "Nowy Dwór Mazowiecki", null, "NowyDworMazowiecki_12345"],
   [TMOBILE, "12345", "Nowy Sącz", null, "NowySacz_12345"],
   [TMOBILE, "12345", "  Gdańsk  ", null, "Gdansk_12345"],
-  [TMOBILE, "12345", "Bielsko-Biała", null, "Bielsko-Biala_12345"],
+  [TMOBILE, "12345", "Bielsko-Biała", null, "BielskoBiala_12345"],
   [TMOBILE, "12345", "Warszawa - Mokotów", null, "Warszawa_12345"],
   [TMOBILE, "12345", "Warszawa - Praga - Północ", null, "Warszawa_12345"],
-  [TMOBILE, "12345", "Warszawa- Mokotów", null, "Warszawa-Mokotow_12345"],
+  [TMOBILE, "12345", "Warszawa- Mokotów", null, "Warszawa_12345"],
+  [TMOBILE, "12345", "Warszawa -Mokotów", null, "Warszawa_12345"],
   [TMOBILE, "12345", " - Mokotów", null, "_12345"],
   [TMOBILE, "12345", " ", null, "_12345"],
   [TMOBILE, "n1234", "Warszawa", null, "Warszawa_n1234"],
@@ -64,7 +65,7 @@ function assertSuggestions(cases: readonly NameCase[]): void {
   }
 }
 
-void test("T-Mobile's name is the city without diacritics and spaces, then the site id", () => {
+void test("T-Mobile's name is the city without diacritics, spaces and hyphens, then the site id", () => {
   assertSuggestions(COMPUTED);
 });
 

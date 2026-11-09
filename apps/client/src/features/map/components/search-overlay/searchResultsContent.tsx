@@ -15,7 +15,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { OfficialSite } from "@openbts/shared/contract";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { type MapLookups, getOperatorLook, useMapLookups } from "../../data/mapLookups";
@@ -27,10 +27,11 @@ import { ErrorState, InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
-import { getOfficialSiteCode } from "@/features/official/sites";
+import { findMatchedPermitNumber, getOfficialSiteCode } from "@/features/official/sites";
 import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { HighlightedText } from "@/features/shared/HighlightedText";
 import { type OperatorMark, StationGuestMarks, listOperatorMarks } from "@/features/shared/operatorMarks";
+import { findTextMark, listMarkedTexts } from "@/features/shared/textMarks";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { getNetworksIdLabel } from "@/features/station-details/station/utils/identifiers";
 import { getStationNumber } from "@/features/station-details/station/utils/stations";
@@ -75,6 +76,17 @@ type StationResultTitleProps = {
   query: string;
 };
 
+type MarkedTextProps = {
+  text: string;
+  markedTexts: readonly string[];
+};
+
+type MarkedLocationProps = {
+  city: string | null | undefined;
+  address: string | null | undefined;
+  markedTexts: readonly string[];
+};
+
 const LOCATION_KIND_ICONS: Record<GeocodingKind, IconSvgElement> = {
   country: Globe02Icon,
   region: MapsIcon,
@@ -107,21 +119,8 @@ function ResultGroupHeader({ id, icon, label, count }: { id: string; icon: IconS
   );
 }
 
-function normalizeSearchText(value: string): string {
-  return value.trim().toLocaleLowerCase();
-}
-
-function joinPresent(values: (string | null | undefined)[]): string {
-  return values.filter((value): value is string => Boolean(value)).join(" · ");
-}
-
 function getHitBrand(hit: StationSearchHit, lookups: MapLookups | undefined): BrandLook | null | undefined {
   return lookups === undefined ? undefined : getOperatorBrand(hit.operator, lookups.brands);
-}
-
-function findMatchedPermitNumber(site: OfficialSite, normalizedQuery: string): string | undefined {
-  const permitNumbers = (site.permits ?? []).flatMap(({ number }) => (number === null ? [] : [number]));
-  return permitNumbers.find((number) => normalizeSearchText(number).includes(normalizedQuery));
 }
 
 function getOfficialSiteBrand(site: OfficialSite, lookups: MapLookups | undefined): BrandLook | null | undefined {
@@ -135,6 +134,22 @@ function OperatorName({ name, brand, labelClassName }: OperatorNameProps) {
       {brand === undefined ? null : <BrandMark brand={brand} size={BRAND_MARK_SIZE} />}
       <span className={cn("min-w-0 truncate text-xs font-medium text-foreground", labelClassName)}>{name}</span>
     </span>
+  );
+}
+
+function MarkedText({ text, markedTexts }: MarkedTextProps) {
+  return <HighlightedText text={text} query={findTextMark(text, markedTexts)} />;
+}
+
+function MarkedLocation({ city, address, markedTexts }: MarkedLocationProps) {
+  if (!city && !address) return null;
+
+  return (
+    <p className="mt-1 truncate text-[11px] text-muted-foreground">
+      {city ? <MarkedText text={city} markedTexts={markedTexts} /> : null}
+      {city && address ? " · " : null}
+      {address ? <MarkedText text={address} markedTexts={markedTexts} /> : null}
+    </p>
   );
 }
 
@@ -204,7 +219,7 @@ export function SearchResults({
   const { t } = useTranslation("main");
   const gpsFormat = useGpsFormat();
   const { lookups } = useMapLookups();
-  const normalizedQuery = normalizeSearchText(queryText);
+  const markedTexts = useMemo(() => listMarkedTexts(queryText), [queryText]);
 
   return (
     <div
@@ -342,7 +357,6 @@ export function SearchResults({
                     <div className="space-y-0.5 p-1">
                       {group.options.map((option) => {
                         const hit = option.result;
-                        const location = joinPresent([hit.location?.city, hit.location?.address]);
                         const networksIdLabel = getNetworksIdLabel(hit);
                         return (
                           <SearchResultOptionButton
@@ -359,20 +373,16 @@ export function SearchResults({
                                 operatorName={hit.operator?.name}
                                 brand={getHitBrand(hit, lookups)}
                                 guests={listOperatorMarks(hit.guestOperatorIds, lookups?.operators, lookups?.brands)}
-                                query={normalizedQuery}
+                                query={queryText}
                               />
                               <StationNumberMark station={hit} />
                               {networksIdLabel ? (
                                 <span className="shrink-0 font-mono text-[11px] text-foreground/70">
-                                  <HighlightedText text={networksIdLabel} query={normalizedQuery} />
+                                  <HighlightedText text={networksIdLabel} query={queryText} />
                                 </span>
                               ) : null}
                             </div>
-                            {location ? (
-                              <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                                <HighlightedText text={location} query={normalizedQuery} />
-                              </p>
-                            ) : null}
+                            <MarkedLocation city={hit.location?.city} address={hit.location?.address} markedTexts={markedTexts} />
                             <TechnologySummary bands={getCellTechnologyBands(hit.cells)} className="mt-0.5 pl-0" />
                           </SearchResultOptionButton>
                         );
@@ -401,8 +411,7 @@ export function SearchResults({
                     <div className="space-y-0.5 p-1">
                       {group.options.map((option) => {
                         const site = option.result;
-                        const location = joinPresent([site.location?.city, site.location?.address]);
-                        const matchedPermitNumber = normalizedQuery === "" ? undefined : findMatchedPermitNumber(site, normalizedQuery);
+                        const matchedPermitNumber = findMatchedPermitNumber(site.permits ?? [], queryText);
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -417,19 +426,15 @@ export function SearchResults({
                                 siteId={getOfficialSiteCode(site) ?? ""}
                                 operatorName={getOperatorLook(lookups, site.operatorId).operator?.name}
                                 brand={getOfficialSiteBrand(site, lookups)}
-                                query={normalizedQuery}
+                                query={queryText}
                               />
                               {matchedPermitNumber ? (
                                 <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
-                                  <HighlightedText text={matchedPermitNumber} query={normalizedQuery} />
+                                  <HighlightedText text={matchedPermitNumber} query={queryText} />
                                 </span>
                               ) : null}
                             </div>
-                            {location ? (
-                              <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                                <HighlightedText text={location} query={normalizedQuery} />
-                              </p>
-                            ) : null}
+                            <MarkedLocation city={site.location?.city} address={site.location?.address} markedTexts={markedTexts} />
                           </SearchResultOptionButton>
                         );
                       })}
@@ -462,18 +467,18 @@ export function SearchResults({
                                 <span className="text-sm font-semibold text-muted-foreground">{t("unknownOperator")}</span>
                               )}
                               <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
-                                <HighlightedText text={microwaveLink.permit.number ?? ""} query={normalizedQuery} />
+                                <HighlightedText text={microwaveLink.permit.number ?? ""} query={queryText} />
                               </span>
                             </div>
                             <p className="mt-1 truncate text-[11px] text-muted-foreground">
                               {txCity && rxCity ? (
                                 <>
-                                  <HighlightedText text={txCity} query={normalizedQuery} />
+                                  <MarkedText text={txCity} markedTexts={markedTexts} />
                                   <span aria-hidden="true"> ↔ </span>
-                                  <HighlightedText text={rxCity} query={normalizedQuery} />
+                                  <MarkedText text={rxCity} markedTexts={markedTexts} />
                                 </>
                               ) : (
-                                <HighlightedText text={txCity ?? rxCity ?? t("searchResults.unknownEndpoint")} query={normalizedQuery} />
+                                <MarkedText text={txCity ?? rxCity ?? t("searchResults.unknownEndpoint")} markedTexts={markedTexts} />
                               )}
                             </p>
                           </SearchResultOptionButton>

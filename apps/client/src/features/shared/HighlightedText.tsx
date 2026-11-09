@@ -1,13 +1,15 @@
+import { findFoldedMatch } from "@/lib/foldText";
+
 type HighlightedTextProps = {
   text: string;
   query: string;
 };
 
 export function HighlightedText({ text, query }: HighlightedTextProps) {
-  const start = query === "" ? -1 : text.toLocaleLowerCase().indexOf(query);
-  if (start === -1) return text;
+  const match = findFoldedMatch(text, query);
+  if (match === null) return text;
 
-  const end = start + query.length;
+  const { start, end } = match;
   return (
     <>
       {text.slice(0, start)}

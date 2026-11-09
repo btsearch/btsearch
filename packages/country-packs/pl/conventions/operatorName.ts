@@ -1,14 +1,16 @@
 import type { OperatorNameInput } from "../../core/conventions.ts";
 import { TMOBILE_PLMN } from "../operators.ts";
 
+const DISTRICT_SEPARATOR = /\s+-|-\s+/;
+
 function normalizeCity(city: string): string {
-  return (city.split(" - ")[0] ?? city)
+  return (city.split(DISTRICT_SEPARATOR)[0] ?? city)
     .trim()
     .replace(/Ł/g, "L")
     .replace(/ł/g, "l")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "");
+    .replace(/[\s-]+/g, "");
 }
 
 export function suggestOperatorName({ operator, siteId, city, partnerName }: OperatorNameInput): string | null {

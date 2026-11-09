@@ -20,6 +20,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { isGloballyHandledError } from "@/lib/api";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
+import { foldText } from "@/lib/foldText";
 import { cn } from "@/lib/utils";
 
 const CreateListDialog = lazy(() => import("./createListDialog").then((m) => ({ default: m.CreateListDialog })));
@@ -158,8 +159,8 @@ function AddToListPopoverInner({
   const lists = sortFavoriteListsFirst(data?.lists ?? [], favoriteUuids, (list) => list.id);
   const listCount = data?.total ?? lists.length;
   const isAtLimit = listLimit !== undefined && listCount >= listLimit;
-  const searchQuery = search.trim().toLowerCase();
-  const visibleLists = searchQuery ? lists.filter((list) => list.name.toLowerCase().includes(searchQuery)) : lists;
+  const searchQuery = foldText(search.trim());
+  const visibleLists = searchQuery ? lists.filter((list) => foldText(list.name).includes(searchQuery)) : lists;
   const pendingListId = toggleMutation.isPending ? toggleMutation.variables?.list.id : undefined;
   const isBusy = toggleMutation.isPending || (isFetching && !isLoading);
   const isStationTarget = Boolean(stationId || officialSiteId);

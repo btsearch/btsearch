@@ -1,5 +1,7 @@
 import type { Hunter, Region } from "@openbts/shared/contract";
 
+import { foldText } from "@/lib/foldText";
+
 export type HunterFilters = {
   search: string;
   countryCodes: readonly string[];
@@ -61,7 +63,7 @@ export function listHunterRegions(placed: readonly PlacedHunter[], facets: reado
 
 function matchesSearch(hunter: Hunter, query: string): boolean {
   if (query === "") return true;
-  return (hunter.name?.toLowerCase().includes(query) ?? false) || (hunter.username?.toLowerCase().includes(query) ?? false);
+  return (hunter.name !== null && foldText(hunter.name).includes(query)) || (hunter.username !== null && foldText(hunter.username).includes(query));
 }
 
 function hasSelectedRegion(regions: Region[], regionIds: readonly number[]): boolean {
@@ -72,7 +74,7 @@ export function buildSections(placed: readonly PlacedHunter[], facets: readonly 
   const sections = facets
     .filter((facet) => filters.countryCodes.length === 0 || filters.countryCodes.includes(facet.countryCode))
     .map((facet): CountrySection => ({ countryCode: facet.countryCode, entries: [] }));
-  const query = filters.search.trim().toLowerCase();
+  const query = foldText(filters.search.trim());
 
   for (const { hunter, regionsByCountry } of placed) {
     if (!matchesSearch(hunter, query)) continue;

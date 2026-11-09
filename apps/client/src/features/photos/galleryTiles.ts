@@ -3,6 +3,7 @@ import type { Operator, Region, StationBase } from "@openbts/shared/contract";
 import { type PhotosGalleryFilters, getPhotosGallerySortParts } from "./galleryFilters";
 import type { GalleryPhoto, GallerySelection, PhotoListPage } from "./galleryRequests";
 import { getStationNumber } from "@/features/station-details/station/utils/stations";
+import { foldText } from "@/lib/foldText";
 
 type GalleryLocation = GalleryPhoto["location"];
 
@@ -63,7 +64,7 @@ export function listGalleryPhotos(pages: readonly PhotoListPage[] | undefined): 
 }
 
 function containsText(value: string | null | undefined, needle: string): boolean {
-  return typeof value === "string" && value.toLowerCase().includes(needle);
+  return typeof value === "string" && foldText(value).includes(needle);
 }
 
 function getOperatorChoice(filters: PhotosGalleryFilters, lookups: GalleryLookups | undefined): OperatorChoice | null {
@@ -127,7 +128,7 @@ function orderSelections(selections: readonly GallerySelection[], filters: Photo
 }
 
 export function buildGallery(photos: readonly GalleryPhoto[], filters: PhotosGalleryFilters, lookups: GalleryLookups | undefined): Gallery {
-  const searchText = filters.searchText.toLowerCase();
+  const searchText = foldText(filters.searchText);
   const choice = getOperatorChoice(filters, lookups);
   const groups = new Map<number, StationPhotoGroup>();
   const slides = new Map<string, GallerySlide>();

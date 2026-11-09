@@ -2,6 +2,7 @@ import { SINGLE_VALUE_SEARCH_KEYWORDS, parseSearchQuery } from "@openbts/shared/
 
 import { parseFilters } from "./filters";
 import type { FilterKeyword, ParsedFilter } from "./types";
+import { foldText } from "@/lib/foldText";
 
 export type SearchContext =
   | { kind: "empty" }
@@ -14,7 +15,6 @@ export type QueryProblem = { kind: "unknownKeyword"; typed: string; suggestion: 
 const VALUE_TOKEN_PATTERN = /(^|\s)([a-z][a-z0-9_]*):\s*((?:[^\s,'"]+,\s*)*)([^\s,'"]*)$/i;
 const NEEDS_QUOTES_PATTERN = /[\s'"]/;
 const DOUBLE_QUOTE_PATTERN = /"/g;
-const DIACRITICS_PATTERN = /\p{Diacritic}/gu;
 const REGEX_SPECIALS_PATTERN = /[.*+?^${}()|[\]\\]/g;
 const SINGLE_VALUE_KEYS: ReadonlySet<string> = new Set(SINGLE_VALUE_SEARCH_KEYWORDS.map((keyword) => `${keyword}:`));
 const BOOLEAN_VALUES: ReadonlySet<string> = new Set(["true", "false", "1", "0", "yes", "no", "on", "off", "y", "n", "enabled", "disabled"]);
@@ -22,10 +22,6 @@ const BOOLEAN_VALUES: ReadonlySet<string> = new Set(["true", "false", "1", "0", 
 function getLastWord(input: string): string {
   const words = input.split(/\s/);
   return words[words.length - 1] || "";
-}
-
-export function foldSearchText(text: string): string {
-  return text.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLocaleLowerCase();
 }
 
 export function findFilterKeyword(key: string, keywords: readonly FilterKeyword[]): FilterKeyword | undefined {
@@ -67,7 +63,7 @@ export function getSearchContext(input: string, keywords: readonly FilterKeyword
 }
 
 export function matchFilterKeywords(word: string, keywords: readonly FilterKeyword[], describe: (keyword: FilterKeyword) => string): FilterKeyword[] {
-  const wanted = foldSearchText(word);
+  const wanted = foldText(word);
   if (wanted === "") return [...keywords];
 
   const byKeyPrefix: FilterKeyword[] = [];
@@ -76,7 +72,7 @@ export function matchFilterKeywords(word: string, keywords: readonly FilterKeywo
   for (const keyword of keywords) {
     if (keyword.key.startsWith(wanted)) byKeyPrefix.push(keyword);
     else if (keyword.key.includes(wanted)) byKeyPart.push(keyword);
-    else if (foldSearchText(describe(keyword)).includes(wanted)) byDescription.push(keyword);
+    else if (foldText(describe(keyword)).includes(wanted)) byDescription.push(keyword);
   }
   return [...byKeyPrefix, ...byKeyPart, ...byDescription];
 }

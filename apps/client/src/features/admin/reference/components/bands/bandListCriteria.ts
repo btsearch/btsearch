@@ -2,6 +2,7 @@ import type { Band } from "../../types";
 import type { BandGroupKey } from "../../utils/bands";
 import { type ReferenceListPaging, readReferenceListPaging, toReferenceListPagingSearch } from "../shared/referenceListSearch";
 import { BAND_GROUP_KEYS, type BandCodePresence, type BandListSearch, listBandGroups } from "./bandListSearch";
+import { foldText } from "@/lib/foldText";
 import { joinSearchValues } from "@/lib/urlSearch";
 
 export type BandListCriteria = ReferenceListPaging & {
@@ -33,12 +34,12 @@ export function toBandListSearch(criteria: BandListCriteria): BandListSearch {
 }
 
 export function filterBands(bands: readonly Band[], searchText: string, { groups, codePresence }: BandFacets): Band[] {
-  const query = searchText.trim().toLowerCase();
+  const query = foldText(searchText.trim());
 
   return bands.filter((band) => {
     if (codePresence === "with" && band.code === null) return false;
     if (codePresence === "without" && band.code !== null) return false;
     if (groups.length > 0 && !groups.includes(band.rat)) return false;
-    return query === "" || `${band.name} ${band.code ?? ""}`.toLowerCase().includes(query);
+    return query === "" || foldText(`${band.name} ${band.code ?? ""}`).includes(query);
   });
 }
