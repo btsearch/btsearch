@@ -599,13 +599,13 @@ export function findDraftCountryCode(
   regionsById: ReadonlyMap<number, Pick<Region, "countryCode">>,
   fallback: string | null,
 ): string | null {
-  const regionId = draft.place?.regionId ?? null;
-  const region: CountryRef | undefined = regionId === null ? undefined : regionsById.get(regionId);
-  if (region !== undefined) return region.countryCode;
-
   const { operatorId } = draft.station;
   const operator: CountryRef | undefined = operatorId === null ? undefined : operatorsById.get(operatorId);
-  return operator?.countryCode ?? fallback;
+  if (operator !== undefined) return operator.countryCode;
+
+  const regionId = draft.place?.regionId ?? null;
+  const region: CountryRef | undefined = regionId === null ? undefined : regionsById.get(regionId);
+  return region?.countryCode ?? fallback;
 }
 
 export function findDraftOperator(draft: StationSnapshot, operatorsById: ReadonlyMap<number, Operator>): Operator | null {
