@@ -149,7 +149,7 @@ function ConsentDialogBody({ clientId, requestedScopes, redirectUri }: { clientI
         ) : null}
       </DialogHeader>
 
-      <div className="rounded-xl border divide-y overflow-hidden">
+      <div className="rounded-xl border divide-y overflow-y-auto overscroll-contain">
         {grouped.identity.length > 0 ? (
           <div className="px-3 py-2.5 space-y-1.5">
             <ScopeSectionLabel>{t("common:labels.account")}</ScopeSectionLabel>
@@ -321,7 +321,7 @@ export function OAuthConsentGate() {
 
   return (
     <Dialog open onOpenChange={blockDismiss} modal>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent showCloseButton={false} className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-md">
         <ConsentDialogBody clientId={clientId} requestedScopes={requestedScopes} redirectUri={redirectUri} />
       </DialogContent>
     </Dialog>

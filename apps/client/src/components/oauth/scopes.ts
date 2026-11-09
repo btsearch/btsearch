@@ -4,8 +4,11 @@ const MEASUREMENT_UPLOAD_SCOPE = "upload:observations";
 
 const KNOWN_WRITE_SCOPES = new Set([
   "create:comments",
+  "update:comments",
+  "delete:comments",
   "create:user_lists",
   "update:user_lists",
+  "delete:user_lists",
   "create:submissions",
   "update:submissions",
   "delete:submissions",
