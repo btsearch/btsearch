@@ -26,11 +26,17 @@ export function submissionPhotosQueryOptions(submissionId: string) {
   });
 }
 
-export function updateSubmissionPhoto(submissionId: string, photoId: string, changes: SubmissionPhotoUpdate): Promise<SubmissionPhoto> {
+export function updateSubmissionPhoto(
+  submissionId: string,
+  photoId: string,
+  changes: SubmissionPhotoUpdate,
+  auditOperation?: AuditOperationHandle,
+): Promise<SubmissionPhoto> {
   return fetchV2Data<SubmissionPhoto>(`submissions/${submissionId}/photos/${photoId}`, {
     method: "PATCH",
     headers: JSON_HEADERS,
     body: JSON.stringify(changes),
+    auditOperation,
   });
 }
 

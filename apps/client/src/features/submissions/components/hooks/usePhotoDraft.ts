@@ -1,6 +1,9 @@
+import type { SubmissionPhotoUpdate } from "@openbts/shared/contract";
 import { useState } from "react";
 
 import type { PhotoPicks } from "@/features/station-editing/model/bodies";
+
+export type StoredPhotoEdit = { photoId: string; changes: SubmissionPhotoUpdate };
 
 export const NO_PHOTO_PICKS: PhotoPicks = { selectIds: [], removeIds: [], mainPhotoId: null };
 
@@ -12,12 +15,24 @@ export function usePhotoDraft(storedPicks: PhotoPicks) {
   const [locationPhotoIdsToRemove, setLocationPhotoIdsToRemove] = useState<string[]>(() => [...storedPicks.removeIds]);
   const [mainLocationPhotoId, setMainLocationPhotoId] = useState<string | null>(storedPicks.mainPhotoId);
   const [mainUploadPhotoIndex, setMainUploadPhotoIndex] = useState<number | null>(null);
+  const [storedPhotoEdits, setStoredPhotoEdits] = useState<StoredPhotoEdit[]>([]);
 
   function clearUploads() {
     setPhotos([]);
     setNotes([]);
     setTakenAts([]);
     setMainUploadPhotoIndex(null);
+  }
+
+  function setStoredPhotoEdit(photoId: string, changes: SubmissionPhotoUpdate | null) {
+    setStoredPhotoEdits((edits) => {
+      const others = edits.filter((edit) => edit.photoId !== photoId);
+      return changes === null ? others : [...others, { photoId, changes }];
+    });
+  }
+
+  function clearStoredPhotoEdits() {
+    setStoredPhotoEdits([]);
   }
 
   return {
@@ -35,7 +50,10 @@ export function usePhotoDraft(storedPicks: PhotoPicks) {
     onMainLocationPhotoIdChange: setMainLocationPhotoId,
     mainUploadPhotoIndex,
     onMainUploadPhotoIndexChange: setMainUploadPhotoIndex,
+    storedPhotoEdits,
+    setStoredPhotoEdit,
     clearUploads,
+    clearStoredPhotoEdits,
   };
 }
 

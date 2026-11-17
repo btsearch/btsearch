@@ -31,7 +31,7 @@ import { EditCard } from "@/features/station-editing/components/frame/editCard";
 import { useRevealedOpen } from "@/features/station-editing/components/frame/editPage";
 import { editTargetProps } from "@/features/station-editing/components/frame/editTargets";
 import { editingKeys } from "@/features/station-editing/data/keys";
-import { deleteSubmissionPhoto, submissionPhotosQueryOptions, updateSubmissionPhoto } from "@/features/station-editing/data/submissionPhotos";
+import { deleteSubmissionPhoto, submissionPhotosQueryOptions } from "@/features/station-editing/data/submissionPhotos";
 import { useEditText } from "@/features/station-editing/hooks/useStationDraft";
 import type { EditError } from "@/features/station-editing/model/types";
 import { isGloballyHandledError } from "@/lib/api";
@@ -52,7 +52,6 @@ type DeleteTarget = { kind: "stored"; photoId: string } | { kind: "local"; index
 type PhotoEditValues = { note: string; takenAt: Date | null };
 type StoredEditState = PhotoEditValues & { photoId: string };
 type LocalEditState = PhotoEditValues & { index: number };
-type StoredPhotoEdit = { photo: SubmissionPhoto; note: string; takenAt: string | null };
 
 type PhotoSubsectionProps = {
   title: string;
@@ -82,7 +81,6 @@ type UploadPhotoCardProps = {
   isMain: boolean;
   canEdit: boolean;
   editValues: PhotoEditValues | null;
-  isSaving?: boolean;
   triggerRef: Ref<HTMLDivElement>;
   onOpen: () => void;
   onEditOpen: () => void;
@@ -125,6 +123,15 @@ function isShownOn(photo: PhotoRecord, stationId: number): boolean {
 function getSelectionBorderClass(isSelected: boolean, isMarkedForRemoval: boolean): string {
   if (isMarkedForRemoval) return "border-red-500";
   return isSelected ? "border-primary" : "border-transparent";
+}
+
+function toPhotoUpdate(photo: SubmissionPhoto, { note, takenAt }: PhotoEditValues): SubmissionPhotoUpdate | null {
+  const changes: SubmissionPhotoUpdate = {};
+  const trimmedNote = note.trim();
+  const takenAtValue = takenAt?.toISOString() ?? null;
+  if (trimmedNote !== (photo.note ?? "")) changes.note = trimmedNote === "" ? null : trimmedNote;
+  if (takenAtValue !== photo.takenAt) changes.takenAt = takenAtValue;
+  return Object.keys(changes).length > 0 ? changes : null;
 }
 
 function PhotoSubsection({ title, meta, children }: PhotoSubsectionProps) {
@@ -264,7 +271,6 @@ function UploadPhotoCard({
   isMain,
   canEdit,
   editValues,
-  isSaving = false,
   triggerRef,
   onOpen,
   onEditOpen,
@@ -309,7 +315,6 @@ function UploadPhotoCard({
             onNoteChange={(note) => onEditChange(editValues === null ? null : { ...editValues, note })}
             onTakenAtChange={(takenAt) => onEditChange(editValues === null ? null : { ...editValues, takenAt })}
             onSave={onSave}
-            isSaving={isSaving}
           />
           <PhotoDeleteButton onClick={onDelete} label={t("actions.remove")} />
         </div>
@@ -422,6 +427,8 @@ export function SubmissionPhotosPanel({ draft, stationId, locationId, submission
     onMainLocationPhotoIdChange,
     mainUploadPhotoIndex,
     onMainUploadPhotoIndexChange,
+    storedPhotoEdits,
+    setStoredPhotoEdit,
   } = draft;
 
   const previewUrls = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
@@ -436,28 +443,13 @@ export function SubmissionPhotosPanel({ draft, stationId, locationId, submission
 
   const deleteMutation = useMutation({
     mutationFn: (photoId: string) => deleteSubmissionPhoto(submissionId ?? "", photoId),
-    onSuccess: () => {
+    onSuccess: (_result, photoId) => {
+      setStoredPhotoEdit(photoId, null);
       invalidateStoredPhotos();
       toast.success(t("photos.deleted"));
     },
     onError: (error) => {
       if (!isGloballyHandledError(error)) toast.error(t("photos.deleteFailed"));
-    },
-  });
-
-  const editMutation = useMutation({
-    mutationFn: async ({ photo, note, takenAt }: StoredPhotoEdit) => {
-      const changes: SubmissionPhotoUpdate = {};
-      if (note !== (photo.note ?? "")) changes.note = note === "" ? null : note;
-      if (takenAt !== photo.takenAt) changes.takenAt = takenAt;
-      if (Object.keys(changes).length > 0) await updateSubmissionPhoto(submissionId ?? "", photo.id, changes);
-    },
-    onSuccess: (_result, { photo }) => {
-      invalidateStoredPhotos();
-      setStoredEditState((current) => (current?.photoId === photo.id ? null : current));
-    },
-    onError: (error) => {
-      if (!isGloballyHandledError(error)) toast.error(t("photos.noteFailed"));
     },
   });
 
@@ -550,13 +542,20 @@ export function SubmissionPhotosPanel({ draft, stationId, locationId, submission
     setLocalEditState(null);
   }
 
+  function withStoredEdit(photo: SubmissionPhoto): SubmissionPhoto {
+    const edit = storedPhotoEdits.find((known) => known.photoId === photo.id);
+    return edit === undefined ? photo : { ...photo, ...edit.changes };
+  }
+
   function saveStoredEdit(photo: SubmissionPhoto) {
     if (storedEditState === null) return;
-    editMutation.mutate({ photo, note: storedEditState.note, takenAt: storedEditState.takenAt?.toISOString() ?? null });
+    setStoredPhotoEdit(photo.id, toPhotoUpdate(photo, storedEditState));
+    setStoredEditState(null);
   }
 
   function openStoredEdit(photo: SubmissionPhoto) {
-    setStoredEditState({ photoId: photo.id, note: photo.note ?? "", takenAt: photo.takenAt === null ? null : new Date(photo.takenAt) });
+    const { note, takenAt } = withStoredEdit(photo);
+    setStoredEditState({ photoId: photo.id, note: note ?? "", takenAt: takenAt === null ? null : new Date(takenAt) });
   }
 
   function openLocalEdit(index: number) {
@@ -680,7 +679,6 @@ export function SubmissionPhotosPanel({ draft, stationId, locationId, submission
                         isMain={photo.isMain && mainUploadPhotoIndex === null && mainLocationPhotoId === null}
                         canEdit={canEdit}
                         editValues={storedEditState?.photoId === photo.id ? storedEditState : null}
-                        isSaving={editMutation.isPending}
                         triggerRef={uploadLightbox.triggerRef(index)}
                         onOpen={() => uploadLightbox.open(index)}
                         onEditOpen={() => openStoredEdit(photo)}
@@ -741,7 +739,7 @@ export function SubmissionPhotosPanel({ draft, stationId, locationId, submission
 
       <PhotoLightbox photos={locationPhotos} {...locationLightbox.lightboxProps} />
       <UploadPhotosLightbox
-        submissionPhotos={storedPhotos}
+        submissionPhotos={storedPhotos.map(withStoredEdit)}
         files={photos}
         notes={notes}
         previewUrls={previewUrls}

@@ -4,11 +4,11 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { NO_PHOTO_PICKS, type PhotoDraft, toPhotoPicks, usePhotoDraft } from "./hooks/usePhotoDraft";
+import { NO_PHOTO_PICKS, type PhotoDraft, type StoredPhotoEdit, toPhotoPicks, usePhotoDraft } from "./hooks/usePhotoDraft";
 import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { getStationCountryCode } from "@/features/station-details/station/utils/stations";
-import { submissionPhotosQueryOptions, uploadSubmissionPhotos } from "@/features/station-editing/data/submissionPhotos";
+import { submissionPhotosQueryOptions, updateSubmissionPhoto, uploadSubmissionPhotos } from "@/features/station-editing/data/submissionPhotos";
 import {
   createSubmissions,
   invalidateSubmissionQueries,
@@ -58,6 +58,7 @@ type StoredSubmissionRequest = {
   kind: "update";
   submissionId: string;
   built: BuiltBody<SubmissionUpdate>;
+  photoEdits: readonly StoredPhotoEdit[];
   uploads: PhotoUploads;
   messages: UploadMessages;
 };
@@ -67,6 +68,7 @@ type SendRequest = NewSubmissionRequest | StoredSubmissionRequest;
 type SendResult = {
   submission: Submission | null;
   isWithdrawn: boolean;
+  arePhotoEditsSent: boolean;
   areUploadsSent: boolean;
 };
 
@@ -136,23 +138,36 @@ async function uploadDraftPhotos(
   }
 }
 
+async function sendPhotoEdits(submissionId: string, photoEdits: readonly StoredPhotoEdit[], auditOperation: AuditOperationHandle): Promise<boolean> {
+  if (photoEdits.length === 0) return true;
+
+  try {
+    await Promise.all(photoEdits.map(({ photoId, changes }) => updateSubmissionPhoto(submissionId, photoId, changes, auditOperation)));
+    return true;
+  } catch (error) {
+    showApiError(error);
+    return false;
+  }
+}
+
 async function sendNewSubmission({ items, uploads, messages }: NewSubmissionRequest): Promise<SendResult> {
   const auditOperation = createAuditOperationHandle();
   const [submission] = await createSubmissions(items, auditOperation);
   if (submission === undefined) throw new Error("The server created no submission");
 
   const areUploadsSent = await uploadDraftPhotos(submission.id, uploads, messages, auditOperation);
-  if (areUploadsSent || standsWithoutPhotos(items.at(0))) return { submission, isWithdrawn: false, areUploadsSent };
+  if (areUploadsSent || standsWithoutPhotos(items.at(0))) return { submission, isWithdrawn: false, arePhotoEditsSent: true, areUploadsSent };
 
   await withdrawSubmission(submission.id, auditOperation).catch(() => undefined);
-  return { submission, isWithdrawn: true, areUploadsSent };
+  return { submission, isWithdrawn: true, arePhotoEditsSent: true, areUploadsSent };
 }
 
-async function sendStoredSubmission({ submissionId, built, uploads, messages }: StoredSubmissionRequest): Promise<SendResult> {
+async function sendStoredSubmission({ submissionId, built, photoEdits, uploads, messages }: StoredSubmissionRequest): Promise<SendResult> {
   const auditOperation = createAuditOperationHandle();
   const submission = built.body === null ? null : await updateSubmission(submissionId, built.body, auditOperation);
+  const arePhotoEditsSent = await sendPhotoEdits(submissionId, photoEdits, auditOperation);
   const areUploadsSent = await uploadDraftPhotos(submissionId, uploads, messages, auditOperation);
-  return { submission, isWithdrawn: false, areUploadsSent };
+  return { submission, isWithdrawn: false, arePhotoEditsSent, areUploadsSent };
 }
 
 function sendSubmission(request: SendRequest): Promise<SendResult> {
@@ -190,6 +205,8 @@ export function useSubmissionForm(seed: SubmissionSeed) {
   const picks = toPhotoPicks(photoDraft);
   const storedPicks = stored === null ? NO_PHOTO_PICKS : toStoredPicks(stored);
   const storedUploadCount = storedPhotosQuery.data?.length ?? stored?.changes.photos.uploadedCount ?? 0;
+  const storedPhotoIds = new Set(storedPhotosQuery.data?.map((photo) => photo.id));
+  const photoEdits = photoDraft.storedPhotoEdits.filter((photoEdit) => storedPhotoIds.has(photoEdit.photoId));
   const extraErrors = validateSubmissionExtras({
     session,
     note,
@@ -202,7 +219,11 @@ export function useSubmissionForm(seed: SubmissionSeed) {
   const errors = [...edit.errors, ...listShownErrors(extraErrors, session.isSaveAttempted)];
   const isNoteChanged = normalizeText(note) !== normalizeText(stored?.note ?? "");
   const storedChangeCount =
-    edit.corrections.length + (photoDraft.photos.length > 0 ? 1 : 0) + (isSamePicks(picks, storedPicks) ? 0 : 1) + (isNoteChanged ? 1 : 0);
+    edit.corrections.length +
+    (photoDraft.photos.length > 0 ? 1 : 0) +
+    (photoEdits.length > 0 ? 1 : 0) +
+    (isSamePicks(picks, storedPicks) ? 0 : 1) +
+    (isNoteChanged ? 1 : 0);
   const pendingCount = stored === null ? edit.changes.length + countPhotoChanges(photoDraft) : storedChangeCount;
   const canSend = edit.canEdit && (pendingCount > 0 || (stored === null && isDelete));
   const isDirty = !isSent && (isSending || pendingCount > 0 || isNoteChanged || (stored === null && isDelete));
@@ -219,8 +240,8 @@ export function useSubmissionForm(seed: SubmissionSeed) {
         note: { value: note, stored: stored.note },
         picks: { value: picks, stored: storedPicks },
       });
-      if (built.body === null && uploads.files.length === 0) return null;
-      return { kind: "update", submissionId: stored.id, built, uploads, messages };
+      if (built.body === null && uploads.files.length === 0 && photoEdits.length === 0) return null;
+      return { kind: "update", submissionId: stored.id, built, photoEdits, uploads, messages };
     }
 
     const built = buildSubmissionCreate(session, owner, { stationId: seed.station?.id ?? null, note, uploadCount: uploads.files.length, picks });
@@ -241,8 +262,9 @@ export function useSubmissionForm(seed: SubmissionSeed) {
       setStored(result.submission);
       edit.dispatch({ type: "rebase", live, proposed: toProposedSnapshot(live, result.submission) });
     }
+    if (result.arePhotoEditsSent) photoDraft.clearStoredPhotoEdits();
     if (result.areUploadsSent) photoDraft.clearUploads();
-    if (result.submission !== null || result.areUploadsSent) toast.success(t("toast.updated"));
+    if (result.submission !== null || (result.arePhotoEditsSent && result.areUploadsSent)) toast.success(t("toast.updated"));
   }
 
   function failSend(error: unknown, request: SendRequest) {

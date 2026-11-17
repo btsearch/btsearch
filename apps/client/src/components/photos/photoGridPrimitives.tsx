@@ -175,6 +175,7 @@ export function PhotoEditPopover({
   const noteInputId = useId();
   const takenAtLabelId = useId();
   const [openValues, setOpenValues] = useState({ note, takenAt });
+  const [now] = useState(() => new Date());
 
   if (isOpen && (openValues.note !== note || openValues.takenAt !== takenAt)) setOpenValues({ note, takenAt });
 
@@ -212,7 +213,7 @@ export function PhotoEditPopover({
           <span id={takenAtLabelId} className="text-xs font-medium text-foreground">
             {t("photos.takenAt")}
           </span>
-          <DatePickerInput value={shownTakenAt} onChange={onTakenAtChange} />
+          <DatePickerInput value={shownTakenAt} onChange={onTakenAtChange} max={now} />
         </div>
         <div className="flex items-center justify-end gap-2">
           <Button type="button" size="sm" variant="ghost" className="cursor-pointer" onClick={() => onOpenChange(false)}>
