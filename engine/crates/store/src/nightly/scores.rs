@@ -72,7 +72,7 @@ pub async fn score_devices(client: &impl GenericClient) -> Result<usize, StoreEr
                      )
                      AND EXISTS (
                        SELECT 1 FROM observations.cell_bins b
-                       JOIN observations.trail_squares t ON t.plmn = c.plmn AND t.zoom = 18 AND t.bin = (b.bin >> 4) AND NOT t.held
+                       JOIN observations.trail_squares t ON t.plmn = c.plmn AND t.zoom = 18 AND t.bin = (b.bin >> 4) AND t.rat = c.rat AND NOT t.held
                        WHERE b.observed_cell_id = k.observed_cell_id
                          AND t.last_seen_on BETWEEN k.first_seen_on - $2::int AND k.last_seen_on + $2::int
                          AND (t.contributor_bits & ~(1::bigint << (get_byte(sha256(convert_to(lower(d.user_id::text), 'UTF8')), 31) & 63))) <> 0
