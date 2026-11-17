@@ -75,6 +75,8 @@ const CORS_OPTIONS = {
     AUDIT_OPERATION_ID_HEADER,
     AUDIT_OPERATION_KIND_HEADER,
     "accept",
+    "if-none-match",
+    "if-modified-since",
   ],
   exposedHeaders: [
     "x-request-id",
@@ -88,6 +90,8 @@ const CORS_OPTIONS = {
     "x-quota-reset",
     "x-retry-after",
     "content-disposition",
+    "etag",
+    "x-cell-count",
   ],
   maxAge: 86400,
 };

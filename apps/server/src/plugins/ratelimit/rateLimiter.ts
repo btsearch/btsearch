@@ -14,6 +14,7 @@ export type RateLimitTier = {
 
 export type RouteRateLimit = {
   url: string;
+  methods?: readonly string[];
   max: number;
   window: number;
   countSuccessfulOnly?: boolean;
@@ -176,6 +177,7 @@ export class RateLimitService {
 
     return (
       this.options.routes.find((route) => {
+        if (route.methods !== undefined && !route.methods.includes(req.method)) return false;
         if (route.url === url) return true;
 
         const routeParts = route.url.split("/");

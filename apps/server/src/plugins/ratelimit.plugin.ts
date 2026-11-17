@@ -42,6 +42,7 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       { url: "/public/og/:resource/:file", max: 12, window: 60 },
       {
         url: "/api/v2/cells/export",
+        methods: ["GET"],
         max: 10,
         window: 300,
         roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },

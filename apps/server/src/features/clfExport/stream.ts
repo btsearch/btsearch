@@ -1,8 +1,22 @@
 // oxlint-disable no-await-in-loop
-import { bands, cells, locations, lteCells, nrCells, operators, regions, stations } from "@openbts/drizzle";
+import {
+  bands,
+  cells,
+  countries,
+  gsmCells,
+  locations,
+  lteCells,
+  nrCells,
+  operators,
+  regions,
+  stationSectors,
+  stations,
+  structureOwners,
+  umtsCells,
+} from "@openbts/drizzle";
 import { type CLFDescriptionTemplates, CLF_DESCRIPTION_TEMPLATE_RATS } from "@openbts/shared/clfExportTemplates";
 import { CELL_EXPORT_TEMPLATE_PARAMS, CELL_RATS, type CellExportQuery, type CellRat, type IotRat, type NrMode } from "@openbts/shared/contract";
-import { type SQL, and, asc, eq, gt, gte, inArray, isNotNull, max, or, sql } from "drizzle-orm";
+import { type SQL, and, asc, count, eq, gt, gte, inArray, isNotNull, max, or, sql } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
@@ -20,6 +34,7 @@ export type CellExport = {
   cells: Omit<ExportSelection, "stationConditions">;
   convertOptions: ConvertOptions;
 };
+export type CellExportVersion = { lastModified: Date | null; cellCount: number; contentSum: string | null };
 
 const STATION_PAGE_SIZE = 2000;
 const STATION_BATCH_SIZE = 500;
@@ -90,21 +105,57 @@ function exportsNoRat({ rats }: CellExport["cells"]): boolean {
   return !CELL_RATS.some((rat) => rats[rat]);
 }
 
-export async function loadCellExportLastModified({ stationConditions, cells: selection }: CellExport): Promise<Date | null> {
-  if (exportsNoRat(selection)) return null;
+export async function loadCellExportVersion({ stationConditions, cells: selection }: CellExport): Promise<CellExportVersion> {
+  if (exportsNoRat(selection)) return { lastModified: null, cellCount: 0, contentSum: null };
 
+  const rowMarks = sql.join(
+    [
+      cells.id,
+      cells.updatedAt,
+      gsmCells.updatedAt,
+      umtsCells.updatedAt,
+      lteCells.updatedAt,
+      nrCells.updatedAt,
+      stations.updatedAt,
+      locations.updatedAt,
+      structureOwners.updatedAt,
+      stationSectors.azimuth,
+      countries.psc,
+      countries.bsic,
+    ],
+    sql`, `,
+  );
   const [row] = await db
-    .select({ lastModified: max(cells.updatedAt) })
+    .select({
+      cellsChanged: max(cells.updatedAt),
+      stationsChanged: max(stations.updatedAt),
+      locationsChanged: max(locations.updatedAt),
+      ownersChanged: max(structureOwners.updatedAt),
+      cellCount: count(),
+      contentSum: sql<string | null>`sum(hashtext(concat_ws(':', ${rowMarks})))`,
+    })
     .from(cells)
     .innerJoin(stations, eq(cells.station_id, stations.id))
     .innerJoin(bands, and(eq(cells.band_id, bands.id), eq(bands.variant, "commercial")))
     .leftJoin(operators, eq(stations.operator_id, operators.id))
     .leftJoin(locations, eq(stations.location_id, locations.id))
     .leftJoin(regions, eq(locations.region_id, regions.id))
+    .leftJoin(structureOwners, eq(locations.structure_owner_id, structureOwners.id))
+    .leftJoin(stationSectors, eq(stationSectors.id, cells.sector_id))
+    .leftJoin(countries, eq(countries.code, stationCountryCode))
+    .leftJoin(gsmCells, eq(gsmCells.cell_id, cells.id))
+    .leftJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
     .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
     .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
     .where(and(...stationConditions, ...selection.cellConditions, inExportedRat(selection)));
-  return row?.lastModified ? new Date(row.lastModified) : null;
+  const changes = [row?.cellsChanged, row?.stationsChanged, row?.locationsChanged, row?.ownersChanged].flatMap((changedAt) =>
+    changedAt ? [new Date(changedAt).getTime()] : [],
+  );
+  return {
+    lastModified: changes.length > 0 ? new Date(Math.max(...changes)) : null,
+    cellCount: row?.cellCount ?? 0,
+    contentSum: row?.contentSum ?? null,
+  };
 }
 
 async function loadCelldexHeader({ stationConditions, cells: selection }: CellExport): Promise<string> {

@@ -25,7 +25,7 @@ import { cacheCountryVisibility } from "../../../../helpers/officialDataFixtures
 import { readDate } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
-type MetadataRows = { lastModified: Date | null }[];
+type MetadataRows = { cellsChanged: Date | null }[];
 type ExportMetadata = { promise: Promise<MetadataRows>; resolve(value: MetadataRows): void };
 type ExportStreamResult = { type: "return"; value: Readable } | { type: "throw" | "incomplete"; value: unknown };
 type DeferredPromise<T> = {
@@ -196,7 +196,7 @@ function holdExportMetadata(): { pending: ExportMetadata; started: Promise<void>
   const select = dbMock.select.getMockImplementation();
   let activeMetadata = 0;
   dbMock.select.mockImplementation((selection) => {
-    if (typeof selection === "object" && selection !== null && "lastModified" in selection && ++activeMetadata === 2) started.resolve();
+    if (typeof selection === "object" && selection !== null && "cellsChanged" in selection && ++activeMetadata === 2) started.resolve();
     if (!select) throw new Error("Missing database boundary");
     return select(selection);
   });
@@ -212,7 +212,7 @@ describe("getCellsExport", () => {
     const app = await createRouteHarness(getCellsExport);
     async function expectFailureReleasesSlot(): Promise<void> {
       dbMock.enqueueFor("select", "countries", []);
-      dbMock.enqueueFor("select", "cells", phase === "metadata" ? new Error("Private database credentials") : [{ lastModified: readDate }]);
+      dbMock.enqueueFor("select", "cells", phase === "metadata" ? new Error("Private database credentials") : [{ cellsChanged: readDate }]);
       if (phase === "stream") dbMock.enqueueFor("select", getTableName(stations), new Error("Private database credentials"));
       const response = await app.inject({ url: "/cells/export?format=2.0" });
       expect(response.statusCode).toBe(500);
@@ -225,16 +225,17 @@ describe("getCellsExport", () => {
     await expectFailureReleasesSlot();
     await expectFailureReleasesSlot();
     dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "cells", [{ lastModified: null }]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: null }]);
     dbMock.enqueueFor("select", getTableName(stations), []);
     expect((await app.inject({ url: "/cells/export?format=2.0" })).statusCode).toBe(200);
   });
 
-  it("caps simultaneous exports, serves HEAD while busy, and recovers after they finish", async () => {
+  it("caps simultaneous exports, serves HEAD and 304s while busy, and recovers after they finish", async () => {
     const streams = vi.spyOn(Readable, "from");
     const { pending: metadata, started } = holdExportMetadata();
-    dbMock.enqueueFor("select", "countries", [], [], [], []);
-    dbMock.enqueueFor("select", "cells", metadata.promise, metadata.promise, [{ lastModified: readDate }], [{ lastModified: null }]);
+    const current = [{ cellsChanged: readDate }];
+    dbMock.enqueueFor("select", "countries", [], [], [], [], [], []);
+    dbMock.enqueueFor("select", "cells", metadata.promise, metadata.promise, current, current, current, [{ cellsChanged: null }]);
     dbMock.enqueueFor("select", getTableName(stations), [], [], []);
     const app = await createRouteHarness(getCellsExport);
     const first = app.inject({ url: "/cells/export?format=2.0" });
@@ -242,10 +243,17 @@ describe("getCellsExport", () => {
     await started;
     const busy = await app.inject({ url: "/cells/export?format=2.0" });
     expect(busy.statusCode).toBe(429);
+    expect(busy.headers["x-retry-after"]).toBe("30");
+    expect(busy.headers).not.toHaveProperty("content-disposition");
     const head = await app.inject({ method: "HEAD", url: "/cells/export?format=2.0" });
     expect(head.statusCode).toBe(200);
     expect(head.headers["last-modified"]).toBe(readDate.toUTCString());
-    metadata.resolve([{ lastModified: null }]);
+    const unchanged = await app.inject({ url: "/cells/export?format=2.0", headers: { "if-modified-since": readDate.toUTCString() } });
+    expect(unchanged.statusCode).toBe(304);
+    const outdated = await app.inject({ url: "/cells/export?format=2.0", headers: { "if-none-match": 'W/"outdated"' } });
+    expect(outdated.statusCode).toBe(429);
+    expect(outdated.headers).not.toHaveProperty("etag");
+    metadata.resolve([{ cellsChanged: null }]);
     expect((await Promise.all([first, second])).map((response) => response.statusCode)).toEqual([200, 200]);
     await waitForExportStreams(streams.mock.results);
     expect((await app.inject({ url: "/cells/export?format=2.0" })).statusCode).toBe(200);
@@ -253,7 +261,7 @@ describe("getCellsExport", () => {
 
   it("stops reading and releases the export slot when the downloading client disconnects", async () => {
     cacheCountryVisibility();
-    dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }], [gsmExportRow], [{ lastModified: null }]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: readDate }], [gsmExportRow], [{ cellsChanged: null }]);
     const pendingRead = createDeferredPromise<{ id: number }[]>();
     dbMock.enqueueFor("select", getTableName(stations), [{ id: 1 }], [stationMetadataRow], pendingRead.promise, []);
     dbMock.enqueueFor("select", "station_sectors", []);
@@ -293,7 +301,7 @@ describe("getCellsExport", () => {
   it("terminates a partial download after a database failure and restores both export slots", async () => {
     const streams = vi.spyOn(Readable, "from");
     cacheCountryVisibility();
-    dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }], [gsmExportRow]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: readDate }], [gsmExportRow]);
     const pendingRead = createDeferredPromise<{ id: number }[]>();
     dbMock.enqueueFor("select", getTableName(stations), [{ id: 1 }], [stationMetadataRow], pendingRead.promise, [], []);
     dbMock.enqueueFor("select", "station_sectors", []);
@@ -347,7 +355,7 @@ describe("getCellsExport", () => {
       const first = app.inject({ url: "/cells/export?format=2.0" });
       const second = app.inject({ url: "/cells/export?format=2.0" });
       await Promise.race([held.started, first.then(() => {}), second.then(() => {})]);
-      metadata.resolve([{ lastModified: null }]);
+      metadata.resolve([{ cellsChanged: null }]);
       expect((await Promise.all([first, second])).map((response) => response.statusCode)).toEqual([200, 200]);
       await waitForExportStreams(streams.mock.results);
       expect(dbMock.pendingResults()).toBe(0);
@@ -374,7 +382,7 @@ describe("getCellsExport", () => {
     const select = dbMock.select.getMockImplementation();
     let metadataReads = 0;
     dbMock.select.mockImplementation((selection) => {
-      if (typeof selection === "object" && selection !== null && "lastModified" in selection) {
+      if (typeof selection === "object" && selection !== null && "cellsChanged" in selection) {
         metadataReads += 1;
         if (metadataReads === 1) metadataStarted.resolve();
         if (metadataReads === 3) recoveryStarted.resolve();
@@ -409,7 +417,7 @@ describe("getCellsExport", () => {
       download?.destroy();
       await Promise.all([clientClosed, disconnected.promise]);
       expect(streams).not.toHaveBeenCalled();
-      pendingMetadata.resolve([{ lastModified: readDate }]);
+      pendingMetadata.resolve([{ cellsChanged: readDate }]);
       await streamClosed.promise;
       expect(receivedResponse).toBe(false);
       expect(transportError).toBe("ECONNRESET");
@@ -422,7 +430,7 @@ describe("getCellsExport", () => {
       const first = app.inject({ url: "/cells/export?format=2.0" });
       const second = app.inject({ url: "/cells/export?format=2.0" });
       await Promise.race([recoveryStarted.promise, first.then(() => {}), second.then(() => {})]);
-      pendingRecovery.resolve([{ lastModified: null }]);
+      pendingRecovery.resolve([{ cellsChanged: null }]);
       expect((await Promise.all([first, second])).map((response) => response.statusCode)).toEqual([200, 200]);
       await waitForExportStreams(streams.mock.results);
       expect(dbMock.pendingResults()).toBe(0);
@@ -444,7 +452,7 @@ describe("getCellsExport", () => {
     ["netmonitor", "G;310;260;45;123;;;52;21;100;SITE;\n"],
   ])("streams real GSM conversion for %s with the three-digit MNC preserved", async (format, text) => {
     dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }], [gsmExportRow]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: readDate }], [gsmExportRow]);
     dbMock.enqueueFor("select", getTableName(stations), [{ id: 1 }], [stationMetadataRow], []);
     dbMock.enqueueFor("select", "station_sectors", []);
     const app = await createRouteHarness(getCellsExport);
@@ -460,7 +468,7 @@ describe("getCellsExport", () => {
     ["netmonitor", "csv"],
   ])("describes an empty %s export with the correct extension", async (format, extension) => {
     dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: readDate }]);
     dbMock.enqueueFor("select", getTableName(stations), []);
     const app = await createRouteHarness(getCellsExport);
     const response = await app.inject({ url: `/cells/export?format=${format}` });
@@ -471,9 +479,52 @@ describe("getCellsExport", () => {
     expect(response.headers["last-modified"]).toBe(readDate.toUTCString());
   });
 
+  it("answers 304 to a copy that is still current, and a new ETag once a cell is removed or changed", async () => {
+    const version = {
+      cellsChanged: new Date("2026-11-01T08:00:00.000Z"),
+      stationsChanged: null,
+      locationsChanged: new Date("2026-11-17T10:00:00.000Z"),
+      ownersChanged: null,
+      cellCount: 5,
+      contentSum: "48213",
+    };
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor(
+      "select",
+      "cells",
+      [version],
+      [version],
+      [version],
+      [version],
+      [{ ...version, cellCount: 4 }],
+      [{ ...version, contentSum: "-7311" }],
+    );
+    const app = await createRouteHarness(getCellsExport);
+    const url = "/cells/export?format=celldex";
+    const first = await app.inject({ method: "HEAD", url });
+    expect(first.statusCode).toBe(200);
+    expect(first.headers["x-cell-count"]).toBe("5");
+    expect(first.headers["last-modified"]).toBe(version.locationsChanged.toUTCString());
+    const etag = String(first.headers.etag);
+    expect(etag).toMatch(/^W\/".+"$/);
+
+    expect((await app.inject({ method: "HEAD", url, headers: { "if-none-match": etag } })).statusCode).toBe(304);
+    const unchanged = await app.inject({ url, headers: { "if-none-match": etag } });
+    expect(unchanged.statusCode).toBe(304);
+    expect(unchanged.body).toBe("");
+    const since = version.locationsChanged.toUTCString();
+    expect((await app.inject({ method: "HEAD", url, headers: { "if-modified-since": since } })).statusCode).toBe(304);
+    const removed = await app.inject({ method: "HEAD", url, headers: { "if-none-match": etag } });
+    expect(removed.statusCode).toBe(200);
+    expect(removed.headers.etag).not.toBe(etag);
+    expect((await app.inject({ method: "HEAD", url, headers: { "if-none-match": etag } })).statusCode).toBe(200);
+    expect(stationPickerCalls()).toHaveLength(0);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
   it("serves HEAD metadata without reading any export chunks", async () => {
     dbMock.enqueueFor("select", "countries", [{ code: "PL" }]);
-    dbMock.enqueueFor("select", "cells", [{ lastModified: null }]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: null }]);
     const app = await createRouteHarness(getCellsExport);
     const response = await app.inject({ method: "HEAD", url: "/cells/export?format=ntm" });
     expect(response.statusCode).toBe(200);
@@ -494,7 +545,7 @@ describe("getCellsExport", () => {
     { filters: "iotRats=nr", rats: ["NR"], lteIotOnly: false, nrIotOnly: true },
   ])("preserves selected RATs and IoT filtering for $filters", async ({ filters, rats, lteIotOnly, nrIotOnly }) => {
     dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "cells", [{ lastModified: null }]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: null }]);
     const app = await createRouteHarness(getCellsExport);
     const response = await app.inject({ method: "HEAD", url: `/cells/export?format=ntm&${filters}` });
     expect(response.statusCode).toBe(200);
@@ -512,7 +563,7 @@ describe("getCellsExport", () => {
     { filters: "format=ntm&nrModes=sa,nsa", nrModes: ["sa", "nsa"] },
   ])("exports only the asked NR modes, standalone by default, for $filters", async ({ filters, nrModes }) => {
     dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "cells", [{ lastModified: null }]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: null }]);
     const app = await createRouteHarness(getCellsExport);
     const response = await app.inject({ method: "HEAD", url: `/cells/export?${filters}` });
     expect(response.statusCode).toBe(200);
@@ -523,7 +574,7 @@ describe("getCellsExport", () => {
 
   it("streams a Celldex export as a .cdx file that starts with its header and keeps each site's cells under it", async () => {
     dbMock.enqueueFor("select", "countries", []);
-    dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }], [gsmExportRow, { ...gsmExportRow, gsm_cid: 100 }]);
+    dbMock.enqueueFor("select", "cells", [{ cellsChanged: readDate }], [gsmExportRow, { ...gsmExportRow, gsm_cid: 100 }]);
     dbMock.enqueueFor("select", getTableName(stations), [{ id: 1 }], [stationMetadataRow], []);
     dbMock.enqueueFor("select", "station_sectors", []);
     const app = await createRouteHarness(getCellsExport);
