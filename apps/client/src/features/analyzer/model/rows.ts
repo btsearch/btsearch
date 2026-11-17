@@ -11,7 +11,7 @@ import type {
 } from "@openbts/shared/contract";
 
 import { getBandFacetKey, resolveLogBandId } from "./bands";
-import { toObservedCell } from "./observed";
+import { isNonStandaloneCell, toObservedCell } from "./observed";
 import type {
   AnalyzerFile,
   AnalyzerLookups,
@@ -203,6 +203,9 @@ export function buildIdChips(row: LogRow, result: CellMatchResult | null, gnbidL
   }
   if (observed.rat === "gsm") {
     return { identity: [...toChip("lac", observed.lac, result, false), ...toChip("cid", observed.cid, result, false)], values: [] };
+  }
+  if (isNonStandaloneCell(observed)) {
+    return { identity: [...toChip("pci", observed.pci, result, true), ...toChip("arfcn", observed.arfcn, result, true)], values: [] };
   }
   return {
     identity: buildNrIdentityChips(observed, result, gnbidLength),

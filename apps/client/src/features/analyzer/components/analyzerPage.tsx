@@ -32,7 +32,7 @@ type BandPlanFailureNoteProps = {
   onRetry: () => void;
 };
 
-const FILE_ACCEPT = ".ntm,.csv,.txt,.clf,.log,.gz,application/gzip,application/x-gzip";
+const FILE_ACCEPT = ".ntm,.csv,.txt,.clf,.cdx,.log,.gz,application/gzip,application/x-gzip";
 
 function AnalysisFailureNote({ analysis, rowCount, onRetry }: AnalysisFailureNoteProps) {
   const { t } = useTranslation("cellAnalyzer");

@@ -261,6 +261,8 @@ describe("POST /cells/match", () => {
     { rat: "nr", plmn },
     { rat: "nr", plmn, nci: 0 },
     { rat: "nr", plmn, gnbid: 0, clid: 0 },
+    { rat: "nr", plmn, pci: 7, anchor: { enbid: 100, clid: 2 } },
+    { rat: "umts", plmn, cid: 2 },
   ])("reports missing identifiers for %j", async (cell) => {
     network();
     if ("nci" in cell) dbMock.enqueueFor("select", "cells", []);
@@ -269,6 +271,69 @@ describe("POST /cells/match", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.results[0]).toMatchObject({ match: "none", reason: "noIdentifiers", operatorId: 1, nrIdentity: null });
+  });
+
+  it.each([
+    { name: "a stored one with its PCI and ARFCN", pci: 7, cellId: 11 },
+    { name: "none with its PCI", pci: 8, cellId: null },
+  ])("looks for a non-standalone cell among the anchor station's non-standalone cells: $name", async ({ pci, cellId }) => {
+    network();
+    const nonStandalone = { ...stored("nr", 11), nr: { gnbid: null, clid: null, gnbid_length: 24, nci: null, nrtac: null, pci: 7, arfcn: 636666 } };
+    dbMock.enqueueFor("select", "cells", [stored("lte")], [nonStandalone]);
+    const app = await createRouteHarness(route);
+    const cell = { rat: "nr", plmn, pci, arfcn: 636666, anchor: { enbid: 100, clid: 2, tac: 5 } };
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [cell] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toEqual({
+      operatorId: 1,
+      match: cellId === null ? "station" : "cell",
+      reason: null,
+      stationId: 20,
+      stationIds: [20],
+      cellId,
+      isShared: false,
+      networkMatch: "own",
+      differences: [],
+      nrIdentity: null,
+    });
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("finds a UMTS cell without a LAC by its RNC and CID", async () => {
+    network();
+    dbMock.enqueueFor("select", "cells", [stored("umts")]);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [{ rat: "umts", plmn, cid: 2, rnc: 3 }] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({ match: "cell", cellId: 10, differences: [] });
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("lists every station with the anchor's eNBID when a non-standalone cell is new on the station its anchor was found on", async () => {
+    network();
+    storedNode("lte", [nodeCell("lte", 20, { areaCode: 5 }), nodeCell("lte", 21, { areaCode: 6 })]);
+    dbMock.enqueueFor("select", "cells", []);
+    const app = await createRouteHarness(route);
+    const cell = { rat: "nr", plmn, pci: 7, arfcn: 636666, anchor: { enbid: 100, clid: 9, tac: 6 } };
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [cell] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({ match: "station", stationId: 21, stationIds: [20, 21], cellId: null, nrIdentity: null });
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("answers a non-standalone cell with its anchor's reason when the anchor is not found", async () => {
+    network();
+    dbMock.enqueueFor("select", "cells", [], []);
+    const app = await createRouteHarness(route);
+    const cell = { rat: "nr", plmn, pci: 7, arfcn: 636666, anchor: { enbid: 100, clid: 2 } };
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [cell] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({ match: "none", reason: "cellUnknown", operatorId: 1, stationId: null, nrIdentity: null });
+    expect(dbMock.calls.filter((call) => call.table === "cells")).toHaveLength(2);
   });
 
   it("uses the stored NR split when an NCI has a non-default gNBID length", async () => {

@@ -3,6 +3,7 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { OfficialSiteRef, Station } from "@openbts/shared/contract";
 import { useTranslation } from "react-i18next";
 
+import { isNonStandaloneCell } from "../model/observed";
 import { buildIdChips, findNetworkDifference } from "../model/rows";
 import type { IdChip, RowStatus } from "../model/types";
 import {
@@ -72,6 +73,7 @@ type MatchCellProps = RowViewProps & {
 };
 
 const PLMN_LABEL = "PLMN";
+const NSA_LABEL = "NSA";
 const PLACE_SEPARATOR = ", ";
 const CHANNEL_FIELDS: ReadonlySet<string> = new Set(["earfcn", "uarfcn", "arfcn"]);
 const UNCONFIRMED_MARK_CLASS = "inline-flex size-4 shrink-0 cursor-help items-center justify-center rounded-sm bg-destructive/10 text-destructive";
@@ -143,7 +145,10 @@ export function TechnologyText({ view }: RowViewProps) {
 
   return (
     <span className="text-[11px] leading-4 whitespace-nowrap text-muted-foreground">
-      <span className="font-bold text-foreground/70">{toRatType(view.facts.rat)}</span>
+      <span className="font-bold text-foreground/70">
+        {toRatType(view.facts.rat)}
+        {isNonStandaloneCell(view.row.observed) ? ` ${NSA_LABEL}` : null}
+      </span>
       {bandLabel === null ? null : <span className="font-mono font-medium tabular-nums"> {bandLabel}</span>}
       {bandCode === null ? null : <span> {bandCode}</span>}
     </span>

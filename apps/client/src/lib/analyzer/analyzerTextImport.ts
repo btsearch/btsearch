@@ -1,25 +1,34 @@
+import { isCelldexHead, parseCelldexFile } from "./analyzerCelldex";
 import { ANALYZER_MAX_CELLS, AnalyzerImportError } from "./analyzerImport";
 /* oxlint-disable no-await-in-loop -- Ordered stream reads and batch yields bound memory and keep cancellation responsive */
-import { type AnalyzerTextFormat, type ParsedRow, detectFormat, parseFile } from "./analyzerParsers";
+import { type AnalyzerLineFormat, type AnalyzerTextFormat, type ParsedRow, formatOfFileName, parseFile, recordFormatOf } from "./analyzerParsers";
 
 const MAX_LINE_LENGTH = 16 * 1024 * 1024;
-const TEXT_PREFIXES = {
-  ntm: new Set(["2G", "3G", "4G", "5G"]),
-  netmonitor: new Set(["G", "W", "T", "L", "N"]),
-};
+const MAX_TOKEN_LENGTH = 16;
+const TOKEN_DELIMITER = /[;\t]/;
+const CELLDEX_HEAD_BYTES = 4096;
 
 export class AnalyzerTextImportError extends AnalyzerImportError {}
 
 type ImportOptions = {
   signal?: AbortSignal;
   onProgress?: (bytesRead: number) => void;
-  format?: AnalyzerTextFormat;
+  format?: AnalyzerLineFormat;
 };
+type TextImport = { rows: ParsedRow[]; format: AnalyzerTextFormat; skippedLines: number };
 
-export async function importAnalyzerTextFile(
-  file: File,
-  { signal, onProgress, format: requestedFormat }: ImportOptions = {},
-): Promise<{ rows: ParsedRow[]; format: AnalyzerTextFormat; skippedLines: number }> {
+function cellLimitError(cellCount: number): AnalyzerTextImportError {
+  return new AnalyzerTextImportError("tooManyCells", `The file contains more than ${ANALYZER_MAX_CELLS.toLocaleString("en-US")} cells.`, cellCount);
+}
+
+async function importCelldexFile(file: File, onProgress: ImportOptions["onProgress"]): Promise<TextImport> {
+  const { rows, skippedLines } = parseCelldexFile(await file.text());
+  onProgress?.(file.size);
+  if (rows.length > ANALYZER_MAX_CELLS) throw cellLimitError(rows.length);
+  return { rows, format: "celldex", skippedLines };
+}
+
+export async function importAnalyzerTextFile(file: File, { signal, onProgress, format: requestedFormat }: ImportOptions = {}): Promise<TextImport> {
   const rows: ParsedRow[] = [];
   let skippedLines = 0;
   let cellsOverLimit = 0;
@@ -54,20 +63,21 @@ export async function importAnalyzerTextFile(
     if (!candidate) {
       content = prefix + (prefixHasTrailingWhitespace ? " " : "") + (prefix.length === 0 ? segment.trimStart() : segment);
       if (content.length === 0) return;
-      const delimiter = content.indexOf(";");
+      const delimiter = content.search(TOKEN_DELIMITER);
       const trimmed = content.trimEnd();
-      if (delimiter === -1 && trimmed.length <= 2) {
+      if (delimiter === -1 && trimmed.length <= MAX_TOKEN_LENGTH) {
         prefix = trimmed;
         prefixHasTrailingWhitespace = content.length > trimmed.length;
         return;
       }
       const token = delimiter === -1 ? content : content.slice(0, delimiter);
-      format ??= detectFormat(file.name, `${token};`);
+      const lineFormat = recordFormatOf(token);
       prefix = "";
-      if (!TEXT_PREFIXES[format].has(token)) {
+      if (lineFormat === null || (format !== undefined && lineFormat !== format)) {
         discarding = true;
         return;
       }
+      format = lineFormat;
       candidate = true;
     }
     lineLength += content.length;
@@ -75,7 +85,6 @@ export async function importAnalyzerTextFile(
     parts.push(content);
   };
   const finishLine = () => {
-    if (!format && prefix.trim().length > 0) format = detectFormat(file.name, prefix);
     if (candidate && format) {
       const parsed = parseFile(format, parts.join(""));
       if (parsed.length === 0) skippedLines++;
@@ -109,6 +118,12 @@ export async function importAnalyzerTextFile(
 
   try {
     checkAborted();
+    if (requestedFormat === undefined && isCelldexHead(await file.slice(0, CELLDEX_HEAD_BYTES).text())) {
+      checkAborted();
+      const imported = await importCelldexFile(file, onProgress);
+      checkAborted();
+      return imported;
+    }
     reader = file.stream().getReader();
     signal?.addEventListener("abort", cancelReader, { once: true });
     checkAborted();
@@ -126,14 +141,8 @@ export async function importAnalyzerTextFile(
     await consume(decoder.decode());
     finishLine();
     checkAborted();
-    if (cellsOverLimit > 0) {
-      throw new AnalyzerTextImportError(
-        "tooManyCells",
-        `The file contains more than ${ANALYZER_MAX_CELLS.toLocaleString("en-US")} cells.`,
-        ANALYZER_MAX_CELLS + cellsOverLimit,
-      );
-    }
-    return { rows, format: format ?? detectFormat(file.name, ""), skippedLines };
+    if (cellsOverLimit > 0) throw cellLimitError(ANALYZER_MAX_CELLS + cellsOverLimit);
+    return { rows, format: format ?? formatOfFileName(file.name), skippedLines };
   } catch (error) {
     checkAborted();
     if (error instanceof AnalyzerTextImportError) throw error;

@@ -1,6 +1,7 @@
 import type { Band, Cell, CellType, Sector } from "@openbts/shared/contract";
 
 import type { AnalyzerDraft, DraftRow, DraftStation } from "../../model/draft";
+import { isNonStandaloneCell } from "../../model/observed";
 import { listNumberDifferences } from "../../model/rows";
 import { getBandCode, getBandLabel } from "@/features/station-details/station/utils/bands";
 import type { LockedValue } from "@/features/station-editing/components/cells/lockedCellRow";
@@ -30,6 +31,7 @@ const ROW_KEY_PREFIX = "r";
 const DEGREE_SIGN = "°";
 const KEY_SEPARATOR = ":";
 const NO_VALUE = "";
+const NSA_KEY = "nsa";
 
 export function toRowKey(index: number): string {
   return `${ROW_KEY_PREFIX}${index}`;
@@ -67,9 +69,15 @@ function listNumberFields(rat: Rat): RowNumberField[] {
   return rat === "nr" ? [...fields, "gnbidLength"] : fields;
 }
 
+function listCreatedFields(row: DraftRow): RowNumberField[] {
+  const rat = getRowRat(row);
+  if (!isNonStandaloneCell(row.observed)) return listNumberFields(rat);
+  return RAT_FIELDS[rat].numbers.filter((spec) => !spec.isSaOnly).map((spec) => spec.field);
+}
+
 function getCreatedNumbers(row: DraftRow): RowNumbers {
   const numbers: RowNumbers = {};
-  for (const field of listNumberFields(getRowRat(row))) {
+  for (const field of listCreatedFields(row)) {
     const value = readNumber(row.observed, field);
     if (value !== null) numbers[field] = value;
   }
@@ -91,6 +99,7 @@ export function getRowNumbers(row: DraftRow): RowNumbers {
 }
 
 export function getNewCellKey(row: DraftRow, numbers: RowNumbers): string {
+  if (isNonStandaloneCell(row.observed)) return [getRowRat(row), NSA_KEY, numbers.pci ?? NO_VALUE, numbers.arfcn ?? NO_VALUE].join(KEY_SEPARATOR);
   return [getRowRat(row), numbers.enbid ?? numbers.gnbid ?? NO_VALUE, numbers.clid ?? NO_VALUE].join(KEY_SEPARATOR);
 }
 

@@ -36,9 +36,9 @@ export const CELL_DIFFERENCE_FIELDS = [
 export type CellDifferenceField = (typeof CELL_DIFFERENCE_FIELDS)[number];
 
 const MATCH_NOTE =
-  "`cell`: a stored cell has these identifiers. " +
+  "`cell`: a stored cell has these identifiers. For an NR cell sent with an `anchor`, a non-standalone cell of the anchor's station has its PCI and ARFCN. " +
   "`cellByLac`: UMTS only, a stored cell has this LAC and CID, but the RNC in the log is missing or different. " +
-  "`station`: LTE and NR only, the base station is known by its eNBID or gNBID, but this cell is not stored. " +
+  "`station`: LTE and NR only, the base station is known by its eNBID or gNBID, or by the `anchor`, but this cell is not stored. " +
   "If several stations have this eNBID or gNBID, those whose `networkMatch` ranks first are kept (`own`, then `extraCode`, `partner`, `missingCode`), then those with a cell in this cell's TAC. " +
   "If more than one is left, `match` is `none` with the reason `severalStations`. " +
   "`none`: nothing was found";
@@ -55,6 +55,9 @@ const NETWORK_MATCH_NOTE =
   "`null` if `match` is `none`";
 
 const PLMN_NOTE = "The code of the network the cell belongs to: the MCC followed by the MNC";
+const ANCHOR_NOTE =
+  "For a non-standalone cell without `nci` or `gnbid`: an LTE cell of the station it was seen with, such as its anchor. " +
+  "The cell is then looked for among the non-standalone cells of that LTE cell's station by `pci` and `arfcn`. Without both, the anchor is ignored and the cell answers `noIdentifiers`";
 
 const plmnSchema = z.string().regex(/^\d{5,6}$/, "Must be the network code as 5 or 6 digits, for example 310260");
 
@@ -80,7 +83,9 @@ export const observedUmtsCellSchema = z
   .object({
     rat: z.literal("umts"),
     plmn: plmnSchema.describe(PLMN_NOTE),
-    lac: identifierSchema(65_535).describe(CELL_FIELD_NOTES.lac),
+    lac: observedValueSchema(65_535).describe(
+      `${CELL_FIELD_NOTES.lac}. Without it, the cell is found by \`rnc\` and \`cid\` only. An \`rnc\` of 0 counts as unknown, and a cell with neither answers \`noIdentifiers\``,
+    ),
     cid: identifierSchema(65_535).describe(CELL_FIELD_NOTES.cid),
     rnc: observedValueSchema(65_535),
     psc: observedValueSchema(PSC_MAX),
@@ -119,6 +124,16 @@ export const observedNrCellSchema = z
     tac: observedValueSchema(16_777_215),
     pci: observedValueSchema(1007),
     arfcn: observedValueSchema(3_279_165),
+    anchor: z
+      .object({
+        enbid: identifierSchema(1_048_575).describe(CELL_FIELD_NOTES.enbid),
+        clid: identifierSchema(255).describe(CELL_FIELD_NOTES.clid),
+        tac: observedValueSchema(65_535),
+      })
+      .strict()
+      .nullable()
+      .optional()
+      .describe(ANCHOR_NOTE),
   })
   .strict()
   .refine((cell) => (typeof cell.gnbid === "number") === (typeof cell.clid === "number"), {
@@ -184,7 +199,7 @@ export const cellMatchResultSchema = z.object({
   stationIds: z
     .array(z.number().int())
     .describe(
-      "The stations the result points at, in ascending order: the cell's station for `cell` and `cellByLac`, every station with the cell's eNBID or gNBID for `station` and `severalStations`. Empty otherwise",
+      "The stations the result points at, in ascending order: the cell's station for `cell` and `cellByLac`, every station with the cell's eNBID or gNBID, or with its anchor's eNBID, for `station` and `severalStations`. Empty otherwise",
     ),
   cellId: z.number().int().nullable().describe("`null` if `match` is `station` or `none`"),
   isShared: z.boolean().describe("Whether the station belongs to a partner in a shared network rather than to the operator in the log"),

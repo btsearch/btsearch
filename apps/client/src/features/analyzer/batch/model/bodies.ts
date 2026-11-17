@@ -1,5 +1,6 @@
 import type { CellApply, CellApplyChange, SubmissionCreate } from "@openbts/shared/contract";
 
+import { isNonStandaloneCell } from "../../model/observed";
 import { type BatchRow, type RowNumbers, getNewCellKey, getRowNumbers, getRowRat } from "./batchRows";
 import type { TacSpread } from "./tacSpread";
 import { DEFAULT_CELL_TYPE, MAX_CELL_CHANGES } from "@/features/station-editing/model/ratFields";
@@ -15,6 +16,7 @@ type CellUpdateChange = Extract<CellApplyChange, { action: "update" }>;
 
 type PendingEntry = {
   rat: Rat;
+  isNonStandalone: boolean;
   cellId: number | null;
   bandId: number | null;
   numbers: RowNumbers;
@@ -23,6 +25,7 @@ type PendingEntry = {
 };
 
 const STANDALONE_MODE = "sa";
+const NON_STANDALONE_MODE = "nsa";
 
 function toEntryKey(row: BatchRow, numbers: RowNumbers): string {
   return row.cellId === null ? getNewCellKey(row, numbers) : String(row.cellId);
@@ -42,7 +45,14 @@ function listPendingEntries(rows: readonly BatchRow[], mode: SendMode): PendingE
     const key = toEntryKey(row, numbers);
     const known = entries.get(key);
     if (known === undefined) {
-      const entry: PendingEntry = { rat: getRowRat(row), cellId: row.cellId, bandId: row.bandId, numbers: { ...numbers }, rowIndexes: [row.index] };
+      const entry: PendingEntry = {
+        rat: getRowRat(row),
+        isNonStandalone: isNonStandaloneCell(row.observed),
+        cellId: row.cellId,
+        bandId: row.bandId,
+        numbers: { ...numbers },
+        rowIndexes: [row.index],
+      };
       if (row.network !== undefined) entry.plmns = mergePlmns(undefined, row.network.plmns);
       entries.set(key, entry);
       continue;
@@ -56,7 +66,7 @@ function listPendingEntries(rows: readonly BatchRow[], mode: SendMode): PendingE
   return [...entries.values()];
 }
 
-function toCreateChange({ rat, bandId, numbers, plmns }: PendingEntry): CellCreateChange | null {
+function toCreateChange({ rat, isNonStandalone, bandId, numbers, plmns }: PendingEntry): CellCreateChange | null {
   if (bandId === null) return null;
 
   if (rat === "lte") {
@@ -76,7 +86,8 @@ function toCreateChange({ rat, bandId, numbers, plmns }: PendingEntry): CellCrea
   }
   if (rat !== "nr") return null;
 
-  const created: Extract<CellCreateChange, { rat: "nr" }> = { action: "create", rat, bandId, mode: STANDALONE_MODE, cellType: DEFAULT_CELL_TYPE };
+  const mode = isNonStandalone ? NON_STANDALONE_MODE : STANDALONE_MODE;
+  const created: Extract<CellCreateChange, { rat: "nr" }> = { action: "create", rat, bandId, mode, cellType: DEFAULT_CELL_TYPE };
   if (numbers.gnbid !== undefined) created.gnbid = numbers.gnbid;
   if (numbers.gnbidLength !== undefined) created.gnbidLength = numbers.gnbidLength;
   if (numbers.clid !== undefined) created.clid = numbers.clid;
@@ -96,7 +107,7 @@ function toUpdateChange(cellId: number, numbers: RowNumbers, plmns: string[] | u
 
 function findStationTac(entry: PendingEntry, spreads: readonly TacSpread[]): number | null {
   const spread = spreads.find((candidate) => candidate.rat === entry.rat);
-  if (spread === undefined) return null;
+  if (spread === undefined || entry.isNonStandalone) return null;
 
   const carriesTac = entry.cellId === null || entry.numbers.tac !== undefined || spread.cellIds.includes(entry.cellId);
   return carriesTac ? spread.tac : null;

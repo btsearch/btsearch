@@ -1,12 +1,14 @@
 import { ANALYZER_NR_MAX } from "./analyzerImport";
 
+export type NrAnchor = { enbid: number; clid: number; tac?: number };
 export type AnalyzerCell =
   | { rat: "GSM"; mnc: number; lac: number; cid: number }
-  | { rat: "UMTS"; mnc: number; lac: number; cid: number; rnc: number | null; uarfcn?: number }
-  | { rat: "LTE"; mnc: number; tac: number; enbid: number; clid: number; pci: number; earfcn?: number }
-  | { rat: "NR"; mnc: number; arfcn?: number; nci?: number; tac?: number; pci?: number };
+  | { rat: "UMTS"; mnc: number; lac?: number; cid: number; rnc: number | null; uarfcn?: number }
+  | { rat: "LTE"; mnc: number; tac?: number; enbid: number; clid: number; pci?: number; earfcn?: number }
+  | { rat: "NR"; mnc: number; arfcn?: number; nci?: number; tac?: number; pci?: number; anchor?: NrAnchor };
 export type ParsedRow = AnalyzerCell & { description: string; rawLine: string; plmn?: string };
-export type AnalyzerTextFormat = "ntm" | "netmonitor";
+export type AnalyzerLineFormat = "ntm" | "netmonitor" | "clf";
+export type AnalyzerTextFormat = AnalyzerLineFormat | "celldex";
 export type FileFormat = AnalyzerTextFormat | "nsg";
 
 type UmtsRow = Extract<ParsedRow, { rat: "UMTS" }>;
@@ -19,6 +21,18 @@ const MNC_PATTERN = /^\d{1,3}$/;
 const SHORTEST_MNC_LENGTH = 2;
 const WHOLE_NUMBER_PATTERN = /^\d+$/;
 const NTM_UNKNOWN_VALUE = 2_147_483_647;
+const NTM_NSA_NCI = 1;
+const NTM_TOKENS = new Set(["2G", "3G", "4G", "5G"]);
+const NETMONITOR_TOKENS = new Set(["G", "W", "T", "L", "N"]);
+const CLF_MCCMNC_PATTERN = /^\d{5,6}$/;
+const CLF2_HEX_PATTERN = /^[\dA-Fa-f]{8}\d{5,6}$/;
+const CLF2_DECIMAL_PATTERN = /^\d{15,16}$/;
+const CLF_HEX_PATTERN = /^0x[\dA-Fa-f]+$/i;
+const CLF3_FIELD_COUNT = 9;
+const CLF4_FIELD_COUNT = 16;
+const CLF4_SYSTEMS: Record<string, AnalyzerCell["rat"]> = { "1": "GSM", "3": "UMTS", "4": "LTE", "5": "NR" };
+const SHORT_CID_MAX = 65_535;
+const LTE_ECI_MAX = 268_435_455;
 
 function withLinePlmn(row: ParsedRow, mccText: string, mncText: string): ParsedRow {
   const mcc = mccText.trim();
@@ -34,12 +48,12 @@ function readWholeNumber(text: string | undefined, max: number): number | null {
   return value <= max ? value : null;
 }
 
-function withNrLineValues(row: NrRow, texts: NrLineTexts, unknownNci?: number): NrRow {
+function withNrLineValues(row: NrRow, texts: NrLineTexts, unknownNcis: readonly number[] = []): NrRow {
   const nci = readWholeNumber(texts.nci, ANALYZER_NR_MAX.nci);
   const tac = readWholeNumber(texts.tac, ANALYZER_NR_MAX.tac);
   const pci = readWholeNumber(texts.pci, ANALYZER_NR_MAX.pci);
   const arfcn = readWholeNumber(texts.arfcn, ANALYZER_NR_MAX.arfcn);
-  if (nci !== null && nci !== unknownNci) row.nci = nci;
+  if (nci !== null && !unknownNcis.includes(nci)) row.nci = nci;
   if (tac !== null) row.tac = tac;
   if (pci !== null) row.pci = pci;
   if (arfcn !== null) row.arfcn = arfcn;
@@ -49,6 +63,8 @@ function withNrLineValues(row: NrRow, texts: NrLineTexts, unknownNci?: number): 
 export function getAnalyzerFormatLabel(format: FileFormat | null): string {
   if (format === "nsg") return "NSG";
   if (format === "netmonitor") return "NetMonitor";
+  if (format === "clf") return "CLF";
+  if (format === "celldex") return "Celldex";
   return "NetMonster";
 }
 
@@ -105,7 +121,8 @@ function parseNtmLine(line: string): ParsedRow | null {
 
   if (rat === "NR") {
     const texts: NrLineTexts = { nci: parts[3], tac: parts[4], pci: parts[6], arfcn: parts[10] };
-    return withLinePlmn(withNrLineValues({ rat: "NR", mnc, description, rawLine: line }, texts, NTM_UNKNOWN_VALUE), parts[1], parts[2]);
+    const row = withNrLineValues({ rat: "NR", mnc, description, rawLine: line }, texts, [NTM_UNKNOWN_VALUE, NTM_NSA_NCI]);
+    return withLinePlmn(row, parts[1], parts[2]);
   }
   return null;
 }
@@ -188,24 +205,110 @@ export function parseNetMonitorFile(text: string): ParsedRow[] {
   return rows;
 }
 
-export function detectFormat(fileName: string, text: string): AnalyzerTextFormat {
-  if (fileName.endsWith(".ntm")) return "ntm";
-  if (fileName.endsWith(".clf")) return "netmonitor";
+function readClfNumber(text: string | undefined): number | null {
+  const value = text?.trim() ?? "";
+  if (CLF_HEX_PATTERN.test(value)) return Number.parseInt(value.slice(2), 16);
+  return WHOLE_NUMBER_PATTERN.test(value) ? Number(value) : null;
+}
 
-  const firstLine = text
-    .split("\n")
-    .find((l) => l.trim().length > 0)
-    ?.trim();
-  if (firstLine) {
-    const prefix = firstLine.split(";")[0];
-    const prefixes = new Set(["G", "W", "L", "N", "C", "T"]);
-    if (prefixes.has(prefix)) return "netmonitor";
+function toClfRow(
+  rat: AnalyzerCell["rat"],
+  mccmnc: string,
+  cid: number,
+  lac: number,
+  rnc: number | null,
+  description: string,
+  rawLine: string,
+): ParsedRow {
+  const mccText = mccmnc.slice(0, 3);
+  const mncText = mccmnc.slice(3);
+  const mnc = Number(mccText) * 100 + Number(mncText);
+  switch (rat) {
+    case "GSM":
+      return withLinePlmn({ rat, mnc, lac, cid, description, rawLine }, mccText, mncText);
+    case "UMTS":
+      return withLinePlmn({ rat, mnc, lac, cid, rnc, description, rawLine }, mccText, mncText);
+    case "LTE":
+      return withLinePlmn({ rat, mnc, tac: lac, enbid: Math.floor(cid / 256), clid: cid % 256, description, rawLine }, mccText, mncText);
+    case "NR": {
+      const texts: NrLineTexts = { nci: String(cid), tac: String(lac), pci: undefined, arfcn: undefined };
+      return withLinePlmn(withNrLineValues({ rat, mnc, description, rawLine }, texts), mccText, mncText);
+    }
   }
+}
 
+function parseClf2Line(token: string, description: string, rawLine: string): ParsedRow | null {
+  const isHex = CLF2_HEX_PATTERN.test(token);
+  if (!isHex && !CLF2_DECIMAL_PATTERN.test(token)) return null;
+  const width = isHex ? 4 : 5;
+  const radix = isHex ? 16 : 10;
+  const cid = Number.parseInt(token.slice(0, width), radix);
+  const lac = Number.parseInt(token.slice(width, 2 * width), radix);
+  return toClfRow("GSM", token.slice(2 * width), cid, lac, null, description, rawLine);
+}
+
+function clf3RatOf(cid: number, rnc: number | null): AnalyzerCell["rat"] {
+  if (rnc !== null && rnc > 0) return "UMTS";
+  if (cid <= SHORT_CID_MAX) return "GSM";
+  return cid <= LTE_ECI_MAX ? "LTE" : "NR";
+}
+
+function parseClf3Line(parts: string[], rawLine: string): ParsedRow | null {
+  const [mccmnc = "", cidText, lacText, rncText, , , , description = ""] = parts;
+  const cid = readClfNumber(cidText);
+  const lac = readClfNumber(lacText);
+  const rnc = readClfNumber(rncText);
+  if (!CLF_MCCMNC_PATTERN.test(mccmnc) || cid === null || lac === null) return null;
+  return toClfRow(clf3RatOf(cid, rnc), mccmnc, cid, lac, rnc, description, rawLine);
+}
+
+function parseClf4Line(parts: string[], rawLine: string): ParsedRow | null {
+  const [mccmnc = "", cidText, lacText, , , , , description = "", system = ""] = parts;
+  const rat = CLF4_SYSTEMS[system.trim()];
+  const cid = readClfNumber(cidText);
+  const lac = readClfNumber(lacText);
+  if (!rat || !CLF_MCCMNC_PATTERN.test(mccmnc) || cid === null || lac === null) return null;
+  return toClfRow(rat, mccmnc, cid, lac, null, description, rawLine);
+}
+
+function parseClfLine(line: string): ParsedRow | null {
+  if (!line.includes(";")) {
+    const [token = "", ...description] = line.split("\t");
+    return parseClf2Line(token.trim(), description.join("\t").trim(), line);
+  }
+  const parts = line.split(";");
+  if (parts.length === CLF4_FIELD_COUNT) return parseClf4Line(parts, line);
+  if (parts.length === CLF3_FIELD_COUNT) return parseClf3Line(parts, line);
+  return null;
+}
+
+export function parseClfFile(text: string): ParsedRow[] {
+  const lines = text.split("\n");
+  const rows: ParsedRow[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const parsed = parseClfLine(line);
+    if (parsed) rows.push(parsed);
+  }
+  return rows;
+}
+
+export function recordFormatOf(token: string): AnalyzerLineFormat | null {
+  if (NTM_TOKENS.has(token)) return "ntm";
+  if (NETMONITOR_TOKENS.has(token)) return "netmonitor";
+  if (CLF_MCCMNC_PATTERN.test(token) || CLF2_HEX_PATTERN.test(token) || CLF2_DECIMAL_PATTERN.test(token)) return "clf";
+  return null;
+}
+
+export function formatOfFileName(fileName: string): AnalyzerTextFormat {
+  if (fileName.endsWith(".clf")) return "clf";
+  if (fileName.endsWith(".csv")) return "netmonitor";
   return "ntm";
 }
 
-export function parseFile(format: AnalyzerTextFormat, text: string): ParsedRow[] {
+export function parseFile(format: AnalyzerLineFormat, text: string): ParsedRow[] {
   if (format === "netmonitor") return parseNetMonitorFile(text);
+  if (format === "clf") return parseClfFile(text);
   return parseNtmFile(text);
 }

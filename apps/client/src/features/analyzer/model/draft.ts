@@ -54,7 +54,7 @@ export type DraftInput = { session: AnalyzerSession; facts: readonly RowFacts[];
 type UnknownRecord = Record<string, unknown>;
 
 const DRAFT_ACTIONS: readonly string[] = ["update", "create", "confirm"] satisfies readonly TickAction[];
-const DRAFT_FORMATS: readonly string[] = ["ntm", "netmonitor", "nsg"] satisfies readonly LogFormat[];
+const DRAFT_FORMATS: readonly string[] = ["ntm", "netmonitor", "clf", "celldex", "nsg"] satisfies readonly LogFormat[];
 const DRAFT_RATS: readonly string[] = ANALYZER_RATS;
 const DRAFT_DIFFERENCE_FIELDS: readonly string[] = DIFFERENCE_FIELDS;
 const DRAFT_PLMN_PATTERN = /^\d{5,6}$/;

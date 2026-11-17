@@ -80,10 +80,13 @@ type StoredCellIndex = {
   nr: Map<string, StoredCell>;
   nrByNci: Map<string, StoredCell>;
   nrStations: Map<string, NodeStations>;
+  nrNonStandalone: Map<string, StoredCell>;
   umtsMissing: Map<string, StoredCell>;
   lteMissing: Map<string, StoredCell>;
   nrMissing: Map<string, StoredCell>;
 };
+type NonStandaloneLeg = { anchor: Extract<ObservedCell, { rat: "lte" }>; pci: number; arfcn: number };
+type AnchoredLeg = { leg: NonStandaloneLeg; anchorMatch: ObservedCellMatch };
 type ChannelIdentifiers = [first: number, second: number, pci: number, channel: number];
 
 const PAIRS_PER_QUERY = 200;
@@ -101,6 +104,8 @@ const STORED_CELL_COLUMNS = {
 export const SHARED_AREA_FIELDS = new Set<string>(["tac", "lac"]);
 const SYSTEM_SCOPE: MatchScope = { hiddenCountryCodes: [], skipsInactive: false, followsAnalyzerSwitch: false };
 const NEAREST_STATION_MAX_M = 10_000;
+const NO_POSITIONS: StationPositions = { point: null, stationPoints: new Map() };
+const NO_FEATURES: ReadonlyMap<number, CountryFeatures> = new Map();
 
 function identityKey(operatorId: number, ...values: (number | string)[]): string {
   return `${operatorId}:${values.join(":")}`;
@@ -308,6 +313,7 @@ async function findStoredCells(
     nr: new Map(),
     nrByNci: new Map(),
     nrStations: new Map(),
+    nrNonStandalone: new Map(),
     umtsMissing: new Map(),
     lteMissing: new Map(),
     nrMissing: new Map(),
@@ -396,7 +402,7 @@ async function findStoredCells(
     if (cell.rat === "umts") {
       const rnc = knownRnc(cell.rnc);
       const isFound = rnc !== null && found.umtsByRnc.has(identityKey(own, rnc, cell.cid));
-      if (!isFound) addIdentifier(umtsLacPairs, own, [cell.lac, cell.cid]);
+      if (!isFound && typeof cell.lac === "number") addIdentifier(umtsLacPairs, own, [cell.lac, cell.cid]);
     } else if (cell.rat === "lte" && cell.enbid > 0 && !found.lte.has(identityKey(own, cell.enbid, cell.clid))) {
       for (const enbid of equivalentEnbids(network, cell.enbid)) addIdentifier(enbids, own, enbid);
     }
@@ -440,7 +446,9 @@ async function findMissingCodeCells(
     if (cell.rat === "umts") {
       const rnc = knownRnc(cell.rnc);
       if (rnc === null || typeof cell.psc !== "number" || typeof cell.uarfcn !== "number") continue;
-      const isFound = found.umtsByRnc.has(identityKey(own, rnc, cell.cid)) || found.umtsByLac.has(identityKey(own, cell.lac, cell.cid));
+      const isFound =
+        found.umtsByRnc.has(identityKey(own, rnc, cell.cid)) ||
+        (typeof cell.lac === "number" && found.umtsByLac.has(identityKey(own, cell.lac, cell.cid)));
       if (!isFound) addIdentifier(umtsValues, own, [rnc, cell.cid, cell.psc, cell.uarfcn]);
     } else if (cell.rat === "lte" && cell.enbid > 0 && typeof cell.pci === "number" && typeof cell.earfcn === "number") {
       const isFound =
@@ -492,6 +500,30 @@ async function findMissingCodeCells(
       },
     ),
   ]);
+}
+
+function nonStandaloneKey(stationId: number, pci: number, arfcn: number): string {
+  return `${stationId}:${pci}:${arfcn}`;
+}
+
+function nonStandaloneLegOf(cell: ObservedCell): NonStandaloneLeg | null {
+  if (cell.rat !== "nr" || cell.anchor === undefined || cell.anchor === null) return null;
+  if (typeof cell.nci === "number" || typeof cell.gnbid === "number" || typeof cell.pci !== "number" || typeof cell.arfcn !== "number") return null;
+  return { anchor: { rat: "lte", plmn: cell.plmn, ...cell.anchor }, pci: cell.pci, arfcn: cell.arfcn };
+}
+
+async function findNonStandaloneCells(stationIds: readonly number[], found: StoredCellIndex): Promise<void> {
+  await runLimited(
+    chunks(stationIds, VALUES_PER_QUERY).map((chunk) => async () => {
+      const nonStandaloneOfStations = and(inArray(cells.station_id, chunk), eq(cells.rat, "NR"), eq(nrCells.type, "nsa"));
+      for (const row of await selectStoredCells().where(nonStandaloneOfStations)) {
+        if (!row.nr || row.nr.pci === null || row.nr.arfcn === null) continue;
+        const key = nonStandaloneKey(row.cell.station_id, row.nr.pci, row.nr.arfcn);
+        const kept = found.nrNonStandalone.get(key);
+        if (!kept || row.cell.id < kept.cell.id) found.nrNonStandalone.set(key, row);
+      }
+    }),
+  );
 }
 
 function unmatched(
@@ -611,6 +643,7 @@ function resolveCell(
 
     case "umts": {
       const rnc = knownRnc(cell.rnc);
+      if (rnc === null && typeof cell.lac !== "number") return unmatched(own, "noIdentifiers");
       const exact = rnc === null ? undefined : found.umtsByRnc.get(identityKey(own, rnc, cell.cid));
       if (exact?.umts) {
         const differences = compare(exact, [
@@ -621,7 +654,7 @@ function resolveCell(
         return matched("cell", network, exact, differences);
       }
 
-      const byLac = found.umtsByLac.get(identityKey(own, cell.lac, cell.cid));
+      const byLac = typeof cell.lac === "number" ? found.umtsByLac.get(identityKey(own, cell.lac, cell.cid)) : undefined;
       if (!byLac?.umts) {
         const missing = found.umtsMissing.get(identityKey(own, rnc ?? "", cell.cid, cell.psc ?? "", cell.uarfcn ?? ""));
         return missing ? matchedMissingCode(network, missing) : unmatched(own, "cellUnknown");
@@ -682,6 +715,15 @@ function resolveCell(
       return missing ? matchedMissingCode(network, missing, identity) : unmatched(own, "cellUnknown", identity);
     }
   }
+}
+
+function resolveNonStandaloneCell(network: Network | undefined, { leg, anchorMatch }: AnchoredLeg, found: StoredCellIndex): ObservedCellMatch {
+  const { result, storedCell } = anchorMatch;
+  if (network === undefined || storedCell === null) return anchorMatch;
+
+  const stored = found.nrNonStandalone.get(nonStandaloneKey(storedCell.cell.station_id, leg.pci, leg.arfcn));
+  if (stored) return matched("cell", network, { ...stored, through: storedCell.through });
+  return matched("station", network, storedCell, [], null, result.stationIds);
 }
 
 async function loadStations(stationIds: readonly number[]): Promise<Station[]> {
@@ -751,16 +793,30 @@ async function findOfficialSitesForUnknownCells(
 async function matchInScope(scope: MatchScope, observed: readonly ObservedCell[], points: readonly (Point | null)[] = []) {
   const networks = await resolveNetworks(unique(observed.map((cell) => cell.plmn)), scope);
   const matchableNetworks = new Map([...networks].filter(([, network]) => network.isMatchable));
-  const found = await findStoredCells(observed, matchableNetworks, scope);
+  const legs = observed.map(nonStandaloneLegOf);
+  const found = await findStoredCells([...observed, ...legs.flatMap((leg) => leg?.anchor ?? [])], matchableNetworks, scope);
+  const anchoredLegs = legs.map((leg): AnchoredLeg | null =>
+    leg === null ? null : { leg, anchorMatch: resolveCell(leg.anchor, networks.get(leg.anchor.plmn), found, NO_FEATURES, NO_POSITIONS) },
+  );
+  const anchorStationIds = unique(anchoredLegs.flatMap((anchored) => anchored?.anchorMatch.result.stationId ?? []));
   const { lteStations, nrStations, ...cellIndexes } = found;
-  const storedStationIds = unique(Object.values(cellIndexes).flatMap((index) => [...index.values()].map((row) => row.cell.station_id)));
+  const storedStationIds = unique([
+    ...Object.values(cellIndexes).flatMap((index) => [...index.values()].map((row) => row.cell.station_id)),
+    ...anchorStationIds,
+  ]);
   const nodesOnSeveralStations = [...lteStations.values(), ...nrStations.values()].filter((byStation) => byStation.size > 1);
   const candidateIds = points.some((point) => point !== null) ? unique(nodesOnSeveralStations.flatMap((byStation) => [...byStation.keys()])) : [];
-  const [featuresByStation, stationPoints] = await Promise.all([getStationCountryFeatures(storedStationIds), loadStationPoints(candidateIds)]);
+  const [featuresByStation, stationPoints] = await Promise.all([
+    getStationCountryFeatures(storedStationIds),
+    loadStationPoints(candidateIds),
+    findNonStandaloneCells(anchorStationIds, found),
+  ]);
 
-  const matches = observed.map((cell, index) =>
-    resolveCell(cell, networks.get(cell.plmn), found, featuresByStation, { point: points[index] ?? null, stationPoints }),
-  );
+  const matches = observed.map((cell, index) => {
+    const anchored = anchoredLegs[index];
+    if (anchored) return resolveNonStandaloneCell(networks.get(cell.plmn), anchored, found);
+    return resolveCell(cell, networks.get(cell.plmn), found, featuresByStation, { point: points[index] ?? null, stationPoints });
+  });
   return { networks, featuresByStation, matches };
 }
 

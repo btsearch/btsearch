@@ -7,7 +7,7 @@
   },
   "file": {
     "dropHint": "Drop a file here or click to select",
-    "constraints": "Supported formats: NetMonster (.ntm), NetMonitor (.csv, .clf), and NSG (.log, .gz) · up to 20,000 cells",
+    "constraints": "Supported formats: NetMonster (.ntm), NetMonitor (.csv, .clf), CLF (.clf), Celldex (.cdx), and NSG (.log, .gz) · up to 20,000 cells",
     "parsing": "Reading file...",
     "changeFile": "Change file",
     "skipped_one": "{{count, number}} row skipped",
