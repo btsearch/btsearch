@@ -434,7 +434,7 @@ describe("getCellsExport", () => {
     ["2.1", "0012300045310260\tSITE\n"],
     ["3.0-dec", "310260;00123;00045;00000;52;21;-1;SITE;0\n"],
     ["3.0-hex", "310260;0x007B;0x002D;0x0000;52;21;-1;SITE;0\n"],
-    ["4.0", "310260;00123;00045;0;52;21;-1;SITE;1;SITE_123;0;0;0;0;0;SITE\n"],
+    ["4.0", "310260;00123;00045;0;52;21;-1;SITE;1;SITE_123;-1;-1;-1;-1;99;SITE\n"],
     ["ntm", "2G;310;260;123;45;2147483647;2147483647;52;21;SITE;2147483647\n"],
     ["netmonitor", "G;310;260;45;123;;;52;21;100;SITE;\n"],
   ])("streams real GSM conversion for %s with the three-digit MNC preserved", async (format, text) => {
@@ -644,7 +644,7 @@ describe("loadNativeExportLines", () => {
     const template = "{address}|{structure_type}|{structure_note}|{sector_number}|{sector_azimuth}|{cell_type}|{notes}";
     const lines = await loadNativeExportLines(selection, [1, 2], "4.0", { templates: { GSM: template } });
     const address = extraAddress === null ? "Fallback address" : "";
-    expect(lines).toEqual([`310260;00123;00045;0;0;0;-1;${address}|rooftop|property detail|1|0°|pico|cell notes;1;FIRST_123;0;0;0;0;0;FIRST`]);
+    expect(lines).toEqual([`310260;00123;00045;1;0;0;-1;${address}|rooftop|property detail|1|0°|pico|cell notes;1;FIRST_123;0;-1;-1;-1;99;FIRST`]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -721,7 +721,7 @@ describe("loadNativeExportLines", () => {
     dbMock.enqueueFor("select", "cells", rows.gsmRows);
     dbMock.enqueueFor("select", "station_sectors", rows.stationSectorRows);
     const lines = await loadNativeExportLines(selection, [1, 2], "4.0", { templates: { GSM: "{structure_details}" } });
-    expect(lines).toEqual([`310260;00123;00045;0;0;0;-1;${written};1;FIRST_123;0;0;0;0;0;FIRST`]);
+    expect(lines).toEqual([`310260;00123;00045;1;0;0;-1;${written};1;FIRST_123;0;-1;-1;-1;99;FIRST`]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -842,6 +842,36 @@ describe("compiled export templates", () => {
   });
 });
 
+describe("cell fields beyond the identity", () => {
+  const options: ConvertOptions = { templates: { GSM: "{station_id}", UMTS: "{station_id}" } };
+  const gsm = { cid: 123, lac: 45, rat: "GSM" as const, station_id: "SITE", band_name: "GSM 900", operator_mnc: 26002, latitude: 52, longitude: 21 };
+
+  it.each([
+    ["an outdoor macro sector", { cell_type: "MACROCELL", sector_azimuth: 120 }, "0", "120"],
+    ["a small cell facing north", { cell_type: "MICROCELL", sector_azimuth: 360 }, "1", "0"],
+    ["an indoor sector", { cell_type: "FEMTOCELL", sector_azimuth: 90 }, "2", "450"],
+    ["a cell of unknown type without a sector", { cell_type: null }, "-1", "-1"],
+  ])("writes the CLF 4.1 type and azimuth of %s", (_title, fields, type, azimuth) => {
+    const line = convertToCLF({ ...gsm, ...fields }, "4.0", options);
+    expect(line).toBe(`26002;00123;00045;${type};52;21;-1;SITE;1;SITE_123;${azimuth};-1;-1;-1;99;SITE`);
+  });
+
+  it("writes a UMTS cell's 28-bit id with the RNC for Netmonitor", () => {
+    const umts = {
+      cid: 234,
+      rnc: 2,
+      cid_long: 2 * 65_536 + 234,
+      lac: 56,
+      rat: "UMTS" as const,
+      station_id: "SITE",
+      band_name: "UMTS 2100",
+      operator_mnc: 26002,
+    };
+    expect(convertToCLF(umts, "netmonitor", options)).toBe("W;260;02;56;131306;;;;;100;SITE;");
+    expect(convertToCLF(umts, "4.0", options)).toBe("26002;00234;00056;-1;0;0;0;SITE;3;SITE_234;-1;-1;-1;-1;99;SITE");
+  });
+});
+
 describe("LTE EARFCN in export lines", () => {
   const options: ConvertOptions = { templates: { LTE: "{lte_earfcn}" } };
   const selection: ExportSelection = { ...nativeSelection(), rats: { gsm: false, umts: false, lte: true, nr: false } };
@@ -873,7 +903,7 @@ describe("LTE EARFCN in export lines", () => {
     ["2.1", "003450006726002\t1300", "003450006726002\t"],
     ["3.0-dec", "26002;00345;00067;00000;52;21;-1;1300;0", "26002;00345;00067;00000;52;21;-1;;0"],
     ["3.0-hex", "26002;0x0159;0x0043;0x0000;52;21;-1;1300;0", "26002;0x0159;0x0043;0x0000;52;21;-1;;0"],
-    ["4.0", "26002;00345;00067;0;52;21;-1;1300;4;SITE_345;0;0;0;0;0;SITE", "26002;00345;00067;0;52;21;-1;;4;SITE_345;0;0;0;0;0;SITE"],
+    ["4.0", "26002;00345;00067;0;52;21;-1;1300;4;SITE_345;-1;-1;-1;-1;99;SITE", "26002;00345;00067;0;52;21;-1;;4;SITE_345;-1;-1;-1;-1;99;SITE"],
     ["ntm", "4G;260;02;89;67;1;7;52;21;1300;1300", "4G;260;02;89;67;1;7;52;21;;2147483647"],
     ["netmonitor", "L;260;02;67;345;7;1300;52;21;100;1300;", "L;260;02;67;345;7;;52;21;100;;"],
   ])("prints the cell's stored EARFCN in %s and none for a cell without one", async (format, stored, missing) => {

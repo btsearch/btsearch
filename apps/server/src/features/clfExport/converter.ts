@@ -35,6 +35,11 @@ export function prepareConvertOptions(options: ConvertOptions): ConvertOptions {
 }
 
 const NTM_UNKNOWN = 2147483647; // 2^31-1, used in netmonitor format
+const CLF4_UNKNOWN = -1;
+const CLF4_UNKNOWN_TILT = 99;
+const CLF4_INDOOR = 2;
+const CLF4_INDOOR_AZIMUTH_OFFSET = 360;
+const CLF4_CELL_TYPES = { MACROCELL: 0, MICROCELL: 1, PICOCELL: 1, FEMTOCELL: CLF4_INDOOR } as const;
 const LEGACY_MCC = "260";
 const MCC_LENGTH = 3;
 const SHORTEST_PLMN_LENGTH = 5;
@@ -277,7 +282,17 @@ export function toCLF30Dec(cell: CellExportData, options?: ConvertOptions): stri
   return toCLF30(cell, 10, options);
 }
 
-export function toCLF40(cell: CellExportData, options?: ConvertOptions): string | null {
+function getCLF4CellType(cell: CellExportData): number {
+  return CLF4_CELL_TYPES[cell.cell_type as keyof typeof CLF4_CELL_TYPES] ?? CLF4_UNKNOWN;
+}
+
+function getCLF4Azimuth(cell: CellExportData, type: number): number {
+  if (cell.sector_azimuth === undefined) return CLF4_UNKNOWN;
+  const azimuth = cell.sector_azimuth % 360;
+  return type === CLF4_INDOOR ? CLF4_INDOOR_AZIMUTH_OFFSET + azimuth : azimuth;
+}
+
+export function toCLF41(cell: CellExportData, options?: ConvertOptions): string | null {
   const lac = cell.lac ?? cell.tac ?? cell.nrtac ?? 0;
   const cellId = getCellIdForExport(cell);
   if (!cellId) return null;
@@ -285,21 +300,17 @@ export function toCLF40(cell: CellExportData, options?: ConvertOptions): string 
   const mccmnc = cell.operator_mnc;
   const cidFormatted = formatIdField(cellId, 10);
   const lacFormatted = formatIdField(lac, 10);
-  const type = 0;
+  const type = getCLF4CellType(cell);
   const lat = cell.latitude ?? 0;
   const lon = cell.longitude ?? 0;
   const posRat = getPosRat(cell);
   const description = renderDescription(cell, options);
   const sys = getRatCode(cell.rat);
   const label = `${cell.station_id}_${cellId}`;
-  const azi = 0;
-  const height = 0;
-  const hbw = 0;
-  const vbw = 0;
-  const tilt = 0;
+  const azi = getCLF4Azimuth(cell, type);
   const loc = cell.station_id;
 
-  return `${mccmnc};${cidFormatted};${lacFormatted};${type};${lat};${lon};${posRat};${description};${sys};${label};${azi};${height};${hbw};${vbw};${tilt};${loc}`;
+  return `${mccmnc};${cidFormatted};${lacFormatted};${type};${lat};${lon};${posRat};${description};${sys};${label};${azi};${CLF4_UNKNOWN};${CLF4_UNKNOWN};${CLF4_UNKNOWN};${CLF4_UNKNOWN_TILT};${loc}`;
 }
 
 function getCellIdForExport(cell: CellExportData): bigint | number | null {
@@ -579,7 +590,7 @@ export function convertToCLF(cell: CellExportData, format: ClfFormat, options?: 
     case "3.0-hex":
       return toCLF30Hex(cell, options);
     case "4.0":
-      return toCLF40(cell, options);
+      return toCLF41(cell, options);
     case "ntm":
       return toNTM(cell, options);
     case "netmonitor":
@@ -661,7 +672,7 @@ export function toNetMonitor(cell: CellExportData, options?: ConvertOptions): st
     }
     case "UMTS": {
       const lac = cell.lac ?? 0;
-      const cid = cell.cid ?? 0;
+      const cid = cell.cid_long ?? cell.cid ?? 0;
       const psc = "";
       const uarfcn = cell.arfcn ?? "";
       const description = renderDescription(cell, options);

@@ -16,7 +16,8 @@ const templateSchema = z.string().trim().min(1).max(CLF_DESCRIPTION_TEMPLATE_MAX
 
 const FORMAT_NOTE =
   "`2.0`, `2.1`, `3.0-dec`, `3.0-hex` and `4.0` are CLF versions, of which `2.0` and `3.0-hex` write cell identifiers " +
-  "in hexadecimal and the others in decimal. `ntm` is the NetMonster format and `netmonitor` the Netmonitor CSV format";
+  "in hexadecimal and the others in decimal. `4.0` writes CLF 4.1, the version G-MoN reads. " +
+  "`ntm` is the NetMonster format and `netmonitor` the Netmonitor CSV format, which gives a UMTS cell its 28-bit id with the RNC";
 const OPERATORS_NOTE = "For a shared network, the cells of its members are exported too. Comma-separated ids";
 const IOT_RATS_NOTE =
   "Adds the IoT cells of these technologies to the cells in `rats`: `lte` for NB-IoT and LTE-M cells, `nr` for RedCap cells. " +

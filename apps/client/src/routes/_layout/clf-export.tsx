@@ -56,7 +56,7 @@ const FORMAT_OPTIONS = [
   { value: "2.1", label: "CLF v2.1" },
   { value: "3.0-dec", label: "CLF v3.0 (dec)" },
   { value: "3.0-hex", label: "CLF v3.0 (hex)" },
-  { value: "4.0", label: "CLF v4.0" },
+  { value: "4.0", label: "CLF v4.1" },
   { value: "ntm", label: "NetMonster (.ntm)" },
   { value: "netmonitor", label: "Netmonitor (.csv)" },
 ] as const;
@@ -879,12 +879,12 @@ function ClfExportPage() {
                     </a>
                     {", "}
                     <a
-                      href="https://sites.google.com/site/clfgmon/"
+                      href="https://sites.google.com/site/clfgmon/clf4"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary underline-offset-4 hover:underline"
                     >
-                      4.0
+                      4.1
                     </a>
                     {", "}
                     <a
