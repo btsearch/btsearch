@@ -9,6 +9,7 @@ const FILE_EXTENSION_BY_FORMAT: Record<CLFExportFormat, string> = {
   "4.0": "clf",
   ntm: "ntm",
   netmonitor: "csv",
+  celldex: "cdx",
 };
 
 type ExportFileHandle = {

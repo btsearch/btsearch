@@ -6,6 +6,7 @@ import {
   CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH,
   CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT,
   CLF_EXPORT_FORMATS,
+  type ClfExportFormat,
 } from "../clfExportTemplates.ts";
 import { csvBandIdsSchema } from "./bands.ts";
 import { NR_MODES } from "./cells.ts";
@@ -17,7 +18,9 @@ const templateSchema = z.string().trim().min(1).max(CLF_DESCRIPTION_TEMPLATE_MAX
 const FORMAT_NOTE =
   "`2.0`, `2.1`, `3.0-dec`, `3.0-hex` and `4.0` are CLF versions, of which `2.0` and `3.0-hex` write cell identifiers " +
   "in hexadecimal and the others in decimal. `4.0` writes CLF 4.1, the version G-MoN reads. " +
-  "`ntm` is the NetMonster format and `netmonitor` the Netmonitor CSV format, which gives a UMTS cell its 28-bit id with the RNC";
+  "`ntm` is the NetMonster format and `netmonitor` the Netmonitor CSV format, which gives a UMTS cell its 28-bit id with the RNC. " +
+  "`celldex` is the Celldex cell list: one `site` per station, named `[<siteId>] <city>, <address>`, with its cells below it. " +
+  "Its cells carry no names, so the description templates do not apply to it";
 const OPERATORS_NOTE =
   "For a shared network, the cells of its members are exported too. Of another operator's station, only the cells that also broadcast " +
   "one of these networks are exported. Comma-separated ids";
@@ -26,9 +29,11 @@ const IOT_RATS_NOTE =
   "For example, `rats=gsm&iotRats=lte` exports every GSM cell and the LTE IoT cells, and `iotRats=lte` alone only the LTE IoT cells. Comma-separated list";
 const NR_MODES_NOTE =
   "Exports only NR cells in these modes. Defaults to `sa`, so you only get `nsa` cells when you ask for them. " +
-  "They need `format=ntm` and are written with NCI `1` and the TAC of the station's LTE cells, or an unknown TAC when those cells have different ones. " +
+  "They need `format=ntm` or `format=celldex`. `ntm` writes them with NCI `1` and the TAC of the station's LTE cells, or an unknown TAC when those cells have different ones. " +
+  "`celldex` writes them under their station's site as `nr -` with their PCI, channel and band and the flag `nsa`. " +
   `Comma-separated list. Possible values: \`${NR_MODES.join("`, `")}\``;
-const NSA_FORMAT_ISSUE = { path: ["nrModes"], message: "`nsa` cells can only be exported with `format=ntm`" };
+const NSA_FORMATS: ReadonlySet<ClfExportFormat> = new Set(["ntm", "celldex"]);
+const NSA_FORMAT_ISSUE = { path: ["nrModes"], message: "`nsa` cells can only be exported with `format=ntm` or `format=celldex`" };
 
 function templateNote(cells: string, rat: CLFDescriptionTemplateRat): string {
   const placeholders: readonly string[] = CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT[rat];
@@ -56,5 +61,5 @@ export const cellExportQuerySchema = z
     templateNr: templateSchema.optional().describe(templateNote("standalone NR", "NR")),
   })
   .strict()
-  .refine((query) => query.format === "ntm" || !query.nrModes?.includes("nsa"), NSA_FORMAT_ISSUE);
+  .refine((query) => NSA_FORMATS.has(query.format) || !query.nrModes?.includes("nsa"), NSA_FORMAT_ISSUE);
 export type CellExportQuery = z.infer<typeof cellExportQuerySchema>;

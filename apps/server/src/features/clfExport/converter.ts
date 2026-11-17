@@ -104,13 +104,17 @@ export interface CellExportData {
   clid?: number | null;
   ecid?: number | null;
   gnbid?: number | null;
+  gnbid_length?: number | null;
   pci?: number | null;
+  psc?: number | null;
+  bsic?: number | null;
   nci?: bigint | null;
   rat: "GSM" | "CDMA" | "UMTS" | "LTE" | "NR";
   nr_type?: "nsa" | "sa" | null;
   band_value?: number | null;
   band_name: string;
   band_duplex?: BandDuplex;
+  band_code?: string | null;
   station_lte_tac?: number | null;
   station_id: string;
   operator_mnc?: number | null;
@@ -231,7 +235,7 @@ function getPosRat(cell: CellExportData): number {
   return cell.latitude !== null && cell.latitude !== undefined && cell.longitude !== null && cell.longitude !== undefined ? -1 : 0;
 }
 
-function getMccMnc(cell: CellExportData): { mcc: string; mnc: string } {
+export function getMccMnc(cell: Pick<CellExportData, "operator_mnc">): { mcc: string; mnc: string } {
   const digits = cell.operator_mnc?.toString() ?? "";
   if (digits.length < SHORTEST_PLMN_LENGTH) return { mcc: LEGACY_MCC, mnc: digits.slice(-2).padStart(2, "0") };
   return { mcc: digits.slice(0, MCC_LENGTH), mnc: digits.slice(MCC_LENGTH) };
@@ -413,7 +417,7 @@ function formatTemplateValue(value: string | number | bigint | null | undefined)
   return String(value);
 }
 
-function sanitizeDescription(value: string): string {
+export function sanitizeDescription(value: string): string {
   return value
     .replace(/;/g, ",")
     .replace(/\t/g, " ")

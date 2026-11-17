@@ -20,14 +20,15 @@ import { logger } from "../../../../utils/logger.js";
 
 const MAX_ACTIVE_EXPORTS = 2;
 const UNREAD_CHUNK_TIMEOUT_MS = 30_000;
-const FILE_EXTENSIONS: Partial<Record<ClfExportFormat, string>> = { ntm: "ntm", netmonitor: "csv" };
+const FILE_EXTENSIONS: Partial<Record<ClfExportFormat, string>> = { ntm: "ntm", netmonitor: "csv", celldex: "cdx" };
 const FILE_HEADERS = ["Content-Type", "Content-Disposition", "Last-Modified"];
 
 const schemaRoute = {
   summary: "Export cells as a text file",
   description:
-    "Returns a file with one line per cell. The CLF versions produce a `.clf` file, `ntm` a `.ntm` file and `netmonitor` a `.csv` file. " +
-    "Only cells of active stations on commercial bands are exported, and cells without the identifiers a format needs are skipped.\n\n" +
+    "Returns the cells as a text file: `.clf` for the CLF versions, `.ntm` for `ntm`, `.csv` for `netmonitor` and `.cdx` for `celldex`. " +
+    "Only cells of active stations on commercial bands are exported. The line formats skip cells without the identifiers they need, " +
+    "and `celldex` writes such a cell with `-` in place of its identity.\n\n" +
     "The `Last-Modified` header tells you when the newest exported cell was changed, and a `HEAD` request returns the headers " +
     "without the file. The server only runs a few exports at the same time, and you can call this endpoint up to 10 times every 5 minutes. " +
     "Editors and administrators are not held to those 10 calls, unless they use an API key.",

@@ -72,7 +72,7 @@ setInterval(cleanupOldExports, CACHE_TTL * 1000);
 
 const schemaRoute = {
   querystring: z.object({
-    format: z.enum(CLF_EXPORT_FORMATS).default("4.0"),
+    format: z.enum(CLF_EXPORT_FORMATS).exclude(["celldex"]).default("4.0"),
     operators: z
       .string()
       .optional()

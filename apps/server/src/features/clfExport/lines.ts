@@ -22,8 +22,18 @@ import db from "../../database/psql.js";
 import { extraCodesByCell } from "../cells/networks.js";
 import { operatedBy } from "../operators/sharing.js";
 import { stationCountryCode } from "../stations/country.js";
+import { getCountryFeaturesByCode } from "../stations/countryFeatures.js";
 import type { StoredStructureType } from "../structures/serialize.js";
-import { type BandDuplex, type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF, prepareConvertOptions } from "./converter.js";
+import { writeCelldexSites } from "./celldex.js";
+import {
+  type BandDuplex,
+  type CellExportData,
+  type ClfFormat,
+  type ConvertOptions,
+  type NRBandPCIs,
+  convertToCLF,
+  prepareConvertOptions,
+} from "./converter.js";
 
 export type ExportSelection = {
   stationConditions: SQL[];
@@ -64,16 +74,19 @@ type CommonCellRow = StationExportMetadata & {
   band_value: number | null;
   band_name: string | null;
   band_duplex: BandDuplex;
+  band_code: string | null;
   is_confirmed: boolean | null;
 };
+export type ExportedCell = { stationPk: number; cellPk: number; countryCode: string | null; cell: CellExportData };
 export type ExportRows = {
-  gsmRows: (CommonCellRow & { gsm_lac: number | null; gsm_cid: number | null; gsm_e_gsm: boolean | null })[];
+  gsmRows: (CommonCellRow & { gsm_lac: number | null; gsm_cid: number | null; gsm_e_gsm: boolean | null; gsm_bsic: number | null })[];
   umtsRows: (CommonCellRow & {
     umts_lac: number | null;
     umts_rnc: number | null;
     umts_cid: number | null;
     umts_cid_long: number | null;
     umts_arfcn: number | null;
+    umts_psc: number | null;
   })[];
   lteRows: (CommonCellRow & {
     lte_tac: number | null;
@@ -86,6 +99,7 @@ export type ExportRows = {
   nrRows: (CommonCellRow & {
     nr_nrtac: number | null;
     nr_gnbid: number | null;
+    nr_gnbid_length: number | null;
     nr_clid: number | null;
     nr_nci: bigint | null;
     nr_pci: number | null;
@@ -153,11 +167,16 @@ function networkKey(stationId: number, network: string): string {
   return `${stationId}:${network}`;
 }
 
+function exportedCell(row: CommonCellRow, cell: CellExportData): ExportedCell {
+  return { stationPk: row.station_pk, cellPk: row.cell_pk, countryCode: row.station_country_code, cell };
+}
+
 function buildCommonCellFields(row: CommonCellRow, sectorMeta: SectorMeta | undefined) {
   return {
     band_value: row.band_value,
     band_name: row.band_name as string,
     band_duplex: row.band_duplex ?? null,
+    band_code: row.band_code,
     station_id: row.station_sid,
     operator_mnc: row.operator_mnc,
     latitude: row.latitude,
@@ -207,12 +226,13 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
     band_value: bands.value,
     band_name: bands.name,
     band_duplex: bands.duplex,
+    band_code: bands.code,
     is_confirmed: cells.is_confirmed,
   };
 
   const gsmQuery = rats.gsm
     ? db
-        .select({ ...commonSelect, gsm_lac: gsmCells.lac, gsm_cid: gsmCells.cid, gsm_e_gsm: gsmCells.e_gsm })
+        .select({ ...commonSelect, gsm_lac: gsmCells.lac, gsm_cid: gsmCells.cid, gsm_e_gsm: gsmCells.e_gsm, gsm_bsic: gsmCells.bsic })
         .from(cells)
         .innerJoin(gsmCells, eq(gsmCells.cell_id, cells.id))
         .innerJoin(stations, eq(cells.station_id, stations.id))
@@ -234,6 +254,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
           umts_cid: umtsCells.cid,
           umts_cid_long: umtsCells.cid_long,
           umts_arfcn: umtsCells.arfcn,
+          umts_psc: umtsCells.psc,
         })
         .from(cells)
         .innerJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
@@ -276,6 +297,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
           ...commonSelect,
           nr_nrtac: nrCells.nrtac,
           nr_gnbid: nrCells.gnbid,
+          nr_gnbid_length: nrCells.gnbid_length,
           nr_clid: nrCells.clid,
           nr_nci: nrCells.nci,
           nr_pci: nrCells.pci,
@@ -341,11 +363,12 @@ export async function renderExportLines(
   convertOptions: ConvertOptions,
   networks: ExportNetworks = NO_NETWORKS,
 ): Promise<string[]> {
-  const gsmRows = perNetwork(rows.gsmRows, networks);
-  const umtsRows = perNetwork(rows.umtsRows, networks);
-  const lteRows = perNetwork(rows.lteRows, networks);
-  const nrRows = perNetwork(rows.nrRows, networks);
-  const nrBandRows = rows.nrBandRows.flatMap((row) => networksOf(networks, row.station_id, row.cell_pk).map((network) => ({ ...row, network })));
+  const rowNetworks = format === "celldex" ? NO_NETWORKS : networks;
+  const gsmRows = perNetwork(rows.gsmRows, rowNetworks);
+  const umtsRows = perNetwork(rows.umtsRows, rowNetworks);
+  const lteRows = perNetwork(rows.lteRows, rowNetworks);
+  const nrRows = perNetwork(rows.nrRows, rowNetworks);
+  const nrBandRows = rows.nrBandRows.flatMap((row) => networksOf(rowNetworks, row.station_id, row.cell_pk).map((network) => ({ ...row, network })));
   const { stationSectorRows } = rows;
   const preparedOptions = prepareConvertOptions(convertOptions);
   const displayNRSeparately = convertOptions.displayNRSeparately === true;
@@ -390,7 +413,7 @@ export async function renderExportLines(
           .where(inArray(cells.station_id, missingStationIds))
       : [];
   const stationLteTacRows = storedLteTacRows.flatMap((row) =>
-    networksOf(networks, row.station_id, row.cell_id).map((network) => ({
+    networksOf(rowNetworks, row.station_id, row.cell_id).map((network) => ({
       key: networkKey(row.station_id, network),
       station_lte_tac: row.station_lte_tac,
     })),
@@ -449,46 +472,42 @@ export async function renderExportLines(
     stationNRBandPciMap.set(stationNRKey, nrBandMap);
   }
 
-  const clfLines: string[] = [];
+  const exported: ExportedCell[] = [];
 
   for (const row of gsmRows) {
     const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
-    const line = convertToCLF(
-      {
+    exported.push(
+      exportedCell(row, {
         ...buildCommonCellFields(row, sectorMeta),
         cid: row.gsm_cid ?? 0,
         lac: row.gsm_lac,
         rat: "GSM",
         e_gsm: row.gsm_e_gsm ?? null,
-      },
-      format,
-      preparedOptions,
+        bsic: row.gsm_bsic,
+      }),
     );
-    if (line) clfLines.push(line);
   }
 
   for (const row of umtsRows) {
     const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
-    const line = convertToCLF(
-      {
+    exported.push(
+      exportedCell(row, {
         ...buildCommonCellFields(row, sectorMeta),
         cid: row.umts_cid ?? 0,
         lac: row.umts_lac,
         rnc: row.umts_rnc,
         cid_long: row.umts_cid_long,
         arfcn: row.umts_arfcn ?? null,
+        psc: row.umts_psc,
         rat: "UMTS",
-      },
-      format,
-      preparedOptions,
+      }),
     );
-    if (line) clfLines.push(line);
   }
 
   for (const row of lteRows) {
     const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
-    const line = convertToCLF(
-      {
+    exported.push(
+      exportedCell(row, {
         ...buildCommonCellFields(row, sectorMeta),
         cid: row.lte_enbid ?? 0,
         tac: row.lte_tac,
@@ -501,11 +520,8 @@ export async function renderExportLines(
         nr_band_pcis: row.station_pk
           ? [...(stationNrNonStandaloneBandPciMap.get(networkKey(row.station_pk, row.network))?.values() ?? [])]
           : undefined,
-      },
-      format,
-      preparedOptions,
+      }),
     );
-    if (line) clfLines.push(line);
   }
 
   for (const row of nrRows) {
@@ -513,12 +529,13 @@ export async function renderExportLines(
     const nrBandPciMap = stationNRBandPciMap.get(stationNRKey);
     const nr_band_pcis = nrBandPciMap ? [...nrBandPciMap.values()] : undefined;
     const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
-    const line = convertToCLF(
-      {
+    exported.push(
+      exportedCell(row, {
         ...buildCommonCellFields(row, sectorMeta),
         cid: row.nr_gnbid ?? 0,
         nrtac: row.nr_nrtac,
         gnbid: row.nr_gnbid,
+        gnbid_length: row.nr_gnbid_length,
         clid: row.nr_clid,
         nci: row.nr_nci,
         nr_type: row.nr_type,
@@ -527,12 +544,13 @@ export async function renderExportLines(
         station_lte_tac: row.station_pk ? stationLteTacMap.get(networkKey(row.station_pk, row.network)) : undefined,
         rat: "NR",
         nr_band_pcis,
-      },
-      format,
-      preparedOptions,
+      }),
     );
-    if (line) clfLines.push(line);
   }
 
-  return clfLines;
+  if (format === "celldex") {
+    const featuresByCountry = await getCountryFeaturesByCode(exported.map((entry) => entry.countryCode));
+    return writeCelldexSites(exported, networks.extraCodes, featuresByCountry);
+  }
+  return exported.flatMap(({ cell }) => convertToCLF(cell, format, preparedOptions) ?? []);
 }

@@ -51,6 +51,7 @@ export async function loadNativeExportLines(
     band_value: bands.value,
     band_name: bands.name,
     band_duplex: bands.duplex,
+    band_code: bands.code,
     is_confirmed: cells.is_confirmed,
   };
   const stationMetadataQuery = db
@@ -80,7 +81,7 @@ export async function loadNativeExportLines(
     .where(inArray(stations.id, [...stationIds]));
   const gsmQuery = rats.gsm
     ? db
-        .select({ ...commonSelect, gsm_lac: gsmCells.lac, gsm_cid: gsmCells.cid, gsm_e_gsm: gsmCells.e_gsm })
+        .select({ ...commonSelect, gsm_lac: gsmCells.lac, gsm_cid: gsmCells.cid, gsm_e_gsm: gsmCells.e_gsm, gsm_bsic: gsmCells.bsic })
         .from(cells)
         .innerJoin(gsmCells, eq(gsmCells.cell_id, cells.id))
         .innerJoin(stations, eq(cells.station_id, stations.id))
@@ -96,6 +97,7 @@ export async function loadNativeExportLines(
           umts_cid: umtsCells.cid,
           umts_cid_long: umtsCells.cid_long,
           umts_arfcn: umtsCells.arfcn,
+          umts_psc: umtsCells.psc,
         })
         .from(cells)
         .innerJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
@@ -126,6 +128,7 @@ export async function loadNativeExportLines(
           ...commonSelect,
           nr_nrtac: nrCells.nrtac,
           nr_gnbid: nrCells.gnbid,
+          nr_gnbid_length: nrCells.gnbid_length,
           nr_clid: nrCells.clid,
           nr_nci: nrCells.nci,
           nr_pci: nrCells.pci,

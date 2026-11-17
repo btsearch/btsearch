@@ -7,7 +7,9 @@ import { type SQL, and, asc, eq, gt, gte, inArray, isNotNull, max, or, sql } fro
 import db from "../../database/psql.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
 import { broadcastsFor, operatedBy } from "../operators/sharing.js";
+import { stationCountryCode } from "../stations/country.js";
 import { guestStationCondition, stationPlacementConditions } from "../stations/read.js";
+import { writeCelldexHeader } from "./celldex.js";
 import type { ClfFormat, ConvertOptions } from "./converter.js";
 import { type ExportSelection, loadExportNetworks } from "./lines.js";
 import { loadNativeExportLines } from "./nativeLines.js";
@@ -30,7 +32,7 @@ function toConvertOptions(query: CellExportQuery): ConvertOptions {
     const template = query[CELL_EXPORT_TEMPLATE_PARAMS[rat]];
     if (template !== undefined) templates[rat] = template;
   }
-  return { templates, displayNRSeparately: query.nrModes?.includes("nsa") === true };
+  return { templates, displayNRSeparately: query.format === "ntm" && query.nrModes?.includes("nsa") === true };
 }
 
 export function buildCellExport(query: CellExportQuery, hiddenCountryCodes: readonly string[]): CellExport {
@@ -105,6 +107,22 @@ export async function loadCellExportLastModified({ stationConditions, cells: sel
   return row?.lastModified ? new Date(row.lastModified) : null;
 }
 
+async function loadCelldexHeader({ stationConditions, cells: selection }: CellExport): Promise<string> {
+  const networks = selection.rats.nr
+    ? await db
+        .selectDistinct({ mnc: operators.mnc, countryCode: stationCountryCode })
+        .from(cells)
+        .innerJoin(nrCells, eq(nrCells.cell_id, cells.id))
+        .innerJoin(stations, eq(cells.station_id, stations.id))
+        .innerJoin(bands, and(eq(cells.band_id, bands.id), eq(bands.variant, "commercial")))
+        .leftJoin(operators, eq(stations.operator_id, operators.id))
+        .leftJoin(locations, eq(stations.location_id, locations.id))
+        .leftJoin(regions, eq(locations.region_id, regions.id))
+        .where(and(...stationConditions, ...selection.cellConditions, ...selection.nrConditions, isNotNull(nrCells.nci)))
+    : [];
+  return writeCelldexHeader(networks);
+}
+
 function hasExportedCells(selection: CellExport["cells"]): SQL {
   return sql`EXISTS (
     SELECT 1 FROM ${cells}
@@ -128,19 +146,26 @@ async function nextStationIds(stationFilter: SQL | undefined, afterId: number): 
 }
 
 export async function* readCellExportChunks(cellExport: CellExport, format: ClfFormat, stopped: AbortSignal): AsyncGenerator<string> {
-  if (stopped.aborted || exportsNoRat(cellExport.cells)) return;
-
+  if (stopped.aborted) return;
+  const isCelldex = format === "celldex";
   const stationFilter = and(...cellExport.stationConditions, hasExportedCells(cellExport.cells));
+  const [header, firstStationIds] = await Promise.all([
+    isCelldex ? loadCelldexHeader(cellExport) : null,
+    exportsNoRat(cellExport.cells) ? [] : nextStationIds(stationFilter, 0),
+  ]);
+  if (header !== null) yield header;
+
   let lastStationId = 0;
-  let stationIds = await nextStationIds(stationFilter, lastStationId);
+  let stationIds = firstStationIds;
 
   while (stationIds.length > 0 && !stopped.aborted) {
     for (let stationStart = 0; stationStart < stationIds.length; stationStart += STATION_BATCH_SIZE) {
       if (stopped.aborted) return;
       const batchIds = stationIds.slice(stationStart, stationStart + STATION_BATCH_SIZE);
-      const networks = await loadExportNetworks(batchIds, cellExport.operatorIds);
+      const networks = await loadExportNetworks(batchIds, isCelldex ? undefined : cellExport.operatorIds);
       const selection = { ...cellExport.cells, stationConditions: [inArray(stations.id, batchIds)], networks };
-      const lines = (await loadNativeExportLines(selection, batchIds, format, cellExport.convertOptions)).sort();
+      const lines = await loadNativeExportLines(selection, batchIds, format, cellExport.convertOptions);
+      if (!isCelldex) lines.sort();
       for (let start = 0; start < lines.length; start += LINES_PER_CHUNK) {
         if (stopped.aborted) return;
         yield `${lines.slice(start, start + LINES_PER_CHUNK).join("\n")}\n`;

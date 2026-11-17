@@ -10,6 +10,7 @@ import type { AddressInfo } from "node:net";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 
+import { writeCelldexHeader } from "../../../../../src/features/clfExport/celldex.js";
 import { convertToCLF, prepareConvertOptions } from "../../../../../src/features/clfExport/converter.js";
 import type { ClfFormat, ConvertOptions } from "../../../../../src/features/clfExport/converter.js";
 import { loadExportLines, renderExportLines } from "../../../../../src/features/clfExport/lines.js";
@@ -19,7 +20,7 @@ import { buildCellExport, readCellExportChunks } from "../../../../../src/featur
 import { stationAreaConditions, stationPlacementConditions } from "../../../../../src/features/stations/read.js";
 import type { AreaFilterQuery } from "../../../../../src/features/stations/read.js";
 import getCellsExport from "../../../../../src/routes/v2/(get)/cells/export.js";
-import { type DatabaseCall, dbMock } from "../../../../helpers/boundaries.js";
+import { type DatabaseCall, dbMock, setCountryFeatures } from "../../../../helpers/boundaries.js";
 import { cacheCountryVisibility } from "../../../../helpers/officialDataFixtures.js";
 import { readDate } from "../../../../helpers/readFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
@@ -94,11 +95,13 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
     structure_note: "property detail",
   };
   const second: StationExportMetadata = { ...stationMetadataRow, station_pk: 2, station_sid: "SECOND", latitude: null, longitude: null };
-  const cell = { cell_type: "PICOCELL", notes: "cell notes", sector_id: 101, is_confirmed: true, band_duplex: "FDD" as const };
+  const cell = { cell_type: "PICOCELL", notes: "cell notes", sector_id: 101, is_confirmed: true, band_duplex: "FDD" as const, band_code: null };
   return {
     metadata: [first, second],
     rows: {
-      gsmRows: [{ ...first, ...cell, cell_pk: 1, band_value: 900, band_name: "GSM 900", gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false }],
+      gsmRows: [
+        { ...first, ...cell, cell_pk: 1, band_value: 900, band_name: "GSM 900", gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false, gsm_bsic: null },
+      ],
       umtsRows: [
         {
           ...second,
@@ -113,6 +116,7 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
           umts_cid: 234,
           umts_cid_long: null,
           umts_arfcn: null,
+          umts_psc: null,
         },
       ],
       lteRows: [
@@ -142,6 +146,7 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
           band_duplex: "TDD",
           nr_nrtac: 78,
           nr_gnbid: 1,
+          nr_gnbid_length: 24,
           nr_clid: 23,
           nr_nci: 456n,
           nr_pci: null,
@@ -516,6 +521,21 @@ describe("getCellsExport", () => {
     expect(query.params.filter((value) => value === "sa" || value === "nsa")).toEqual(nrModes);
   });
 
+  it("streams a Celldex export as a .cdx file that starts with its header and keeps each site's cells under it", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "cells", [{ lastModified: readDate }], [gsmExportRow, { ...gsmExportRow, gsm_cid: 100 }]);
+    dbMock.enqueueFor("select", getTableName(stations), [{ id: 1 }], [stationMetadataRow], []);
+    dbMock.enqueueFor("select", "station_sectors", []);
+    const app = await createRouteHarness(getCellsExport);
+    const template = encodeURIComponent("[{station_id}]");
+    const response = await app.inject({ url: `/cells/export?format=celldex&rats=gsm&nrModes=sa,nsa&templateGsm=${template}` });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.headers["content-type"]).toBe("text/plain; charset=utf-8");
+    expect(response.headers["content-disposition"]).toBe('attachment; filename="cells_export_celldex.cdx"');
+    expect(response.body).toBe('celldex 1\n\nsite 310260 52 21 "[SITE]" id=SITE\n  gsm 45/100 type=macro\n  gsm 45/123 type=macro\n');
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
   it.each(["format=csv", "format=4.0&nrModes=nsa", "format=ntm&updatedAfter=2026-01-01", "format=ntm&templateLte=%20"])(
     "rejects invalid export options: %s",
     async (query) => {
@@ -612,7 +632,7 @@ describe("loadNativeExportLines", () => {
     templates: { GSM: "{station_id}", UMTS: "{station_id}", LTE: "{station_id}", NR_NSA: "{station_id}", NR: "{station_id}" },
   };
 
-  it.each<ClfFormat>(["2.0", "2.1", "3.0-dec", "3.0-hex", "4.0", "ntm", "netmonitor"])(
+  it.each<ClfFormat>(["2.0", "2.1", "3.0-dec", "3.0-hex", "4.0", "ntm", "netmonitor", "celldex"])(
     "preserves full-loader output for mixed RATs, nullable metadata and zero values in %s",
     async (format) => {
       const { metadata, rows } = mixedExportRows();
@@ -975,6 +995,7 @@ describe("export lines for shared cells", () => {
     band_value: 1800,
     band_name: "LTE 1800",
     band_duplex: "FDD" as const,
+    band_code: "b3",
     is_confirmed: true,
     lte_tac: 67,
     lte_enbid: 1,
@@ -996,5 +1017,142 @@ describe("export lines for shared cells", () => {
     const networks = { extraCodes: new Map([[11, ["23420"]]]), guestOnlyStationIds: new Set([1]) };
     const lines = await renderExportLines(rows, "netmonitor", {}, networks);
     expect(lines.map(networkOf)).toEqual(["234-20"]);
+  });
+});
+
+describe("Celldex export", () => {
+  const options: ConvertOptions = { templates: { NR_NSA: "NSA {nr_pci}" } };
+  const first: StationExportMetadata = {
+    ...stationMetadataRow,
+    station_sid: "61234",
+    operator_mnc: 26003,
+    latitude: 52.1,
+    longitude: 20.8,
+    city: "Katowice",
+    address: "Kościuszki 30",
+    station_country_code: "PL",
+    structure_owner: "Cellnex",
+    structure_note: 'dach "A"\r\nwieża',
+  };
+  const second: StationExportMetadata = {
+    ...first,
+    station_pk: 2,
+    station_sid: "~2",
+    latitude: null,
+    longitude: null,
+    city: null,
+    address: null,
+    structure_owner: null,
+    structure_note: null,
+  };
+  const play: StationExportMetadata = { ...second, station_pk: 3, station_sid: "P1", operator_mnc: 26006, city: "Warszawa" };
+  const cell = {
+    cell_type: null,
+    notes: null,
+    sector_id: null,
+    is_confirmed: true,
+    band_value: null,
+    band_name: null,
+    band_duplex: null,
+    band_code: null,
+  };
+  const nonStandalone = {
+    ...first,
+    ...cell,
+    cell_pk: 3,
+    band_code: "n78",
+    nr_nrtac: null,
+    nr_gnbid: null,
+    nr_gnbid_length: null,
+    nr_clid: null,
+    nr_nci: null,
+    nr_pci: 7,
+    nr_arfcn: 636666,
+    nr_type: "nsa" as const,
+  };
+  const lte = { ...first, ...cell, cell_pk: 2, lte_tac: 3300, lte_enbid: 61234, lte_clid: 11, lte_ecid: 15675915, lte_pci: 41, lte_earfcn: 3050 };
+  const umts = {
+    ...second,
+    ...cell,
+    cell_pk: 5,
+    band_code: "I",
+    umts_psc: 301,
+    umts_lac: 510,
+    umts_rnc: 51,
+    umts_cid: 2817,
+    umts_cid_long: 3345153,
+    umts_arfcn: 10812,
+  };
+  const playNr = {
+    ...play,
+    ...cell,
+    cell_pk: 7,
+    nr_nrtac: null,
+    nr_gnbid: 5,
+    nr_gnbid_length: 28,
+    nr_clid: 3,
+    nr_nci: 1283n,
+    nr_pci: null,
+    nr_arfcn: null,
+    nr_type: "sa" as const,
+  };
+  const rows: ExportRows = {
+    gsmRows: [{ ...second, ...cell, cell_pk: 1, gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false, gsm_bsic: 12 }],
+    umtsRows: [umts, { ...umts, cell_pk: 6, umts_rnc: 0, umts_cid_long: 2817, umts_arfcn: null }],
+    lteRows: [
+      { ...lte, band_code: "B7" },
+      { ...lte, cell_pk: 8, band_code: "B20", lte_clid: 12, lte_ecid: 15675916, lte_pci: 42, lte_earfcn: null },
+    ],
+    nrRows: [
+      nonStandalone,
+      {
+        ...nonStandalone,
+        cell_pk: 4,
+        sector_id: 101,
+        nr_nrtac: 3300,
+        nr_gnbid: 61234,
+        nr_gnbid_length: 24,
+        nr_clid: 1,
+        nr_nci: 250814465n,
+        nr_pci: 3,
+        nr_type: "sa",
+      },
+      playNr,
+      { ...playNr, cell_pk: 9, nr_gnbid: 6, nr_gnbid_length: 24, nr_clid: 1, nr_nci: 24577n },
+    ],
+    nrBandRows: [],
+    stationSectorRows: [{ id: 101, station_id: 1, azimuth: 360 }],
+  };
+
+  it("writes each station as a site with unnamed cells, the codes its country keeps and gnb= where a cell's gNBID length is not its network's", async () => {
+    const networks = { extraCodes: new Map([[2, ["26003", "26006"]]]), guestOnlyStationIds: new Set([1]) };
+    setCountryFeatures({ psc: true, bsic: false });
+    expect(await renderExportLines(rows, "celldex", options, networks)).toEqual([
+      "",
+      'site 26003 52.1 20.8 "[61234] Katowice, Kościuszki 30" id=61234 owner="Cellnex" note="dach \\"A\\"\\nwieża"',
+      "  nr  61234/1  tac=3300 pci=3 ch=636666 band=78 az=0",
+      "  nr  -        pci=7 ch=636666 band=78 nsa",
+      "  lte 61234/11 tac=3300 pci=41 ch=3050 plmns=26006",
+      "  lte 61234/12 tac=3300 pci=42 band=20",
+      "",
+      'site 26003 - - "[~2]" id="~2"',
+      "  umts 51/2817 lac=510 psc=301 ch=10812",
+      "  umts -       lac=510 psc=301 band=1",
+      "  gsm  45/123",
+      "",
+      'site 26006 - - "[P1] Warszawa" id=P1',
+      "  nr 5/3",
+      "  nr 6/1 gnb=24",
+    ]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("starts with the version line and one net line per network, by code", () => {
+    const networks = [
+      { mnc: 26006, countryCode: "PL" },
+      { mnc: 26003, countryCode: "PL" },
+      { mnc: 26006, countryCode: "PL" },
+    ];
+    expect(writeCelldexHeader(networks)).toBe("celldex 1\nnet 26003 gnb=24\nnet 26006 gnb=28\n");
   });
 });
