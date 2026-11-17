@@ -39,28 +39,22 @@ export function StationStructureLine({ location, ownerBrand, showNote = false }:
   return (
     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
       {address !== null ? <span>{address}</span> : null}
-      {structureType !== null ? (
+      {structureType !== null || shownNote !== null ? (
         <>
           {address !== null ? <MiddleDot /> : null}
           <span className="inline-flex max-w-full min-w-0 items-center gap-1">
-            <StructureTypeIcon type={structureType} className="size-3 shrink-0" />
-            <span className="min-w-0 wrap-break-word">{typePhrase ?? typeName}</span>
+            {structureType !== null ? <StructureTypeIcon type={structureType} className="size-3 shrink-0" /> : null}
+            <span className="min-w-0 wrap-break-word">{[typePhrase ?? typeName, shownNote].filter(Boolean).join(" ")}</span>
           </span>
         </>
       ) : null}
       {owner !== null ? (
         <>
-          {address !== null || structureType !== null ? <MiddleDot /> : null}
+          {address !== null || structureType !== null || shownNote !== null ? <MiddleDot /> : null}
           <span className="inline-flex items-center gap-1">
             {ownerBrand !== null ? <BrandMark brand={ownerBrand} size={12} /> : null}
             {ownerRemark === null ? owner.name : `${owner.name} (${ownerRemark})`}
           </span>
-        </>
-      ) : null}
-      {shownNote !== null ? (
-        <>
-          {address !== null || structureType !== null || owner !== null ? <MiddleDot /> : null}
-          <span className="min-w-0 max-w-full wrap-break-word">{shownNote}</span>
         </>
       ) : null}
     </span>
