@@ -19,7 +19,7 @@ const FORMAT_NOTE =
   "`2.0`, `2.1`, `3.0-dec`, `3.0-hex` and `4.0` are CLF versions, of which `2.0` and `3.0-hex` write cell identifiers " +
   "in hexadecimal and the others in decimal. `4.0` writes CLF 4.1, the version G-MoN reads. " +
   "`ntm` is the NetMonster format and `netmonitor` the Netmonitor CSV format, which gives a UMTS cell its 28-bit id with the RNC. " +
-  "`celldex` is the Celldex cell list: one `site` per station, named `[<siteId>] <city>, <address>`, with its cells below it. " +
+  "`celldex` is the Celldex cell list: one `site` per station, named `#[<siteId>] <city>, <address>`, with its cells below it. " +
   "Its cells carry no names, so the description templates do not apply to it";
 const OPERATORS_NOTE =
   "For a shared network, the cells of its members are exported too. Of another operator's station, only the cells that also broadcast " +

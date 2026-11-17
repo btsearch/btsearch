@@ -583,7 +583,7 @@ describe("getCellsExport", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.headers["content-type"]).toBe("text/plain; charset=utf-8");
     expect(response.headers["content-disposition"]).toBe('attachment; filename="cells_export_celldex.cdx"');
-    expect(response.body).toBe('celldex 1\n\nsite 310260 52 21 "[SITE]" id=SITE\n  gsm 45/100 type=macro\n  gsm 45/123 type=macro\n');
+    expect(response.body).toBe('celldex 1\n\nsite 310260 52 21 "#[SITE]" id=SITE\n  gsm 45/100 type=macro\n  gsm 45/123 type=macro\n');
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -1180,18 +1180,18 @@ describe("Celldex export", () => {
     setCountryFeatures({ psc: true, bsic: false });
     expect(await renderExportLines(rows, "celldex", options, networks)).toEqual([
       "",
-      'site 26003 52.1 20.8 "[61234] Katowice, Kościuszki 30" id=61234 owner="Cellnex" note="dach \\"A\\"\\nwieża"',
+      'site 26003 52.1 20.8 "#[61234] Katowice, Kościuszki 30" id=61234 owner="Cellnex" note="dach \\"A\\"\\nwieża"',
       "  nr  61234/1  tac=3300 pci=3 ch=636666 band=78 az=0",
       "  nr  -        pci=7 ch=636666 band=78 nsa",
       "  lte 61234/11 tac=3300 pci=41 ch=3050 plmns=26006",
       "  lte 61234/12 tac=3300 pci=42 band=20",
       "",
-      'site 26003 - - "[~2]" id="~2"',
+      'site 26003 - - "#[~2]" id="~2"',
       "  umts 51/2817 lac=510 psc=301 ch=10812",
       "  umts -       lac=510 psc=301 band=1",
       "  gsm  45/123",
       "",
-      'site 26006 - - "[P1] Warszawa" id=P1',
+      'site 26006 - - "#[P1] Warszawa" id=P1',
       "  nr 5/3",
       "  nr 6/1 gnb=24",
     ]);

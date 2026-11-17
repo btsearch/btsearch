@@ -162,7 +162,7 @@ function compareLines(a: CellLine, b: CellLine): number {
 
 function siteNameOf(cell: CellExportData): string {
   const location = sanitizeDescription([cell.city, cell.address].filter(Boolean).join(", "));
-  return location === "" ? `[${cell.station_id}]` : `[${cell.station_id}] ${location}`;
+  return location === "" ? `#[${cell.station_id}]` : `#[${cell.station_id}] ${location}`;
 }
 
 function cellLinesOf({ cellPk, cell }: ExportedCell, site: SiteContext): CellLine[] {
