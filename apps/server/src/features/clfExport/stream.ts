@@ -6,7 +6,7 @@ import { type SQL, and, asc, eq, gt, gte, inArray, isNotNull, max, or, sql } fro
 
 import db from "../../database/psql.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
-import { operatedBy } from "../operators/sharing.js";
+import { broadcastsFor, operatedBy } from "../operators/sharing.js";
 import { guestStationCondition, stationPlacementConditions } from "../stations/read.js";
 import type { ClfFormat, ConvertOptions } from "./converter.js";
 import { type ExportSelection, loadExportNetworks } from "./lines.js";
@@ -47,6 +47,9 @@ export function buildCellExport(query: CellExportQuery, hiddenCountryCodes: read
   const bandMatch = bandCondition(cells.band_id, splitBandFilter(query.bandIds));
   if (bandMatch) cellConditions.push(bandMatch);
   if (query.updatedAfter) cellConditions.push(gte(cells.updatedAt, new Date(query.updatedAfter)));
+  if (query.operatorIds) {
+    cellConditions.push(sql`(${operatedBy(stations.operator_id, query.operatorIds)} OR ${broadcastsFor(cells.id, query.operatorIds)})`);
+  }
 
   const exportsEveryCell = query.rats === undefined && query.iotRats === undefined;
   const isWholeRatExported = (rat: CellRat) => exportsEveryCell || query.rats?.includes(rat) === true;

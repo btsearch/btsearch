@@ -18,7 +18,9 @@ const FORMAT_NOTE =
   "`2.0`, `2.1`, `3.0-dec`, `3.0-hex` and `4.0` are CLF versions, of which `2.0` and `3.0-hex` write cell identifiers " +
   "in hexadecimal and the others in decimal. `4.0` writes CLF 4.1, the version G-MoN reads. " +
   "`ntm` is the NetMonster format and `netmonitor` the Netmonitor CSV format, which gives a UMTS cell its 28-bit id with the RNC";
-const OPERATORS_NOTE = "For a shared network, the cells of its members are exported too. Comma-separated ids";
+const OPERATORS_NOTE =
+  "For a shared network, the cells of its members are exported too. Of another operator's station, only the cells that also broadcast " +
+  "one of these networks are exported. Comma-separated ids";
 const IOT_RATS_NOTE =
   "Adds the IoT cells of these technologies to the cells in `rats`: `lte` for NB-IoT and LTE-M cells, `nr` for RedCap cells. " +
   "For example, `rats=gsm&iotRats=lte` exports every GSM cell and the LTE IoT cells, and `iotRats=lte` alone only the LTE IoT cells. Comma-separated list";
