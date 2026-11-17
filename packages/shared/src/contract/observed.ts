@@ -472,10 +472,25 @@ function observedSiteOf<Node extends z.ZodLiteral<string>, Identity extends z.Zo
 
 function observedSiteUnion<Extra extends z.ZodRawShape>(extra: Extra) {
   return z.discriminatedUnion("node", [
-    observedSiteOf(z.literal("enb"), { enbid: z.number().int() }, extra),
+    observedSiteOf(
+      z.literal("enb"),
+      {
+        enbid: z.number().int(),
+        nodeObservedSiteIds: z
+          .array(z.number().int())
+          .describe("The live sites with this eNBID on its network, in ascending order, this one included while it is live"),
+      },
+      extra,
+    ),
     observedSiteOf(
       z.literal("gnb"),
-      { gnbid: z.number().int(), gnbidLength: nullableIdentitySchema.describe("The gNBID length its network's cells are cut with") },
+      {
+        gnbid: z.number().int(),
+        gnbidLength: nullableIdentitySchema.describe("The gNBID length its network's cells are cut with"),
+        nodeObservedSiteIds: z
+          .array(z.number().int())
+          .describe("The live sites with this gNBID on its network, in ascending order, this one included while it is live"),
+      },
       extra,
     ),
     observedSiteOf(

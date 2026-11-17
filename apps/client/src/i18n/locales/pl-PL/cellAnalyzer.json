@@ -220,6 +220,7 @@
     "unknownCell": "Nie ma takiej komórki w bazie",
     "noIdentifiers": "Brak identyfikatorów w pliku",
     "analyzerDisabled": "Kraj z wyłączonym analizatorem",
+    "severalStations": "Kilka możliwych stacji",
     "none": "Brak różnic",
     "confirm": "Potwierdź"
   },
@@ -230,6 +231,7 @@
     "operatorUnknown": "W bazie nie ma operatora o tym kodzie sieci",
     "noIdentifiers": "Wiersz pliku nie zawiera identyfikatorów, po których można znaleźć komórkę",
     "analyzerDisabled": "Analizator jest wyłączony w kraju tej sieci, więc komórka nie jest sprawdzana",
+    "severalStations": "Nie ma takiej komórki w bazie, a jej eNBID lub gNBID występuje na kilku stacjach - nie wiadomo, do której ją dodać",
     "pending": "Wiersze można zaznaczać po analizie pliku"
   },
   "toolbar": {

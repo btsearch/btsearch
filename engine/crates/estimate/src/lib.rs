@@ -9,6 +9,7 @@ pub mod input;
 pub mod objective;
 pub mod shape;
 pub mod snap;
+pub mod split;
 pub mod timing_advance;
 
 mod estimate;

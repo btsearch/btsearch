@@ -133,7 +133,7 @@ fn known_estimate() -> Estimate {
         ellipse_azimuth_deg: 0,
         ellipse_scale: 1.0,
         alternative_point: None,
-        is_consistent: true,
+        disagreeing_cells: Vec::new(),
         cells: Vec::new(),
         evidence,
     }

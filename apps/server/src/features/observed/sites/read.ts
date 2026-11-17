@@ -20,6 +20,7 @@ import { toUserRef } from "../../users/userRef.js";
 import { assertModeratesObservations, assertObservationsOn, ownDataUserId } from "../access.js";
 import { namedByTwoPeople } from "../cells/confirmation.js";
 import { type Network, loadNetworks } from "../networks.js";
+import { findLiveSitesOfNodes, nodeKey } from "./nodes.js";
 import { type ObservedSiteRow, selectObservedSites } from "./select.js";
 import { type ObservedSiteView, snapTargetOf, toObservedSite } from "./serialize.js";
 import { findSitesMeasuredBy } from "./visibility.js";
@@ -49,6 +50,8 @@ export type ObservedSiteRecord = {
   plmn: string;
   rat: ObservedSiteRow["rat"];
   nodeId: number | null;
+  place: number;
+  nodeObservedSiteIds: number[];
   stationId: number | null;
   retiredAt: Date | null;
   primarySiteId: number;
@@ -176,6 +179,11 @@ async function loadReplacements(rows: readonly ObservedSiteRow[]): Promise<Map<n
   );
 }
 
+async function loadNodeSites(rows: readonly ObservedSiteRow[]): Promise<Map<string, number[]>> {
+  const sites = await findLiveSitesOfNodes(db, rows);
+  return new Map([...sites].map(([key, found]) => [key, found.map((site) => site.id).toSorted((a, b) => a - b)]));
+}
+
 async function loadGnbidLengths(rows: readonly ObservedSiteRow[]): Promise<Map<string, number>> {
   const nrPlmns = unique(rows.filter((row) => row.rat === "NR").map((row) => row.plmn));
   return nrPlmns.length === 0 ? new Map() : findGnbidLengths(nrPlmns);
@@ -184,12 +192,13 @@ async function loadGnbidLengths(rows: readonly ObservedSiteRow[]): Promise<Map<s
 export async function completeObservedSites(rows: readonly ObservedSiteRow[]): Promise<ObservedSiteRecord[]> {
   if (rows.length === 0) return [];
 
-  const [members, { plmnsBySite, networks }, seenDays, replacements, gnbidLengths] = await Promise.all([
+  const [members, { plmnsBySite, networks }, seenDays, replacements, gnbidLengths, nodeSites] = await Promise.all([
     loadGroupMembers(rows),
     loadBroadcastNetworks(rows),
     loadSeenDays(rows),
     loadReplacements(rows),
     loadGnbidLengths(rows),
+    loadNodeSites(rows),
   ]);
   const operatorOf = (plmn: string) => networks.get(plmn)?.operatorId;
 
@@ -202,6 +211,8 @@ export async function completeObservedSites(rows: readonly ObservedSiteRow[]): P
       plmn: row.plmn,
       rat: row.rat,
       nodeId: row.nodeId,
+      place: row.place,
+      nodeObservedSiteIds: nodeSites.get(nodeKey(row)) ?? [],
       stationId: row.stationId,
       retiredAt: row.retiredAt,
       primarySiteId: row.primarySiteId,

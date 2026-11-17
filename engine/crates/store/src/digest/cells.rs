@@ -5,7 +5,7 @@ use engine_fold::memory::Direction;
 use uuid::Uuid;
 
 use crate::StoreError;
-use crate::digest::{DELTA_CELL_COLUMNS, DELTA_CELLS, DELTA_SITE_COLUMNS, DELTA_SITES, Writer};
+use crate::digest::{DELTA_CELL_COLUMNS, DELTA_CELLS, DELTA_SITE_COLUMNS, DELTA_SITES, Writer, delete_or_retire_emptied_sites};
 use crate::fold_inputs::rat_of_label;
 use crate::sql_types::Label;
 
@@ -49,8 +49,13 @@ impl Writer<'_> {
                 .execute(
                     &format!(
                         "INSERT INTO observations.observed_sites (plmn, rat, node_id)
-                         SELECT plmn, rat, node_id FROM {DELTA_SITES} ORDER BY plmn, rat, node_id
-                         ON CONFLICT (plmn, rat, node_id) WHERE retired_at IS NULL DO NOTHING"
+                         SELECT d.plmn, d.rat, d.node_id FROM {DELTA_SITES} d
+                         WHERE NOT EXISTS (
+                           SELECT 1 FROM observations.observed_sites s
+                           WHERE s.plmn = d.plmn AND s.rat = d.rat AND s.node_id = d.node_id AND s.retired_at IS NULL
+                         )
+                         ORDER BY d.plmn, d.rat, d.node_id
+                         ON CONFLICT (plmn, rat, node_id, place) WHERE retired_at IS NULL DO NOTHING"
                     ),
                     &[],
                 )
@@ -71,7 +76,8 @@ impl Writer<'_> {
                     &format!(
                         "INSERT INTO observations.observed_cells (plmn, rat, cell_key, observed_site_id, first_upload_id)
                          SELECT d.plmn, d.rat, d.cell_key, s.id, $1 FROM {DELTA_CELLS} d
-                         LEFT JOIN observations.observed_sites s ON s.plmn = d.plmn AND s.rat = d.rat AND s.node_id = d.node_id AND s.retired_at IS NULL
+                         LEFT JOIN observations.observed_sites s ON s.plmn = d.plmn AND s.rat = d.rat AND s.node_id = d.node_id
+                           AND s.place = 0 AND s.retired_at IS NULL
                          ORDER BY d.plmn, d.rat, d.cell_key
                          ON CONFLICT (plmn, rat, cell_key) DO NOTHING
                          RETURNING id"
@@ -122,13 +128,7 @@ impl Writer<'_> {
                 &[&touched],
             )
             .await?;
-        self.transaction
-            .execute(
-                "DELETE FROM observations.observed_sites s
-                 WHERE s.id = ANY($1) AND NOT EXISTS (SELECT 1 FROM observations.observed_cells c WHERE c.observed_site_id = s.id)",
-                &[&cells.sites],
-            )
-            .await?;
+        delete_or_retire_emptied_sites(self.transaction, &cells.sites).await?;
         Ok(removed.iter().map(|row| row.get(0)).collect())
     }
 }

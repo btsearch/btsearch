@@ -19,9 +19,13 @@ describe("the daily pass over every observed cell", () => {
       nr: { gnbid: GNBID, clid: 5, nci: BigInt(NCI), nrtac: null, pci: null, arfcn: null },
     };
     const sameMatch = { observedCellId: 1, kind: "cell", networkMatch: "own", cellId: 10, stationId: null, matchedAt: new Date() };
-    scriptMatcherLocks(2);
+    scriptMatcherLocks(3);
     dbMock.enqueueFor("select", "observed_sites", []);
-    dbMock.enqueueFor("select", "observed_cells", [], [], [{ id: 1 }], [{ id: 1, plmn: PLUS, rat: "NR", cellKey: NCI, observedSiteId: 5 }], []);
+    dbMock.enqueueFor("update", "observed_cells", []);
+    dbMock.enqueueFor("select", "observed_cells", [], [], [], [{ id: 1 }], [{ id: 1, plmn: PLUS, rat: "NR", cellKey: NCI, observedSiteId: 5 }], []);
+    dbMock.enqueueFor("delete", "site_splits", []);
+    dbMock.enqueueFor("select", "site_splits", []);
+    dbMock.enqueueFor("select", "site_estimates", []);
     dbMock.enqueueFor("select", "match_queue", []);
     dbMock.enqueueFor("delete", "match_queue", []);
     dbMock.enqueueFor("select", "observed_cell_values", []);
@@ -32,6 +36,7 @@ describe("the daily pass over every observed cell", () => {
       "cell_matches",
       [sameMatch],
       [{ siteId: 5, siteRat: "NR", cellRat: "NR", matchedStationId: null, cellStationId: 21, cellCount: 1 }],
+      [],
       [],
       [],
     );
@@ -51,6 +56,8 @@ describe("the daily pass over every observed cell", () => {
     await matchObservedCells();
 
     expect(writes()).toEqual([
+      ["update", "observed_cells", { observedSiteId: null }],
+      ["delete", "site_splits", undefined],
       ["delete", "match_queue", undefined],
       ["insert", "site_links", [{ observedSiteId: 5, stationId: 21, kind: "matched" }]],
       ["delete", "curated_cell_summaries", undefined],

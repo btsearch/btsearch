@@ -56,12 +56,16 @@ pub struct Estimate {
     pub ellipse_azimuth_deg: i16,
     pub ellipse_scale: f64,
     pub alternative_point: Option<Point>,
-    pub is_consistent: bool,
+    pub disagreeing_cells: Vec<usize>,
     pub cells: Vec<CellFit>,
     pub evidence: Evidence,
 }
 
 impl Estimate {
+    pub fn is_consistent(&self) -> bool {
+        self.disagreeing_cells.is_empty()
+    }
+
     pub fn cell_parameters(&self) -> Vec<CellParameters> {
         self.cells.iter().map(|cell| CellParameters { azimuth_deg: cell.azimuth_deg, power_db: cell.power_db }).collect()
     }
@@ -117,10 +121,15 @@ fn levels_lie_beyond_reach(problem: &Problem, cell: usize, technology: Technolog
     weighted_quantile(distances, 0.5).is_some_and(|median_m| median_m > technology.reach_m())
 }
 
-fn is_consistent(problem: &Problem, site: &Site, fit: &Fit) -> bool {
-    site.cells.iter().enumerate().all(|(cell, input)| {
-        !timing_advance_says_closer(problem, cell, input.technology, fit) && !levels_lie_beyond_reach(problem, cell, input.technology, fit)
-    })
+fn disagreeing_cells(problem: &Problem, site: &Site, fit: &Fit) -> Vec<usize> {
+    site.cells
+        .iter()
+        .enumerate()
+        .filter(|&(cell, input)| {
+            timing_advance_says_closer(problem, cell, input.technology, fit) || levels_lie_beyond_reach(problem, cell, input.technology, fit)
+        })
+        .map(|(cell, _)| cell)
+        .collect()
 }
 
 fn angular_coverage_deg(places: &[(f64, f64)], fit: &Fit) -> f64 {
@@ -191,7 +200,7 @@ pub fn estimate(site: &Site, context: &Context) -> Option<Estimate> {
         ellipse_azimuth_deg: nominal.azimuth_deg.round() as i16 % 180,
         ellipse_scale,
         alternative_point: alternative.map(|other| problem.plane.to_point(other.east, other.north)),
-        is_consistent: is_consistent(&problem, site, best),
+        disagreeing_cells: disagreeing_cells(&problem, site, best),
         cells: site
             .cells
             .iter()

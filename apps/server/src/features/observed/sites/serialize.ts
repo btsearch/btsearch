@@ -6,8 +6,8 @@ import type { ObservedSiteRecord, ShownEstimate } from "./read.js";
 export type ObservedSiteView = "staff" | "public";
 
 type ObservedSiteIdentity =
-  | { node: "enb"; enbid: number }
-  | { node: "gnb"; gnbid: number; gnbidLength: number | null }
+  | { node: "enb"; enbid: number; nodeObservedSiteIds: number[] }
+  | { node: "gnb"; gnbid: number; gnbidLength: number | null; nodeObservedSiteIds: number[] }
   | { node: "gsmCell"; lac: number; cid: number }
   | { node: "umtsCell"; rnc: number; cid: number }
   | { node: "station"; stationId: number };
@@ -20,11 +20,11 @@ export function snapTargetOf(ids: { locationId: number | null; officialSiteId: n
 }
 
 function identityOf(site: ObservedSiteRecord): ObservedSiteIdentity {
-  const { rat, nodeId, stationId } = site;
+  const { rat, nodeId, stationId, nodeObservedSiteIds } = site;
   if (stationId !== null) return { node: "station", stationId };
   if (nodeId !== null) {
-    if (rat === "LTE") return { node: "enb", enbid: nodeId };
-    if (rat === "NR") return { node: "gnb", gnbid: nodeId, gnbidLength: site.gnbidLength };
+    if (rat === "LTE") return { node: "enb", enbid: nodeId, nodeObservedSiteIds };
+    if (rat === "NR") return { node: "gnb", gnbid: nodeId, gnbidLength: site.gnbidLength, nodeObservedSiteIds };
     if (rat === "GSM") return { node: "gsmCell", lac: Math.floor(nodeId / CID_RANGE), cid: nodeId % CID_RANGE };
     if (rat === "UMTS") return { node: "umtsCell", rnc: Math.floor(nodeId / CID_RANGE), cid: nodeId % CID_RANGE };
   }

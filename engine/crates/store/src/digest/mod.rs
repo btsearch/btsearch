@@ -80,6 +80,26 @@ async fn empty_delta_tables(transaction: &Transaction<'_>) -> Result<(), StoreEr
     Ok(())
 }
 
+pub(crate) async fn delete_or_retire_emptied_sites(transaction: &Transaction<'_>, site_ids: &[i32]) -> Result<(), StoreError> {
+    transaction
+        .execute(
+            "DELETE FROM observations.observed_sites s
+             WHERE s.id = ANY($1) AND s.place = 0 AND s.retired_at IS NULL
+               AND NOT EXISTS (SELECT 1 FROM observations.observed_cells c WHERE c.observed_site_id = s.id)",
+            &[&site_ids],
+        )
+        .await?;
+    transaction
+        .execute(
+            "UPDATE observations.observed_sites s SET retired_at = now()
+             WHERE s.id = ANY($1) AND s.place > 0 AND s.retired_at IS NULL
+               AND NOT EXISTS (SELECT 1 FROM observations.observed_cells c WHERE c.observed_site_id = s.id)",
+            &[&site_ids],
+        )
+        .await?;
+    Ok(())
+}
+
 pub async fn apply(
     transaction: &Transaction<'_>,
     types: &CopyTypes,

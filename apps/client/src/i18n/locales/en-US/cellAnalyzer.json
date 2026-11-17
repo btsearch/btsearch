@@ -188,6 +188,7 @@
     "unknownCell": "No such cell in the database",
     "noIdentifiers": "No identifiers in the file",
     "analyzerDisabled": "Country with the analyzer off",
+    "severalStations": "Several possible stations",
     "none": "No differences",
     "confirm": "Confirm"
   },
@@ -198,6 +199,7 @@
     "operatorUnknown": "The database has no operator with this network code",
     "noIdentifiers": "The file row has no identifiers the cell could be found by",
     "analyzerDisabled": "The analyzer is switched off in this network's country, so the cell is not checked",
+    "severalStations": "The database has no such cell, and several stations have its eNBID or gNBID - the analyzer cannot tell which one to add it to",
     "pending": "Rows can be selected after the file is analyzed"
   },
   "toolbar": {

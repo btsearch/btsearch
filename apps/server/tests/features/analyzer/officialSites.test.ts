@@ -99,6 +99,7 @@ function unknownCell(operatorId: number, officialSiteIds: number[]) {
     match: "none",
     reason: "cellUnknown",
     stationId: null,
+    stationIds: [],
     cellId: null,
     isShared: false,
     networkMatch: null,

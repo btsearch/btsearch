@@ -16,6 +16,7 @@ use engine_estimate::grid::{EvidenceGrid, evidence_grid};
 use engine_estimate::input::{Context, Site};
 use engine_estimate::shape::shape_of;
 use engine_estimate::snap::CANDIDATE_REACH;
+use engine_estimate::split::{Split, find_split};
 use engine_estimate::{ALGORITHM_VERSION, Estimate, estimate};
 use engine_geo::Point;
 use engine_geo::plane::distance_meters;
@@ -30,7 +31,7 @@ use crate::sites::inputs::{load_inputs, prepare};
 use crate::sites::neighbours::resolve_neighbours;
 use crate::sites::placing::place_sites;
 use crate::sites::shapes::{CellShape, label_edges, write_shapes};
-use crate::sites::writes::{forget_copies, write_confirmations, write_copies, write_estimates, write_grids};
+use crate::sites::writes::{forget_copies, write_confirmations, write_copies, write_estimates, write_grids, write_splits};
 use crate::sql_types::Timestamp;
 
 const SITES_PER_BATCH: i64 = 64;
@@ -97,7 +98,9 @@ pub struct SiteInput {
     pub site: Site,
     pub cell_ids: Vec<Vec<i32>>,
     pub cell_pcis: Vec<Option<i32>>,
+    pub cell_area_codes: Vec<Option<i32>>,
     station_at: Option<Point>,
+    is_node: bool,
 }
 
 pub(crate) struct Worked {
@@ -105,6 +108,7 @@ pub(crate) struct Worked {
     leave_out_shift_m: Option<i32>,
     grid: Option<EvidenceGrid>,
     pub shapes: Vec<Option<CellShape>>,
+    split: Option<Split>,
 }
 
 pub(crate) struct Previous {
@@ -173,6 +177,7 @@ impl Store {
         let transaction = client.transaction().await?;
         let changed_cells = write_copies(&transaction, &prepared.members, &prepared.copies).await?;
         write_estimates(&transaction, &worked, calibrated.run_id).await?;
+        write_splits(&transaction, site_ids, &worked).await?;
         write_grids(&transaction, &worked).await?;
         let confirmed_sites = write_confirmations(&transaction, &worked, &prepared.rows).await?;
         write_shapes(&transaction, &worked).await?;
@@ -221,7 +226,8 @@ fn work_on(input: &SiteInput, context: &Context) -> Option<Worked> {
     let leave_out_shift_m = firmness::leave_out_shift_m(&input.site, &estimate, context);
     let grid = editors_look_at(&estimate, input.station_at).then(|| evidence_grid(&input.site, &estimate, context)).flatten();
     let shapes = input.site.cells.iter().map(|cell| shape_of(cell, &estimate).map(|shape| CellShape { shape, edges: Vec::new() })).collect();
-    Some(Worked { estimate, leave_out_shift_m, grid, shapes })
+    let split = input.is_node.then(|| find_split(&input.site, &estimate, &input.cell_pcis, &input.cell_area_codes, context)).flatten();
+    Some(Worked { estimate, leave_out_shift_m, grid, shapes, split })
 }
 
 pub(crate) fn own_estimate(input: &SiteInput, context: &Context) -> Option<Estimate> {
@@ -243,7 +249,7 @@ fn has_changed(previous: Option<&Previous>, estimate: Option<&Estimate>, is_conf
             distance_meters(previous.point, estimate.point) > MOVED_M
                 || previous.uncertainty_m != estimate.uncertainty_m
                 || previous.is_ambiguous != estimate.alternative_point.is_some()
-                || previous.is_consistent != estimate.is_consistent
+                || previous.is_consistent != estimate.is_consistent()
                 || previous.is_confirmed != is_confirmed
         }
         _ => true,

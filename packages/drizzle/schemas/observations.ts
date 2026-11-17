@@ -508,13 +508,14 @@ export const observedSites = ObservationsSchema.table(
     plmn: varchar("plmn", { length: 6 }).notNull(),
     rat: ratEnum("rat"),
     nodeId: bigint("node_id", { mode: "number" }),
+    place: smallint("place").notNull().default(0),
     stationId: integer("station_id").references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     retiredAt: timestamp("retired_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("observed_sites_identity_unique")
-      .on(t.plmn, t.rat, t.nodeId)
+      .on(t.plmn, t.rat, t.nodeId, t.place)
       .where(sql`${t.retiredAt} IS NULL`),
     uniqueIndex("observed_sites_station_unique")
       .on(t.stationId, t.plmn)
@@ -522,8 +523,15 @@ export const observedSites = ObservationsSchema.table(
     index("observed_sites_station_id_idx")
       .on(t.stationId)
       .where(sql`${t.stationId} IS NOT NULL`),
+    index("observed_sites_retired_at_idx")
+      .on(t.retiredAt)
+      .where(sql`${t.retiredAt} IS NOT NULL`),
+    index("observed_sites_node_places_idx")
+      .on(t.plmn, t.rat, t.nodeId, t.place)
+      .where(sql`${t.place} > 0`),
     check("observed_sites_plmn_format", sql`${t.plmn} ~ '^[0-9]{5,6}$'`),
     check("observed_sites_node_id_nonnegative", sql`${t.nodeId} >= 0`),
+    check("observed_sites_place_of_node", sql`${t.place} >= 0 AND (${t.place} = 0 OR (${t.rat} IN ('LTE', 'NR') AND ${t.nodeId} IS NOT NULL))`),
     check(
       "observed_sites_one_identity",
       sql`(${t.stationId} IS NULL AND ${t.rat} IS NOT NULL AND ${t.nodeId} IS NOT NULL) OR (${t.stationId} IS NOT NULL AND ${t.rat} IS NULL AND ${t.nodeId} IS NULL)`,
@@ -1032,6 +1040,22 @@ export const siteReplacements = ObservationsSchema.table(
     primaryKey({ columns: [t.observedSiteId, t.replacedBySiteId] }),
     index("site_replacements_replaced_by_site_id_idx").on(t.replacedBySiteId),
     check("site_replacements_two_sites", sql`${t.observedSiteId} <> ${t.replacedBySiteId}`),
+  ],
+);
+
+export const siteSplits = ObservationsSchema.table(
+  "site_splits",
+  {
+    observedSiteId: integer("observed_site_id")
+      .notNull()
+      .references(() => observedSites.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    observedCellId: observedCellColumn(),
+    part: smallint("part").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.observedSiteId, t.observedCellId] }),
+    index("site_splits_observed_cell_id_idx").on(t.observedCellId),
+    check("site_splits_part_nonnegative", sql`${t.part} >= 0`),
   ],
 );
 

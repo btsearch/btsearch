@@ -30,6 +30,8 @@ export function siteRecord(overrides: Partial<ObservedSiteRecord> = {}): Observe
     plmn: "26006",
     rat: "LTE",
     nodeId: 24494,
+    place: 0,
+    nodeObservedSiteIds: [overrides.id ?? 7310],
     stationId: null,
     retiredAt: null,
     primarySiteId: overrides.id ?? 7310,

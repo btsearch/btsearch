@@ -36,6 +36,7 @@ export const DIFFERENCE_KIND_ORDER: readonly DifferenceKind[] = [
   "by-lac",
   "shared",
   "unknown-cell",
+  "several-stations",
   "unknown-operator",
   "no-identifiers",
   "analyzer-disabled",

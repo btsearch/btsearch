@@ -66,6 +66,11 @@ const WRITE_COPIES: &str = "
     ORDER BY id
     ON CONFLICT (observed_cell_id) DO UPDATE SET primary_cell_id = excluded.primary_cell_id, basis = excluded.basis, found_at = now()";
 
+const WRITE_SPLITS: &str = "
+    INSERT INTO observations.site_splits (observed_site_id, observed_cell_id, part)
+    SELECT site_id, cell_id, part FROM unnest($1::int[], $2::int[], $3::int2[]) AS split(site_id, cell_id, part)
+    ORDER BY site_id, cell_id";
+
 pub(crate) fn group_estimate_statement() -> String {
     format!("INSERT INTO observations.group_estimates (lead_site_id, algorithm_version, {ESTIMATE_COLUMNS}) VALUES ($1, $2, {ESTIMATE_VALUES})")
 }
@@ -89,6 +94,7 @@ pub(crate) async fn insert_estimate(
     let evidence = &estimate.evidence;
     let alternative = estimate.alternative_point;
     let (alternative_longitude, alternative_latitude) = (alternative.map(|point| point.longitude), alternative.map(|point| point.latitude));
+    let is_consistent = estimate.is_consistent();
     let shared_columns: [&(dyn ToSql + Sync); 20] = [
         &id,
         &ALGORITHM_VERSION,
@@ -100,7 +106,7 @@ pub(crate) async fn insert_estimate(
         &estimate.ellipse_azimuth_deg,
         &alternative_longitude,
         &alternative_latitude,
-        &estimate.is_consistent,
+        &is_consistent,
         &evidence.sample_count,
         &evidence.contributor_count,
         &evidence.person_count,
@@ -139,6 +145,25 @@ pub(crate) async fn write_estimates(
         }
     });
     try_join_all(upserts).await?;
+    Ok(())
+}
+
+pub(crate) async fn write_splits(transaction: &Transaction<'_>, site_ids: &[i32], worked: &[(SiteInput, Option<Worked>)]) -> Result<(), StoreError> {
+    transaction.execute("DELETE FROM observations.site_splits WHERE observed_site_id = ANY($1)", &[&site_ids]).await?;
+    let (mut split_sites, mut cell_ids, mut parts): (Vec<i32>, Vec<i32>, Vec<i16>) = (Vec::new(), Vec::new(), Vec::new());
+    for (input, work) in worked {
+        let Some(split) = work.as_ref().and_then(|work| work.split.as_ref()) else {
+            continue;
+        };
+        for (part, cells) in split.parts.iter().enumerate() {
+            for &cell_id in cells.iter().flat_map(|&cell| &input.cell_ids[cell]) {
+                split_sites.push(input.site_id);
+                cell_ids.push(cell_id);
+                parts.push(part as i16);
+            }
+        }
+    }
+    transaction.execute(WRITE_SPLITS, &[&split_sites, &cell_ids, &parts]).await?;
     Ok(())
 }
 

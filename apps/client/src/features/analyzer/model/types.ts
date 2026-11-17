@@ -57,11 +57,20 @@ export type DifferenceKind =
   | "unknown-cell"
   | "unknown-operator"
   | "no-identifiers"
-  | "analyzer-disabled";
+  | "analyzer-disabled"
+  | "several-stations";
 export type DifferenceFilter = "any" | DifferenceKind;
 
 export type TickAction = "update" | "create" | "confirm";
-export type TickBlock = "pending" | "noDifferences" | "shared" | "cellUnknown" | "operatorUnknown" | "noIdentifiers" | "analyzerDisabled";
+export type TickBlock =
+  | "pending"
+  | "noDifferences"
+  | "shared"
+  | "cellUnknown"
+  | "operatorUnknown"
+  | "noIdentifiers"
+  | "analyzerDisabled"
+  | "severalStations";
 export type TickState = { canTick: true; action: TickAction } | { canTick: false; reason: TickBlock };
 
 export type RowFacts = {

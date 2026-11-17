@@ -10,6 +10,7 @@ export function toOperatorConventions(operator: LocatedOperatorRef): OperatorCon
 
   return {
     gnbidLength: conventions.gnbidLength(operator),
+    nodeSpansSites: conventions.nodeSpansSites(operator),
     identifierKinds: [...conventions.identifierKinds(operator)],
     lteSectorRule: conventions.lteSectorRule(operator),
     defaultEarfcns: earfcns.flatMap((earfcn) => bandsForChannel("LTE", earfcn).map((band) => ({ bandCode: band.code, earfcn }))),

@@ -1,5 +1,5 @@
 import { cellMatches, cells, observedCells, observedSites } from "@openbts/drizzle";
-import { and, count, eq, inArray, isNotNull, isNull, notExists, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNotNull, isNull, notExists, or, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
 
@@ -14,7 +14,7 @@ type SiteIdentity = z.infer<typeof siteIdentitySchema>;
 export type LteNrSite = { id: number; rat: SiteIdentity["rat"]; matchedCellCount: number };
 type SiteChoice = { siteId: number } | { identity: SiteIdentity };
 
-const isMadeByServer = or(isNotNull(observedSites.stationId), inArray(observedSites.rat, ["GSM", "UMTS", "NR"]));
+const isMadeByServer = or(isNotNull(observedSites.stationId), inArray(observedSites.rat, ["GSM", "UMTS", "NR"]), gt(observedSites.place, 0));
 
 export function isGsmUmtsCell(cell: Pick<LockedCell, "rat">): boolean {
   return cell.rat === "GSM" || cell.rat === "UMTS";

@@ -18,7 +18,7 @@ describeOnCrowdDatabase("matchCellsAsSystem", () => {
       const stationId = await addStation(tx, { operatorId, regionId, at: [-40.1, 35.1], status: "pending" });
       const cellId = await addLteCell(tx, { stationId, bandId: await addLteBand(tx), enbid: 1_040_001, clid: 11 });
 
-      const [match] = await matchCellsAsSystem([{ rat: "lte", plmn: String(MNC), enbid: 1_040_001, clid: 11 }]);
+      const [match] = await matchCellsAsSystem([{ rat: "lte", plmn: String(MNC), enbid: 1_040_001, clid: 11 }], []);
 
       expect(match?.result).toMatchObject({ operatorId, match: "cell", reason: null, stationId, cellId, networkMatch: "own" });
     }));

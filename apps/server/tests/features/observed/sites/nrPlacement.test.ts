@@ -6,9 +6,11 @@ import { movedCells, scriptMatcherLocks, scriptNetwork, written } from "../../..
 
 const PLUS = "26001";
 const PLAY = "26006";
+const VERIZON = "311480";
 const GNBID_24 = 0x123456;
 const FIRST_GNBID_28 = 0x1234567;
 const SECOND_GNBID_28 = 0x1234568;
+const HUB_GNBID_22 = 1_437_974;
 const EDITOR_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 
 type CarriedOver = { ignores?: unknown[]; links?: unknown[]; flags?: unknown[] };
@@ -17,22 +19,32 @@ function playNrCell(id: number, gnbid: number, clid: number) {
   return { id, plmn: PLAY, rat: "NR", cellKey: gnbid * 256 + clid, observedSiteId: 7 };
 }
 
+function playNrSite(id: number, gnbid: number, place: number) {
+  return { id, plmn: PLAY, rat: "NR", nodeId: gnbid, place };
+}
+
 function scriptPlayRecut(lockedCells: unknown[], { ignores = [], links = [], flags = [] }: CarriedOver = {}): void {
   dbMock.enqueueFor("select", "observed_sites", [{ plmn: PLAY }]);
   scriptNetwork(PLAY, { operatorId: 6 });
   scriptMatcherLocks();
   dbMock.enqueueFor("select", "observed_cells", lockedCells);
   dbMock.enqueueFor("update", "observed_sites", []);
+  dbMock.enqueueFor("select", "observed_sites", []);
   dbMock.enqueueFor("insert", "observed_sites", []);
-  dbMock.enqueueFor("select", "observed_sites", [
-    { id: 11, nodeId: FIRST_GNBID_28 },
-    { id: 12, nodeId: SECOND_GNBID_28 },
-  ]);
+  dbMock.enqueueFor("select", "observed_sites", [playNrSite(11, FIRST_GNBID_28, 0), playNrSite(12, SECOND_GNBID_28, 0)]);
   dbMock.enqueueFor("update", "observed_cells", []);
   dbMock.enqueueFor("insert", "site_replacements", []);
   dbMock.enqueueFor("select", "site_ignores", ignores);
   dbMock.enqueueFor("select", "site_links", links);
   dbMock.enqueueFor("select", "observation_flags", flags);
+}
+
+function scriptPartChoice(): void {
+  dbMock.enqueueFor("select", "cell_matches", []);
+  dbMock.enqueueFor("select", "site_links", []);
+  dbMock.enqueueFor("select", "site_estimates", []);
+  dbMock.enqueueFor("select", "cell_copies", []);
+  dbMock.enqueueFor("select", "cell_bins", []);
 }
 
 describe("NR sites", () => {
@@ -45,8 +57,9 @@ describe("NR sites", () => {
     );
     scriptNetwork(PLUS);
     scriptMatcherLocks();
+    dbMock.enqueueFor("select", "observed_sites", []);
     dbMock.enqueueFor("insert", "observed_sites", []);
-    dbMock.enqueueFor("select", "observed_sites", [{ id: 21, nodeId: GNBID_24 }]);
+    dbMock.enqueueFor("select", "observed_sites", [{ id: 21, plmn: PLUS, rat: "NR", nodeId: GNBID_24, place: 0 }]);
     dbMock.enqueueFor("update", "observed_cells", []);
     dbMock.enqueueFor("select", "cell_matches", []);
     dbMock.enqueueFor("select", "site_links", []);
@@ -54,9 +67,66 @@ describe("NR sites", () => {
 
     await giveNrCellsSites();
 
-    expect(written("insert", "observed_sites")).toEqual([[{ plmn: PLUS, rat: "NR", nodeId: GNBID_24 }]]);
+    expect(written("insert", "observed_sites")).toEqual([[{ plmn: PLUS, rat: "NR", nodeId: GNBID_24, place: 0 }]]);
     expect(movedCells()).toEqual([[3, 21]]);
     expect(written("insert", "dirty_sites")).toEqual([[{ observedSiteId: 21 }]]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("gives each NR cell of a network whose gNBs are hubs a site of its own, under its gNB id with its CLID + 1 as the place", async () => {
+    const hubCell = (id: number, clid: number) => ({ id, plmn: VERIZON, rat: "NR", cellKey: HUB_GNBID_22 * 2 ** 14 + clid, observedSiteId: null });
+    dbMock.enqueueFor("select", "observed_cells", [{ plmn: VERIZON }], [hubCell(1, 1), hubCell(2, 17)]);
+    scriptNetwork(VERIZON, { operatorId: 9, countryCode: "US" });
+    scriptMatcherLocks();
+    dbMock.enqueueFor("insert", "observed_sites", []);
+    dbMock.enqueueFor("select", "observed_sites", [
+      { id: 31, plmn: VERIZON, rat: "NR", nodeId: HUB_GNBID_22, place: 2 },
+      { id: 32, plmn: VERIZON, rat: "NR", nodeId: HUB_GNBID_22, place: 18 },
+    ]);
+    dbMock.enqueueFor("update", "observed_cells", []);
+    dbMock.enqueueFor("select", "cell_matches", []);
+    dbMock.enqueueFor("select", "site_links", []);
+    dbMock.enqueueFor("insert", "dirty_sites", []);
+
+    await giveNrCellsSites();
+
+    expect(written("insert", "observed_sites")).toEqual([
+      [
+        { plmn: VERIZON, rat: "NR", nodeId: HUB_GNBID_22, place: 2 },
+        { plmn: VERIZON, rat: "NR", nodeId: HUB_GNBID_22, place: 18 },
+      ],
+    ]);
+    expect(movedCells()).toEqual([
+      [1, 31],
+      [2, 32],
+    ]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("puts a new NR cell on a place of its gNB while the gNB stands in several places", async () => {
+    dbMock.enqueueFor(
+      "select",
+      "observed_cells",
+      [{ plmn: PLUS }],
+      [{ id: 3, plmn: PLUS, rat: "NR", cellKey: GNBID_24 * 4096 + 5, observedSiteId: null }],
+    );
+    scriptNetwork(PLUS);
+    scriptMatcherLocks();
+    dbMock.enqueueFor("select", "observed_sites", [
+      { id: 41, plmn: PLUS, rat: "NR", nodeId: GNBID_24, place: 2 },
+      { id: 40, plmn: PLUS, rat: "NR", nodeId: GNBID_24, place: 1 },
+    ]);
+    scriptPartChoice();
+    dbMock.enqueueFor("update", "observed_cells", []);
+    dbMock.enqueueFor("select", "cell_matches", []);
+    dbMock.enqueueFor("select", "site_links", []);
+    dbMock.enqueueFor("insert", "dirty_sites", []);
+
+    await giveNrCellsSites();
+
+    expect(written("insert", "observed_sites")).toEqual([]);
+    expect(movedCells()).toEqual([[3, 40]]);
+    expect(written("insert", "dirty_sites")).toEqual([[{ observedSiteId: 40 }]]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -71,8 +141,8 @@ describe("NR sites", () => {
     expect(written("update", "observed_sites")).toEqual([{ retiredAt: expect.anything() }]);
     expect(written("insert", "observed_sites")).toEqual([
       [
-        { plmn: PLAY, rat: "NR", nodeId: FIRST_GNBID_28 },
-        { plmn: PLAY, rat: "NR", nodeId: SECOND_GNBID_28 },
+        { plmn: PLAY, rat: "NR", nodeId: FIRST_GNBID_28, place: 0 },
+        { plmn: PLAY, rat: "NR", nodeId: SECOND_GNBID_28, place: 0 },
       ],
     ]);
     expect(movedCells()).toEqual([
@@ -86,6 +156,79 @@ describe("NR sites", () => {
       ],
     ]);
     expect(written("insert", "dirty_sites")).toEqual([[{ observedSiteId: 7 }, { observedSiteId: 11 }, { observedSiteId: 12 }]]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("moves a recut cell to a place of its new gNB when that gNB stands in several places, and cuts the others as usual", async () => {
+    dbMock.enqueueFor("select", "observed_sites", [{ plmn: PLAY }]);
+    scriptNetwork(PLAY, { operatorId: 6 });
+    scriptMatcherLocks();
+    dbMock.enqueueFor("select", "observed_cells", [playNrCell(1, FIRST_GNBID_28, 1), playNrCell(2, SECOND_GNBID_28, 2)]);
+    dbMock.enqueueFor("update", "observed_sites", []);
+    dbMock.enqueueFor("select", "observed_sites", [playNrSite(40, SECOND_GNBID_28, 1)]);
+    dbMock.enqueueFor("insert", "observed_sites", []);
+    dbMock.enqueueFor("select", "observed_sites", [playNrSite(11, FIRST_GNBID_28, 0)]);
+    scriptPartChoice();
+    dbMock.enqueueFor("update", "observed_cells", []);
+    dbMock.enqueueFor("insert", "site_replacements", []);
+    dbMock.enqueueFor("select", "site_ignores", []);
+    dbMock.enqueueFor("select", "site_links", [], []);
+    dbMock.enqueueFor("select", "observation_flags", []);
+    dbMock.enqueueFor("select", "cell_matches", []);
+    dbMock.enqueueFor("insert", "dirty_sites", []);
+
+    await recutNrSites();
+
+    expect(written("insert", "observed_sites")).toEqual([[{ plmn: PLAY, rat: "NR", nodeId: FIRST_GNBID_28, place: 0 }]]);
+    expect(movedCells()).toEqual([
+      [1, 11],
+      [2, 40],
+    ]);
+    expect(written("insert", "site_replacements")).toEqual([
+      [
+        { observedSiteId: 7, replacedBySiteId: 11 },
+        { observedSiteId: 7, replacedBySiteId: 40 },
+      ],
+    ]);
+    expect(written("insert", "dirty_sites")).toEqual([[{ observedSiteId: 7 }, { observedSiteId: 11 }, { observedSiteId: 40 }]]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("leads a retired site whose cells all belong to a gNB in several places to those places, and passes its ignore on", async () => {
+    const ignore = {
+      observedSiteId: 7,
+      ignoredById: EDITOR_ID,
+      reason: "Femtocell inside a shopping centre",
+      ignoredAt: new Date("2026-10-20T10:00:00Z"),
+      observedCellIds: [1, 2],
+      point: { x: 19.93, y: 50.06 },
+      uncertaintyM: 60,
+    };
+    dbMock.enqueueFor("select", "observed_sites", [{ plmn: PLAY }]);
+    scriptNetwork(PLAY, { operatorId: 6 });
+    scriptMatcherLocks();
+    dbMock.enqueueFor("select", "observed_cells", [playNrCell(1, FIRST_GNBID_28, 1), playNrCell(2, FIRST_GNBID_28, 2)]);
+    dbMock.enqueueFor("update", "observed_sites", []);
+    dbMock.enqueueFor("select", "observed_sites", [playNrSite(40, FIRST_GNBID_28, 1), playNrSite(41, FIRST_GNBID_28, 2)]);
+    scriptPartChoice();
+    dbMock.enqueueFor("update", "observed_cells", []);
+    dbMock.enqueueFor("insert", "site_replacements", []);
+    dbMock.enqueueFor("select", "site_ignores", [ignore]);
+    dbMock.enqueueFor("select", "site_links", [], []);
+    dbMock.enqueueFor("insert", "site_ignores", []);
+    dbMock.enqueueFor("select", "observation_flags", []);
+    dbMock.enqueueFor("select", "cell_matches", []);
+    dbMock.enqueueFor("insert", "dirty_sites", []);
+
+    await recutNrSites();
+
+    expect(written("insert", "observed_sites")).toEqual([]);
+    expect(movedCells()).toEqual([
+      [1, 40],
+      [2, 40],
+    ]);
+    expect(written("insert", "site_replacements")).toEqual([[{ observedSiteId: 7, replacedBySiteId: 40 }]]);
+    expect(written("insert", "site_ignores")).toEqual([[{ ...ignore, observedSiteId: 40 }]]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -135,8 +278,8 @@ describe("NR sites", () => {
     };
     scriptPlayRecut([playNrCell(1, FIRST_GNBID_28, 1), playNrCell(2, SECOND_GNBID_28, 2)], { flags: [dismissal] });
     dbMock.enqueueFor("select", "observed_sites", [
-      { id: 11, plmn: PLAY, rat: "NR", nodeId: FIRST_GNBID_28, stationId: null },
-      { id: 12, plmn: PLAY, rat: "NR", nodeId: SECOND_GNBID_28, stationId: null },
+      { ...playNrSite(11, FIRST_GNBID_28, 0), stationId: null },
+      { ...playNrSite(12, SECOND_GNBID_28, 0), stationId: null },
     ]);
     dbMock.enqueueFor("select", "observation_flags", [{ kind: "unmatchedSite", subjectKey: `observedSite:${PLAY}:NR:${SECOND_GNBID_28}` }]);
     dbMock.enqueueFor("insert", "observation_flags", []);

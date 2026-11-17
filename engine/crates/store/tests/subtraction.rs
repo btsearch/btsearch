@@ -181,6 +181,41 @@ async fn an_exclusion_whose_file_is_gone_rebuilds_the_cells_it_touched() {
     assert_eq!(harness.digest().await.cell_tables(), without_it, "the cells hold what the uploads still kept give them");
 }
 
+const A_PLACE_OF_THE_ENB: &str = "UPDATE observations.observed_sites SET place = 1 WHERE node_id = 123456";
+const RETIRED_PLACE: &str = "SELECT count(*) FROM observations.observed_sites WHERE node_id = 123456 AND place = 1 AND retired_at IS NOT NULL";
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_withdrawal_retires_a_place_of_a_node_it_leaves_without_cells() {
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let withdrawn = fixture_upload("appendix-a.json", 500);
+    assert!(add(&harness, &withdrawn, "samsung").await);
+    harness.execute(A_PLACE_OF_THE_ENB).await;
+
+    harness.set_status(withdrawn.upload_id, "withdrawn").await;
+    assert!(matches!(harness.store.subtract_due(withdrawn.upload_id).await.expect("the subtraction runs"), Done::Folded(_)));
+    assert_eq!(harness.count("SELECT count(*) FROM observations.observed_cells").await, 0);
+    assert_eq!(harness.count(RETIRED_PLACE).await, 1, "the site stays, so its place number is never given to another");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_rebuild_retires_a_place_of_a_node_it_leaves_without_cells() {
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let excluded = fixture_upload("appendix-a.json", 501);
+    assert!(add(&harness, &excluded, "samsung").await);
+    harness.execute(A_PLACE_OF_THE_ENB).await;
+
+    harness.delete_raw_file(excluded.upload_id).await;
+    harness.set_status(excluded.upload_id, "excluded").await;
+    assert!(matches!(harness.store.subtract_due(excluded.upload_id).await.expect("the subtraction runs"), Done::FileGone));
+    assert!(matches!(harness.store.rebuild(excluded.upload_id).await.expect("the rebuild runs"), Done::Rebuilt { .. }));
+    assert_eq!(harness.count("SELECT count(*) FROM observations.observed_cells").await, 0);
+    assert_eq!(harness.count(RETIRED_PLACE).await, 1, "the site stays, so its place number is never given to another");
+}
+
 const MATCHER_HOLDS_EVERY_CELL: &str = "SELECT id FROM observations.observed_cells ORDER BY id FOR NO KEY UPDATE";
 const MATCHER_MARKS_EVERY_SITE: &str =
     "INSERT INTO observations.dirty_sites (observed_site_id) SELECT id FROM observations.observed_sites ORDER BY id ON CONFLICT DO NOTHING";

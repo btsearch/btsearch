@@ -6,6 +6,7 @@ import route from "../../../../../src/routes/v2/(post)/cells/match.js";
 import { dbMock, setCountryFeatures } from "../../../../helpers/boundaries.js";
 import { operatorRow, primaryPlmn } from "../../../../helpers/operatorFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
+import { stationRow } from "../../../../helpers/stationFixtures.js";
 
 const plmn = "26001";
 const observed: ObservedCell[] = [
@@ -52,6 +53,24 @@ function stored(rat: string, id = 10, operatorId = 1) {
   };
 }
 
+function nodeCell(rat: string, stationId: number, { areaCode = null, operatorId = 1 }: { areaCode?: number | null; operatorId?: number } = {}) {
+  const row = stored(rat, stationId * 10, operatorId);
+  return {
+    ...row,
+    cell: { ...row.cell, station_id: stationId },
+    lte: rat === "lte" ? { enbid: 100, clid: stationId, tac: areaCode, pci: null, earfcn: null } : null,
+    nr:
+      rat === "nr"
+        ? { gnbid: 200, clid: stationId, gnbid_length: 24, nci: BigInt(200 * 4096 + stationId), nrtac: areaCode, pci: null, arfcn: null }
+        : null,
+  };
+}
+
+function storedNode(rat: string, rows: unknown[]) {
+  if (rat === "lte") dbMock.enqueueFor("select", "cells", []);
+  dbMock.enqueueFor("select", "cells", rows);
+}
+
 describe("POST /cells/match", () => {
   it("returns one operatorUnknown result per observation in the original order", async () => {
     dbMock.enqueueFor("select", "countries", []);
@@ -66,6 +85,7 @@ describe("POST /cells/match", () => {
         match: "none",
         reason: "operatorUnknown",
         stationId: null,
+        stationIds: [],
         cellId: null,
         isShared: false,
         networkMatch: null,
@@ -97,6 +117,7 @@ describe("POST /cells/match", () => {
           match: "cell",
           reason: null,
           stationId: 20,
+          stationIds: [20],
           cellId: 10,
           isShared: false,
           networkMatch: "own",
@@ -156,7 +177,57 @@ describe("POST /cells/match", () => {
     const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [cell] } });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.results[0]).toMatchObject({ match: "station", stationId: 20, cellId: null, reason: null });
+    expect(response.json().data.results[0]).toMatchObject({ match: "station", stationId: 20, stationIds: [20], cellId: null, reason: null });
+  });
+
+  it.each(["lte", "nr"])("answers severalStations for a %s cell whose base station is on two stations", async (rat) => {
+    network();
+    storedNode(rat, [nodeCell(rat, 21), nodeCell(rat, 20)]);
+    dbMock.enqueueFor("select", "stations", [stationRow({ id: 20 }), stationRow({ id: 21 })]);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({
+      method: "POST",
+      url: "/cells/match?include=stations",
+      payload: { cells: [observed.find((item) => item.rat === rat)] },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({
+      operatorId: 1,
+      match: "none",
+      reason: "severalStations",
+      stationId: null,
+      stationIds: [20, 21],
+      cellId: null,
+      networkMatch: null,
+    });
+    expect(response.json().data.stations.map((station: { id: number }) => station.id)).toEqual([20, 21]);
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it.each(["lte", "nr"])("chooses the station whose %s cells have the observed area code", async (rat) => {
+    network();
+    storedNode(rat, [nodeCell(rat, 20, { areaCode: 5 }), nodeCell(rat, 21, { areaCode: 6 })]);
+    const cell = observed.find((item) => item.rat === rat);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [{ ...cell, tac: 6 }] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({ match: "station", reason: null, stationId: 21, stationIds: [20, 21], cellId: null });
+  });
+
+  it("chooses the network's own station over a partner's station of the same eNB", async () => {
+    network([
+      { operatorId: 1, ventureId: 99 },
+      { operatorId: 2, ventureId: 99 },
+    ]);
+    storedNode("lte", [nodeCell("lte", 20, { operatorId: 2 }), nodeCell("lte", 21)]);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[2]] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({ match: "station", stationId: 21, stationIds: [20, 21], networkMatch: "own" });
   });
 
   it.each([

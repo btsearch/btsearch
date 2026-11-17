@@ -43,14 +43,15 @@ pub(crate) struct Facts {
     pub plmn: String,
     rat: Option<String>,
     node_id: Option<i64>,
+    place: i16,
     station_id: Option<i32>,
     pub operator_id: Option<i32>,
     pub is_matched: bool,
 }
 
 impl Facts {
-    fn identity(&self) -> (&str, Option<i32>, Option<&str>, Option<i64>) {
-        (self.plmn.as_str(), self.station_id, self.rat.as_deref(), self.node_id)
+    fn identity(&self) -> (&str, Option<i32>, Option<&str>, Option<i64>, i16) {
+        (self.plmn.as_str(), self.station_id, self.rat.as_deref(), self.node_id, self.place)
     }
 }
 
@@ -79,7 +80,8 @@ pub(crate) async fn load_facts(client: &impl GenericClient, site_ids: &[i32]) ->
         .query(
             &format!(
                 "SELECT s.id, s.plmn, s.rat::text, s.node_id, p.operator_id,
-                   EXISTS (SELECT 1 FROM observations.site_links l WHERE l.observed_site_id = s.id AND l.kind = 'matched'), s.station_id
+                   EXISTS (SELECT 1 FROM observations.site_links l WHERE l.observed_site_id = s.id AND l.kind = 'matched'), s.station_id,
+                   s.place
                  FROM observations.observed_sites s LEFT JOIN {REPORTED_CODES} p ON p.reported_code = s.plmn
                  WHERE s.id = ANY($1) AND s.retired_at IS NULL"
             ),
@@ -93,6 +95,7 @@ pub(crate) async fn load_facts(client: &impl GenericClient, site_ids: &[i32]) ->
                 plmn: row.get(1),
                 rat: row.get(2),
                 node_id: row.get(3),
+                place: row.get(7),
                 station_id: row.get(6),
                 operator_id: row.get(4),
                 is_matched: row.get(5),
@@ -126,7 +129,7 @@ pub(crate) async fn find_neighbourhoods(client: &impl GenericClient, seeds: &BTr
 fn may_group(estimate: &Estimate, facts: &Facts, rules: Rules) -> bool {
     (rules.matched_sites || !facts.is_matched)
         && estimate.alternative_point.is_none()
-        && estimate.is_consistent
+        && estimate.is_consistent()
         && estimate.uncertainty_m <= MOST_GROUPING_RADIUS_M
 }
 

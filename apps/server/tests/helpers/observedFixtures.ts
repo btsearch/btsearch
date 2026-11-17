@@ -27,7 +27,7 @@ export function writes(): unknown[] {
 
 export function movedCells(): unknown[][] {
   return dbMock.calls
-    .filter((call) => call.operation === "update" && call.table === "observed_cells")
+    .filter((call) => call.operation === "update" && call.table === "observed_cells" && call.clauses.from !== undefined)
     .flatMap((call) => {
       const params = queryOf(call.clauses.from?.[0]).params;
       return params.flatMap((cellId, index) => (index % 2 === 0 ? [[cellId, params[index + 1]]] : []));
@@ -40,6 +40,7 @@ export function observedSiteRow(overrides: Record<string, unknown> = {}) {
     plmn: "26006",
     rat: "LTE",
     nodeId: 31415,
+    place: 0,
     stationId: null,
     retiredAt: null,
     primarySiteId: 8124,
@@ -97,4 +98,5 @@ export function scriptSiteDetails(siteIds: readonly number[]): void {
     siteIds.map((siteId) => ({ siteId, firstSeenOn: "2026-10-28", lastSeenOn: "2026-11-03" })),
   );
   dbMock.enqueueFor("select", "plmns", []);
+  dbMock.enqueueFor("select", "observed_sites", []);
 }

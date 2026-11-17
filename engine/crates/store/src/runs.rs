@@ -346,13 +346,7 @@ impl Store {
                 &[&cell_ids],
             )
             .await?;
-        transaction
-            .execute(
-                "DELETE FROM observations.observed_sites s
-                 WHERE s.id = ANY($1) AND NOT EXISTS (SELECT 1 FROM observations.observed_cells c WHERE c.observed_site_id = s.id)",
-                &[&site_ids],
-            )
-            .await?;
+        digest::delete_or_retire_emptied_sites(&transaction, &site_ids).await?;
         transaction.execute("UPDATE observations.upload_folds SET unfolded_at = now() WHERE upload_id = $1", &[&upload_id]).await?;
         transaction.commit().await?;
         Ok(Done::Rebuilt { cells: cell_ids.len(), uploads: kept_uploads.len() })

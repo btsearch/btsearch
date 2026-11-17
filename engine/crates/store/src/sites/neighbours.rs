@@ -92,7 +92,7 @@ async fn load_contenders(client: &impl GenericClient, keys: &BTreeMap<Key, Vec<R
     let mut contenders: BTreeMap<Key, Vec<Contender>> = BTreeMap::new();
     for row in &rows {
         let cell_id: i32 = row.get(0);
-        let Some(&CellCodes { channel: Some(channel), pci: Some(pci) }) = codes.get(&cell_id) else {
+        let Some(&CellCodes { channel: Some(channel), pci: Some(pci), .. }) = codes.get(&cell_id) else {
             continue;
         };
         let Ok(pci) = i16::try_from(pci) else {

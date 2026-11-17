@@ -58,6 +58,11 @@ export const defaultEarfcnSchema = z.object({
 
 export const operatorConventionsSchema = z.object({
   gnbidLength: z.number().int().describe("The gNBID length in bits of the operator's NR cells. New cells get it when you leave `gnbidLength` out"),
+  nodeSpansSites: z
+    .boolean()
+    .describe(
+      "`true` when one gNBID of the operator often serves places far apart, so the gNBID alone does not tell where an NR cell stands. Each of its NR cells then gets an observed site of its own",
+    ),
   identifierKinds: z
     .array(z.enum(STATION_IDENTIFIER_KINDS))
     .describe("The kinds of `identifiers` the operator's stations can have. Direct station changes with other kinds are refused"),

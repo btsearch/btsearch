@@ -123,6 +123,7 @@ export async function passDismissalsToSuccessors(tx: DbTx, successions: readonly
       plmn: observedSites.plmn,
       rat: observedSites.rat,
       nodeId: observedSites.nodeId,
+      place: observedSites.place,
       stationId: observedSites.stationId,
     })
     .from(observedSites)

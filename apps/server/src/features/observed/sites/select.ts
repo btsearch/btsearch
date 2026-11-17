@@ -178,6 +178,7 @@ export function selectObservedSites() {
       plmn: observedSites.plmn,
       rat: observedSites.rat,
       nodeId: observedSites.nodeId,
+      place: observedSites.place,
       stationId: observedSites.stationId,
       retiredAt: observedSites.retiredAt,
       primarySiteId,

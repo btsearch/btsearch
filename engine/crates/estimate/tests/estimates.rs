@@ -26,7 +26,7 @@ fn three_sectors_with_timing_advance_put_the_site_where_it_stands() {
     let estimate = estimate(&site, &context()).expect("an estimate");
 
     assert!(metres_from_site(estimate.point) < 40.0, "{} m off", metres_from_site(estimate.point));
-    assert!(estimate.is_consistent);
+    assert!(estimate.is_consistent());
     assert_eq!(estimate.alternative_point, None);
     assert!(estimate.uncertainty_m > 0 && estimate.uncertainty_m < 300, "{} m", estimate.uncertainty_m);
     for (fit, sector) in estimate.cells.iter().zip(&sectors) {
@@ -65,7 +65,7 @@ fn cells_of_one_node_in_two_places_are_not_consistent() {
         contributor_count: 2,
         person_count: 2,
     };
-    assert!(!estimate(&site, &context()).expect("an estimate").is_consistent);
+    assert!(!estimate(&site, &context()).expect("an estimate").is_consistent());
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn gsm_cells_beside_lte_cells_on_one_mast_neither_drag_the_estimate_nor_widen_it
     let moved = distance_meters(mixed.point, lte.point);
     assert!(moved < 10.0, "{moved} m from where the LTE timing advance puts it");
     assert!(mixed.uncertainty_m <= lte.uncertainty_m, "{} m with GSM, {} m without", mixed.uncertainty_m, lte.uncertainty_m);
-    assert!(mixed.is_consistent);
+    assert!(mixed.is_consistent());
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn gsm_cells_whose_phones_answer_one_symbol_early_are_still_consistent_with_the_
     let mixed = estimate(&combined(&[&lte_cells, &gsm_cells]), &context()).expect("an estimate");
 
     assert!(metres_from_site(mixed.point) < 40.0, "{} m off", metres_from_site(mixed.point));
-    assert!(mixed.is_consistent, "rounding and one symbol of phone tolerance put the mast up to a symbol and a half closer");
+    assert!(mixed.is_consistent(), "rounding and one symbol of phone tolerance put the mast up to a symbol and a half closer");
 }
 
 #[test]

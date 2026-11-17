@@ -32,6 +32,7 @@ export type CountryConventions = {
   sharedSite: { copies: readonly SharedSitePart[] };
   lteSectorRule: (operator: OperatorRef) => LteSectorRule | null;
   gnbidLength: (operator: Pick<OperatorRef, "primaryPlmn">) => number;
+  nodeSpansSites: (operator: Pick<OperatorRef, "primaryPlmn">) => boolean;
   sharedAreaCode: SharedAreaCode;
   normalizeGeocodedPlace: (place: GeocodedPlaceNames) => GeocodedPlaceNames;
 };
@@ -45,6 +46,7 @@ export const defaultConventions: CountryConventions = {
   sharedSite: { copies: [] },
   lteSectorRule: () => null,
   gnbidLength: () => DEFAULT_GNBID_LENGTH,
+  nodeSpansSites: () => false,
   sharedAreaCode: { umts: true, lte: false, nr: false },
   normalizeGeocodedPlace: (place) => place,
 };

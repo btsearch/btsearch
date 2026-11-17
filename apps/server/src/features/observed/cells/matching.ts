@@ -13,11 +13,15 @@ import { logger } from "../../../utils/logger.js";
 import { type SystemCellMatch, matchCellsAsSystem } from "../../analyzer/match.js";
 import { passEditedCells, passFlagsOfGoneObservations, runCellPass } from "../flags/cells/pass.js";
 import { passSiteFlags } from "../flags/sites/pass.js";
+import { loadEstimatePoints } from "../sites/estimatePoints.js";
 import { findGsmUmtsCellsOf, isGsmUmtsCell, placeGsmUmtsCells } from "../sites/gsmUmtsPlacement.js";
 import { linkSites, suggestStations } from "../sites/links.js";
 import { markSitesDirty } from "../sites/moves.js";
 import { giveNrCellsSites, recutNrSites } from "../sites/nrPlacement.js";
 import { linkOfficialSites } from "../sites/officialLinks.js";
+import { applySiteSplits } from "../sites/splits/engine.js";
+import { placeCellsOfSplitNodes, releaseLteCellsOfRetiredSites } from "../sites/splits/placement.js";
+import { splitSitesByStations } from "../sites/splits/stations.js";
 import { summarizeCuratedCells } from "./curatedSummaries.js";
 import { CELLS_PER_ENB, MATCHED_FIELDS, type MatchedField, isMatchedField } from "./identity.js";
 import { type LockedCell, lockMatcher, lockObservedCells } from "./locks.js";
@@ -46,7 +50,10 @@ export async function matchObservedCells(): Promise<void> {
     fullPassStartedAt = Date.now();
   }
   if (fullPassAfterId === 0) await recutNrSites();
+  await releaseLteCellsOfRetiredSites();
   await giveNrCellsSites();
+  await placeCellsOfSplitNodes();
+  await applySiteSplits();
   await giveGsmUmtsCellsSites();
 
   const queued = await matchQueuedCells();
@@ -136,12 +143,18 @@ async function matchBatch(observedCellIds: readonly number[], { isFullPass }: { 
   });
   if (matched === null) return { changedCount: 0, observedSiteIds: [] };
 
-  await db.transaction(async (tx) => {
+  const splitSiteIds = await db.transaction(async (tx) => {
     await lockMatcher(tx);
-    const cellIdsToPlaceAgain = await findGsmUmtsCellsOf(tx, matched.changedLteNrStationIds, matched.changedLteNrSiteIds);
+    const changedSiteIds = await splitSitesByStations(tx, matched.observedSiteIds);
+    const cellIdsToPlaceAgain = await findGsmUmtsCellsOf(
+      tx,
+      matched.changedLteNrStationIds,
+      unique([...matched.changedLteNrSiteIds, ...changedSiteIds]),
+    );
     await placeGsmUmtsCellsAndLinkSites(tx, unique([...matched.gsmUmtsCellIds, ...cellIdsToPlaceAgain]));
+    return changedSiteIds;
   });
-  await runCellPass({ cellIds: matched.curatedCellIds, observedSiteIds: matched.observedSiteIds });
+  await runCellPass({ cellIds: matched.curatedCellIds, observedSiteIds: unique([...matched.observedSiteIds, ...splitSiteIds]) });
   return matched;
 }
 
@@ -183,12 +196,21 @@ function toObservedCell({ plmn, rat, cellKey }: LockedCell, values: CurrentValue
 
 async function matchLockedCells(tx: DbTx, locked: readonly LockedCell[]): Promise<Map<number, SystemCellMatch>> {
   const lockedIds = locked.map((cell) => cell.id);
-  const values = await loadCurrentValues(tx, lockedIds);
+  const [values, estimates] = await Promise.all([
+    loadCurrentValues(tx, lockedIds),
+    loadEstimatePoints(tx, unique(locked.map((cell) => cell.observedSiteId))),
+  ]);
   const comparable = locked.flatMap((cell) => {
     const observed = toObservedCell(cell, values.get(cell.id) ?? {});
     return observed ? [{ cell, observed }] : [];
   });
-  const answers = await matchCellsAsSystem(comparable.map(({ observed }) => observed));
+  const answers = await matchCellsAsSystem(
+    comparable.map(({ observed }) => observed),
+    comparable.map(({ cell }) => {
+      const estimate = cell.observedSiteId === null ? undefined : estimates.get(cell.observedSiteId);
+      return estimate !== undefined && estimate.isConsistent ? estimate.point : null;
+    }),
+  );
   return new Map(
     comparable.flatMap(({ cell }, index) => {
       const answer = answers[index];

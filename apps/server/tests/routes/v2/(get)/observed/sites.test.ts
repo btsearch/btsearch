@@ -118,6 +118,51 @@ describe("GET /observed/sites/:id", () => {
     expect(response.json().data).not.toHaveProperty("gnbid");
   });
 
+  it("answers every live site of its eNBID, itself included, and no place number", async () => {
+    dbMock.enqueueFor("select", "observed_sites", [observedSiteRow({ place: 2 })]);
+    scriptAccess("admin");
+    dbMock.enqueueFor("select", "cell_networks", []);
+    dbMock.enqueueFor("select", "observed_cells", [{ siteId: 8124, firstSeenOn: "2026-10-28", lastSeenOn: "2026-11-03" }]);
+    dbMock.enqueueFor("select", "plmns", []);
+    dbMock.enqueueFor("select", "observed_sites", [
+      { id: 8130, plmn: "26006", rat: "LTE", nodeId: 31415, place: 1 },
+      { id: 8124, plmn: "26006", rat: "LTE", nodeId: 31415, place: 2 },
+      { id: 8131, plmn: "26006", rat: "LTE", nodeId: 27182, place: 0 },
+    ]);
+    const response = await injectMutation(route, request, signInAs("admin"));
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data).toMatchObject({ id: 8124, enbid: 31415, nodeObservedSiteIds: [8124, 8130] });
+    expect(response.json().data).not.toHaveProperty("place");
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
+  it("answers a split site with the sites of its eNB that replaced it, not with itself", async () => {
+    dbMock.enqueueFor("select", "observed_sites", [observedSiteRow({ status: "replaced", retiredAt: new Date("2026-11-16T00:00:00Z") })]);
+    scriptAccess("admin");
+    dbMock.enqueueFor("select", "site_replacements", [
+      { observedSiteId: 8124, replacedBySiteId: 8130 },
+      { observedSiteId: 8124, replacedBySiteId: 8131 },
+    ]);
+    dbMock.enqueueFor("select", "cell_networks", []);
+    dbMock.enqueueFor("select", "observed_cells", []);
+    dbMock.enqueueFor("select", "plmns", []);
+    dbMock.enqueueFor("select", "observed_sites", [
+      { id: 8130, plmn: "26006", rat: "LTE", nodeId: 31415, place: 1 },
+      { id: 8131, plmn: "26006", rat: "LTE", nodeId: 31415, place: 2 },
+    ]);
+    const response = await injectMutation(route, request, signInAs("admin"));
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data).toMatchObject({
+      id: 8124,
+      status: "replaced",
+      replacedByObservedSiteIds: [8130, 8131],
+      nodeObservedSiteIds: [8130, 8131],
+    });
+    expect(dbMock.pendingResults()).toBe(0);
+  });
+
   it("answers a snap at its target's point with its probability and the place's address, and no radius", async () => {
     scriptSite(
       observedSiteRow({

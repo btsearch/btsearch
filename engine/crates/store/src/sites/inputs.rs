@@ -45,6 +45,7 @@ struct HandoverBin {
 pub(crate) struct CellCodes {
     pub channel: Option<i32>,
     pub pci: Option<i32>,
+    pub area_code: Option<i32>,
 }
 
 pub(crate) struct CellRows {
@@ -71,7 +72,8 @@ fn day(date: Date) -> i32 {
 }
 
 pub(crate) async fn prepare(client: &impl GenericClient, site_ids: &[i32], calibrated: &Calibrated) -> Result<Prepared, StoreError> {
-    let (site_cells, stations) = tokio::try_join!(load_site_cells(client, site_ids), load_station_places(client, site_ids))?;
+    let (site_cells, stations, node_sites) =
+        tokio::try_join!(load_site_cells(client, site_ids), load_station_places(client, site_ids), load_node_sites(client, site_ids))?;
     let cell_ids: Vec<i32> = site_cells.values().flatten().map(|cell| cell.id).collect();
     let (members, same_readings) = load_members(client, &cell_ids).await?;
     let copies = find_copies(&members, &same_readings);
@@ -108,10 +110,21 @@ pub(crate) async fn prepare(client: &impl GenericClient, site_ids: &[i32], calib
         .map(|(site_id, groups)| {
             let area_class = areas.get(&site_id).copied().unwrap_or(AreaClass::Country);
             let input = build_site_input(site_id, &primary_cells[&site_id], groups, &rows, calibrated, area_class);
-            SiteInput { station_at: stations.get(&site_id).copied(), ..input }
+            SiteInput { station_at: stations.get(&site_id).copied(), is_node: node_sites.contains(&site_id), ..input }
         })
         .collect();
     Ok(Prepared { inputs, members, copies, copy_sites, site_of, rows })
+}
+
+async fn load_node_sites(client: &impl GenericClient, site_ids: &[i32]) -> Result<BTreeSet<i32>, StoreError> {
+    let rows = client
+        .query(
+            "SELECT id FROM observations.observed_sites
+             WHERE id = ANY($1) AND retired_at IS NULL AND node_id IS NOT NULL AND rat IN ('LTE', 'NR')",
+            &[&site_ids],
+        )
+        .await?;
+    Ok(rows.iter().map(|row| row.get(0)).collect())
 }
 
 async fn load_station_places(client: &impl GenericClient, site_ids: &[i32]) -> Result<BTreeMap<i32, Point>, StoreError> {
@@ -175,17 +188,18 @@ pub(crate) async fn load_current_codes(client: &impl GenericClient, cell_ids: &[
     let rows = client
         .query(
             "SELECT observed_cell_id, field::text, value FROM observations.observed_cell_values
-             WHERE observed_cell_id = ANY($1) AND field IN ('channel', 'pci') AND is_current",
+             WHERE observed_cell_id = ANY($1) AND field IN ('channel', 'pci', 'areaCode') AND is_current",
             &[&cell_ids],
         )
         .await?;
     let mut codes: BTreeMap<i32, CellCodes> = BTreeMap::new();
     for row in &rows {
         let cell = codes.entry(row.get(0)).or_default();
-        if row.get::<_, &str>(1) == "channel" {
-            cell.channel = Some(row.get(2));
-        } else {
-            cell.pci = Some(row.get(2));
+        match row.get::<_, &str>(1) {
+            "channel" => cell.channel = Some(row.get(2)),
+            "pci" => cell.pci = Some(row.get(2)),
+            "areaCode" => cell.area_code = Some(row.get(2)),
+            _ => {}
         }
     }
     Ok(codes)
@@ -423,7 +437,9 @@ fn build_site_input(
             person_count: people_of(rows, groups.iter().flatten()).len() as i32,
         },
         cell_pcis: groups.iter().map(|ids| ids.iter().find_map(|id| rows.codes.get(id)?.pci)).collect(),
+        cell_area_codes: cells.iter().map(|cell| rows.codes.get(&cell.id)?.area_code).collect(),
         cell_ids: groups,
         station_at: None,
+        is_node: false,
     }
 }

@@ -2,6 +2,7 @@ import { DEFAULT_GNBID_LENGTH } from "@openbts/shared/contract/constants";
 
 import { gb } from "../gb/index.ts";
 import { pl } from "../pl/index.ts";
+import { us } from "../us/index.ts";
 import {
   type CountryCapabilities,
   NO_SOURCE_CAPABILITIES,
@@ -24,7 +25,7 @@ export type CountryPack = {
   defaultEarfcn?: DefaultEarfcn;
 };
 
-const PACKS: readonly CountryPack[] = [pl, gb];
+const PACKS: readonly CountryPack[] = [pl, gb, us];
 const declaredByCountryCode = new Map(PACKS.map((pack) => [pack.countryCode, pack.capabilities]));
 const conventionsByCountryCode = new Map(PACKS.map((pack) => [pack.countryCode, { ...defaultConventions, ...pack.conventions }]));
 const countryCodeByMcc = new Map(PACKS.flatMap((pack) => pack.mccs.map((mcc) => [mcc, pack.countryCode] as const)));
@@ -46,6 +47,10 @@ export function conventionsFor(countryCode: string | null): CountryConventions {
 export function knownGnbidLength(mcc: string, mnc: string): number | null {
   const length = conventionsFor(countryCodeByMcc.get(mcc) ?? null).gnbidLength({ primaryPlmn: mcc + mnc.padStart(2, "0") });
   return length === DEFAULT_GNBID_LENGTH ? null : length;
+}
+
+export function knownNodeSpansSites(mcc: string, mnc: string): boolean {
+  return conventionsFor(countryCodeByMcc.get(mcc) ?? null).nodeSpansSites({ primaryPlmn: mcc + mnc.padStart(2, "0") });
 }
 
 export function defaultLteEarfcn(plmn: string, bandMhz: number, duplex: "FDD" | "TDD"): number | null {

@@ -19,9 +19,13 @@ describe("matchObservedCells", () => {
       lte: null,
       nr: { gnbid: GNBID, clid: 5, nci: BigInt(NCI), nrtac: null, pci: null, arfcn: null },
     };
-    scriptMatcherLocks(2);
+    scriptMatcherLocks(3);
     dbMock.enqueueFor("select", "observed_sites", []);
-    dbMock.enqueueFor("select", "observed_cells", [], [], [{ id: 1, plmn: PLUS, rat: "NR", cellKey: NCI, observedSiteId: 5 }], [], [], []);
+    dbMock.enqueueFor("update", "observed_cells", []);
+    dbMock.enqueueFor("select", "observed_cells", [], [], [], [{ id: 1, plmn: PLUS, rat: "NR", cellKey: NCI, observedSiteId: 5 }], [], [], []);
+    dbMock.enqueueFor("delete", "site_splits", []);
+    dbMock.enqueueFor("select", "site_splits", []);
+    dbMock.enqueueFor("select", "site_estimates", []);
     dbMock.enqueueFor("select", "match_queue", [{ id: 1 }]);
     dbMock.enqueueFor("delete", "match_queue", []);
     scriptNetwork(PLUS);
@@ -32,6 +36,7 @@ describe("matchObservedCells", () => {
       [],
       [{ siteId: 5, siteRat: "NR", cellRat: "NR", matchedStationId: null, cellStationId: 20, cellCount: 1 }],
       [{ cellId: 10, firstSeenOn: "2026-10-20", lastSeenOn: "2026-10-24", observedCellCount: 1 }],
+      [],
       [],
       [],
     );

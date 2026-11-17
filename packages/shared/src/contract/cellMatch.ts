@@ -13,7 +13,7 @@ const NCI_BITS = 36;
 export const CELL_MATCHES = [...CELL_MATCHES_FOUND, "none"] as const;
 export type CellMatch = (typeof CELL_MATCHES)[number];
 
-export const CELL_MATCH_REASONS = ["cellUnknown", "operatorUnknown", "noIdentifiers", "analyzerDisabled"] as const;
+export const CELL_MATCH_REASONS = ["cellUnknown", "operatorUnknown", "noIdentifiers", "analyzerDisabled", "severalStations"] as const;
 export type CellMatchReason = (typeof CELL_MATCH_REASONS)[number];
 
 export const CELL_MATCH_INCLUDES = ["stations", "cells", "officialSites"] as const;
@@ -38,7 +38,10 @@ export type CellDifferenceField = (typeof CELL_DIFFERENCE_FIELDS)[number];
 const MATCH_NOTE =
   "`cell`: a stored cell has these identifiers. " +
   "`cellByLac`: UMTS only, a stored cell has this LAC and CID, but the RNC in the log is missing or different. " +
-  "`station`: LTE and NR only, the base station is known by its eNBID or gNBID, but this cell is not stored. `none`: nothing was found";
+  "`station`: LTE and NR only, the base station is known by its eNBID or gNBID, but this cell is not stored. " +
+  "If several stations have this eNBID or gNBID, those whose `networkMatch` ranks first are kept (`own`, then `extraCode`, `partner`, `missingCode`), then those with a cell in this cell's TAC. " +
+  "If more than one is left, `match` is `none` with the reason `severalStations`. " +
+  "`none`: nothing was found";
 const DIFFERENCES_NOTE =
   "The values from the log that are missing from the stored cell or differ from it. " +
   "`psc` and `bsic` are only compared while the site has them enabled. " +
@@ -174,9 +177,15 @@ export const cellMatchResultSchema = z.object({
     .enum(CELL_MATCH_REASONS)
     .nullable()
     .describe(
-      "Why nothing was found. `null` unless `match` is `none`. With `analyzerDisabled`, the analyzer is switched off in the network's country and `operatorId` is `null`",
+      "Why `match` is `none`, `null` otherwise. With `analyzerDisabled`, the analyzer is switched off in the network's country and `operatorId` is `null`. " +
+        "With `severalStations`, the cell is not stored and several stations have its eNBID or gNBID, with nothing to tell them apart",
     ),
   stationId: z.number().int().nullable().describe("The station the cell or its base station was found on. `null` if `match` is `none`"),
+  stationIds: z
+    .array(z.number().int())
+    .describe(
+      "The stations the result points at, in ascending order: the cell's station for `cell` and `cellByLac`, every station with the cell's eNBID or gNBID for `station` and `severalStations`. Empty otherwise",
+    ),
   cellId: z.number().int().nullable().describe("`null` if `match` is `station` or `none`"),
   isShared: z.boolean().describe("Whether the station belongs to a partner in a shared network rather than to the operator in the log"),
   networkMatch: z.enum(CELL_NETWORK_MATCHES).nullable().describe(NETWORK_MATCH_NOTE),

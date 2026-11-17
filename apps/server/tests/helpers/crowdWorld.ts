@@ -139,8 +139,8 @@ export async function addLteCell(
   return cell.id;
 }
 
-export async function addObservedSite(tx: DbTx, plmn: string, nodeId: number, rat: "LTE" | "NR" = "LTE"): Promise<number> {
-  const site = added(await tx.insert(observedSites).values({ plmn, rat, nodeId }).returning({ id: observedSites.id }), "The observed site");
+export async function addObservedSite(tx: DbTx, plmn: string, nodeId: number, rat: "LTE" | "NR" = "LTE", place = 0): Promise<number> {
+  const site = added(await tx.insert(observedSites).values({ plmn, rat, nodeId, place }).returning({ id: observedSites.id }), "The observed site");
   return site.id;
 }
 

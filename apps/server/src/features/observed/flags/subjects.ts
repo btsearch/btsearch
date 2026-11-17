@@ -4,7 +4,7 @@ import type { MatchedField } from "../cells/identity.js";
 
 export type FlagKey = { kind: ObservationFlagKind; subjectKey: string };
 export type ObservedCellIdentity = { plmn: string; rat: string; cellKey: number };
-export type ObservedSiteIdentity = { plmn: string; rat: string | null; nodeId: number | null; stationId: number | null };
+export type ObservedSiteIdentity = { plmn: string; rat: string | null; nodeId: number | null; place: number; stationId: number | null };
 export type QuirkGroup = "readerVersion" | "deviceModel";
 
 export function cellSubject(cellId: number): string {
@@ -31,8 +31,9 @@ export function observedCellSubject({ plmn, rat, cellKey }: ObservedCellIdentity
   return `observedCell:${plmn}:${rat}:${cellKey}`;
 }
 
-export function observedSiteSubject({ plmn, rat, nodeId, stationId }: ObservedSiteIdentity): string {
-  return stationId === null ? `observedSite:${plmn}:${rat}:${nodeId}` : `observedSite:${plmn}:station:${stationId}`;
+export function observedSiteSubject({ plmn, rat, nodeId, place, stationId }: ObservedSiteIdentity): string {
+  if (stationId !== null) return `observedSite:${plmn}:station:${stationId}`;
+  return place === 0 ? `observedSite:${plmn}:${rat}:${nodeId}` : `observedSite:${plmn}:${rat}:${nodeId}:${place}`;
 }
 
 export function countryBandSubject(countryCode: string, bandId: number): string {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { defaultConventions, formatIdentifier } from "../../core/conventions.ts";
-import { capabilitiesFor, conventionsFor, countryCodesWith, defaultLteEarfcn, knownGnbidLength } from "../../core/registry.ts";
+import { capabilitiesFor, conventionsFor, countryCodesWith, defaultLteEarfcn, knownGnbidLength, knownNodeSpansSites } from "../../core/registry.ts";
 import { pl } from "../index.ts";
 import { PLAY, TMOBILE, WITHOUT_PLMN } from "./operators.ts";
 
@@ -18,15 +18,23 @@ const HOOKS = [
   "sharedAreaCode",
   "normalizeGeocodedPlace",
 ] as const;
+const HOOKS_POLAND_LEAVES_DEFAULT = ["nodeSpansSites"] as const;
+const NETWORKS_WITHOUT_HUBS = [
+  ["310", "260"],
+  ["234", "20"],
+  ["260", "06"],
+  ["262", "01"],
+] as const;
 
 void test("gives Poland its own hook for every convention it changes", () => {
   const conventions = conventionsFor("PL");
 
-  assert.deepEqual(Object.keys(defaultConventions).sort(), [...HOOKS].sort());
+  assert.deepEqual(Object.keys(defaultConventions).sort(), [...HOOKS, ...HOOKS_POLAND_LEAVES_DEFAULT].sort());
   for (const hook of HOOKS) {
     assert.equal(conventions[hook], pl.conventions[hook], hook);
     assert.notEqual(conventions[hook], defaultConventions[hook], hook);
   }
+  for (const hook of HOOKS_POLAND_LEAVES_DEFAULT) assert.equal(conventions[hook], defaultConventions[hook], hook);
   assert.deepEqual(conventions.identifierKinds(TMOBILE), ["networksId", "networksName", "operatorName"]);
   assert.equal(formatIdentifier(conventions, "networksId", "12345"), "N!12345");
   assert.equal(conventions.validateAddress("teren własny"), "Address must not contain variants of własny");
@@ -89,6 +97,14 @@ void test("knows a gNB ID length by PLMN only where it differs from the default"
   assert.equal(knownGnbidLength("234", "15"), 22);
   assert.equal(knownGnbidLength("235", "02"), 22);
   assert.equal(knownGnbidLength("262", "01"), null);
+  assert.equal(knownGnbidLength("311", "480"), 22);
+  assert.equal(knownGnbidLength("310", "260"), null);
+});
+
+void test("marks only Verizon's 311 480 as a network whose gNBIDs span several sites", () => {
+  assert.equal(knownNodeSpansSites("311", "480"), true);
+  for (const [mcc, mnc] of NETWORKS_WITHOUT_HUBS) assert.equal(knownNodeSpansSites(mcc, mnc), false);
+  assert.equal(conventionsFor("US").nodeSpansSites({ primaryPlmn: null }), false);
 });
 
 void test("looks a default EARFCN up by the operator's primary PLMN in every pack", () => {

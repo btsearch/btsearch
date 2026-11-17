@@ -10,6 +10,9 @@ export const ROWS_PER_QUERY = 1000;
 
 export type CellMove = { cell: LockedCell; siteId: number };
 type Replacement = { observedSiteId: number; replacedBySiteId: number };
+type ChooseHandLinkHeirs = (stationId: number, successorIds: readonly number[]) => Promise<readonly number[]>;
+
+const everySuccessor: ChooseHandLinkHeirs = (_stationId, successorIds) => Promise.resolve(successorIds);
 
 export async function moveCells(tx: DbTx, moves: readonly CellMove[]): Promise<void> {
   for (const part of chunks(moves, ROWS_PER_QUERY)) {
@@ -26,7 +29,12 @@ export async function moveCells(tx: DbTx, moves: readonly CellMove[]): Promise<v
   }
 }
 
-export async function recordReplacements(tx: DbTx, moves: readonly CellMove[], retiredSiteIds: ReadonlySet<number>): Promise<void> {
+export async function recordReplacements(
+  tx: DbTx,
+  moves: readonly CellMove[],
+  retiredSiteIds: ReadonlySet<number>,
+  chooseHandLinkHeirs = everySuccessor,
+): Promise<void> {
   const replacements = new Map<string, Replacement>();
   for (const { cell, siteId } of moves) {
     const { observedSiteId } = cell;
@@ -35,11 +43,36 @@ export async function recordReplacements(tx: DbTx, moves: readonly CellMove[], r
   }
   // oxlint-disable-next-line no-await-in-loop
   for (const rows of chunks([...replacements.values()], ROWS_PER_QUERY)) await tx.insert(siteReplacements).values(rows).onConflictDoNothing();
-  await passIgnoresAndHandLinksToSuccessors(tx, [...replacements.values()]);
+  await passIgnoresAndHandLinksToSuccessors(tx, [...replacements.values()], chooseHandLinkHeirs);
   await passDismissalsToSuccessors(tx, [...replacements.values()]);
 }
 
-async function passIgnoresAndHandLinksToSuccessors(tx: DbTx, replacements: readonly Replacement[]): Promise<void> {
+async function findHandLinkHeirs(
+  successors: readonly (readonly [number, number])[],
+  linkBySite: ReadonlyMap<number, { stationId: number }>,
+  choose: ChooseHandLinkHeirs,
+): Promise<Set<number>> {
+  const heirs = await Promise.all(
+    [...Map.groupBy(successors, ([, predecessorId]) => predecessorId)].flatMap(([predecessorId, pairs]) => {
+      const stationId = linkBySite.get(predecessorId)?.stationId;
+      return stationId === undefined
+        ? []
+        : [
+            choose(
+              stationId,
+              pairs.map(([successorId]) => successorId),
+            ),
+          ];
+    }),
+  );
+  return new Set(heirs.flat());
+}
+
+async function passIgnoresAndHandLinksToSuccessors(
+  tx: DbTx,
+  replacements: readonly Replacement[],
+  chooseHandLinkHeirs: ChooseHandLinkHeirs,
+): Promise<void> {
   if (replacements.length === 0) return;
 
   const siteIds = unique(replacements.flatMap((replacement) => [replacement.observedSiteId, replacement.replacedBySiteId]));
@@ -65,9 +98,10 @@ async function passIgnoresAndHandLinksToSuccessors(tx: DbTx, replacements: reado
     const ignore = ignoreBySite.get(predecessorId);
     return ignore === undefined ? [] : [{ ...ignore, observedSiteId: successorId }];
   });
+  const heirs = await findHandLinkHeirs(successors, linkBySite, chooseHandLinkHeirs);
   const passedLinks = successors.flatMap(([successorId, predecessorId]) => {
     const link = linkBySite.get(predecessorId);
-    return link === undefined ? [] : [{ ...link, observedSiteId: successorId }];
+    return link === undefined || !heirs.has(successorId) ? [] : [{ ...link, observedSiteId: successorId }];
   });
 
   if (passedIgnores.length > 0) await tx.insert(siteIgnores).values(passedIgnores).onConflictDoNothing();
