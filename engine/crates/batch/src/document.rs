@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -133,6 +133,7 @@ pub struct CellCommon {
     pub reserved_for_operator_use_plmns: Option<Vec<String>>,
     pub derived: Option<Vec<String>>,
     pub corrected: Option<BTreeMap<String, String>>,
+    pub dropped: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -245,7 +246,8 @@ pub enum FixProvider {
 pub struct Snapshot {
     pub t: u64,
     pub sim_slot: u32,
-    pub registered_plmn: Option<String>,
+    #[serde(default, deserialize_with = "sent_even_if_null")]
+    pub registered_plmn: Option<Option<String>>,
     pub is_roaming: Option<bool>,
     pub is_nr_available: Option<bool>,
     pub is_dc_nr_restricted: Option<bool>,
@@ -254,6 +256,7 @@ pub struct Snapshot {
     pub display_override: Option<DisplayOverride>,
     pub data_activity: Option<DataActivity>,
     pub measurements: Vec<Measurement>,
+    pub removed: Option<BTreeMap<String, u32>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -328,6 +331,7 @@ pub struct Measurement {
     pub timing_advance: Option<i64>,
     pub derived: Option<Vec<String>>,
     pub corrected: Option<BTreeMap<String, String>>,
+    pub dropped: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
@@ -380,4 +384,8 @@ pub enum Event {
     ExclusionGap { t: u64, until_t: u64 },
     ReaderDiff { t: u64, reader: usize, fields: BTreeMap<String, u64> },
     BandLock { t: u64, bands: Vec<i64> },
+}
+
+fn sent_even_if_null<'de, D: Deserializer<'de>, T: Deserialize<'de>>(deserializer: D) -> Result<Option<T>, D::Error> {
+    T::deserialize(deserializer).map(Some)
 }

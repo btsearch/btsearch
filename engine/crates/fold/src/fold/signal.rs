@@ -25,10 +25,10 @@ pub(super) fn signal_of(context: &Context, output: &mut Output, reading: &Readin
         Rat::Lte => (("rsrpDbm", measurement.rsrp_dbm), Some(("rsrqDb", measurement.rsrq_db)), Some(("rssnrDb", measurement.rssnr_db))),
         Rat::Nr => (("ssRsrpDbm", measurement.ss_rsrp_dbm), Some(("ssRsrqDb", measurement.ss_rsrq_db)), Some(("ssSinrDb", measurement.ss_sinr_db))),
     };
-    let mut reported = |(field, value): (&str, Option<i64>)| measurement_value(context, output, measurement, field, value);
+    let reported = |(field, value): (&str, Option<i64>)| measurement_value(context, measurement, field, value);
     let level = reported(level).filter(|&level| !is_censored(reading, level) && !may_be_power_controlled(reading));
-    let quality = quality.and_then(&mut reported);
-    let sinr = sinr.and_then(&mut reported);
+    let quality = quality.and_then(reported);
+    let sinr = sinr.and_then(reported);
     let timing_advance = reported(("timingAdvance", measurement.timing_advance))
         .filter(|_| has_a_current_timing_advance(reading))
         .and_then(|value| timing_advance_in_steps(reading, value));
@@ -43,15 +43,14 @@ pub(super) fn signal_of(context: &Context, output: &mut Output, reading: &Readin
     }
 }
 
-fn measurement_value(context: &Context, output: &mut Output, measurement: &Measurement, field: &str, value: Option<i64>) -> Option<i64> {
-    if measurement.derived.as_ref().is_some_and(|derived| derived.iter().any(|name| name == field)) {
+fn measurement_value(context: &Context, measurement: &Measurement, field: &str, value: Option<i64>) -> Option<i64> {
+    let is_derived = measurement.derived.as_ref().is_some_and(|derived| derived.iter().any(|name| name == field));
+    let is_dropped = measurement.dropped.as_ref().is_some_and(|dropped| dropped.contains_key(field));
+    if is_derived || is_dropped {
         return None;
     }
     match measurement.corrected.as_ref().and_then(|corrected| corrected.get(field)) {
-        Some(rule) if context.inputs.blocked_quirk_rules.contains(rule) => {
-            output.report.skipped_rules.insert(rule.clone());
-            None
-        }
+        Some(rule) if context.inputs.blocked_quirk_rules.contains(rule) => None,
         _ => value,
     }
 }

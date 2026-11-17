@@ -107,6 +107,7 @@ export const MEASUREMENT_DROP_REASONS = [
   "implausible",
   "closedCountry",
   "readingBlock",
+  "blockedRule",
   "noLevel",
   "noIdentity",
 ] as const;

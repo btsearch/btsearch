@@ -25,6 +25,7 @@ use signal::signal_of;
 use unidentified::fold_unidentified;
 
 const CONTRIBUTOR_BIT_MASK: u8 = 63;
+const ROLE_FIELDS: [&str; 2] = ["role", "connectionStatus"];
 
 pub struct Fold {
     pub deltas: Deltas,
@@ -137,6 +138,13 @@ fn fold_snapshot(context: &Context, output: &mut Output, snapshot: &Snapshot, se
     reader_report.snapshot_count += 1;
     reader_report.source = Some(reader.source);
     reader_report.rules_version = reader.rules;
+    for (rule, count) in snapshot.removed.iter().flatten() {
+        if context.inputs.blocked_quirk_rules.contains(rule) {
+            output.report.skipped_rules.insert(rule.clone());
+        } else {
+            output.report.correct(rule, &reader_version.name, i64::from(*count));
+        }
+    }
     let sample_count = snapshot.measurements.len() as i64;
     output.report.sample_count += sample_count;
     if sample_count == 0 {
@@ -157,7 +165,10 @@ fn fold_snapshot(context: &Context, output: &mut Output, snapshot: &Snapshot, se
     }
 
     let sim = context.batch.sims.iter().find(|sim| sim.slot == snapshot.sim_slot);
-    let registered_plmn = snapshot.registered_plmn.as_deref().or_else(|| sim.and_then(|sim| sim.registered_plmn.as_deref()));
+    let registered_plmn = match &snapshot.registered_plmn {
+        Some(registered_now) => registered_now.as_deref(),
+        None => sim.and_then(|sim| sim.registered_plmn.as_deref()),
+    };
 
     let mut kept: Vec<KeptCell> = Vec::new();
     let mut anchor: Option<CellIdentity> = None;
@@ -190,6 +201,10 @@ fn fold_measurement(
     anchor: Option<&CellIdentity>,
     checked_moments: &mut BTreeMap<u64, Result<Checked, DropReason>>,
 ) -> Option<KeptCell> {
+    if skip_blocked_rules(context, &mut output.report, reading.measurement) {
+        output.report.drop(DropReason::BlockedRule);
+        return None;
+    }
     let t = reading.measurement.t.unwrap_or(reading.snapshot.t);
     let moment = checked_moments.entry(t).or_insert_with(|| check_moment(context, &mut output.report, t));
     let checked = match moment {
@@ -258,11 +273,9 @@ fn note_kept(context: &Context, output: &mut Output, reading: &Reading, checked:
             north: bounds.north.max(point.latitude),
         },
     });
-    let measurement_rules = reading.measurement.corrected.iter().flat_map(|corrected| corrected.values());
-    let applied_rules =
-        reading.entry.applied_rules.iter().chain(measurement_rules.filter(|rule| !context.inputs.blocked_quirk_rules.contains(*rule)));
-    for rule in applied_rules {
-        report.correct(rule, &reading.reader.name);
+    let measurement_rules = rules_of(reading.measurement).map(|(_, rule)| rule).filter(|rule| !context.inputs.blocked_quirk_rules.contains(*rule));
+    for rule in reading.entry.applied_rules.iter().chain(measurement_rules) {
+        report.correct(rule, &reading.reader.name, 1);
     }
     let derived = reading.measurement.derived.as_ref().map_or(0, Vec::len) as i64 + reading.entry.derived_count;
     report.readers.entry(reading.reader.clone()).or_default().derived_values += derived;
@@ -271,6 +284,19 @@ fn note_kept(context: &Context, output: &mut Output, reading: &Reading, checked:
         let key = ContributorMonthKey { user_id: user_id.clone(), country_code: country_code.clone(), month: checked.day.first_of_month() };
         absorb_into(&mut output.deltas.contributor_months, key, Count { sample_count: 1 });
     }
+}
+
+fn rules_of(measurement: &Measurement) -> impl Iterator<Item = (&String, &String)> {
+    [&measurement.corrected, &measurement.dropped].into_iter().flatten().flatten()
+}
+
+fn skip_blocked_rules(context: &Context, report: &mut FoldReport, measurement: &Measurement) -> bool {
+    let mut changes_the_role = false;
+    for (field, rule) in rules_of(measurement).filter(|(_, rule)| context.inputs.blocked_quirk_rules.contains(*rule)) {
+        report.skipped_rules.insert(rule.clone());
+        changes_the_role |= ROLE_FIELDS.contains(&field.as_str());
+    }
+    changes_the_role
 }
 
 fn collect_trail_reading(

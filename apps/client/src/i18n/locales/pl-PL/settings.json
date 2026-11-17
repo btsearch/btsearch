@@ -540,6 +540,10 @@
           "label": "Zablokowany odczyt",
           "hint": "Takie odczyty z tego modelu bywają błędne"
         },
+        "blockedRule": {
+          "label": "Zablokowana poprawka aplikacji",
+          "hint": "Aplikacja zmieniła ten odczyt poprawką, która okazała się błędna"
+        },
         "noLevel": {
           "label": "Bez poziomu sygnału",
           "hint": "Nie było ani poziomu sygnału, ani TA"

@@ -107,9 +107,16 @@ fn check_document(batch: &Batch) -> Result<(), String> {
     }
 
     for (index, snapshot) in batch.snapshots.iter().enumerate() {
-        require(is_optional_plmn(snapshot.registered_plmn.as_deref()), format_args!("`snapshots[{index}].registeredPlmn` must be a network code"))?;
+        require(
+            is_optional_plmn(snapshot.registered_plmn.as_ref().and_then(Option::as_deref)),
+            format_args!("`snapshots[{index}].registeredPlmn` must be a network code or null"),
+        )?;
         require(snapshot.reader < batch.readers.len(), format_args!("`snapshots[{index}]` points at a reader that is not in `readers`"))?;
         require(snapshot.measurements.len() <= MEASUREMENTS_MAX, format_args!("`snapshots[{index}]` has more than {MEASUREMENTS_MAX} measurements"))?;
+        require(
+            snapshot.removed.iter().flatten().all(|(rule, count)| is_field_name(rule) && *count > 0),
+            format_args!("`snapshots[{index}].removed` must map rule ids of 1 to {NAME_MAX_LENGTH} characters to positive counts"),
+        )?;
         for measurement in &snapshot.measurements {
             check_measurement(measurement, batch.cells.len()).map_err(|problem| format!("`snapshots[{index}]`: {problem}"))?;
         }
@@ -141,12 +148,12 @@ fn check_cell_common(common: &CellCommon) -> Result<(), String> {
         format_args!("`reservedForOperatorUsePlmns` must hold at most {NETWORKS_MAX} network codes"),
     )?;
     require(is_band_list(common.bands.as_deref()), format_args!("`bands` must hold at most {BANDS_MAX} positive band numbers"))?;
-    check_provenance(common.derived.as_deref(), common.corrected.as_ref())
+    check_provenance(common.derived.as_deref(), [("corrected", common.corrected.as_ref()), ("dropped", common.dropped.as_ref())])
 }
 
 fn check_measurement(measurement: &Measurement, cell_count: usize) -> Result<(), String> {
     require(measurement.cell < cell_count, "a measurement points at a cell that is not in `cells`")?;
-    check_provenance(measurement.derived.as_deref(), measurement.corrected.as_ref())
+    check_provenance(measurement.derived.as_deref(), [("corrected", measurement.corrected.as_ref()), ("dropped", measurement.dropped.as_ref())])
 }
 
 fn check_event(event: &Event) -> Result<(), String> {
@@ -161,16 +168,19 @@ fn check_event(event: &Event) -> Result<(), String> {
     }
 }
 
-fn check_provenance(derived: Option<&[String]>, corrected: Option<&BTreeMap<String, String>>) -> Result<(), String> {
+fn check_provenance(derived: Option<&[String]>, rule_maps: [(&str, Option<&BTreeMap<String, String>>); 2]) -> Result<(), String> {
     let derived = derived.unwrap_or_default();
     require(
         derived.len() <= FIELD_LIST_MAX && derived.iter().all(|field| is_field_name(field)),
         format_args!("`derived` must list at most {FIELD_LIST_MAX} field names"),
     )?;
-    require(
-        corrected.into_iter().flatten().all(|(field, rule)| is_field_name(field) && is_field_name(rule)),
-        format_args!("`corrected` must map field names to rule ids of 1 to {NAME_MAX_LENGTH} characters"),
-    )
+    for (name, rules) in rule_maps {
+        require(
+            rules.into_iter().flatten().all(|(field, rule)| is_field_name(field) && is_field_name(rule)),
+            format_args!("`{name}` must map field names to rule ids of 1 to {NAME_MAX_LENGTH} characters"),
+        )?;
+    }
+    Ok(())
 }
 
 fn require(holds: bool, problem: impl Display) -> Result<(), String> {

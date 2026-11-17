@@ -54,6 +54,8 @@ export const MEASUREMENT_UPLOAD_QUOTAS = {
 
 export const MEASUREMENT_DEVICE_LIMITS = { activeDevices: 5, registrationsPerDay: 3 } as const;
 
+export const MEASUREMENT_COLLECTION = { snapshotSecondsMin: 1, snapshotSecondsMax: 5, batchMinutes: 15, batchSnapshots: 5_000 } as const;
+
 export const MEASUREMENT_SESSION_MODES = ["passive", "active", "survey"] as const;
 export type MeasurementSessionMode = (typeof MEASUREMENT_SESSION_MODES)[number];
 
@@ -138,12 +140,12 @@ const bandsSchema = z.array(z.number().int().positive()).max(16);
 const appSchema = z.object({ versionCode: z.number().int().positive(), versionName: nameSchema });
 
 const fieldListSchema = z.array(z.string().min(1).max(64)).max(64);
+const ruleIdSchema = z.string().min(1).max(64);
+const fieldRulesSchema = z.record(z.string().min(1).max(64), ruleIdSchema).optional();
 const provenanceShape = {
   derived: fieldListSchema.optional().describe("The fields the reader computed or guessed instead of reading them. They count as hints only"),
-  corrected: z
-    .record(z.string().min(1).max(64), z.string().min(1).max(64))
-    .optional()
-    .describe("The fields the reader changed with a known-quirk rule, each with the rule's id"),
+  corrected: fieldRulesSchema.describe("The fields the reader changed with a known-quirk rule, each with the rule's id"),
+  dropped: fieldRulesSchema.describe("The fields the reader left out with a known-quirk rule, each with the rule's id"),
 };
 
 const cellShape = {
@@ -243,9 +245,12 @@ export type MeasurementFix = z.infer<typeof measurementFixSchema>;
 export const measurementSchema = z
   .object({
     cell: positionSchema.describe("A position in `cells`, counted from 0"),
-    role: z.enum(MEASUREMENT_ROLES),
+    role: z.enum(MEASUREMENT_ROLES).describe("When a known-quirk rule changed it, name the rule in `corrected.role`"),
     t: elapsedMillisSchema.optional().describe("The cell's own time, when it differs from the snapshot's"),
-    connectionStatus: z.enum(MEASUREMENT_CONNECTION_STATUSES).optional(),
+    connectionStatus: z
+      .enum(MEASUREMENT_CONNECTION_STATUSES)
+      .optional()
+      .describe("When a known-quirk rule changed it, name the rule in `corrected.connectionStatus`"),
     accessBarring: z
       .partialRecord(z.enum(ACCESS_BARRING_SERVICES), z.enum(ACCESS_BARRING_KINDS))
       .optional()
@@ -275,7 +280,10 @@ export type Measurement = z.infer<typeof measurementSchema>;
 export const measurementSnapshotSchema = z.object({
   t: elapsedMillisSchema,
   simSlot: simSlotSchema,
-  registeredPlmn: plmnCodeSchema.optional().describe("The network the SIM is registered on, when it differs from `sims`"),
+  registeredPlmn: plmnCodeSchema
+    .nullable()
+    .optional()
+    .describe("The network the SIM is registered on, when it differs from `sims`. `null` while it is registered on no network"),
   isRoaming: z.boolean().optional().describe("Android's roaming flag, when it differs from `sims`"),
   isNrAvailable: z.boolean().optional(),
   isDcNrRestricted: z.boolean().optional(),
@@ -287,6 +295,10 @@ export const measurementSnapshotSchema = z.object({
   displayOverride: z.enum(MEASUREMENT_DISPLAY_OVERRIDES).optional(),
   dataActivity: z.enum(MEASUREMENT_DATA_ACTIVITIES).optional(),
   measurements: z.array(measurementSchema).max(64),
+  removed: z
+    .record(ruleIdSchema, z.number().int().positive())
+    .optional()
+    .describe("How many measurements each known-quirk rule took out of this snapshot as not real, by the rule's id"),
 });
 export type MeasurementSnapshot = z.infer<typeof measurementSnapshotSchema>;
 
@@ -362,7 +374,7 @@ export const measurementBatchSchema = z
         z.object({
           slot: simSlotSchema,
           simPlmn: plmnCodeSchema.optional().describe("The SIM's own network"),
-          registeredPlmn: plmnCodeSchema.optional().describe("The network the SIM is registered on"),
+          registeredPlmn: plmnCodeSchema.optional().describe("The network the SIM is registered on. Leave it out while it is registered on none"),
           isRoaming: z.boolean().optional(),
           isDataSim: z.boolean(),
         }),
@@ -426,6 +438,17 @@ export const measurementConfigSchema = z.object({
       .describe("What one person, or one device, can upload in any `windowHours` hours"),
     devices: z.object({ activeDevices: z.number().int().describe("Revoked devices do not count"), registrationsPerDay: z.number().int() }),
   }),
+  collection: z
+    .object({
+      snapshotSecondsMin: z.number().int(),
+      snapshotSecondsMax: z.number().int(),
+      batchMinutes: z.number().int(),
+      batchSnapshots: z.number().int(),
+    })
+    .describe(
+      "While moving, read the cells every `snapshotSecondsMin` to `snapshotSecondsMax` seconds, and not while standing still. " +
+        "Send a batch every `batchMinutes` minutes or `batchSnapshots` snapshots, whichever comes first",
+    ),
 });
 export type MeasurementConfig = z.infer<typeof measurementConfigSchema>;
 
@@ -646,6 +669,10 @@ export const measurementUploadSchema = z.object({
   deviceId: z.uuid(),
   status: z.enum(MEASUREMENT_UPLOAD_STATUSES).describe("Goes from `received` through `processing` to `processed` or `rejected`"),
   rejectionReason: z.enum(MEASUREMENT_REJECTION_REASONS).nullable(),
+  rejectionDetail: z
+    .string()
+    .nullable()
+    .describe("What is wrong with the document, for `invalidDocument`, `formatVersion`, `idMismatch` and `limitExceeded`"),
   exclusion: z
     .object({
       reason: z.string(),

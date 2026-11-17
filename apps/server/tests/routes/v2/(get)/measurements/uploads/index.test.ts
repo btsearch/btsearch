@@ -191,6 +191,22 @@ describe("GET /measurements/uploads/:id", () => {
     });
   });
 
+  it("says what is wrong with a rejected document, but not why processing failed", async () => {
+    const detail = "not a valid document: `snapshots[0]` points at a reader that is not in `readers`";
+    dbMock.enqueueFor("select", "uploads", [
+      { upload: upload({ status: "rejected", statusReason: "invalidDocument", lastError: detail }), userId, fold: null },
+    ]);
+    dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
+    const invalid = await get(getUpload, `/measurements/uploads/${uploadId}`);
+    expect(invalid.json().data).toMatchObject({ rejectionReason: "invalidDocument", rejectionDetail: detail });
+
+    const failed = upload({ status: "rejected", statusReason: "processingFailed", attempts: 5, lastError: "db error: connection reset" });
+    dbMock.enqueueFor("select", "uploads", [{ upload: failed, userId, fold: null }]);
+    dbMock.enqueueFor("select", "crowd_settings", [crowdSettingsRow]);
+    const processingFailed = await get(getUpload, `/measurements/uploads/${uploadId}`);
+    expect(processingFailed.json().data).toMatchObject({ rejectionReason: "processingFailed", rejectionDetail: null });
+  });
+
   it("hides another person's upload from someone who is not an administrator", async () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.enqueueFor("select", "uploads", [{ upload: upload(), userId: "22222222-2222-4222-8222-222222222222" }]);

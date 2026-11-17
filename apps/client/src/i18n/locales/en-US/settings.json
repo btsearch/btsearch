@@ -522,6 +522,10 @@
           "label": "Blocked reading",
           "hint": "Readings like these from this model are often wrong"
         },
+        "blockedRule": {
+          "label": "Blocked app fix",
+          "hint": "The app changed this reading with a fix that turned out to be wrong"
+        },
         "noLevel": {
           "label": "No signal level",
           "hint": "There was neither a signal level nor TA"

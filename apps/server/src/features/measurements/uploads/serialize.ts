@@ -20,6 +20,7 @@ type UploadResult = NonNullable<MeasurementUpload["result"]>;
 type ResultSource = { uploadId: string; processedAt: Date; fold: UploadFoldRow | null };
 
 const NO_SAMPLES: MeasurementRejectionReason = "noSamples";
+const DOCUMENT_REJECTIONS: ReadonlySet<MeasurementRejectionReason> = new Set(["invalidDocument", "formatVersion", "idMismatch", "limitExceeded"]);
 
 function resultSource(stored: StoredUpload): ResultSource | null {
   const fold = countedFold(stored);
@@ -106,11 +107,13 @@ function buildMeasurementUpload(
   excluders: Excluders | undefined,
 ): MeasurementUpload {
   const { upload } = stored;
+  const rejectionReason = rejectionReasonOf(upload);
   return {
     id: upload.id,
     deviceId: upload.deviceId,
     status: upload.status,
-    rejectionReason: rejectionReasonOf(upload),
+    rejectionReason,
+    rejectionDetail: rejectionReason !== null && DOCUMENT_REJECTIONS.has(rejectionReason) ? upload.lastError : null,
     exclusion: exclusionOf(upload, excluders),
     contentType: ENCODING_CONTENT_TYPES[upload.encoding],
     sizeBytes: upload.bodyBytes,

@@ -1,5 +1,5 @@
 import { crowdSettings } from "@openbts/drizzle";
-import { MEASUREMENT_DEVICE_LIMITS, MEASUREMENT_UPLOAD_LIMITS, MEASUREMENT_UPLOAD_QUOTAS } from "@openbts/shared/contract";
+import { MEASUREMENT_COLLECTION, MEASUREMENT_DEVICE_LIMITS, MEASUREMENT_UPLOAD_LIMITS, MEASUREMENT_UPLOAD_QUOTAS } from "@openbts/shared/contract";
 import type { MeasurementConfig, SettingsMeasurements } from "@openbts/shared/contract";
 import { eq, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -30,6 +30,7 @@ export function toMeasurementConfig(settings: CrowdSettings): MeasurementConfig 
     minAppVersionCode: settings.minAppVersionCode,
     termsVersion: settings.termsVersion,
     limits: { upload: MEASUREMENT_UPLOAD_LIMITS, quotas: MEASUREMENT_UPLOAD_QUOTAS, devices: MEASUREMENT_DEVICE_LIMITS },
+    collection: MEASUREMENT_COLLECTION,
   };
 }
 

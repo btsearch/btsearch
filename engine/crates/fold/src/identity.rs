@@ -110,6 +110,14 @@ impl Provenance<'_> {
         if self.common.derived.as_ref().is_some_and(|derived| derived.iter().any(|name| name == field)) {
             return None;
         }
+        if let Some(rule) = self.common.dropped.as_ref().and_then(|dropped| dropped.get(field)) {
+            if self.blocked_rules.contains(rule) {
+                self.skipped_rules.insert(rule.clone());
+            } else {
+                self.applied_rules.push(rule.clone());
+            }
+            return None;
+        }
         let Some(rule) = self.common.corrected.as_ref().and_then(|corrected| corrected.get(field)) else {
             return value;
         };

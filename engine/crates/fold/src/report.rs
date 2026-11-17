@@ -24,12 +24,13 @@ pub enum DropReason {
     Implausible,
     ClosedCountry,
     ReadingBlock,
+    BlockedRule,
     NoLevel,
     NoIdentity,
 }
 
 impl DropReason {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::MockLocation,
         Self::PoorAccuracy,
         Self::ImplausibleFix,
@@ -40,6 +41,7 @@ impl DropReason {
         Self::Implausible,
         Self::ClosedCountry,
         Self::ReadingBlock,
+        Self::BlockedRule,
         Self::NoLevel,
         Self::NoIdentity,
     ];
@@ -56,6 +58,7 @@ impl DropReason {
             Self::Implausible => "implausible",
             Self::ClosedCountry => "closedCountry",
             Self::ReadingBlock => "readingBlock",
+            Self::BlockedRule => "blockedRule",
             Self::NoLevel => "noLevel",
             Self::NoIdentity => "noIdentity",
         }
@@ -220,10 +223,10 @@ impl FoldReport {
         *self.drops.entry(reason).or_insert(0) += 1;
     }
 
-    pub(crate) fn correct(&mut self, rule: &str, reader_name: &str) {
+    pub(crate) fn correct(&mut self, rule: &str, reader_name: &str, value_count: i64) {
         let correction =
             self.corrections.entry(rule.to_owned()).or_insert_with(|| Correction { reader_name: reader_name.to_owned(), value_count: 0 });
-        correction.value_count += 1;
+        correction.value_count += value_count;
     }
 
     pub(crate) fn note_difference(&mut self, reader: &ReaderVersion, field: CheckedField, cell: &CellIdentity, ours: i64, reported: i64) {
