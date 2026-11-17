@@ -185,7 +185,7 @@ fn fold_snapshot(context: &Context, output: &mut Output, snapshot: &Snapshot, se
             registered_plmn,
         };
         if let Some(cell) = fold_measurement(context, output, &reading, anchor.as_ref(), &mut checked_moments) {
-            if measurement.role == Role::Serving && cell.identity.rat == Rat::Lte {
+            if measurement.role == Role::Serving && matches!(cell.identity.rat, Rat::Lte | Rat::Nr) {
                 anchor.get_or_insert_with(|| cell.identity.clone());
             }
             kept.push(cell);
