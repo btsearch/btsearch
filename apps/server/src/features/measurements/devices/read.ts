@@ -66,13 +66,8 @@ export function selectDevices(sortKey: SQL<string | null> = sql<null>`NULL`) {
       revokedById: deviceRevocations.revokedById,
       revocationReason: deviceRevocations.reason,
       lastUploadAt,
-      software: {
-        sdkInt: software.sdkInt,
-        securityPatch: software.securityPatch,
-        radioVersion: software.radioVersion,
-        appVersionCode: software.appVersionCode,
-        appVersionName: software.appVersionName,
-      },
+      os: { sdkInt: software.sdkInt, securityPatch: software.securityPatch, radioVersion: software.radioVersion },
+      app: { versionCode: software.appVersionCode, versionName: software.appVersionName },
       sortKey,
     })
     .from(devices)

@@ -1,4 +1,4 @@
-import { GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, MAX_LATITUDE, MAX_LONGITUDE } from "@openbts/shared/contract/constants";
+import { GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, GSM_BAND_MHZ, MAX_LATITUDE, MAX_LONGITUDE } from "@openbts/shared/contract/constants";
 
 import { ANALYZER_NR_MAX } from "./analyzerImport";
 import type { NrAnchor, ParsedRow } from "./analyzerParsers";
@@ -165,8 +165,12 @@ function isBandNumber(text: string): boolean {
   return NUMBER_PATTERN.test(text) && Number(text) >= 1 && Number(text) <= VALUE_MAX.band;
 }
 
+function isGsmBandMhz(text: string): boolean {
+  return NUMBER_PATTERN.test(text) && GSM_BAND_MHZ.has(Number(text));
+}
+
 function checkCellKeys(record: CellRecord, values: TokenValues): void {
-  checkList(values.get("band"), isBandNumber);
+  checkList(values.get("band"), record === "gsm" ? isGsmBandMhz : isBandNumber);
   checkList(values.get("plmns"), (part) => PLMN_PATTERN.test(part));
   const azimuth = values.get("az");
   if (azimuth !== undefined && azimuth.value.toLowerCase() !== OMNI_AZIMUTH) readOptionalNumber(azimuth, VALUE_MAX.azimuth);

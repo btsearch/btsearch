@@ -104,8 +104,10 @@ fn moved(fixture: &Value, upload_id: Uuid, device_id: Uuid, east_meters: f64, no
 fn last_reading_millis(document: &Value) -> i64 {
     let elapsed_at_clock = document["clock"]["elapsedRealtimeMillis"].as_i64().unwrap_or_default();
     let epoch_at_clock = document["clock"]["epochMillis"].as_i64().unwrap_or_default();
-    let times =
-        ["fixes", "snapshots"].into_iter().flat_map(|list| document[list].as_array().into_iter().flatten()).filter_map(|item| item["t"].as_i64());
+    let times = ["fixes", "snapshots"]
+        .into_iter()
+        .flat_map(|list| document[list].as_array().into_iter().flatten())
+        .filter_map(|item| item["elapsedRealtimeMillis"].as_i64());
     let latest = times.fold(elapsed_at_clock, i64::max);
     epoch_at_clock + (latest - elapsed_at_clock)
 }
@@ -121,8 +123,8 @@ mod tests {
         vec![json!({
             "uploadId": "x", "deviceId": "y",
             "clock": { "elapsedRealtimeMillis": 1_000, "epochMillis": 1_791_547_200_000_i64 },
-            "fixes": [{ "t": 2_000, "gnssTimeMillis": 1_791_547_201_000_i64, "latitude": 52.0, "longitude": 21.0 }],
-            "snapshots": [{ "t": 5_000 }]
+            "fixes": [{ "elapsedRealtimeMillis": 2_000, "gnssTimeMillis": 1_791_547_201_000_i64, "latitude": 52.0, "longitude": 21.0 }],
+            "snapshots": [{ "elapsedRealtimeMillis": 5_000 }]
         })]
     }
 

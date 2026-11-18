@@ -244,7 +244,7 @@ function toContributor(row: ContributorRow, { acceptance, uploadTotals, deviceCo
             confirmsAlone: row.vouch.confirmsAlone,
             reason: row.vouch.reason,
             by: row.vouchedBy === null ? null : toUserRef(row.vouchedBy),
-            at: row.vouch.vouchedAt.toISOString(),
+            vouchedAt: row.vouch.vouchedAt.toISOString(),
             endsAt: row.vouch.until?.toISOString() ?? null,
           },
     block:
@@ -253,7 +253,7 @@ function toContributor(row: ContributorRow, { acceptance, uploadTotals, deviceCo
         : {
             reason: row.block.reason,
             by: row.blockedBy === null ? null : toUserRef(row.blockedBy),
-            at: row.block.blockedAt.toISOString(),
+            blockedAt: row.block.blockedAt.toISOString(),
             endsAt: row.block.until?.toISOString() ?? null,
           },
   };

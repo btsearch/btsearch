@@ -53,7 +53,7 @@
   ],
   "fixes": [
     {
-      "t": 812345900,
+      "elapsedRealtimeMillis": 812345900,
       "gnssTimeMillis": 1791547200900,
       "latitude": 50.0614201,
       "longitude": 19.9365789,
@@ -65,7 +65,7 @@
   ],
   "snapshots": [
     {
-      "t": 812346200,
+      "elapsedRealtimeMillis": 812346200,
       "simSlot": 0,
       "reader": 0,
       "dataNetworkType": "edge",

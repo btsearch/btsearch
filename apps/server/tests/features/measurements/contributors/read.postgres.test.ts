@@ -72,8 +72,8 @@ describeOnCrowdDatabase("reading contributors", () => {
 
       expect(answers.map((contributor) => contributor.block)).toEqual([
         null,
-        { reason: "Fake readings", by: expect.objectContaining({ id: admin }), at: blockedAt.toISOString(), endsAt: null },
-        { reason: "Mock locations", by: null, at: blockedAt.toISOString(), endsAt: tomorrow.toISOString() },
+        { reason: "Fake readings", by: expect.objectContaining({ id: admin }), blockedAt: blockedAt.toISOString(), endsAt: null },
+        { reason: "Mock locations", by: null, blockedAt: blockedAt.toISOString(), endsAt: tomorrow.toISOString() },
       ]);
       expect(checks).toEqual([undefined, { until: null }, { until: tomorrow }]);
     }));

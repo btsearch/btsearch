@@ -8,6 +8,7 @@ use serde_json::Value;
 
 pub const APPENDIX_A_UPLOAD_ID: &str = "01a12096-8da0-7c1d-9b2e-5f6a7b8c9d0e";
 pub const APPENDIX_A_DEVICE_ID: &str = "01a0bdd4-4400-7d2e-8f30-415263748596";
+pub const APPENDIX_A_APP_VERSION_CODE: u32 = 140;
 
 pub fn engine_directory() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -31,5 +32,5 @@ pub fn read_appendix_a_changed(change: impl FnOnce(&mut Value)) -> Result<Upload
     let mut document = appendix_a();
     change(&mut document);
     let bytes = serde_json::to_vec(&document).expect("a JSON value serializes");
-    read_document(&bytes, APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID)
+    read_document(&bytes, APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID, APPENDIX_A_APP_VERSION_CODE)
 }

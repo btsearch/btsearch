@@ -26,7 +26,7 @@ function selectQuirkRules() {
 
 function toQuirkRuleBlock({ block, blockedBy }: QuirkRuleRow): MeasurementQuirkRule["block"] {
   if (block === null) return null;
-  return { reason: block.reason, by: blockedBy === null ? null : toUserRef(blockedBy), at: block.blockedAt.toISOString() };
+  return { reason: block.reason, by: blockedBy === null ? null : toUserRef(blockedBy), blockedAt: block.blockedAt.toISOString() };
 }
 
 function toQuirkRule(row: QuirkRuleRow): MeasurementQuirkRule {

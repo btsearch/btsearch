@@ -2,7 +2,7 @@ import { conventionsFor } from "@openbts/country-packs";
 import { resolveCatalogBand } from "@openbts/shared/bandCatalog";
 import { CELL_TYPE_SHORT_LABELS, type CellType } from "@openbts/shared/cellTypes";
 import type { CountryFeatures } from "@openbts/shared/contract";
-import { GNBID_MAX_LENGTH, GNBID_MIN_LENGTH } from "@openbts/shared/contract/constants";
+import { GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, GSM_BAND_MHZ } from "@openbts/shared/contract/constants";
 
 import { disabledCountryFeatures } from "../stations/countryFeatures.js";
 import { type CellExportData, getMccMnc, sanitizeDescription } from "./converter.js";
@@ -103,11 +103,18 @@ function codeOf(cell: CellExportData, features: CountryFeatures): number | null 
   return cell.pci ?? null;
 }
 
+function gsmBandMhzOf(cell: CellExportData): number | null {
+  return typeof cell.band_value === "number" && GSM_BAND_MHZ.has(cell.band_value) ? cell.band_value : null;
+}
+
 function radioKeys(cell: CellExportData, { code, gnbidLength }: LineRadio): [key: string, value: number | null | undefined][] {
   const band = resolveCatalogBand({ rat: cell.rat, value: cell.band_value, duplex: cell.band_duplex, code: cell.band_code })?.number;
   switch (cell.rat) {
     case "GSM":
-      return [["bsic", code]];
+      return [
+        ["bsic", code],
+        ["band", gsmBandMhzOf(cell)],
+      ];
     case "UMTS":
       return [
         ["lac", cell.lac],

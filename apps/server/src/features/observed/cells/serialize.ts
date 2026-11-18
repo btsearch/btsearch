@@ -118,7 +118,7 @@ export function toObservedCellRecord(rows: ObservedCellRecordRows): ObservedCell
     operatorId: rows.operatorId,
     bandId: bandIdOf(rows, channel),
     bandwidthKhz,
-    reportedBandNumbers: unique(rows.values.filter((value) => value.field === "reportedBand").map((value) => value.value)).toSorted((a, b) => a - b),
+    reportedBands: unique(rows.values.filter((value) => value.field === "reportedBand").map((value) => value.value)).toSorted((a, b) => a - b),
     ulBandwidthKhz: hasUplink && ulBandwidthKhz !== undefined && ulBandwidthKhz !== bandwidthKhz ? ulBandwidthKhz : null,
     supportsEndc: booleanOf(latest.get("endcAvailable")),
     isAccessClosed: booleanOf(latest.get("accessClosed")),

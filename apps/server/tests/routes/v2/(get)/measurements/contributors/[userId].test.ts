@@ -45,7 +45,7 @@ describe("GET /measurements/contributors/:userId", () => {
       weight: { computed: 0.5, effective: 0.5 },
       trackRecord: { timingAdvanceAgreement: null, droppedShare: 0, mockShare: 0, phantomCells: 0 },
       vouch: null,
-      block: { reason: "Fake readings", by: staff, at: blockedAt.toISOString(), endsAt: null },
+      block: { reason: "Fake readings", by: staff, blockedAt: blockedAt.toISOString(), endsAt: null },
     });
   });
 

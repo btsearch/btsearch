@@ -41,7 +41,9 @@ describe("measurementBatchSchema", () => {
     [
       "an upload that spans too long",
       changed((document) =>
-        document.fixes.forEach((fix) => Object.assign(fix, { t: fix.t + (MEASUREMENT_UPLOAD_LIMITS.spanHours + 1) * HOUR_MILLIS })),
+        document.fixes.forEach((fix) =>
+          Object.assign(fix, { elapsedRealtimeMillis: fix.elapsedRealtimeMillis + (MEASUREMENT_UPLOAD_LIMITS.spanHours + 1) * HOUR_MILLIS }),
+        ),
       ),
       `Must span at most ${MEASUREMENT_UPLOAD_LIMITS.spanHours} hours`,
     ],

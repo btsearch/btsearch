@@ -79,7 +79,12 @@ describe("PATCH /measurements/contributors/:userId", () => {
     const response = await update({ block: { reason: "Fake readings", endsAt: until.toISOString() } });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.block).toEqual({ reason: "Fake readings", by: staff, at: vouchedAt.toISOString(), endsAt: until.toISOString() });
+    expect(response.json().data.block).toEqual({
+      reason: "Fake readings",
+      by: staff,
+      blockedAt: vouchedAt.toISOString(),
+      endsAt: until.toISOString(),
+    });
     expect(writes("insert", "contributor_blocks")).toEqual([{ userId: contributorId, reason: "Fake readings", until, blockedById: STAFF_ID }]);
     expect(writes("insert", "audit_operations")[0]).toMatchObject({ kind: "observations.contributor_block" });
   });

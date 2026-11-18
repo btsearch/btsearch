@@ -31,10 +31,10 @@
   ],
   "readers": [
     {
-      "name": "btsearch",
+      "name": "cellreader",
       "version": "0.4.0",
       "source": "api",
-      "rules": 12
+      "rulesVersion": 12
     }
   ],
   "cells": [
@@ -54,7 +54,7 @@
   ],
   "fixes": [
     {
-      "t": 812345900,
+      "elapsedRealtimeMillis": 812345900,
       "gnssTimeMillis": 1791547200900,
       "latitude": 51.1078852,
       "longitude": 17.0385376,
@@ -65,7 +65,7 @@
   ],
   "snapshots": [
     {
-      "t": 812346100,
+      "elapsedRealtimeMillis": 812346100,
       "simSlot": 0,
       "reader": 0,
       "dataNetworkType": "hspap",

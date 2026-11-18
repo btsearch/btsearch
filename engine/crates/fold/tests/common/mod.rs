@@ -55,7 +55,8 @@ fn quoted_strings(list: &str) -> Vec<String> {
 pub fn read_batch(document: &Value) -> Batch {
     let bytes = serde_json::to_vec(document).expect("a JSON value serializes");
     let id = |name: &str| document[name].as_str().expect("the document names its ids").to_owned();
-    read_document(&bytes, &id("uploadId"), &id("deviceId")).expect("the document reads").batch
+    let app_version_code = document["app"]["versionCode"].as_u64().and_then(|code| u32::try_from(code).ok()).expect("the document names its app");
+    read_document(&bytes, &id("uploadId"), &id("deviceId"), app_version_code).expect("the document reads").batch
 }
 
 pub fn fixture_document(name: &str) -> Value {
@@ -111,12 +112,12 @@ pub fn drive_document(upload_id: &str, legs: &[Leg], gap_after_leg: Option<(usiz
         for _ in 0..leg.seconds {
             let latitude = 52.0 + north_meters / 111_195.08;
             fixes.push(json!({
-                "t": t, "gnssTimeMillis": CLOCK_EPOCH_MILLIS - CLOCK_ELAPSED_MILLIS as i64 + t as i64,
+                "elapsedRealtimeMillis": t, "gnssTimeMillis": CLOCK_EPOCH_MILLIS - CLOCK_ELAPSED_MILLIS as i64 + t as i64,
                 "latitude": latitude, "longitude": 21.0, "accuracyMeters": 4.0,
                 "speedMetersPerSecond": leg.meters_per_second, "bearingDegrees": 0.0, "provider": "gps", "isMock": false
             }));
             snapshots.push(json!({
-                "t": t + 100, "simSlot": 0, "reader": 0,
+                "elapsedRealtimeMillis": t + 100, "simSlot": 0, "reader": 0,
                 "measurements": [{
                     "cell": 0, "role": "serving", "connectionStatus": "primaryServing", "rsrpDbm": -95, "rsrqDb": -11, "timingAdvance": 3
                 }]
@@ -133,7 +134,7 @@ pub fn drive_document(upload_id: &str, legs: &[Leg], gap_after_leg: Option<(usiz
         "app": { "versionCode": 140, "versionName": "1.4.0" }, "os": { "sdkInt": 35 },
         "clock": { "elapsedRealtimeMillis": CLOCK_ELAPSED_MILLIS, "epochMillis": CLOCK_EPOCH_MILLIS },
         "sessions": [], "sims": [{ "slot": 0, "simPlmn": "26006", "registeredPlmn": "26006", "isDataSim": true }],
-        "readers": [{ "name": "btsearch", "version": "0.4.0", "source": "api" }],
+        "readers": [{ "name": "cellreader", "version": "0.4.0", "source": "api" }],
         "cells": [{ "rat": "lte", "plmn": "26006", "eci": 31_604_747, "tac": 58_140, "earfcn": 1_300, "pci": 301 }],
         "fixes": fixes, "snapshots": snapshots
     });

@@ -61,7 +61,7 @@ describe("GET /measurements/contributors", () => {
       deviceCount: 3,
       revokedDeviceCount: 1,
       uploadCount: 12,
-      block: { reason: "Fake readings", by: staff, at: vouchedAt.toISOString(), endsAt: null },
+      block: { reason: "Fake readings", by: staff, blockedAt: vouchedAt.toISOString(), endsAt: null },
     });
     expect(paging).toEqual({ limit: 2, nextCursor: expect.any(String) });
   });

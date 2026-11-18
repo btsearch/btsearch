@@ -31,10 +31,10 @@
   ],
   "readers": [
     {
-      "name": "btsearch",
+      "name": "cellreader",
       "version": "0.4.0",
       "source": "api",
-      "rules": 12
+      "rulesVersion": 12
     },
     {
       "name": "netmonsterCore",
@@ -65,7 +65,7 @@
   ],
   "fixes": [
     {
-      "t": 812345900,
+      "elapsedRealtimeMillis": 812345900,
       "gnssTimeMillis": 1791547200900,
       "latitude": 52.2297123,
       "longitude": 21.0122456,
@@ -76,7 +76,7 @@
   ],
   "snapshots": [
     {
-      "t": 812346000,
+      "elapsedRealtimeMillis": 812346000,
       "simSlot": 0,
       "reader": 0,
       "dataNetworkType": "lte",
@@ -92,7 +92,7 @@
       ]
     },
     {
-      "t": 812346000,
+      "elapsedRealtimeMillis": 812346000,
       "simSlot": 0,
       "reader": 1,
       "dataNetworkType": "lte",
@@ -109,7 +109,7 @@
   "events": [
     {
       "type": "readerDiff",
-      "t": 812346000,
+      "elapsedRealtimeMillis": 812346000,
       "reader": 1,
       "fields": {
         "tac": 1

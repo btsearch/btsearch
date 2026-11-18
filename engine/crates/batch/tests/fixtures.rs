@@ -3,7 +3,7 @@ mod common;
 use std::fs;
 use std::path::PathBuf;
 
-use common::{APPENDIX_A_DEVICE_ID, APPENDIX_A_UPLOAD_ID, fixtures_directory};
+use common::{APPENDIX_A_APP_VERSION_CODE, APPENDIX_A_DEVICE_ID, APPENDIX_A_UPLOAD_ID, fixtures_directory};
 use engine_batch::document::{Cell, Role};
 use engine_batch::read_document;
 
@@ -17,10 +17,11 @@ fn fixture_paths() -> Vec<PathBuf> {
     paths
 }
 
-fn own_ids(document: &[u8]) -> (String, String) {
+fn own_ids(document: &[u8]) -> (String, String, u32) {
     let value: serde_json::Value = serde_json::from_slice(document).expect("a fixture is JSON");
     let id = |name: &str| value[name].as_str().expect("a fixture names its ids").to_owned();
-    (id("uploadId"), id("deviceId"))
+    let app_version_code = value["app"]["versionCode"].as_u64().and_then(|code| u32::try_from(code).ok()).expect("a fixture names its app version");
+    (id("uploadId"), id("deviceId"), app_version_code)
 }
 
 #[test]
@@ -29,9 +30,9 @@ fn every_fixture_reads_and_keeps_every_value() {
     assert!(!paths.is_empty(), "engine/fixtures/v1 holds no fixtures");
     for path in paths {
         let document = fs::read(&path).expect("a fixture is readable");
-        let (upload_id, device_id) = own_ids(&document);
-        let upload =
-            read_document(&document, &upload_id, &device_id).unwrap_or_else(|rejection| panic!("{} is rejected: {rejection}", path.display()));
+        let (upload_id, device_id, app_version_code) = own_ids(&document);
+        let upload = read_document(&document, &upload_id, &device_id, app_version_code)
+            .unwrap_or_else(|rejection| panic!("{} is rejected: {rejection}", path.display()));
         assert!(upload.dropped_values.is_empty(), "{} drops {:?}", path.display(), upload.dropped_values);
     }
 }
@@ -39,7 +40,7 @@ fn every_fixture_reads_and_keeps_every_value() {
 #[test]
 fn appendix_a_reads_as_the_plan_shows_it() {
     let document = fs::read(fixtures_directory().join("appendix-a.json")).expect("the Appendix A fixture is readable");
-    let batch = read_document(&document, APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID).expect("Appendix A reads").batch;
+    let batch = read_document(&document, APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID, APPENDIX_A_APP_VERSION_CODE).expect("Appendix A reads").batch;
 
     assert_eq!((batch.cells.len(), batch.fixes.len(), batch.snapshots.len()), (3, 2, 1));
     let Cell::Lte(serving) = &batch.cells[0] else { panic!("the first cell is not LTE") };
@@ -56,8 +57,8 @@ fn appendix_a_reads_as_the_plan_shows_it() {
 #[test]
 fn shizuku_fixture_reads_the_flags_under_their_names() {
     let document = fs::read(fixtures_directory().join("shizuku-and-modem-log.json")).expect("the Shizuku fixture is readable");
-    let (upload_id, device_id) = own_ids(&document);
-    let batch = read_document(&document, &upload_id, &device_id).expect("the Shizuku fixture reads").batch;
+    let (upload_id, device_id, app_version_code) = own_ids(&document);
+    let batch = read_document(&document, &upload_id, &device_id, app_version_code).expect("the Shizuku fixture reads").batch;
 
     assert_eq!(batch.readers[0].uses_shizuku, Some(true));
     let Cell::Lte(anchor) = &batch.cells[0] else { panic!("the first cell is not LTE") };

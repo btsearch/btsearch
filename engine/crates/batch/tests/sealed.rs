@@ -15,6 +15,7 @@ struct Vector {
     seal_keys: String,
     body_bytes: usize,
     body_sha256: Vec<u8>,
+    app_version_code: u32,
     sealed: Vec<u8>,
 }
 
@@ -28,6 +29,7 @@ impl Vector {
             seal_keys: text("sealKeys"),
             body_bytes: metadata["bodyBytes"].as_u64().and_then(|bytes| usize::try_from(bytes).ok()).expect("the vector has a size"),
             body_sha256: from_hex(&text("bodySha256")),
+            app_version_code: metadata["appVersionCode"].as_u64().and_then(|code| u32::try_from(code).ok()).expect("the vector has an app version"),
             sealed: test_file("sealed/appendix-a.sealed"),
         }
     }
@@ -39,6 +41,7 @@ impl Vector {
             encoding: Encoding::Zstd,
             body_bytes: self.body_bytes,
             body_sha256: &self.body_sha256,
+            app_version_code: self.app_version_code,
         }
     }
 

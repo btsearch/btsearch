@@ -43,7 +43,9 @@ function VouchForm({ contributor, isPending, onCancel, onSubmit }: VouchFormProp
   const [weightText, setWeightText] = useState(() => formatWeight(vouch?.weight ?? DEFAULT_VOUCH_WEIGHT, i18n.language));
   const [confirmsAlone, setConfirmsAlone] = useState(vouch?.confirmsAlone ?? false);
   const [reason, setReason] = useState(vouch?.reason ?? "");
-  const [durationId, setDurationId] = useState<VouchDurationId>(() => pickDuration(VOUCH_DURATIONS, vouch, DEFAULT_VOUCH_DURATION).id);
+  const [durationId, setDurationId] = useState<VouchDurationId>(
+    () => pickDuration(VOUCH_DURATIONS, vouch === null ? null : { grantedAt: vouch.vouchedAt, endsAt: vouch.endsAt }, DEFAULT_VOUCH_DURATION).id,
+  );
   const [isRefoldChosen, setIsRefoldChosen] = useState(vouch === null);
 
   const weight = parseTrustWeight(weightText);

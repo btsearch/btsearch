@@ -193,14 +193,14 @@ describe("GET /observed/sites/:id", () => {
     scriptSite(observedSiteRow({ status: "ignored", linkStationId: null, ignore: { reason: "Femtocell", at }, ignoredBy: staff }), "admin");
     const { data } = (await injectMutation(route, request, signInAs("admin"))).json();
 
-    expect(data).toMatchObject({ status: "ignored", ignore: { reason: "Femtocell", by: staff, at: at.toISOString() }, handLink: null });
+    expect(data).toMatchObject({ status: "ignored", ignore: { reason: "Femtocell", by: staff, ignoredAt: at.toISOString() }, handLink: null });
   });
 
   it.each([
     [
       "an editor's link with who made it and when",
       { linkedBy: staff, linkedAt: new Date("2026-10-22T09:00:00Z") },
-      { stationId: 48870, by: staff, at: "2026-10-22T09:00:00.000Z" },
+      { stationId: 48870, by: staff, linkedAt: "2026-10-22T09:00:00.000Z" },
     ],
     ["no hand link for the matcher's own link", { linkedBy: null, linkedAt: new Date("2026-10-22T09:00:00Z") }, null],
   ])("answers %s", async (_title, link, handLink) => {
@@ -239,7 +239,7 @@ describe("GET /observed/sites/:id", () => {
     const response = await injectMutation(route, request, signInAs("editor"));
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(response.json().data.handLink).toEqual({ stationId: 48870, at: "2026-10-22T09:00:00.000Z" });
+    expect(response.json().data.handLink).toEqual({ stationId: 48870, linkedAt: "2026-10-22T09:00:00.000Z" });
   });
 
   it("answers the site's own cells with include=cells", async () => {
@@ -315,7 +315,9 @@ describe("GET /observed/sites", () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.headers["cache-control"]).toBe(PUBLIC_SITES_CACHE_CONTROL);
-    expect(response.json().data).toEqual([expect.objectContaining({ id: 8124, handLink: { stationId: 48870, at: "2026-10-22T09:00:00.000Z" } })]);
+    expect(response.json().data).toEqual([
+      expect.objectContaining({ id: 8124, handLink: { stationId: 48870, linkedAt: "2026-10-22T09:00:00.000Z" } }),
+    ]);
   });
 
   it("answers a guest, a person, an editor and an administrator byte for byte the same", async () => {
@@ -387,7 +389,7 @@ describe("GET /observed/sites/staff", () => {
     scriptSiteDetails([8124]);
     const { data } = (await injectMutation(staffRoute, list(), signInAs("admin"))).json();
 
-    expect(data).toEqual([expect.objectContaining({ ignore: { reason: "Femtocell", by: staff, at: at.toISOString() } })]);
+    expect(data).toEqual([expect.objectContaining({ ignore: { reason: "Femtocell", by: staff, ignoredAt: at.toISOString() } })]);
   });
 
   it("refuses someone who is neither an editor nor an administrator", async () => {

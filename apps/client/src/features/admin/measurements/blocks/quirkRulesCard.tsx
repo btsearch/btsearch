@@ -36,7 +36,7 @@ type RuleBlocking = { isOpen: boolean; rule: MeasurementQuirkRule | null };
 
 function RuleBlockNote({ block }: { block: NonNullable<MeasurementQuirkRule["block"]> }) {
   const { t, i18n } = useTranslation("admin");
-  const values = { date: formatShortDate(block.at, i18n.language), reason: block.reason };
+  const values = { date: formatShortDate(block.blockedAt, i18n.language), reason: block.reason };
 
   return (
     <p className="mt-0.5 text-xs leading-4 text-muted-foreground">

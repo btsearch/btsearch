@@ -16,7 +16,7 @@ fn a_shadow_reader_counts_as_a_duplicate_unless_its_readings_are_blocked_whole()
     let unblocked = fold(&batch, &inputs(&outlines));
     assert_eq!(unblocked.report.drops.get(&DropReason::Duplicate), Some(&1));
     let readers: BTreeSet<&str> = unblocked.deltas.cell_readers.keys().map(|key| key.reader.name.as_str()).collect();
-    assert_eq!(readers, BTreeSet::from(["btsearch"]));
+    assert_eq!(readers, BTreeSet::from(["cellreader"]));
 
     let shadow = ReaderVersion { name: "netmonsterCore".to_owned(), version: "1.2.9".to_owned() };
     let mut blocking = inputs(&outlines);

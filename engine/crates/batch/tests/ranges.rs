@@ -41,6 +41,18 @@ fn drops_cell_values_out_of_range() {
 }
 
 #[test]
+fn drops_gsm_bands_not_named_by_their_megahertz() {
+    let upload = read_appendix_a_changed(|document| {
+        let cells = document["cells"].as_array_mut().expect("the cells are a list");
+        cells.push(serde_json::json!({ "rat": "gsm", "lac": 45, "cid": 123, "bands": [900, 12, 1_800, 1_000] }));
+    })
+    .expect("the upload reads");
+    let Some(Cell::Gsm(gsm)) = upload.batch.cells.last() else { panic!("a GSM cell") };
+    assert_eq!(gsm.common.bands.as_deref(), Some(&[900, 1_800][..]));
+    assert_eq!(upload.dropped_values.get(ValueField::Bands), 2);
+}
+
+#[test]
 fn drops_a_fix_that_is_not_on_earth() {
     let upload = read_appendix_a_changed(|document| {
         document["fixes"][0]["latitude"] = 91.0.into();

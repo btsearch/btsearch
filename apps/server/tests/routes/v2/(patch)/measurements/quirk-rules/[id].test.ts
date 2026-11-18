@@ -37,7 +37,7 @@ describe("PATCH /measurements/quirk-rules/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toMatchObject({
       id: ruleId,
-      block: { reason: block.reason, by: { id: STAFF_ID }, at: block.blockedAt.toISOString() },
+      block: { reason: block.reason, by: { id: STAFF_ID }, blockedAt: block.blockedAt.toISOString() },
     });
     expect(writes("insert", "engine_runs")[0]?.values).toEqual({ kind: "refold", params: { quirkRuleId: ruleId } });
     expect(writes("insert", "audit_operations")[0]?.values).toMatchObject({ kind: "observations.quirk_rule_block" });

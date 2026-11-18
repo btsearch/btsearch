@@ -11,7 +11,7 @@ pub(crate) const NO_SAMPLES: &str = "noSamples";
 pub(crate) const EVERY_SAMPLE_DROPPED: &str = "every sample was dropped";
 pub(crate) const FILE_MISSING: &str = "fileMissing";
 
-const UPLOAD_COLUMNS: &str = "id, device_id, encoding::text, body_bytes, body_sha256, store::text, received_at";
+const UPLOAD_COLUMNS: &str = "id, device_id, encoding::text, body_bytes, body_sha256, store::text, received_at, app_version_code";
 
 pub struct UploadRow {
     pub id: Uuid,
@@ -21,6 +21,7 @@ pub struct UploadRow {
     pub body_sha256: Vec<u8>,
     pub store: String,
     pub received_at: Timestamp,
+    pub app_version_code: i32,
 }
 
 pub struct Claim {
@@ -49,6 +50,7 @@ fn upload_row(row: &Row) -> Result<UploadRow, StoreError> {
         body_sha256: row.get(4),
         store: row.get(5),
         received_at: row.get(6),
+        app_version_code: row.get(7),
     })
 }
 
@@ -97,7 +99,7 @@ pub async fn claim_upload(client: &mut deadpool_postgres::Client) -> Result<Clai
         )
         .await?;
     transaction.commit().await?;
-    Ok(Claimed::Upload(Claim { upload: upload_row(&claimed)?, claimed_at: claimed.get(7), attempts: claimed.get(8) }))
+    Ok(Claimed::Upload(Claim { upload: upload_row(&claimed)?, claimed_at: claimed.get(8), attempts: claimed.get(9) }))
 }
 
 pub(crate) async fn mark_processed(transaction: &Transaction<'_>, claim: &Claim) -> Result<bool, StoreError> {

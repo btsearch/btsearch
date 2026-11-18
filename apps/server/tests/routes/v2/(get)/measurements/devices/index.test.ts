@@ -92,9 +92,9 @@ describe("GET /measurements/devices/:id", () => {
     dbMock.enqueueFor("select", "ta_calibrations", fits);
     const administrator = (await get(getDevice, `/measurements/devices/${deviceId}`, userSession(userId, "admin"))).json().data;
 
-    expect(owner.timingAdvance).toEqual(calibration);
+    expect(owner.timingAdvanceCalibrations).toEqual(calibration);
     expect(owner).not.toHaveProperty("weight");
-    expect(administrator.timingAdvance).toEqual(calibration);
+    expect(administrator.timingAdvanceCalibrations).toEqual(calibration);
     expect(administrator.weight).toEqual({ ...weight, own: null });
   });
 
@@ -120,9 +120,9 @@ describe("GET /measurements/devices/:id", () => {
     dbMock.enqueueFor("select", "devices", [deviceRow({ revokedAt, revokedById: userId })], []);
     const owner = (await get(getDevice, `/measurements/devices/${deviceId}`)).json().data;
 
-    expect(administrator.revocation).toEqual({ reason: "Emulator", by: staff, at: revokedAt.toISOString() });
-    expect(administrator.weight.own).toEqual({ value: 0.3, reason: "A test phone", by: staff, at: setAt.toISOString() });
-    expect(owner.revocation).toEqual({ reason: null, at: revokedAt.toISOString() });
+    expect(administrator.revocation).toEqual({ reason: "Emulator", by: staff, revokedAt: revokedAt.toISOString() });
+    expect(administrator.weight.own).toEqual({ value: 0.3, reason: "A test phone", by: staff, setAt: setAt.toISOString() });
+    expect(owner.revocation).toEqual({ reason: null, revokedAt: revokedAt.toISOString() });
     expect(owner).not.toHaveProperty("weight");
   });
 

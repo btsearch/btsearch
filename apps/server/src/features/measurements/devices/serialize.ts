@@ -1,5 +1,5 @@
 import { deviceWeights, deviceWeightsNow, devices, users } from "@openbts/drizzle";
-import type { MeasurementDevice, MeasurementDeviceTimingAdvance, MeasurementDeviceWeight, UserRef } from "@openbts/shared/contract";
+import type { MeasurementDevice, MeasurementDeviceTimingAdvanceCalibration, MeasurementDeviceWeight, UserRef } from "@openbts/shared/contract";
 import { eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { FastifyRequest } from "fastify";
@@ -8,7 +8,7 @@ import db from "../../../database/psql.js";
 import { unique } from "../../../lib/collections.js";
 import { loadUserRefs, toUserRef } from "../../users/userRef.js";
 import { canManageMeasurements } from "../access.js";
-import { loadTimingAdvance } from "./calibration.js";
+import { loadTimingAdvanceCalibrations } from "./calibration.js";
 import { type DeviceRow, selectDevices } from "./read.js";
 
 type AdministratorDetails = {
@@ -16,7 +16,7 @@ type AdministratorDetails = {
   revokers?: ReadonlyMap<string, UserRef>;
 };
 type DeviceDetails = AdministratorDetails & {
-  timingAdvance: ReadonlyMap<string, MeasurementDeviceTimingAdvance[]>;
+  timingAdvanceCalibrations: ReadonlyMap<string, MeasurementDeviceTimingAdvanceCalibration[]>;
   owners?: ReadonlyMap<string, UserRef>;
 };
 
@@ -44,7 +44,9 @@ async function loadDeviceWeights(deviceIds: readonly string[]): Promise<Map<stri
       {
         ...weight,
         own:
-          own === null ? null : { value: own.value, reason: own.reason, by: setBy === null ? null : toUserRef(setBy), at: own.setAt.toISOString() },
+          own === null
+            ? null
+            : { value: own.value, reason: own.reason, by: setBy === null ? null : toUserRef(setBy), setAt: own.setAt.toISOString() },
       },
     ]),
   );
@@ -56,22 +58,21 @@ async function loadAdministratorDetails(rows: readonly DeviceRow[]): Promise<Adm
 }
 
 export async function loadDeviceDetails(req: FastifyRequest, rows: readonly DeviceRow[], includesOwner = false): Promise<DeviceDetails> {
-  const [timingAdvance, administratorDetails, owners] = await Promise.all([
-    loadTimingAdvance(rows.map((row) => row.id)),
+  const [timingAdvanceCalibrations, administratorDetails, owners] = await Promise.all([
+    loadTimingAdvanceCalibrations(rows.map((row) => row.id)),
     canManageMeasurements(req).then((canManage) => (canManage ? loadAdministratorDetails(rows) : {})),
     includesOwner ? loadUserRefs(rows.map((row) => row.userId)) : undefined,
   ]);
-  return { timingAdvance, ...administratorDetails, owners };
+  return { timingAdvanceCalibrations, ...administratorDetails, owners };
 }
 
 function toRevocation(row: DeviceRow, revokers: ReadonlyMap<string, UserRef> | undefined): MeasurementDevice["revocation"] {
   if (row.revokedAt === null) return null;
-  const revocation: NonNullable<MeasurementDevice["revocation"]> = { reason: row.revocationReason, at: row.revokedAt.toISOString() };
+  const revocation: NonNullable<MeasurementDevice["revocation"]> = { reason: row.revocationReason, revokedAt: row.revokedAt.toISOString() };
   if (revokers) revocation.by = row.revokedById === null ? null : (revokers.get(row.revokedById) ?? null);
   return revocation;
 }
-
-export function toMeasurementDevice(row: DeviceRow, { timingAdvance, weights, revokers, owners }: DeviceDetails): MeasurementDevice {
+export function toMeasurementDevice(row: DeviceRow, { timingAdvanceCalibrations, weights, revokers, owners }: DeviceDetails): MeasurementDevice {
   const device: MeasurementDevice = {
     id: row.id,
     label: row.label,
@@ -85,8 +86,9 @@ export function toMeasurementDevice(row: DeviceRow, { timingAdvance, weights, re
     revocation: toRevocation(row, revokers),
     createdAt: row.createdAt.toISOString(),
     lastUploadAt: row.lastUploadAt?.toISOString() ?? null,
-    software: row.software,
-    timingAdvance: timingAdvance.get(row.id) ?? [],
+    os: row.os,
+    app: row.app,
+    timingAdvanceCalibrations: timingAdvanceCalibrations.get(row.id) ?? [],
   };
   const weight = weights?.get(row.id);
   if (weight) device.weight = weight;

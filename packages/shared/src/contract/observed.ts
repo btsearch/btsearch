@@ -429,12 +429,12 @@ const observedSiteShape = {
   matchedStationId: nullableIdentitySchema.describe("The station the site is linked to, by the matcher or by an editor (`handLink`)"),
   suggestedStationId: nullableIdentitySchema,
   ignore: z
-    .object({ reason: z.string(), by: userRefSchema.nullable().describe("`null` once the account is deleted"), at: z.iso.datetime() })
+    .object({ reason: z.string(), by: userRefSchema.nullable().describe("`null` once the account is deleted"), ignoredAt: z.iso.datetime() })
     .nullable()
     .optional()
     .describe(`Why an editor ignored the site, who and when. \`null\` unless \`status\` is \`ignored\`. ${STAFF_ONLY_NOTE}`),
   handLink: z
-    .object({ stationId: z.number().int(), by: userRefSchema.optional().describe(STAFF_ONLY_NOTE), at: z.iso.datetime() })
+    .object({ stationId: z.number().int(), by: userRefSchema.optional().describe(STAFF_ONLY_NOTE), linkedAt: z.iso.datetime() })
     .nullable()
     .describe("A link an editor made by hand, which the matcher never changes. `null` for the matcher's own link, and when there is no link"),
   replacedByObservedSiteIds: z.array(z.number().int()).describe("The sites its cells moved to. Empty unless `status` is `replaced`"),
@@ -566,7 +566,7 @@ const observedCellRecordShape = {
       "The band of the matched cell, else the one band of the plan of the network's country that holds the channel. `null` when no single band does",
     ),
   bandwidthKhz: nullableValueSchema.describe("The downlink bandwidth"),
-  reportedBandNumbers: z.array(z.number().int()).describe("The 3GPP band numbers the cell announces"),
+  reportedBands: z.array(z.number().int()).describe("The 3GPP band numbers the cell announces"),
   ulBandwidthKhz: nullableValueSchema.describe("LTE and NR: the uplink bandwidth, only where it differs from the downlink's"),
   supportsEndc: z.boolean().nullable().describe("LTE: whether the cell offers 5G NSA"),
   isAccessClosed: z
@@ -608,6 +608,7 @@ const observedCellRecordShape = {
 export const gsmObservedCellRecordSchema = z.object({
   ...observedCellRecordShape,
   rat: z.literal("gsm"),
+  reportedBands: z.array(z.number().int()).describe("The bands the cell announces, by their `labelMhz`, since 3GPP does not number GSM bands"),
   lac: z.number().int().describe(CELL_FIELD_NOTES.lac),
   cid: z.number().int().describe(CELL_FIELD_NOTES.cid),
   bsic: nullableValueSchema,

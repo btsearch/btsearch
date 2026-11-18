@@ -46,10 +46,10 @@ fn a_samsung_modem_folds_appendix_a_as_the_plan_shows_it() {
         ]
     );
     let correction = fold.report.corrections.get("tacByteOrder").expect("tacByteOrder corrected the area code");
-    assert_eq!((correction.reader_name.as_str(), correction.value_count), ("btsearch", 1));
+    assert_eq!((correction.reader_name.as_str(), correction.value_count), ("cellreader", 1));
 
     let [(reader_key, _)] = deltas.cell_readers.iter().collect::<Vec<_>>()[..] else { panic!("one reader row") };
-    assert_eq!((reader_key.reader.name.as_str(), reader_key.reader.version.as_str()), ("btsearch", "0.4.0"));
+    assert_eq!((reader_key.reader.name.as_str(), reader_key.reader.version.as_str()), ("cellreader", "0.4.0"));
 
     let neighbour_bin = bin_key.bin >> 4;
     let neighbours: Vec<&NeighbourKey> = deltas.neighbour_bins.keys().collect();

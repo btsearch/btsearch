@@ -75,7 +75,7 @@ pub struct Reader {
     pub version: String,
     pub source: ReaderSource,
     pub uses_shizuku: Option<bool>,
-    pub rules: Option<u32>,
+    pub rules_version: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -220,6 +220,7 @@ pub struct NrTddPattern {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Fix {
+    #[serde(rename = "elapsedRealtimeMillis")]
     pub t: u64,
     pub gnss_time_millis: i64,
     pub latitude: f64,
@@ -244,6 +245,7 @@ pub enum FixProvider {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    #[serde(rename = "elapsedRealtimeMillis")]
     pub t: u64,
     pub sim_slot: u32,
     #[serde(default, deserialize_with = "sent_even_if_null")]
@@ -309,6 +311,7 @@ pub enum DataActivity {
 pub struct Measurement {
     pub cell: usize,
     pub role: Role,
+    #[serde(rename = "elapsedRealtimeMillis")]
     pub t: Option<u64>,
     pub connection_status: Option<ConnectionStatus>,
     pub access_barring: Option<BTreeMap<BarredService, BarringKind>>,
@@ -376,14 +379,14 @@ pub enum BarringKind {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Event {
-    SessionStart { t: u64, session: usize },
-    SessionEnd { t: u64, session: usize },
-    AirplaneMode { t: u64, is_on: bool },
-    SimChanged { t: u64, sim_slot: u32 },
-    LocationOff { t: u64, until_t: Option<u64> },
-    ExclusionGap { t: u64, until_t: u64 },
-    ReaderDiff { t: u64, reader: usize, fields: BTreeMap<String, u64> },
-    BandLock { t: u64, bands: Vec<i64> },
+    SessionStart { elapsed_realtime_millis: u64, session: usize },
+    SessionEnd { elapsed_realtime_millis: u64, session: usize },
+    AirplaneMode { elapsed_realtime_millis: u64, is_on: bool },
+    SimChanged { elapsed_realtime_millis: u64, sim_slot: u32 },
+    LocationOff { elapsed_realtime_millis: u64, until_elapsed_realtime_millis: Option<u64> },
+    ExclusionGap { elapsed_realtime_millis: u64, until_elapsed_realtime_millis: u64 },
+    ReaderDiff { elapsed_realtime_millis: u64, reader: usize, fields: BTreeMap<String, u64> },
+    BandLock { elapsed_realtime_millis: u64, bands: Vec<i64> },
 }
 
 fn sent_even_if_null<'de, D: Deserializer<'de>, T: Deserialize<'de>>(deserializer: D) -> Result<Option<T>, D::Error> {

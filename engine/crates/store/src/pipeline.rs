@@ -117,9 +117,10 @@ impl Store {
         let seal_keys = self.seal_keys.clone();
         let (id, device_id) = (upload.id.hyphenated().to_string(), upload.device_id.hyphenated().to_string());
         let (encoding, body_bytes, body_sha256) = (upload.encoding, upload.body_bytes, upload.body_sha256.clone());
+        let app_version_code = u32::try_from(upload.app_version_code).unwrap_or_default();
         let read = tokio::task::spawn_blocking(move || {
             let body_bytes = usize::try_from(body_bytes).unwrap_or(0);
-            let stored = StoredUpload { id: &id, device_id: &device_id, encoding, body_bytes, body_sha256: &body_sha256 };
+            let stored = StoredUpload { id: &id, device_id: &device_id, encoding, body_bytes, body_sha256: &body_sha256, app_version_code };
             read_upload(&sealed, &stored, &seal_keys)
         })
         .await

@@ -31,10 +31,10 @@
   ],
   "readers": [
     {
-      "name": "btsearch",
+      "name": "cellreader",
       "version": "0.4.0",
       "source": "api",
-      "rules": 12
+      "rulesVersion": 12
     }
   ],
   "cells": [
@@ -67,7 +67,7 @@
   ],
   "fixes": [
     {
-      "t": 812345900,
+      "elapsedRealtimeMillis": 812345900,
       "gnssTimeMillis": 1791547200900,
       "latitude": 52.2297123,
       "longitude": 21.0122456,
@@ -78,7 +78,7 @@
       "isMock": false
     },
     {
-      "t": 812346900,
+      "elapsedRealtimeMillis": 812346900,
       "gnssTimeMillis": 1791547201900,
       "latitude": 52.2297181,
       "longitude": 21.0120491,
@@ -91,7 +91,7 @@
   ],
   "snapshots": [
     {
-      "t": 812346400,
+      "elapsedRealtimeMillis": 812346400,
       "simSlot": 0,
       "reader": 0,
       "dataNetworkType": "lte",
@@ -101,7 +101,7 @@
         {
           "cell": 0,
           "role": "serving",
-          "t": 812346350,
+          "elapsedRealtimeMillis": 812346350,
           "rsrpDbm": -95,
           "rsrqDb": -11,
           "rssnrDb": 7,
@@ -110,14 +110,14 @@
         {
           "cell": 1,
           "role": "neighbour",
-          "t": 812346350,
+          "elapsedRealtimeMillis": 812346350,
           "rsrpDbm": -104,
           "rsrqDb": -15
         },
         {
           "cell": 2,
           "role": "nrSecondary",
-          "t": 812346350,
+          "elapsedRealtimeMillis": 812346350,
           "ssRsrpDbm": -99,
           "ssRsrqDb": -12,
           "ssSinrDb": 4

@@ -24,7 +24,7 @@ import { logger } from "../../../../utils/logger.js";
 const MAX_ACTIVE_EXPORTS = 2;
 const BUSY_RETRY_SECONDS = 30;
 const UNREAD_CHUNK_TIMEOUT_MS = 30_000;
-const OUTPUT_REVISION = 1;
+const OUTPUT_REVISION = 2;
 const HTTP_DATE_PRECISION_MS = 1000;
 const FILE_EXTENSIONS: Partial<Record<ClfExportFormat, string>> = { ntm: "ntm", netmonitor: "csv", celldex: "cdx" };
 const FILE_HEADERS = ["Content-Type", "Content-Disposition", "Last-Modified", "ETag", "X-Cell-Count"];

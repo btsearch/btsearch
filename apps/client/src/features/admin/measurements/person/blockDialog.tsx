@@ -41,7 +41,9 @@ function BlockForm({ contributor, isPending, onCancel, onSubmit }: BlockFormProp
   const durationTitleId = useId();
   const [openedAt] = useState(Date.now);
   const [reason, setReason] = useState(block?.reason ?? "");
-  const [durationId, setDurationId] = useState<BanDurationId>(() => pickDuration(BLOCK_DURATIONS, block, DEFAULT_BLOCK_DURATION).id);
+  const [durationId, setDurationId] = useState<BanDurationId>(
+    () => pickDuration(BLOCK_DURATIONS, block === null ? null : { grantedAt: block.blockedAt, endsAt: block.endsAt }, DEFAULT_BLOCK_DURATION).id,
+  );
   const [isExcludingUploads, setIsExcludingUploads] = useState(false);
 
   const trimmedReason = reason.trim();

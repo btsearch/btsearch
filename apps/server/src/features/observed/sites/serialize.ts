@@ -68,12 +68,12 @@ function evidenceOf(estimate: ShownEstimate): NonNullable<ObservedSite["evidence
 
 function handLinkFor({ handLink }: ObservedSiteRecord, view: ObservedSiteView): ObservedSite["handLink"] {
   if (handLink === null) return null;
-  const at = handLink.at.toISOString();
-  return view === "staff" ? { stationId: handLink.stationId, by: handLink.by, at } : { stationId: handLink.stationId, at };
+  const linkedAt = handLink.at.toISOString();
+  return view === "staff" ? { stationId: handLink.stationId, by: handLink.by, linkedAt } : { stationId: handLink.stationId, linkedAt };
 }
 
 function ignoreOf({ ignore }: ObservedSiteRecord): ObservedSite["ignore"] {
-  return ignore === null ? null : { reason: ignore.reason, by: ignore.by, at: ignore.at.toISOString() };
+  return ignore === null ? null : { reason: ignore.reason, by: ignore.by, ignoredAt: ignore.at.toISOString() };
 }
 
 export function toObservedSite(site: ObservedSiteRecord, cells?: ObservedCellRecord[], view: ObservedSiteView = "staff"): ObservedSite {

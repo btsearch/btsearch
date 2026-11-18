@@ -23,7 +23,7 @@
   "sims": [],
   "readers": [
     {
-      "name": "btsearch",
+      "name": "cellreader",
       "version": "0.4.0",
       "source": "api"
     }

@@ -4,7 +4,7 @@ import { BAN_DURATIONS } from "@/features/admin/users/utils/ban";
 import { formatShortDate } from "@/lib/format";
 
 type TrustDuration = { id: string; seconds: number | null };
-type TrustGrant = { at: string; endsAt: string | null };
+type TrustGrant = { grantedAt: string; endsAt: string | null };
 
 export const BLOCK_DURATIONS = BAN_DURATIONS;
 
@@ -34,7 +34,7 @@ export function pickDuration<T extends TrustDuration>(durations: readonly T[], g
   if (grant === null) return fallback;
   if (grant.endsAt === null) return durations.find((duration) => duration.seconds === null) ?? fallback;
 
-  const grantedSeconds = (Date.parse(grant.endsAt) - Date.parse(grant.at)) / 1000;
+  const grantedSeconds = (Date.parse(grant.endsAt) - Date.parse(grant.grantedAt)) / 1000;
   let closest = fallback;
   let closestGap = Number.POSITIVE_INFINITY;
   for (const duration of durations) {

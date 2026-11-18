@@ -121,8 +121,9 @@ fn fold_file(file: &Path, received_at: Option<i64>, with_launch_block: bool) -> 
     let ids: serde_json::Value = serde_json::from_slice(&document).context("the file is not JSON")?;
     let id = |name: &str| ids[name].as_str().map(str::to_owned).with_context(|| format!("the document has no {name}"));
     let (upload_id, device_id) = (id("uploadId")?, id("deviceId")?);
-    let read =
-        read_document(&document, &upload_id, &device_id).map_err(|rejection| anyhow::anyhow!("rejected as {}: {rejection}", rejection.reason()))?;
+    let app_version_code = ids["app"]["versionCode"].as_u64().and_then(|code| u32::try_from(code).ok()).context("the document has no app")?;
+    let read = read_document(&document, &upload_id, &device_id, app_version_code)
+        .map_err(|rejection| anyhow::anyhow!("rejected as {}: {rejection}", rejection.reason()))?;
     let outlines = CountryOutlines::new(Vec::new());
     let received_at_millis = received_at.unwrap_or_else(|| an_hour_after_clock(&read.batch));
     let folded = fold(&read.batch, &standalone_inputs(&outlines, received_at_millis, &device_id, with_launch_block));
@@ -236,7 +237,8 @@ fn bench(fixtures: &Path, uploads: usize) -> anyhow::Result<()> {
         .filter_map(|upload| {
             let document = serde_json::to_vec(&upload.document).ok()?;
             let (upload_id, device_id) = (upload.upload_id.hyphenated().to_string(), upload.device_id.hyphenated().to_string());
-            read_document(&document, &upload_id, &device_id).ok().map(|read| (read.batch, device_id, upload))
+            let app_version_code = upload.document["app"]["versionCode"].as_u64().and_then(|code| u32::try_from(code).ok())?;
+            read_document(&document, &upload_id, &device_id, app_version_code).ok().map(|read| (read.batch, device_id, upload))
         })
         .collect();
     let outlines = CountryOutlines::new(Vec::new());

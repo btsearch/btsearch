@@ -1,4 +1,4 @@
-import type { MeasurementDeviceTimingAdvance } from "@openbts/shared/contract";
+import type { MeasurementDeviceTimingAdvanceCalibration } from "@openbts/shared/contract";
 import { TIMING_ADVANCE_RATS, TIMING_ADVANCE_STEP_METERS, type TimingAdvanceRat } from "@openbts/shared/contract/constants";
 import { useTranslation } from "react-i18next";
 
@@ -9,11 +9,11 @@ const TIMING_ADVANCE_RAT_LABELS: Record<TimingAdvanceRat, string> = { gsm: "GSM"
 
 const EXAMPLE_STEPS: Record<TimingAdvanceRat, number> = { gsm: 2, lte: 10, nr: 50 };
 
-type CalibrationLine = { rat: TimingAdvanceRat; fit: MeasurementDeviceTimingAdvance | null };
+type CalibrationLine = { rat: TimingAdvanceRat; fit: MeasurementDeviceTimingAdvanceCalibration | null };
 
-function listCalibrationLines(timingAdvance: readonly MeasurementDeviceTimingAdvance[]): CalibrationLine[] {
+function listCalibrationLines(calibrations: readonly MeasurementDeviceTimingAdvanceCalibration[]): CalibrationLine[] {
   return TIMING_ADVANCE_RATS.flatMap((rat): CalibrationLine[] => {
-    const fits = timingAdvance.filter((fit) => fit.rat === rat);
+    const fits = calibrations.filter((fit) => fit.rat === rat);
     return fits.length === 0 ? [{ rat, fit: null }] : fits.map((fit) => ({ rat, fit }));
   });
 }
@@ -76,17 +76,17 @@ function CalibrationLineItem({ rat, fit }: CalibrationLine) {
   );
 }
 
-export function DeviceCalibrationSummary({ timingAdvance }: { timingAdvance: readonly MeasurementDeviceTimingAdvance[] }) {
+export function DeviceCalibrationSummary({ calibrations }: { calibrations: readonly MeasurementDeviceTimingAdvanceCalibration[] }) {
   const { t } = useTranslation("settings");
-  const calibratedRats = TIMING_ADVANCE_RATS.filter((rat) => timingAdvance.some((fit) => fit.rat === rat));
+  const calibratedRats = TIMING_ADVANCE_RATS.filter((rat) => calibrations.some((fit) => fit.rat === rat));
 
   if (calibratedRats.length === 0) return t("measurements.devices.calibration.none");
   return t("measurements.devices.calibration.summary", { rats: calibratedRats.map((rat) => TIMING_ADVANCE_RAT_LABELS[rat]).join(", ") });
 }
 
-export function DeviceCalibration({ timingAdvance }: { timingAdvance: readonly MeasurementDeviceTimingAdvance[] }) {
+export function DeviceCalibration({ calibrations }: { calibrations: readonly MeasurementDeviceTimingAdvanceCalibration[] }) {
   const { t } = useTranslation("settings");
-  const lines = listCalibrationLines(timingAdvance);
+  const lines = listCalibrationLines(calibrations);
 
   return (
     <>

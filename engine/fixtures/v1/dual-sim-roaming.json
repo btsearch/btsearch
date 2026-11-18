@@ -40,10 +40,10 @@
   ],
   "readers": [
     {
-      "name": "btsearch",
+      "name": "cellreader",
       "version": "0.4.0",
       "source": "api",
-      "rules": 12
+      "rulesVersion": 12
     }
   ],
   "cells": [
@@ -60,7 +60,7 @@
   ],
   "fixes": [
     {
-      "t": 812345900,
+      "elapsedRealtimeMillis": 812345900,
       "gnssTimeMillis": 1791547200900,
       "latitude": 52.5200066,
       "longitude": 13.404954,
@@ -71,7 +71,7 @@
   ],
   "snapshots": [
     {
-      "t": 812346000,
+      "elapsedRealtimeMillis": 812346000,
       "simSlot": 0,
       "reader": 0,
       "dataNetworkType": "lte",
@@ -85,7 +85,7 @@
       ]
     },
     {
-      "t": 812644000,
+      "elapsedRealtimeMillis": 812644000,
       "simSlot": 0,
       "registeredPlmn": "26203",
       "reader": 0,
@@ -96,22 +96,22 @@
   "events": [
     {
       "type": "sessionEnd",
-      "t": 812465000,
+      "elapsedRealtimeMillis": 812465000,
       "session": 0
     },
     {
       "type": "exclusionGap",
-      "t": 812465000,
-      "untilT": 812635000
+      "elapsedRealtimeMillis": 812465000,
+      "untilElapsedRealtimeMillis": 812635000
     },
     {
       "type": "simChanged",
-      "t": 812640000,
+      "elapsedRealtimeMillis": 812640000,
       "simSlot": 1
     },
     {
       "type": "sessionStart",
-      "t": 812645000,
+      "elapsedRealtimeMillis": 812645000,
       "session": 1
     }
   ]

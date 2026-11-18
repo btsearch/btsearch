@@ -207,7 +207,9 @@ export function EstimatedSitePopupContent({ marker, lookups, isStaff, onClose, o
       <div className="border-t border-border/50">
         {site.evidence === null ? null : <p className={NOTE_CLASS}>{peopleLine}</p>}
         {site.ignore ? (
-          <p className={NOTE_CLASS}>{t("crowd.popup.ignored", { reason: site.ignore.reason, date: formatShortDate(site.ignore.at, language) })}</p>
+          <p className={NOTE_CLASS}>
+            {t("crowd.popup.ignored", { reason: site.ignore.reason, date: formatShortDate(site.ignore.ignoredAt, language) })}
+          </p>
         ) : null}
         {isOwn ? <VisibilityNote>{t("crowd.popup.ownNote")}</VisibilityNote> : null}
         {!isOwn && isStaff && !site.isPublic ? (

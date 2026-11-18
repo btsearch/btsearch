@@ -20,6 +20,7 @@ pub struct StoredUpload<'a> {
     pub encoding: Encoding,
     pub body_bytes: usize,
     pub body_sha256: &'a [u8],
+    pub app_version_code: u32,
 }
 
 #[derive(Debug)]
@@ -32,16 +33,19 @@ pub fn read_upload(sealed: &[u8], stored: &StoredUpload, keys: &SealKeys) -> Res
     let compressed = keys.open(stored.id, sealed)?;
     body::check_body(&compressed, stored.body_bytes, stored.body_sha256)?;
     let document = body::decompress(&compressed, stored.encoding)?;
-    read_document(&document, stored.id, stored.device_id)
+    read_document(&document, stored.id, stored.device_id, stored.app_version_code)
 }
 
-pub fn read_document(document: &[u8], upload_id: &str, device_id: &str) -> Result<Upload, Rejection> {
+pub fn read_document(document: &[u8], upload_id: &str, device_id: &str, app_version_code: u32) -> Result<Upload, Rejection> {
     let mut batch = structure::parse(document)?;
     if !batch.upload_id.eq_ignore_ascii_case(upload_id) {
         return Err(Rejection::IdMismatch("uploadId"));
     }
     if !batch.device_id.eq_ignore_ascii_case(device_id) {
         return Err(Rejection::IdMismatch("deviceId"));
+    }
+    if batch.app.version_code != app_version_code {
+        return Err(Rejection::IdMismatch("app.versionCode"));
     }
     let dropped_values = ranges::drop_out_of_range(&mut batch);
     Ok(Upload { batch, dropped_values })

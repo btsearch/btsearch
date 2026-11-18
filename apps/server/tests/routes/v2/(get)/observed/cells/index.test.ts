@@ -144,7 +144,7 @@ describe("GET /observed/cells/:id", () => {
       operatorId: 4,
       bandId: 3,
       bandwidthKhz: 20000,
-      reportedBandNumbers: [3, 7],
+      reportedBands: [3, 7],
       ulBandwidthKhz: null,
       supportsEndc: true,
       isAccessClosed: null,

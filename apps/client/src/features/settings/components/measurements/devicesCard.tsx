@@ -76,11 +76,13 @@ function DeviceRow({ device, onRevoke }: { device: MeasurementDevice; onRevoke: 
                 </SettingsMetaItem>
                 <SettingsMetaItem>{t("security.passkeys.addedOn", { date: formatShortDate(device.createdAt, i18n.language) })}</SettingsMetaItem>
                 <SettingsMetaItem>
-                  <DeviceCalibrationSummary timingAdvance={device.timingAdvance} />
+                  <DeviceCalibrationSummary calibrations={device.timingAdvanceCalibrations} />
                 </SettingsMetaItem>
               </>
             ) : (
-              <SettingsMetaItem>{t("measurements.devices.revokedOn", { date: formatShortDate(revocation.at, i18n.language) })}</SettingsMetaItem>
+              <SettingsMetaItem>
+                {t("measurements.devices.revokedOn", { date: formatShortDate(revocation.revokedAt, i18n.language) })}
+              </SettingsMetaItem>
             )}
           </SettingsMeta>
           {revocation === null || revocation.reason === null ? null : (
@@ -115,7 +117,7 @@ function DeviceRow({ device, onRevoke }: { device: MeasurementDevice; onRevoke: 
     <Collapsible open={isCalibrationOpen} onOpenChange={setCalibrationOpen} className="border-t first:border-t-0">
       {row}
       <SettingsRowPanel>
-        <DeviceCalibration timingAdvance={device.timingAdvance} />
+        <DeviceCalibration calibrations={device.timingAdvanceCalibrations} />
       </SettingsRowPanel>
     </Collapsible>
   );

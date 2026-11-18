@@ -118,7 +118,8 @@ export function deviceRow(overrides: Partial<DeviceRow> = {}): DeviceRow {
     revokedById: null,
     revocationReason: null,
     lastUploadAt: null,
-    software: null,
+    os: null,
+    app: null,
     sortKey: null,
     ...overrides,
   };

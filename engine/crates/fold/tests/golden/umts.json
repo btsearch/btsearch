@@ -62,7 +62,7 @@
             "rat": "Umts"
           },
           "reader": {
-            "name": "btsearch",
+            "name": "cellreader",
             "version": "0.4.0"
           }
         },
@@ -200,7 +200,7 @@
     "readers": [
       [
         {
-          "name": "btsearch",
+          "name": "cellreader",
           "version": "0.4.0"
         },
         {

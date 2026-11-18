@@ -87,7 +87,7 @@ describe("PATCH /measurements/uploads/:id", () => {
     const response = await update({ exclusion: { reason } }, userSession(userId, "admin"));
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(response.json().data).toMatchObject({ status: "excluded", exclusion: { reason, by: staff, at: excludedAt.toISOString() } });
+    expect(response.json().data).toMatchObject({ status: "excluded", exclusion: { reason, by: staff, excludedAt: excludedAt.toISOString() } });
     expect(writes().find((call) => call.table === "uploads")?.values).toMatchObject({
       status: "excluded",
       statusReason: reason,

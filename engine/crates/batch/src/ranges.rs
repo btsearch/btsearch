@@ -29,6 +29,7 @@ const NR_ARFCN: Valid = Valid::Between(0, 3_279_165);
 const LTE_EARFCN: Valid = Valid::Between(0, 262_143);
 const LTE_BANDWIDTH_KHZ: Valid = Valid::Between(1_400, 20_000);
 const NR_BANDWIDTH_KHZ: Valid = Valid::Between(5_000, 400_000);
+const GSM_BAND_MHZ: Valid = Valid::OneOf(&[380, 410, 450, 480, 710, 750, 810, 850, 900, 1_800, 1_900]);
 
 const GSM_SIGNAL: [(ValueField, Valid); 3] = [
     (ValueField::RssiDbm, Valid::Between(-113, -51)),
@@ -97,14 +98,14 @@ fn check_cell(cell: &mut Cell, dropped: &mut DroppedValues) {
             keep(&mut gsm.cid, &Valid::Between(0, 65_535), ValueField::Cid, dropped);
             keep(&mut gsm.arfcn, &Valid::Between(0, 1_023), ValueField::Arfcn, dropped);
             keep(&mut gsm.bsic, &Valid::Between(0, 63), ValueField::Bsic, dropped);
-            keep_bands(&mut gsm.common, 1..=14, dropped);
+            keep_bands(&mut gsm.common, &GSM_BAND_MHZ, dropped);
         }
         Cell::Umts(umts) => {
             keep(&mut umts.lac, &AREA_CODE_16_BITS, ValueField::Lac, dropped);
             keep(&mut umts.long_cid, &CELL_ID_28_BITS, ValueField::LongCid, dropped);
             keep(&mut umts.uarfcn, &Valid::Between(0, 16_383), ValueField::Uarfcn, dropped);
             keep(&mut umts.psc, &Valid::Between(0, 511), ValueField::Psc, dropped);
-            keep_bands(&mut umts.common, 1..=106, dropped);
+            keep_bands(&mut umts.common, &Valid::Between(1, 106), dropped);
         }
         Cell::Lte(lte) => {
             keep(&mut lte.eci, &CELL_ID_28_BITS, ValueField::Eci, dropped);
@@ -114,7 +115,7 @@ fn check_cell(cell: &mut Cell, dropped: &mut DroppedValues) {
             keep(&mut lte.bandwidth_khz, &LTE_BANDWIDTH_KHZ, ValueField::BandwidthKhz, dropped);
             keep(&mut lte.ul_earfcn, &LTE_EARFCN, ValueField::UlEarfcn, dropped);
             keep(&mut lte.ul_bandwidth_khz, &LTE_BANDWIDTH_KHZ, ValueField::UlBandwidthKhz, dropped);
-            keep_bands(&mut lte.common, 1..=255, dropped);
+            keep_bands(&mut lte.common, &Valid::Between(1, 255), dropped);
         }
         Cell::Nr(nr) => {
             keep(&mut nr.nci, &Valid::Between(0, 68_719_476_735), ValueField::Nci, dropped);
@@ -124,7 +125,7 @@ fn check_cell(cell: &mut Cell, dropped: &mut DroppedValues) {
             keep(&mut nr.bandwidth_khz, &NR_BANDWIDTH_KHZ, ValueField::BandwidthKhz, dropped);
             keep(&mut nr.ul_arfcn, &NR_ARFCN, ValueField::UlArfcn, dropped);
             keep(&mut nr.ul_bandwidth_khz, &NR_BANDWIDTH_KHZ, ValueField::UlBandwidthKhz, dropped);
-            keep_bands(&mut nr.common, 1..=1_024, dropped);
+            keep_bands(&mut nr.common, &Valid::Between(1, 1_024), dropped);
         }
     }
 }
@@ -186,10 +187,10 @@ fn keep_measure(value: &mut Option<f64>, range: &RangeInclusive<f64>, field: Val
     }
 }
 
-fn keep_bands(common: &mut CellCommon, valid: RangeInclusive<i64>, dropped: &mut DroppedValues) {
+fn keep_bands(common: &mut CellCommon, valid: &Valid, dropped: &mut DroppedValues) {
     if let Some(bands) = &mut common.bands {
         let reported = bands.len();
-        bands.retain(|band| valid.contains(band));
+        bands.retain(|band| valid.admits(*band));
         dropped.add(ValueField::Bands, u32::try_from(reported - bands.len()).unwrap_or(u32::MAX));
     }
 }

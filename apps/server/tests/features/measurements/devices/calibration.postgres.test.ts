@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 
-import { loadTimingAdvance, loadTimingAdvanceFits } from "../../../../src/features/measurements/devices/calibration.js";
+import { loadTimingAdvanceCalibrations, loadTimingAdvanceFits } from "../../../../src/features/measurements/devices/calibration.js";
 import type { DbTx } from "../../../../src/types/global.js";
 import { describeOnCrowdDatabase, rolledBack } from "../../../helpers/crowdDatabase.js";
 import { insertDevice, insertPerson } from "../../../helpers/measurementFixtures.js";
@@ -71,7 +71,7 @@ describeOnCrowdDatabase("a device's timing-advance calibration", () => {
       await fit(tx, runId, await familyGroup(tx, "api", "samsung"), "LTE", 2);
       await fit(tx, runId, await familyGroup(tx, "modemLog", "samsung"), "LTE", 1.5);
 
-      expect((await loadTimingAdvance([deviceId])).get(deviceId)).toEqual([
+      expect((await loadTimingAdvanceCalibrations([deviceId])).get(deviceId)).toEqual([
         { source: "api", rat: "lte", metersPerStep: 78.07, offsetMeters: 0 },
         { source: "modemLog", rat: "lte", metersPerStep: 52.05, offsetMeters: 0 },
       ]);
@@ -87,7 +87,7 @@ describeOnCrowdDatabase("a device's timing-advance calibration", () => {
       await fit(tx, runId, await familyGroup(tx, "api", "samsung"), "LTE", 2);
       await fit(tx, runId, await familyGroup(tx, "api", "other"), "GSM", 1, -20);
 
-      const calibration = await loadTimingAdvance([byBoard.deviceId, unknown.deviceId]);
+      const calibration = await loadTimingAdvanceCalibrations([byBoard.deviceId, unknown.deviceId]);
       expect(calibration.get(byBoard.deviceId)).toEqual([{ source: "api", rat: "lte", metersPerStep: 39.04, offsetMeters: 0 }]);
       expect(calibration.get(unknown.deviceId)).toEqual([{ source: "api", rat: "gsm", metersPerStep: 553.46, offsetMeters: 20 }]);
     }));

@@ -29,7 +29,7 @@ function getAndroidVersion(t: TFunction, sdkInt: number): string {
 function getDeviceStatusPart(t: TFunction, language: string, device: MeasurementDevice): string {
   const { revocation } = device;
   if (revocation !== null) {
-    const date = formatShortDate(revocation.at, language);
+    const date = formatShortDate(revocation.revokedAt, language);
     return revocation.reason === null
       ? t("measurements.person.devices.revokedNoReason", { date })
       : t("measurements.person.devices.revokedWithReason", { date, reason: revocation.reason });
@@ -57,15 +57,13 @@ export function listAttestationParts(t: TFunction, { attestation }: MeasurementD
   return parts;
 }
 
-export function listSoftwareParts(t: TFunction, language: string, { software }: MeasurementDevice): string[] {
-  if (software === null) return [];
+export function listSoftwareParts(t: TFunction, language: string, { os, app }: MeasurementDevice): string[] {
+  if (os === null || app === null) return [];
 
-  const parts = [getAndroidVersion(t, software.sdkInt)];
-  if (software.securityPatch !== null) {
-    parts.push(t("measurements.person.devices.securityPatch", { date: formatShortUtcDate(software.securityPatch, language) }));
-  }
-  if (software.radioVersion !== null) parts.push(t("measurements.person.devices.radioVersion", { version: software.radioVersion }));
-  parts.push(t("measurements.person.devices.app", { name: software.appVersionName, code: software.appVersionCode }));
+  const parts = [getAndroidVersion(t, os.sdkInt)];
+  if (os.securityPatch !== null) parts.push(t("measurements.person.devices.securityPatch", { date: formatShortUtcDate(os.securityPatch, language) }));
+  if (os.radioVersion !== null) parts.push(t("measurements.person.devices.radioVersion", { version: os.radioVersion }));
+  parts.push(t("measurements.person.devices.app", { name: app.versionName, code: app.versionCode }));
   return parts;
 }
 

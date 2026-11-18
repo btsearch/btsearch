@@ -28,7 +28,8 @@ function registration(challenge: string, overrides: Record<string, unknown> = {}
     certificateChain: [],
     label: "Pixel 8",
     phoneId,
-    hardware: { manufacturer: "Google", model: "Pixel 8", socManufacturer: "Google", socModel: "Tensor G3", sdkInt: 35 },
+    hardware: { manufacturer: "Google", model: "Pixel 8", socManufacturer: "Google", socModel: "Tensor G3" },
+    os: { sdkInt: 35 },
     app: { versionCode: 140, versionName: "1.4.0" },
     ...overrides,
   };

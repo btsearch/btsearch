@@ -36,7 +36,7 @@ function VouchDetails({ vouch }: { vouch: NonNullable<MeasurementContributor["vo
         <SettingsMetaItem>{getUntilSentence(t, i18n.language, vouch.endsAt)}</SettingsMetaItem>
       </SettingsMeta>
       <span className="block wrap-anywhere">{t("settings:measurements.reason", { reason: vouch.reason })}</span>
-      <GrantedLine i18nKey="admin:users.detail.grants.grantedBy" by={vouch.by} at={vouch.at} />
+      <GrantedLine i18nKey="admin:users.detail.grants.grantedBy" by={vouch.by} at={vouch.vouchedAt} />
     </>
   );
 }

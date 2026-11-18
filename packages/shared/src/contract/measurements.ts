@@ -17,6 +17,7 @@ import {
 import {
   ATTESTATION_SECURITY_LEVELS,
   CELL_RATS,
+  GSM_BAND_MHZ,
   MEASUREMENT_DROP_REASONS,
   MEASUREMENT_MODEM_FAMILIES,
   MEASUREMENT_READER_SOURCES,
@@ -136,8 +137,16 @@ const elapsedMillisSchema = z.number().int().nonnegative().describe("Millisecond
 const kilohertzSchema = z.number().int().positive();
 const nameSchema = z.string().trim().min(1).max(64);
 const reasonSchema = z.string().trim().min(1).max(500);
-const bandsSchema = z.array(z.number().int().positive()).max(16);
+const bandsSchema = z.array(z.number().int().positive()).max(16).describe("3GPP band numbers");
+const gsmBandsSchema = bandsSchema.describe(
+  `3GPP does not number GSM bands, so send the MHz each band is named by, for example \`1800\` for DCS 1800. One of ${[...GSM_BAND_MHZ].join(", ")}`,
+);
 const appSchema = z.object({ versionCode: z.number().int().positive(), versionName: nameSchema });
+const osSchema = z.object({
+  sdkInt: z.number().int().positive(),
+  securityPatch: z.iso.date().optional(),
+  radioVersion: z.string().trim().min(1).max(128).optional().describe("The modem firmware, `Build.getRadioVersion()`"),
+});
 
 const fieldListSchema = z.array(z.string().min(1).max(64)).max(64);
 const ruleIdSchema = z.string().min(1).max(64);
@@ -182,6 +191,7 @@ const gsmCellSchema = z.object({
   arfcn: integerSchema.optional(),
   bsic: integerSchema.optional(),
   ...cellShape,
+  bands: gsmBandsSchema.optional(),
 });
 
 const umtsCellSchema = z.object({
@@ -226,7 +236,7 @@ export const measurementCellSchema = z
 export type MeasurementCell = z.infer<typeof measurementCellSchema>;
 
 export const measurementFixSchema = z.object({
-  t: elapsedMillisSchema,
+  elapsedRealtimeMillis: elapsedMillisSchema,
   gnssTimeMillis: integerSchema.describe("`Location.getTime()`, the satellite time in milliseconds since the epoch"),
   latitude: z.number().describe("At most 7 decimals"),
   longitude: z.number().describe("At most 7 decimals"),
@@ -246,7 +256,7 @@ export const measurementSchema = z
   .object({
     cell: positionSchema.describe("A position in `cells`, counted from 0"),
     role: z.enum(MEASUREMENT_ROLES).describe("When a known-quirk rule changed it, name the rule in `corrected.role`"),
-    t: elapsedMillisSchema.optional().describe("The cell's own time, when it differs from the snapshot's"),
+    elapsedRealtimeMillis: elapsedMillisSchema.optional().describe("The cell's own time, when it differs from the snapshot's"),
     connectionStatus: z
       .enum(MEASUREMENT_CONNECTION_STATUSES)
       .optional()
@@ -278,7 +288,7 @@ export const measurementSchema = z
 export type Measurement = z.infer<typeof measurementSchema>;
 
 export const measurementSnapshotSchema = z.object({
-  t: elapsedMillisSchema,
+  elapsedRealtimeMillis: elapsedMillisSchema,
   simSlot: simSlotSchema,
   registeredPlmn: plmnCodeSchema
     .nullable()
@@ -303,41 +313,53 @@ export const measurementSnapshotSchema = z.object({
 export type MeasurementSnapshot = z.infer<typeof measurementSnapshotSchema>;
 
 export const measurementEventSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("sessionStart"), t: elapsedMillisSchema, session: positionSchema.describe("A position in `sessions`, counted from 0") }),
-  z.object({ type: z.literal("sessionEnd"), t: elapsedMillisSchema, session: positionSchema.describe("A position in `sessions`, counted from 0") }),
-  z.object({ type: z.literal("airplaneMode"), t: elapsedMillisSchema, isOn: z.boolean() }),
-  z.object({ type: z.literal("simChanged"), t: elapsedMillisSchema, simSlot: simSlotSchema }),
-  z.object({ type: z.literal("locationOff"), t: elapsedMillisSchema, untilT: elapsedMillisSchema.optional() }),
+  z.object({
+    type: z.literal("sessionStart"),
+    elapsedRealtimeMillis: elapsedMillisSchema,
+    session: positionSchema.describe("A position in `sessions`, counted from 0"),
+  }),
+  z.object({
+    type: z.literal("sessionEnd"),
+    elapsedRealtimeMillis: elapsedMillisSchema,
+    session: positionSchema.describe("A position in `sessions`, counted from 0"),
+  }),
+  z.object({ type: z.literal("airplaneMode"), elapsedRealtimeMillis: elapsedMillisSchema, isOn: z.boolean() }),
+  z.object({ type: z.literal("simChanged"), elapsedRealtimeMillis: elapsedMillisSchema, simSlot: simSlotSchema }),
+  z.object({
+    type: z.literal("locationOff"),
+    elapsedRealtimeMillis: elapsedMillisSchema,
+    untilElapsedRealtimeMillis: elapsedMillisSchema.optional(),
+  }),
   z
-    .object({ type: z.literal("exclusionGap"), t: elapsedMillisSchema, untilT: elapsedMillisSchema })
+    .object({ type: z.literal("exclusionGap"), elapsedRealtimeMillis: elapsedMillisSchema, untilElapsedRealtimeMillis: elapsedMillisSchema })
     .describe("The app removed the points inside one of the person's exclusion zones. No coordinates are sent"),
   z
     .object({
       type: z.literal("readerDiff"),
-      t: elapsedMillisSchema,
+      elapsedRealtimeMillis: elapsedMillisSchema,
       reader: positionSchema.describe("A position in `readers`, counted from 0"),
       fields: z.record(z.string().min(1).max(64), z.number().int().nonnegative()),
     })
     .describe("How often a reader running in shadow disagreed with the active one, counted per field"),
-  z.object({ type: z.literal("bandLock"), t: elapsedMillisSchema, bands: bandsSchema }).describe("Survey only"),
+  z.object({ type: z.literal("bandLock"), elapsedRealtimeMillis: elapsedMillisSchema, bands: bandsSchema }).describe("Survey only"),
 ]);
 export type MeasurementEvent = z.infer<typeof measurementEventSchema>;
 
 export const measurementReaderSchema = z.object({
-  name: z.string().trim().min(1).max(32).describe("For example `btsearch`, `netmonsterCore`, `qualcommDiag` or `qualcommQmi`"),
+  name: z.string().trim().min(1).max(32).describe("For example `cellreader`, `netmonsterCore`, `qualcommDiag` or `qualcommQmi`"),
   version: nameSchema,
   source: z.enum(MEASUREMENT_READER_SOURCES),
   usesShizuku: z.boolean().optional(),
-  rules: z.number().int().nonnegative().optional().describe("The version of the quirk rules the reader applied"),
+  rulesVersion: z.number().int().nonnegative().optional().describe("The version of the quirk rules the reader applied"),
 });
 export type MeasurementReader = z.infer<typeof measurementReaderSchema>;
 
 function spanMillis(batch: { fixes: MeasurementFix[]; snapshots: MeasurementSnapshot[] }): number {
   let earliest = Number.POSITIVE_INFINITY;
   let latest = Number.NEGATIVE_INFINITY;
-  for (const { t } of [...batch.fixes, ...batch.snapshots]) {
-    earliest = Math.min(earliest, t);
-    latest = Math.max(latest, t);
+  for (const { elapsedRealtimeMillis } of [...batch.fixes, ...batch.snapshots]) {
+    earliest = Math.min(earliest, elapsedRealtimeMillis);
+    latest = Math.max(latest, elapsedRealtimeMillis);
   }
   return latest > earliest ? latest - earliest : 0;
 }
@@ -347,12 +369,8 @@ export const measurementBatchSchema = z
     formatVersion: z.literal(MEASUREMENT_FORMAT_VERSION),
     uploadId: z.uuidv7().describe("Must be the id in the path"),
     deviceId: z.uuid().describe("Must be the `X-Device-Id` header"),
-    app: appSchema,
-    os: z.object({
-      sdkInt: z.number().int().positive(),
-      securityPatch: z.iso.date().optional(),
-      radioVersion: z.string().trim().min(1).max(128).optional().describe("The modem firmware, `Build.getRadioVersion()`"),
-    }),
+    app: appSchema.describe("The app that built the batch. Its `versionCode` must be the `X-App-Version-Code` header"),
+    os: osSchema,
     clock: z
       .object({ elapsedRealtimeMillis: elapsedMillisSchema, epochMillis: z.number().int().nonnegative() })
       .describe("The monotonic clock and the wall clock read at the same moment"),
@@ -509,10 +527,9 @@ export const measurementDeviceCreateSchema = z
         board: nameSchema.optional().describe("`Build.BOARD`"),
         socManufacturer: nameSchema.optional(),
         socModel: nameSchema.optional(),
-        sdkInt: z.number().int().positive(),
-        securityPatch: z.iso.date().optional(),
       })
       .strict(),
+    os: osSchema.strict(),
     app: appSchema.strict(),
   })
   .strict()
@@ -546,22 +563,24 @@ export const measurementDeviceSchema = z.object({
         .nullable()
         .optional()
         .describe("Administrators only. The device's owner or the administrator who revoked it. `null` once that account is deleted"),
-      at: z.iso.datetime(),
+      revokedAt: z.iso.datetime(),
     })
     .nullable(),
   createdAt: z.iso.datetime(),
   lastUploadAt: z.iso.datetime().nullable(),
-  software: z
+  os: z
     .object({
       sdkInt: z.number().int(),
       securityPatch: z.iso.date().nullable(),
       radioVersion: z.string().nullable().describe("The modem firmware version"),
-      appVersionCode: z.number().int(),
-      appVersionName: z.string(),
     })
     .nullable()
     .describe("What the phone ran for its latest processed upload. `null` until one is processed"),
-  timingAdvance: z
+  app: z
+    .object({ versionCode: z.number().int(), versionName: z.string() })
+    .nullable()
+    .describe("The app that sent the latest processed upload. `null` until one is processed"),
+  timingAdvanceCalibrations: z
     .array(
       z.object({
         source: z.enum(MEASUREMENT_READER_SOURCES),
@@ -582,7 +601,7 @@ export const measurementDeviceSchema = z.object({
       effective: z.number().describe("What its next uploads count with"),
       basis: z.enum(MEASUREMENT_WEIGHT_BASES).describe("Where `effective` comes from: the device's own weight, its owner's vouch, or `computed`"),
       own: z
-        .object({ value: z.number(), reason: z.string(), by: userRefSchema.nullable(), at: z.iso.datetime() })
+        .object({ value: z.number(), reason: z.string(), by: userRefSchema.nullable(), setAt: z.iso.datetime() })
         .nullable()
         .describe("The weight an administrator set on the device itself. `null` while it has none"),
     })
@@ -591,7 +610,7 @@ export const measurementDeviceSchema = z.object({
   owner: userRefSchema.nullable().optional().describe("Administrators only, with `include=owner`. `null` once the account is deleted"),
 });
 export type MeasurementDevice = z.infer<typeof measurementDeviceSchema>;
-export type MeasurementDeviceTimingAdvance = MeasurementDevice["timingAdvance"][number];
+export type MeasurementDeviceTimingAdvanceCalibration = MeasurementDevice["timingAdvanceCalibrations"][number];
 export type MeasurementDeviceWeight = NonNullable<MeasurementDevice["weight"]>;
 
 export const measurementDeviceListQuerySchema = z
@@ -660,7 +679,7 @@ export const measurementUploadParamsSchema = z.object({
 export const measurementUploadHeadersSchema = z.object({
   "x-device-id": z.uuid().describe("The registered device that signed the upload"),
   "x-device-signature": z.base64url().max(200).describe("The device key's ECDSA signature with SHA-256 over the signed lines, in DER"),
-  "x-app-version-code": z.coerce.number().int().positive(),
+  "x-app-version-code": z.coerce.number().int().positive().describe("The `app.versionCode` of the batch, also when a newer app sends it"),
 });
 export type MeasurementUploadHeaders = z.infer<typeof measurementUploadHeadersSchema>;
 
@@ -677,7 +696,7 @@ export const measurementUploadSchema = z.object({
     .object({
       reason: z.string(),
       by: userRefSchema.nullable().optional().describe("Administrators only. `null` once that account is deleted"),
-      at: z.iso.datetime(),
+      excludedAt: z.iso.datetime(),
     })
     .nullable(),
   contentType: z.enum(MEASUREMENT_CONTENT_TYPES),
@@ -937,7 +956,7 @@ export const measurementQuirkRuleSchema = z.object({
   id: z.string(),
   reader: z.string(),
   firstSeenAt: z.iso.datetime(),
-  block: z.object({ reason: z.string(), by: userRefSchema.nullable(), at: z.iso.datetime() }).nullable(),
+  block: z.object({ reason: z.string(), by: userRefSchema.nullable(), blockedAt: z.iso.datetime() }).nullable(),
 });
 export type MeasurementQuirkRule = z.infer<typeof measurementQuirkRuleSchema>;
 
@@ -991,7 +1010,7 @@ export const measurementContributorSchema = z.object({
       confirmsAlone: z.boolean().describe("Whether what the person alone saw counts as confirmed"),
       reason: z.string(),
       by: userRefSchema.nullable(),
-      at: z.iso.datetime(),
+      vouchedAt: z.iso.datetime(),
       endsAt: z.iso.datetime().nullable(),
     })
     .nullable()
@@ -1000,7 +1019,7 @@ export const measurementContributorSchema = z.object({
     .object({
       reason: z.string(),
       by: userRefSchema.nullable(),
-      at: z.iso.datetime(),
+      blockedAt: z.iso.datetime(),
       endsAt: z.iso.datetime().nullable(),
     })
     .nullable()

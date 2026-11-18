@@ -62,7 +62,7 @@
             "rat": "Lte"
           },
           "reader": {
-            "name": "btsearch",
+            "name": "cellreader",
             "version": "0.4.0"
           }
         },
@@ -173,7 +173,7 @@
     "closed_countries": [],
     "corrections": {
       "tacByteOrder": {
-        "reader_name": "btsearch",
+        "reader_name": "cellreader",
         "value_count": 1
       }
     },
@@ -186,7 +186,7 @@
     "readers": [
       [
         {
-          "name": "btsearch",
+          "name": "cellreader",
           "version": "0.4.0"
         },
         {

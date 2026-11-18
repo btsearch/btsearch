@@ -583,7 +583,9 @@ describe("getCellsExport", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.headers["content-type"]).toBe("text/plain; charset=utf-8");
     expect(response.headers["content-disposition"]).toBe('attachment; filename="cells_export_celldex.cdx"');
-    expect(response.body).toBe('celldex 1\n\nsite 310260 52 21 "#[SITE]" id=SITE\n  gsm 45/100 type=macro\n  gsm 45/123 type=macro\n');
+    expect(response.body).toBe(
+      'celldex 1\n\nsite 310260 52 21 "#[SITE]" id=SITE\n  gsm 45/100 band=900 type=macro\n  gsm 45/123 band=900 type=macro\n',
+    );
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -1148,7 +1150,7 @@ describe("Celldex export", () => {
     nr_type: "sa" as const,
   };
   const rows: ExportRows = {
-    gsmRows: [{ ...second, ...cell, cell_pk: 1, gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false, gsm_bsic: 12 }],
+    gsmRows: [{ ...second, ...cell, cell_pk: 1, band_value: 1800, gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false, gsm_bsic: 12 }],
     umtsRows: [umts, { ...umts, cell_pk: 6, umts_rnc: 0, umts_cid_long: 2817, umts_arfcn: null }],
     lteRows: [
       { ...lte, band_code: "B7" },
@@ -1189,7 +1191,7 @@ describe("Celldex export", () => {
       'site 26003 - - "#[~2]" id="~2"',
       "  umts 51/2817 lac=510 psc=301 ch=10812",
       "  umts -       lac=510 psc=301 band=1",
-      "  gsm  45/123",
+      "  gsm  45/123  band=1800",
       "",
       'site 26006 - - "#[P1] Warszawa" id=P1',
       "  nr 5/3",

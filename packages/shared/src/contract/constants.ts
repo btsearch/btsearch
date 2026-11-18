@@ -7,6 +7,7 @@ export const BAND_RATS = ["gsm", "umts", "lte", "nr"] as const;
 export type BandRat = (typeof BAND_RATS)[number];
 
 export const UNKNOWN_BAND = "unknown";
+export const GSM_BAND_MHZ: ReadonlySet<number> = new Set([380, 410, 450, 480, 710, 750, 810, 850, 900, 1800, 1900]);
 
 export const CELL_RATS = ["gsm", "umts", "lte", "nr"] as const;
 export type CellRat = (typeof CELL_RATS)[number];

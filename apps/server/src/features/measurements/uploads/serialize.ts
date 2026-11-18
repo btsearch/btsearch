@@ -95,7 +95,10 @@ function rejectionReasonOf(upload: UploadRow): MeasurementRejectionReason | null
 
 function exclusionOf(upload: UploadRow, excluders: Excluders | undefined): MeasurementUpload["exclusion"] {
   if (upload.status !== "excluded") return null;
-  const exclusion: NonNullable<MeasurementUpload["exclusion"]> = { reason: upload.statusReason ?? "", at: upload.statusChangedAt.toISOString() };
+  const exclusion: NonNullable<MeasurementUpload["exclusion"]> = {
+    reason: upload.statusReason ?? "",
+    excludedAt: upload.statusChangedAt.toISOString(),
+  };
   if (excluders) exclusion.by = upload.excludedById === null ? null : (excluders.get(upload.excludedById) ?? null);
   return exclusion;
 }

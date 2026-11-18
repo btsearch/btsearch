@@ -1,6 +1,6 @@
 import { boardSocs, calibrationRuns, deviceModels, devices, socs, taCalibrations, taGroups } from "@openbts/drizzle";
 import { MEASUREMENT_READER_SOURCES, TIMING_ADVANCE_RATS, TIMING_ADVANCE_STEP_METERS } from "@openbts/shared/contract";
-import type { MeasurementDeviceTimingAdvance, TimingAdvanceRat } from "@openbts/shared/contract";
+import type { MeasurementDeviceTimingAdvanceCalibration, TimingAdvanceRat } from "@openbts/shared/contract";
 import { type SQLWrapper, and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -58,12 +58,12 @@ export async function loadTimingAdvanceFits(asOfRunId: number | SQLWrapper | nul
   });
 }
 
-function inTimingAdvanceOrder(a: MeasurementDeviceTimingAdvance, b: MeasurementDeviceTimingAdvance): number {
+function inTimingAdvanceOrder(a: MeasurementDeviceTimingAdvanceCalibration, b: MeasurementDeviceTimingAdvanceCalibration): number {
   const bySource = MEASUREMENT_READER_SOURCES.indexOf(a.source) - MEASUREMENT_READER_SOURCES.indexOf(b.source);
   return bySource === 0 ? TIMING_ADVANCE_RATS.indexOf(a.rat) - TIMING_ADVANCE_RATS.indexOf(b.rat) : bySource;
 }
 
-export async function loadTimingAdvance(deviceIds: readonly string[]): Promise<Map<string, MeasurementDeviceTimingAdvance[]>> {
+export async function loadTimingAdvanceCalibrations(deviceIds: readonly string[]): Promise<Map<string, MeasurementDeviceTimingAdvanceCalibration[]>> {
   if (deviceIds.length === 0) return new Map();
 
   const candidates = await db

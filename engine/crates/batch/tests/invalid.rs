@@ -2,7 +2,7 @@ mod common;
 
 use std::io::{self, Read};
 
-use common::{APPENDIX_A_DEVICE_ID, APPENDIX_A_UPLOAD_ID, read_appendix_a_changed, test_file};
+use common::{APPENDIX_A_APP_VERSION_CODE, APPENDIX_A_DEVICE_ID, APPENDIX_A_UPLOAD_ID, read_appendix_a_changed, test_file};
 use engine_batch::body::decompress;
 use engine_batch::limits::{CELLS, DOCUMENT_BYTES};
 use engine_batch::{Encoding, Rejection, read_document};
@@ -25,7 +25,7 @@ fn gzip_of_zeros(bytes: usize) -> Vec<u8> {
 }
 
 fn read_invalid(name: &str) -> Result<engine_batch::Upload, Rejection> {
-    read_document(&test_file(&format!("invalid/{name}")), APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID)
+    read_document(&test_file(&format!("invalid/{name}")), APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID, APPENDIX_A_APP_VERSION_CODE)
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn refuses_a_body_that_is_not_its_encoding() {
 #[test]
 fn refuses_what_is_not_a_document() {
     for document in [&b"not json"[..], &b"[]"[..], &b"{}"[..], &b"{\"formatVersion\": 1}"[..]] {
-        let read = read_document(document, APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID);
+        let read = read_document(document, APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID, APPENDIX_A_APP_VERSION_CODE);
         assert!(matches!(read, Err(Rejection::InvalidDocument(_))), "{} gave {read:?}", String::from_utf8_lossy(document));
     }
 }
@@ -58,9 +58,17 @@ fn refuses_another_format_version() {
 fn refuses_ids_that_are_not_the_upload_row_s() {
     let document = serde_json::to_vec(&common::appendix_a()).expect("a JSON value serializes");
     let other = "01a12096-8da0-7c1d-9b2e-5f6a7b8c9d0f";
-    assert_eq!(read_document(&document, other, APPENDIX_A_DEVICE_ID).err(), Some(Rejection::IdMismatch("uploadId")));
-    assert_eq!(read_document(&document, APPENDIX_A_UPLOAD_ID, other).err(), Some(Rejection::IdMismatch("deviceId")));
-    assert!(read_document(&document, &APPENDIX_A_UPLOAD_ID.to_uppercase(), APPENDIX_A_DEVICE_ID).is_ok());
+    let version = APPENDIX_A_APP_VERSION_CODE;
+    assert_eq!(read_document(&document, other, APPENDIX_A_DEVICE_ID, version).err(), Some(Rejection::IdMismatch("uploadId")));
+    assert_eq!(read_document(&document, APPENDIX_A_UPLOAD_ID, other, version).err(), Some(Rejection::IdMismatch("deviceId")));
+    assert!(read_document(&document, &APPENDIX_A_UPLOAD_ID.to_uppercase(), APPENDIX_A_DEVICE_ID, version).is_ok());
+}
+
+#[test]
+fn refuses_an_app_version_other_than_the_upload_row_s() {
+    let document = serde_json::to_vec(&common::appendix_a()).expect("a JSON value serializes");
+    let read = read_document(&document, APPENDIX_A_UPLOAD_ID, APPENDIX_A_DEVICE_ID, APPENDIX_A_APP_VERSION_CODE + 1);
+    assert_eq!(read.err(), Some(Rejection::IdMismatch("app.versionCode")));
 }
 
 #[test]

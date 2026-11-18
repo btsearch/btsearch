@@ -137,7 +137,7 @@ fn fold_snapshot(context: &Context, output: &mut Output, snapshot: &Snapshot, se
     let reader_report = output.report.readers.entry(reader_version.clone()).or_default();
     reader_report.snapshot_count += 1;
     reader_report.source = Some(reader.source);
-    reader_report.rules_version = reader.rules;
+    reader_report.rules_version = reader.rules_version;
     for (rule, count) in snapshot.removed.iter().flatten() {
         if context.inputs.blocked_quirk_rules.contains(rule) {
             output.report.skipped_rules.insert(rule.clone());

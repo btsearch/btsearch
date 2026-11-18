@@ -28,7 +28,7 @@ function BlockDetails({ block }: { block: NonNullable<MeasurementContributor["bl
         <SettingsMetaItem>{getUntilSentence(t, i18n.language, block.endsAt)}</SettingsMetaItem>
         <SettingsMetaItem>{t("settings:measurements.reason", { reason: block.reason })}</SettingsMetaItem>
       </SettingsMeta>
-      <GrantedLine i18nKey="admin:measurements.person.block.blockedBy" by={block.by} at={block.at} />
+      <GrantedLine i18nKey="admin:measurements.person.block.blockedBy" by={block.by} at={block.blockedAt} />
     </>
   );
 }
