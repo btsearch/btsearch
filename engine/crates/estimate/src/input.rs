@@ -10,7 +10,7 @@ const MUCH_TIMING_ADVANCE_SAMPLES: i64 = 50;
 const GSM_REACH_M: f64 = 35_000.0;
 const UMTS_REACH_M: f64 = 60_000.0;
 const LTE_AND_NR_REACH_M: f64 = 100_000.0;
-const UNCALIBRATED_ERROR_MODELS: [(Technology, ErrorModel); 3] =
+pub const UNCALIBRATED_ERROR_MODELS: [(Technology, ErrorModel); 3] =
     [(Technology::Lte, ErrorModel::LTE_AND_NR_DEFAULT), (Technology::Nr, ErrorModel::LTE_AND_NR_DEFAULT), (Technology::Gsm, ErrorModel::GSM_DEFAULT)];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -171,7 +171,7 @@ impl Context {
         UNCALIBRATED_ERROR_MODELS.iter().position(|&(listed, _)| listed == technology)
     }
 
-    pub(crate) fn ellipse_scale(&self, class: EvidenceClass, is_surrounded: bool) -> f64 {
+    pub fn ellipse_scale(&self, class: EvidenceClass, is_surrounded: bool) -> f64 {
         self.ellipse_scales[class as usize][usize::from(is_surrounded)]
     }
 

@@ -201,6 +201,21 @@ export type OfficialLocationSite = z.infer<typeof officialLocationSiteSchema>;
 export const officialPermitSiteSchema = officialSiteSchema.omit({ permits: true });
 export type OfficialPermitSite = z.infer<typeof officialPermitSiteSchema>;
 
+export const officialSiteRefSchema = z.object({
+  id: z.number().int(),
+  sourceKey: z.string().describe("The key of the source the site comes from, as in `GET /official/sources`"),
+  siteId: z.string().nullable().describe("The id the operator uses for the site, as listed in the register"),
+  operatorId: z.number().int().nullable().describe("`null` if the register names a licensee that is not mapped to an operator"),
+  regionId: z.number().int().nullable(),
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+    city: z.string().nullable(),
+    address: z.string().nullable(),
+  }),
+});
+export type OfficialSiteRef = z.infer<typeof officialSiteRefSchema>;
+
 export const officialLocationSchema = z.object({
   ...officialLocationShape,
   sites: z.array(officialLocationSiteSchema).optional().describe(LOCATION_SITES_NOTE),

@@ -1,6 +1,9 @@
 mod common;
 
-use common::{Sector, context, metres_from_site, plane, ring_of_readings, site_from_readings, site_of, three_sectors, timing_advance_only};
+use common::{
+    around_the_site, context, gsm_sectors, metres_from_site, one_straight_road, plane, ring_of_readings, site_from_readings, site_of, three_sectors,
+    timing_advance_only, two_cells_4_km_apart,
+};
 use engine_estimate::antenna::{angle_between_deg, bearing_deg};
 use engine_estimate::estimate;
 use engine_estimate::firmness::leave_out_shift_m;
@@ -8,16 +11,6 @@ use engine_estimate::group::combined;
 use engine_estimate::input::{Site, Technology};
 use engine_estimate::timing_advance::GSM_STEP_M;
 use engine_geo::plane::distance_meters;
-
-const GSM_LAC_AND_CID: i64 = (50_114 << 16) | 12_345;
-
-fn gsm_sectors() -> Vec<Sector> {
-    three_sectors().into_iter().enumerate().map(|(index, sector)| Sector { key: GSM_LAC_AND_CID + index as i64, ..sector }).collect()
-}
-
-fn around_the_site() -> Vec<(f64, f64)> {
-    ring_of_readings(300.0, 3_000.0, 300.0, 6.0)
-}
 
 #[test]
 fn three_sectors_with_timing_advance_put_the_site_where_it_stands() {
@@ -44,9 +37,7 @@ fn sectors_alone_place_a_site_without_timing_advance() {
 
 #[test]
 fn rings_from_one_straight_road_leave_two_places() {
-    let road: Vec<(f64, f64)> = (-60..=60).map(|step| (f64::from(step) * 50.0, 1_000.0)).collect();
-    let site = Site { cells: vec![timing_advance_only(1, &road, (0.0, 0.0))], handovers: Vec::new(), contributor_count: 1, person_count: 1 };
-    let estimate = estimate(&site, &context()).expect("an estimate");
+    let estimate = estimate(&one_straight_road(), &context()).expect("an estimate");
 
     let alternative = estimate.alternative_point.expect("the mirror image across the road");
     let (_, alternative_north) = plane().to_plane(alternative);
@@ -57,15 +48,7 @@ fn rings_from_one_straight_road_leave_two_places() {
 
 #[test]
 fn cells_of_one_node_in_two_places_are_not_consistent() {
-    let around_west: Vec<(f64, f64)> = ring_of_readings(300.0, 900.0, 300.0, 15.0).into_iter().map(|(east, north)| (east - 2_000.0, north)).collect();
-    let around_east: Vec<(f64, f64)> = ring_of_readings(300.0, 900.0, 300.0, 15.0).into_iter().map(|(east, north)| (east + 2_000.0, north)).collect();
-    let site = Site {
-        cells: vec![timing_advance_only(1, &around_west, (-2_000.0, 0.0)), timing_advance_only(2, &around_east, (2_000.0, 0.0))],
-        handovers: Vec::new(),
-        contributor_count: 2,
-        person_count: 2,
-    };
-    assert!(!estimate(&site, &context()).expect("an estimate").is_consistent());
+    assert!(!estimate(&two_cells_4_km_apart(), &context()).expect("an estimate").is_consistent());
 }
 
 #[test]

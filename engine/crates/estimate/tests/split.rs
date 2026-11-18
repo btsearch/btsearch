@@ -1,33 +1,17 @@
 mod common;
 
-use common::{Sector, context, plane, ring_of_readings, site_from_readings, site_of, three_sectors};
+use common::{
+    Sector, context, measured_at, one_node_in_two_places, plane, ring_of_readings, second_place_sectors, site_from_readings, site_of,
+    sparser_readings_around, three_sectors,
+};
 use engine_estimate::estimate;
 use engine_estimate::group::combined;
-use engine_estimate::input::{Site, Technology};
+use engine_estimate::input::Technology;
 use engine_estimate::split::{Cut, best_split, candidate_cuts, find_split};
 use engine_geo::plane::distance_meters;
 
-const SECOND_PLACE_FIRST_KEY: i64 = 31_604_736 + 11;
 const NO_CODES: [Option<i32>; 6] = [None; 6];
 const SHARED_PCI_ACROSS_PLACES: [Option<i32>; 6] = [Some(10), Some(11), Some(12), Some(10), Some(21), Some(22)];
-
-fn second_place_sectors() -> Vec<Sector> {
-    three_sectors().into_iter().enumerate().map(|(index, sector)| Sector { key: SECOND_PLACE_FIRST_KEY + index as i64, ..sector }).collect()
-}
-
-fn readings_around(at: (f64, f64)) -> Vec<(f64, f64)> {
-    ring_of_readings(300.0, 3_000.0, 300.0, 9.0).into_iter().map(|(east, north)| (east + at.0, north + at.1)).collect()
-}
-
-fn measured_at(sectors: &[Sector], at: (f64, f64), with_timing_advance: bool) -> Site {
-    site_from_readings(sectors, &readings_around(at), at, with_timing_advance)
-}
-
-fn one_node_in_two_places(apart_m: f64, with_timing_advance: bool) -> Site {
-    let first = measured_at(&three_sectors(), (0.0, 0.0), with_timing_advance);
-    let second = measured_at(&second_place_sectors(), (apart_m, 0.0), with_timing_advance);
-    combined(&[&first, &second])
-}
 
 #[test]
 fn an_enb_in_two_places_with_timing_advance_is_split_along_its_places() {
@@ -93,7 +77,7 @@ fn a_node_whose_cells_at_one_place_were_only_heard_as_neighbours_is_split_by_its
 #[test]
 fn the_area_codes_of_a_stations_gsm_cells_do_not_cut_its_node() {
     let lte = measured_at(&three_sectors(), (0.0, 0.0), false);
-    let gsm = site_of(Technology::Gsm, &three_sectors(), &readings_around((0.0, 0.0)), (0.0, 0.0), false);
+    let gsm = site_of(Technology::Gsm, &three_sectors(), &sparser_readings_around((0.0, 0.0)), (0.0, 0.0), false);
     let site = combined(&[&lte, &gsm]);
     let whole = estimate(&site, &context()).expect("an estimate");
     let tac_and_lacs = [Some(100), Some(100), Some(100), Some(7), Some(7), Some(7)];
@@ -107,7 +91,7 @@ fn the_cell_away_from_four_others_is_the_one_that_disagrees() {
     four_sectors.push(Sector { key: 31_604_736 + 4, azimuth_deg: 60.0, power_db: 40.0 });
     let first = measured_at(&four_sectors, (0.0, 0.0), true);
     let second_at = (8_000.0, 0.0);
-    let fewer_readings: Vec<(f64, f64)> = readings_around(second_at).into_iter().step_by(8).collect();
+    let fewer_readings: Vec<(f64, f64)> = sparser_readings_around(second_at).into_iter().step_by(8).collect();
     let second = site_from_readings(&second_place_sectors()[..1], &fewer_readings, second_at, true);
 
     let whole = estimate(&combined(&[&first, &second]), &context()).expect("an estimate");

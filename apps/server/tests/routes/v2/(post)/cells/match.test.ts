@@ -2,8 +2,10 @@ import type { ObservedCell } from "@openbts/shared/contract";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
+import { getRuntimeSettings, mergeRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(post)/cells/match.js";
 import { dbMock, setCountryFeatures } from "../../../../helpers/boundaries.js";
+import { observedSiteRow, scriptSiteDetails } from "../../../../helpers/observedFixtures.js";
 import { operatorRow, primaryPlmn } from "../../../../helpers/operatorFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 import { stationRow } from "../../../../helpers/stationFixtures.js";
@@ -512,5 +514,126 @@ describe("POST /cells/match", () => {
     const app = await createRouteHarness(route);
 
     expect((await app.inject({ method: "POST", url: "/cells/match", payload: { cells: [observed[0]] } })).statusCode).toBe(500);
+  });
+});
+
+describe("POST /cells/match?include=observedSites", () => {
+  const url = "/cells/match?include=observedSites";
+  const lteCell: ObservedCell = { rat: "lte", plmn, enbid: 100, clid: 2 };
+  const nonStandaloneCell: ObservedCell = { rat: "nr", plmn, pci: 10, arfcn: 640_000, anchor: { enbid: 100, clid: 2 } };
+  const cellIdBeyondItsGnb: ObservedCell = { rat: "nr", plmn, gnbid: 200, clid: 5_000 };
+  const measuring = ["analyzer", "measurements"];
+
+  function scriptStoredLteCell(countryTools = measuring) {
+    network([], { countryTools });
+    dbMock.enqueueFor("select", "cells", [stored("lte")]);
+  }
+
+  function observedCell(overrides: Record<string, unknown> = {}) {
+    return { plmn, rat: "LTE", cellKey: 100 * 256 + 2, id: 501, observedSiteId: 8124, primaryCellId: null, primarySiteId: null, ...overrides };
+  }
+
+  async function matchObserved(cells: ObservedCell[]) {
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url, payload: { cells } });
+    expect(response.statusCode, response.body).toBe(200);
+    const { results, observedSites } = response.json().data;
+    return {
+      placed: results.map(({ observedCellId, observedSiteId }: Record<string, unknown>) => ({ observedCellId, observedSiteId })),
+      observedSites,
+    };
+  }
+
+  it("answers the site uploads place each cell on, listing each site once", async () => {
+    scriptStoredLteCell();
+    dbMock.enqueueFor("select", "observed_cells", [observedCell()]);
+    dbMock.enqueueFor("select", "observed_sites", [observedSiteRow({ id: 8124, primarySiteId: 8124 })]);
+    scriptSiteDetails([8124]);
+    const { placed, observedSites } = await matchObserved([lteCell, lteCell]);
+
+    expect(placed).toEqual([
+      { observedCellId: 501, observedSiteId: 8124 },
+      { observedCellId: 501, observedSiteId: 8124 },
+    ]);
+    expect(observedSites).toEqual([expect.objectContaining({ id: 8124, enbid: 31415, isPublic: true })]);
+    expect(observedSites[0]).not.toHaveProperty("cells");
+  });
+
+  it.each([
+    ["a GSM cell", { rat: "gsm", plmn, lac: 1, cid: 2 }, "GSM", 65_538, [[stored("gsm")]]],
+    ["a UMTS cell", { rat: "umts", plmn, lac: 1, cid: 2, rnc: 3 }, "UMTS", 196_610, [[stored("umts")]]],
+    ["an NR cell sent split", { rat: "nr", plmn, gnbid: 200, clid: 2 }, "NR", 819_202, [[stored("nr")]]],
+    ["an NR cell sent by its NCI", { rat: "nr", plmn, nci: 819_202 }, "NR", 819_202, [[stored("nr")], [stored("nr")]]],
+  ] as const)("looks up %s by the key uploads store it under", async (_cell, cell, storedRat, cellKey, storedCells) => {
+    network([], { countryTools: measuring });
+    dbMock.enqueueFor("select", "cells", ...storedCells);
+    dbMock.enqueueFor("select", "observed_cells", [observedCell({ rat: storedRat, cellKey })]);
+    dbMock.enqueueFor("select", "observed_sites", [observedSiteRow({ id: 8124, primarySiteId: 8124 })]);
+    scriptSiteDetails([8124]);
+
+    expect((await matchObserved([cell])).placed).toEqual([{ observedCellId: 501, observedSiteId: 8124 }]);
+  });
+
+  it("answers the official and the observed sites together", async () => {
+    scriptStoredLteCell();
+    dbMock.enqueueFor("select", "observed_cells", [observedCell()]);
+    dbMock.enqueueFor("select", "observed_sites", [observedSiteRow({ id: 8124, primarySiteId: 8124 })]);
+    scriptSiteDetails([8124]);
+    const app = await createRouteHarness(route);
+    const response = await app.inject({ method: "POST", url: "/cells/match?include=officialSites,observedSites", payload: { cells: [lteCell] } });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.results[0]).toMatchObject({ officialSiteIds: [], observedCellId: 501, observedSiteId: 8124 });
+  });
+
+  it("answers a copy of a shared cell with the cell it copies and that cell's site", async () => {
+    scriptStoredLteCell();
+    dbMock.enqueueFor("select", "observed_cells", [observedCell({ id: 502, observedSiteId: 9000, primaryCellId: 501, primarySiteId: 8124 })]);
+    dbMock.enqueueFor("select", "observed_sites", [observedSiteRow({ id: 8124, primarySiteId: 8124 })]);
+    scriptSiteDetails([8124]);
+
+    expect((await matchObserved([lteCell])).placed).toEqual([{ observedCellId: 501, observedSiteId: 8124 }]);
+  });
+
+  it("answers no site you may not see", async () => {
+    scriptStoredLteCell();
+    dbMock.enqueueFor("select", "observed_cells", [observedCell()]);
+    dbMock.enqueueFor("select", "observed_sites", [observedSiteRow({ id: 8124, primarySiteId: 8124, notPublicReasons: ["unconfirmed"] })]);
+    scriptSiteDetails([8124]);
+
+    expect(await matchObserved([lteCell])).toEqual({ placed: [{ observedCellId: null, observedSiteId: null }], observedSites: [] });
+  });
+
+  it.each([
+    ["the network's country lacks the measurements tool", () => scriptStoredLteCell(["analyzer"]), lteCell],
+    [
+      "an NR cell id does not fit the network's gNBID length",
+      () => {
+        network([], { countryTools: measuring });
+        dbMock.enqueueFor("select", "cells", []);
+      },
+      cellIdBeyondItsGnb,
+    ],
+    [
+      "the cell is found by its anchor",
+      () => {
+        network([], { countryTools: measuring });
+        dbMock.enqueueFor("select", "cells", [stored("lte")], []);
+      },
+      nonStandaloneCell,
+    ],
+    [
+      "observed data is switched off",
+      () => {
+        Object.assign(getRuntimeSettings(), mergeRuntimeSettings(getRuntimeSettings(), { observationsEnabled: false }));
+        scriptStoredLteCell();
+      },
+      lteCell,
+    ],
+  ])("looks nothing up when %s", async (_case, script, cell) => {
+    script();
+
+    expect(await matchObserved([cell])).toEqual({ placed: [{ observedCellId: null, observedSiteId: null }], observedSites: [] });
+    expect(dbMock.calls.some((call) => call.table === "observed_cells" || call.table === "observed_sites")).toBe(false);
   });
 });

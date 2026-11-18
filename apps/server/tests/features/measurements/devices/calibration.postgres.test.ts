@@ -1,9 +1,9 @@
-import { boardSocs, calibrationRuns, socs, taCalibrations, taGroups } from "@openbts/drizzle";
+import { boardSocs, calibrationRuns, errorModels, socs, taCalibrations, taGroups } from "@openbts/drizzle";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 
-import { loadTimingAdvanceCalibrations, loadTimingAdvanceFits } from "../../../../src/features/measurements/devices/calibration.js";
+import { loadDeviceCalibrations, loadTimingAdvanceFits } from "../../../../src/features/measurements/devices/calibration.js";
 import type { DbTx } from "../../../../src/types/global.js";
 import { describeOnCrowdDatabase, rolledBack } from "../../../helpers/crowdDatabase.js";
 import { insertDevice, insertPerson } from "../../../helpers/measurementFixtures.js";
@@ -61,6 +61,12 @@ async function fit(tx: DbTx, calibrationRunId: number, taGroupId: number, rat: "
   await tx.insert(taCalibrations).values({ calibrationRunId, taGroupId, rat, scale, offsetM, rowCount: 2000, stationCount: 20 });
 }
 
+async function errorModel(tx: DbTx, calibrationRunId: number, taGroupId: number, areaClass: "town" | "suburb" | "country", sigmaM: number) {
+  await tx
+    .insert(errorModels)
+    .values({ calibrationRunId, taGroupId, rat: "LTE", areaClass, sigmaM, tailMeanM: 2 * sigmaM, outlierShare: 0.03, rowCount: 2000 });
+}
+
 describeOnCrowdDatabase("a device's timing-advance calibration", () => {
   it("takes the model's own group for its source and the modem family's for the others", () =>
     rolledBack(async (tx) => {
@@ -71,7 +77,7 @@ describeOnCrowdDatabase("a device's timing-advance calibration", () => {
       await fit(tx, runId, await familyGroup(tx, "api", "samsung"), "LTE", 2);
       await fit(tx, runId, await familyGroup(tx, "modemLog", "samsung"), "LTE", 1.5);
 
-      expect((await loadTimingAdvanceCalibrations([deviceId])).get(deviceId)).toEqual([
+      expect((await loadDeviceCalibrations([deviceId])).get(deviceId)?.timingAdvanceCalibrations).toEqual([
         { source: "api", rat: "lte", metersPerStep: 78.07, offsetMeters: 0 },
         { source: "modemLog", rat: "lte", metersPerStep: 52.05, offsetMeters: 0 },
       ]);
@@ -87,9 +93,13 @@ describeOnCrowdDatabase("a device's timing-advance calibration", () => {
       await fit(tx, runId, await familyGroup(tx, "api", "samsung"), "LTE", 2);
       await fit(tx, runId, await familyGroup(tx, "api", "other"), "GSM", 1, -20);
 
-      const calibration = await loadTimingAdvanceCalibrations([byBoard.deviceId, unknown.deviceId]);
-      expect(calibration.get(byBoard.deviceId)).toEqual([{ source: "api", rat: "lte", metersPerStep: 39.04, offsetMeters: 0 }]);
-      expect(calibration.get(unknown.deviceId)).toEqual([{ source: "api", rat: "gsm", metersPerStep: 553.46, offsetMeters: 20 }]);
+      const calibration = await loadDeviceCalibrations([byBoard.deviceId, unknown.deviceId]);
+      expect(calibration.get(byBoard.deviceId)?.timingAdvanceCalibrations).toEqual([
+        { source: "api", rat: "lte", metersPerStep: 39.04, offsetMeters: 0 },
+      ]);
+      expect(calibration.get(unknown.deviceId)?.timingAdvanceCalibrations).toEqual([
+        { source: "api", rat: "gsm", metersPerStep: 553.46, offsetMeters: 20 },
+      ]);
     }));
 
   it("keeps a group's newest fit of the 7 UTC nights up to the run asked for, though that run has none", () =>
@@ -128,5 +138,24 @@ describeOnCrowdDatabase("a device's timing-advance calibration", () => {
       await fit(tx, runId, group, "UMTS", 1);
 
       expect(await loadTimingAdvanceFits(runId, [group])).toEqual([{ taGroupId: group, rat: "nr", metersPerStep: 4.88, offsetMeters: -5 }]);
+    }));
+
+  it("keeps a group's error model only while the fit it was fitted under is still in force", () =>
+    rolledBack(async (tx) => {
+      const { deviceId } = await addDevice(tx, { socId: await addSoc(tx, "qualcomm") });
+      const twoNightsBefore = await addRun(tx, "2099-01-08T23:00:00Z");
+      const newest = await addRun(tx, NEWEST_RUN_AT);
+      const [unchanged, refitted] = [await familyGroup(tx, "api", "qualcomm"), await familyGroup(tx, "modemLog", "qualcomm")];
+      await fit(tx, twoNightsBefore, unchanged, "LTE", 1);
+      await errorModel(tx, twoNightsBefore, unchanged, "town", 35);
+      await fit(tx, twoNightsBefore, refitted, "LTE", 1);
+      await errorModel(tx, twoNightsBefore, refitted, "town", 50);
+      await fit(tx, newest, refitted, "LTE", 1.1);
+      await errorModel(tx, newest, refitted, "suburb", 45);
+
+      expect((await loadDeviceCalibrations([deviceId])).get(deviceId)?.timingAdvanceErrorModels).toEqual([
+        { source: "api", rat: "lte", areaClass: "town", sigmaMeters: 35, tailMeanMeters: 70, outlierShare: 0.03 },
+        { source: "modemLog", rat: "lte", areaClass: "suburb", sigmaMeters: 45, tailMeanMeters: 90, outlierShare: 0.03 },
+      ]);
     }));
 });

@@ -15,6 +15,7 @@ import {
   userRefSchema,
 } from "./common.ts";
 import {
+  AREA_CLASSES,
   ATTESTATION_SECURITY_LEVELS,
   CELL_RATS,
   GSM_BAND_MHZ,
@@ -30,6 +31,23 @@ import {
 } from "./constants.ts";
 
 export const MEASUREMENT_FORMAT_VERSION = 1;
+
+export const areaClassSchema = z
+  .enum(AREA_CLASSES)
+  .describe(
+    "How many locations in the database lie within 2 km of the site: 15 or more for `town`, 4 or more for `suburb`, fewer for `country`. " +
+      "An estimate counts them around the weighted center of the squares its cells were measured in",
+  );
+export const TIMING_ADVANCE_ERROR_MODELS_NOTE =
+  "How far the distance a timing advance gives lies from the station: a normal spread of `sigmaMeters`, " +
+  "a tail towards longer distances with a mean of `tailMeanMeters`, and the share of readings that fit nowhere, `outlierShare`";
+export const timingAdvanceErrorModelShape = {
+  rat: z.enum(TIMING_ADVANCE_RATS),
+  areaClass: areaClassSchema,
+  sigmaMeters: z.number(),
+  tailMeanMeters: z.number(),
+  outlierShare: z.number(),
+};
 export const MEASUREMENT_SIGNATURE_CONTEXT = "btsearch-measurements-v1";
 export const MEASUREMENT_CONTENT_TYPES = ["application/zstd", "application/gzip"] as const;
 export type MeasurementContentType = (typeof MEASUREMENT_CONTENT_TYPES)[number];
@@ -603,6 +621,14 @@ export const measurementDeviceSchema = z.object({
         "Use 3GPP's step for it, with no offset: 553.46 m for GSM, 78.07 m for LTE and 9.76 m for NR from `modemLog` and `modemPoll`. " +
         "NR from `api` gives no distance until it is calibrated",
     ),
+  timingAdvanceErrorModels: z
+    .array(z.object({ source: z.enum(MEASUREMENT_READER_SOURCES), ...timingAdvanceErrorModelShape }))
+    .describe(
+      `${TIMING_ADVANCE_ERROR_MODELS_NOTE}, as the site estimator weighs this phone's readings over the last 7 nights. ` +
+        "Each was fitted with the calibration listed for its source and technology in `timingAdvanceCalibrations`, or with 3GPP's step where none is listed, " +
+        "and is left out once that calibration is fitted again. " +
+        "A source, technology and area class that is not listed keeps the default: 40 m, 80 m and 0.02 for LTE and NR, and 300 m, 600 m and 0.02 for GSM",
+    ),
   weight: z
     .object({
       computed: z.number().describe("From the device's tier and track record"),
@@ -619,6 +645,7 @@ export const measurementDeviceSchema = z.object({
 });
 export type MeasurementDevice = z.infer<typeof measurementDeviceSchema>;
 export type MeasurementDeviceTimingAdvanceCalibration = MeasurementDevice["timingAdvanceCalibrations"][number];
+export type MeasurementDeviceTimingAdvanceErrorModel = MeasurementDevice["timingAdvanceErrorModels"][number];
 export type MeasurementDeviceWeight = NonNullable<MeasurementDevice["weight"]>;
 
 export const measurementDeviceListQuerySchema = z

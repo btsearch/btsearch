@@ -2,7 +2,6 @@ import { z } from "zod/v4";
 
 import { csvBandIdsSchema } from "./bands.ts";
 import { cellApplyChangeSchema } from "./cellApply.ts";
-import { officialSiteRefSchema } from "./cellMatch.ts";
 import { CELL_FIELD_NOTES, cellSchema } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
@@ -25,7 +24,6 @@ import {
   userRefSchema,
 } from "./common.ts";
 import {
-  AREA_CLASSES,
   CELL_MATCHES_FOUND,
   CELL_NETWORK_MATCHES,
   CELL_RATS,
@@ -50,7 +48,14 @@ import {
   VALUE_PATTERNS,
 } from "./constants.ts";
 import { boundingBoxSchema } from "./countries.ts";
-import { measurementReadingBlockSchema, plmnCodeSchema } from "./measurements.ts";
+import {
+  TIMING_ADVANCE_ERROR_MODELS_NOTE,
+  areaClassSchema,
+  measurementReadingBlockSchema,
+  plmnCodeSchema,
+  timingAdvanceErrorModelShape,
+} from "./measurements.ts";
+import { officialSiteRefSchema } from "./officialSites.ts";
 import { stationCreateSchema } from "./stationEdits.ts";
 import { KEEP_OTHER_COUNTRIES_LEAD, areaFilterShape, locationSchema, stationSchema } from "./stations.ts";
 
@@ -166,6 +171,18 @@ export type EngineState = z.infer<typeof engineStateSchema>;
 
 const countSchema = z.number().int().nonnegative();
 const deviceModelRefSchema = z.object({ id: z.number().int(), manufacturer: z.string(), model: z.string() });
+const levelModelSchema = z.object({ rat: z.enum(CELL_RATS), areaClass: areaClassSchema, slopeDbPerDecade: z.number(), scatterDb: z.number() });
+const ellipseScaleSchema = z.object({
+  evidenceClass: z
+    .enum(EVIDENCE_CLASSES)
+    .describe(
+      "`muchTa`: 50 or more timing advances from LTE and NR. `coarseTa`: fewer from LTE and NR, but 50 or more from GSM. `littleTa`: fewer of both. " +
+        "`OnePerson` or `People`: measured by one person, or by two or more",
+    ),
+  isSurrounded: z.boolean(),
+  scale: z.number(),
+});
+const LEVEL_MODELS_NOTE = "How the level falls with distance: `slopeDbPerDecade` for each tenfold distance, with a spread of `scatterDb` around it";
 const readerVersionSchema = z.object({ id: z.number().int(), reader: z.string(), source: z.enum(MEASUREMENT_READER_SOURCES), version: z.string() });
 
 export const evaluationScoreSchema = z.object({
@@ -297,33 +314,10 @@ export const observationEvaluationDetailSchema = observationEvaluationSchema.ext
         )
         .describe("The distance read at 3GPP's step is `scale × distance + offsetMeters`. A group read as a round trip comes out near 2"),
       errorModels: z
-        .array(
-          z.object({
-            taGroupId: z.number().int(),
-            rat: z.enum(TIMING_ADVANCE_RATS),
-            areaClass: z.enum(AREA_CLASSES),
-            sigmaMeters: z.number(),
-            tailMeanMeters: z.number(),
-            outlierShare: z.number(),
-            rows: countSchema,
-          }),
-        )
-        .describe(
-          "How far the distance a timing advance gives lies from the station: a normal spread of `sigmaMeters`, " +
-            "a tail towards longer distances with a mean of `tailMeanMeters`, and the share of readings that fit nowhere, `outlierShare`",
-        ),
-      levelModels: z
-        .array(
-          z.object({
-            rat: z.enum(CELL_RATS),
-            areaClass: z.enum(AREA_CLASSES),
-            slopeDbPerDecade: z.number(),
-            scatterDb: z.number(),
-            squares: countSchema,
-          }),
-        )
-        .describe("How the level falls with distance: `slopeDbPerDecade` for each tenfold distance, with a spread of `scatterDb` around it"),
-      ellipseScales: z.array(z.object({ evidenceClass: z.enum(EVIDENCE_CLASSES), isSurrounded: z.boolean(), scale: z.number(), sites: countSchema })),
+        .array(z.object({ taGroupId: z.number().int(), ...timingAdvanceErrorModelShape, rows: countSchema }))
+        .describe(TIMING_ADVANCE_ERROR_MODELS_NOTE),
+      levelModels: z.array(levelModelSchema.extend({ squares: countSchema })).describe(LEVEL_MODELS_NOTE),
+      ellipseScales: z.array(ellipseScaleSchema.extend({ sites: countSchema })),
       snapPriors: z.array(z.object({ kind: z.enum(SNAP_CANDIDATE_KINDS), isSameOperator: z.boolean(), prior: z.number() })),
     })
     .nullable()
@@ -340,6 +334,28 @@ export const observationEvaluationListSchema = z.object({ data: z.array(observat
 export type ObservationEvaluationList = z.infer<typeof observationEvaluationListSchema>;
 
 export const observationEvaluationParamsSchema = z.object({ id: idParamSchema });
+
+export const observedEstimatorSchema = z.object({
+  algorithmVersion: z.number().int().describe("The estimator version whose estimates are shown"),
+  publicRadiusMaxMeters: z
+    .number()
+    .int()
+    .describe("The largest `radiusMeters` a fit may have to be shown to everyone. A snap needs a probability of 0.5 or more instead"),
+  calibration: z
+    .object({ id: z.number().int(), runAt: z.iso.datetime() })
+    .nullable()
+    .describe("The newest calibration run. `null` before the first one"),
+  ellipseScales: z
+    .array(ellipseScaleSchema)
+    .describe(
+      "The factor an estimate's ellipse half axes are multiplied by so that 95 % of sites lie inside it, " +
+        "per evidence class and whether the readings surround the site, an `angularCoverageDegrees` of 180 or more. A pair that is not listed keeps 1.5",
+    ),
+  levelModels: z
+    .array(levelModelSchema)
+    .describe(`${LEVEL_MODELS_NOTE}. A technology and area class that is not listed keeps 35 dB per decade and 9 dB`),
+});
+export type ObservedEstimator = z.infer<typeof observedEstimatorSchema>;
 
 const locationSnapTargetSchema = z.object({ kind: z.literal("location"), locationId: z.number().int() });
 const officialSiteSnapTargetSchema = z.object({ kind: z.literal("officialSite"), officialSiteId: z.number().int() });
@@ -444,7 +460,7 @@ const observedSiteShape = {
       "Whether everyone may see the site. It is public when it matches a station, or when it is confirmed: by two people on different days, " +
         "by one person whose phone in the strongest attestation tier saw one of its cells on two separate trips, " +
         "or by a person an administrator lets confirm alone. " +
-        "It also needs one likely point, readings that agree with each other, a snap with a probability of at least 0.5 or a radius small enough, " +
+        "It also needs one likely point, readings that agree with each other, a snap with a probability of at least 0.5 or a radius of at most `publicRadiusMaxMeters` in `GET /observed/estimator`, " +
         "no editor's ignore, readings at least 300 m away while it matches no station, and a country and a network whose measurements are published",
     ),
   notPublicReasons: z
@@ -452,7 +468,7 @@ const observedSiteShape = {
     .describe(
       "Why `isPublic` is `false`, empty when it is `true`. `replaced` and `ignored` follow `status`, and `notEstimated` means no estimate yet. " +
         "`unconfirmed` means it matches no station and is not confirmed. " +
-        "`looseFit` covers two likely points, readings that disagree, and a snap below 0.5 or a radius above the limit. " +
+        "`looseFit` covers two likely points, readings that disagree, and a snap below 0.5 or a radius above `publicRadiusMaxMeters`. " +
         "`possibleSmallCell` means it matches no station and every reading lies within 300 m, as with a small cell indoors. " +
         "`privateCountry` means its country or its network's country does not publish measurements",
     ),

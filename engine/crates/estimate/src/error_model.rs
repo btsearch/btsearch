@@ -25,6 +25,7 @@ impl ErrorModel {
 }
 
 pub struct ErrorTable {
+    model: ErrorModel,
     costs: Vec<f64>,
     outlier_cost: f64,
 }
@@ -33,7 +34,11 @@ impl ErrorTable {
     pub fn new(model: ErrorModel) -> Self {
         let count = ((TABLE_TO_M - TABLE_FROM_M) / TABLE_STEP_M) as usize + 1;
         let costs = (0..count).map(|index| model.negative_log_likelihood(TABLE_FROM_M + index as f64 * TABLE_STEP_M)).collect();
-        Self { costs, outlier_cost: -model.log_outlier_density() }
+        Self { model, costs, outlier_cost: -model.log_outlier_density() }
+    }
+
+    pub fn model(&self) -> ErrorModel {
+        self.model
     }
 
     pub fn cost(&self, residual_m: f64) -> f64 {

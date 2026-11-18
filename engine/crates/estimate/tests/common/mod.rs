@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use engine_estimate::antenna::{angle_between_deg, bearing_deg, gain_db};
 use engine_estimate::calibration::AreaClass;
+use engine_estimate::group::combined;
 use engine_estimate::input::{Bin, Cell, Context, Site, Technology, TimingAdvance};
 use engine_estimate::objective::slant_m;
 use engine_estimate::timing_advance::GSM_STEP_M;
@@ -16,6 +17,8 @@ pub const DAY: i32 = 20_400;
 const READING_WEIGHT_MILLI: i64 = 1_000;
 const CHANNEL: i32 = 1_300;
 const PATH_LOSS_DB_PER_DECADE: f64 = 35.0;
+const ENB_ID: i64 = 123_456;
+const GSM_LAC_AND_CID: i64 = (50_114 << 16) | 12_345;
 
 pub struct Sector {
     pub key: i64,
@@ -23,12 +26,24 @@ pub struct Sector {
     pub power_db: f64,
 }
 
-pub fn three_sectors() -> Vec<Sector> {
+fn sectors_from(first_key: i64) -> Vec<Sector> {
     [0.0, 120.0, 240.0]
         .into_iter()
         .enumerate()
-        .map(|(index, azimuth_deg)| Sector { key: 31_604_736 + index as i64 + 1, azimuth_deg, power_db: 40.0 })
+        .map(|(index, azimuth_deg)| Sector { key: first_key + index as i64, azimuth_deg, power_db: 40.0 })
         .collect()
+}
+
+pub fn three_sectors() -> Vec<Sector> {
+    sectors_from((ENB_ID << 8) | 1)
+}
+
+pub fn gsm_sectors() -> Vec<Sector> {
+    sectors_from(GSM_LAC_AND_CID)
+}
+
+pub fn second_place_sectors() -> Vec<Sector> {
+    sectors_from((ENB_ID << 8) | 11)
 }
 
 pub fn context() -> Context {
@@ -51,6 +66,14 @@ pub fn ring_of_readings(from_m: f64, to_m: f64, distance_step_m: f64, bearing_st
         distance += distance_step_m;
     }
     readings
+}
+
+pub fn around_the_site() -> Vec<(f64, f64)> {
+    ring_of_readings(300.0, 3_000.0, 300.0, 6.0)
+}
+
+pub fn sparser_readings_around(at: (f64, f64)) -> Vec<(f64, f64)> {
+    ring_of_readings(300.0, 3_000.0, 300.0, 9.0).into_iter().map(|(east, north)| (east + at.0, north + at.1)).collect()
 }
 
 pub fn reflection_m(index: usize) -> f64 {
@@ -171,6 +194,32 @@ pub fn timing_advance_only(key: i64, readings: &[(f64, f64)], site_at: (f64, f64
         })
         .collect();
     Cell { key, technology: Technology::Lte, area_class: AreaClass::Town, channel: None, bins: Vec::new(), timing_advance }
+}
+
+pub fn one_straight_road() -> Site {
+    let road: Vec<(f64, f64)> = (-60..=60).map(|step| (f64::from(step) * 50.0, 1_000.0)).collect();
+    Site { cells: vec![timing_advance_only(1, &road, (0.0, 0.0))], handovers: Vec::new(), contributor_count: 1, person_count: 1 }
+}
+
+pub fn two_cells_4_km_apart() -> Site {
+    let around_west: Vec<(f64, f64)> = ring_of_readings(300.0, 900.0, 300.0, 15.0).into_iter().map(|(east, north)| (east - 2_000.0, north)).collect();
+    let around_east: Vec<(f64, f64)> = ring_of_readings(300.0, 900.0, 300.0, 15.0).into_iter().map(|(east, north)| (east + 2_000.0, north)).collect();
+    Site {
+        cells: vec![timing_advance_only(1, &around_west, (-2_000.0, 0.0)), timing_advance_only(2, &around_east, (2_000.0, 0.0))],
+        handovers: Vec::new(),
+        contributor_count: 2,
+        person_count: 2,
+    }
+}
+
+pub fn measured_at(sectors: &[Sector], at: (f64, f64), with_timing_advance: bool) -> Site {
+    site_from_readings(sectors, &sparser_readings_around(at), at, with_timing_advance)
+}
+
+pub fn one_node_in_two_places(apart_m: f64, with_timing_advance: bool) -> Site {
+    let first = measured_at(&three_sectors(), (0.0, 0.0), with_timing_advance);
+    let second = measured_at(&second_place_sectors(), (apart_m, 0.0), with_timing_advance);
+    combined(&[&first, &second])
 }
 
 pub fn metres_from_site(point: Point) -> f64 {

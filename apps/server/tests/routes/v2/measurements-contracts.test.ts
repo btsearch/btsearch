@@ -26,6 +26,7 @@ import getObservedCell from "../../../src/routes/v2/(get)/observed/cells/[id].js
 import getObservedCells from "../../../src/routes/v2/(get)/observed/cells/index.js";
 import getObservationEngine from "../../../src/routes/v2/(get)/observed/engine.js";
 import getObservationEngineRun from "../../../src/routes/v2/(get)/observed/engine/runs/[id].js";
+import getObservedEstimator from "../../../src/routes/v2/(get)/observed/estimator.js";
 import getObservationEvaluation from "../../../src/routes/v2/(get)/observed/evaluations/[id].js";
 import getObservationEvaluations from "../../../src/routes/v2/(get)/observed/evaluations/index.js";
 import getObservedSite from "../../../src/routes/v2/(get)/observed/sites/[id].js";
@@ -90,6 +91,7 @@ const ROUTES = [
   getMyObservedSites,
   getStaffObservedSites,
   getObservedSite,
+  getObservedEstimator,
   updateObservedSite,
   createStationFromSite,
 ];

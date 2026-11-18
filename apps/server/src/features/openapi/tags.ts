@@ -206,9 +206,9 @@ export const TAGS: readonly DocumentedTag[] = [
       "What the BTSearch app's measurements show: the cells phones observed, their coverage tiles, the sites estimated from them, " +
       "the trails of where each network served, and the editors' queue of what they disagree with in the database. " +
       "A square is a zoom-20 map tile, about 25 m across at mid-latitudes.\n\n" +
-      "The public site list and the tiles are the same for every caller, so they can be cached. " +
+      "The public site list, the estimator and the tiles are the same for every caller, so they can be cached. " +
       "Your own sites and the editors' view are at `/mine` and `/staff`. Every other read answers what you may see. " +
-      "While observed data is switched off, the public site list, the public tiles and their TileJSON answer 403 `FEATURE_DISABLED`, " +
+      "While observed data is switched off, the public site list, the estimator, the public tiles and their TileJSON answer 403 `FEATURE_DISABLED`, " +
       "so check `features.observations` in `GET /settings` before you add a source to your map.",
   },
   {

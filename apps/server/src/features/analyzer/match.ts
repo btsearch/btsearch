@@ -14,7 +14,7 @@ import {
   stations,
   umtsCells,
 } from "@openbts/drizzle";
-import { DEFAULT_GNBID_LENGTH, splitNci } from "@openbts/shared/contract";
+import { CID_RANGE, DEFAULT_GNBID_LENGTH, splitNci } from "@openbts/shared/contract";
 import type {
   Cell,
   CellDifference,
@@ -42,12 +42,14 @@ import { logger } from "../../utils/logger.js";
 import { cellNetworkCodes, extraCodesByCell, loadCellExtras, loadOwnerCodes } from "../cells/networks.js";
 import { allowsCellNetworks } from "../cells/networkWrites.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
+import { CELLS_PER_ENB, NCI_BITS } from "../observed/cells/identity.js";
 import { loadOperatorRefs } from "../operators/ref.js";
 import { stationCountryCode, stationPlacementMatches } from "../stations/country.js";
 import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
-import { type CellRows, toCell } from "../stations/serialize.js";
+import { type CellRows, DATABASE_RATS, toCell } from "../stations/serialize.js";
 import { DEFAULT_STATION_STATUSES, type StationStatus } from "../stations/status.js";
+import { type ObservedIdentity, findObservedSites } from "./observedSites.js";
 import { type OfficialSiteMatches, type UnmatchedCell, findCandidateSiteIds, findOfficialSites } from "./officialSites.js";
 
 type Network = {
@@ -58,6 +60,7 @@ type Network = {
   code: string;
   hasGuestCells: boolean;
   isMatchable: boolean;
+  hasMeasurementsTool: boolean;
 };
 type MatchScope = { hiddenCountryCodes: readonly string[]; skipsInactive: boolean; followsAnalyzerSwitch: boolean };
 export type SystemCellMatch = { result: CellMatchResult; officialSiteIds: number[] };
@@ -294,6 +297,7 @@ async function resolveNetworks(plmnCodes: readonly string[], scope: MatchScope):
       code: row.code,
       hasGuestCells: broadcastCodes.has(row.code),
       isMatchable: !scope.followsAnalyzerSwitch || row.countryTools.includes("analyzer"),
+      hasMeasurementsTool: row.countryTools.includes("measurements"),
     });
   }
   return networks;
@@ -768,6 +772,31 @@ async function serializeMatchedCells(storedCells: readonly StoredCell[], feature
   );
 }
 
+function observedCellKeyOf(cell: ObservedCell, network: Network): number | null {
+  switch (cell.rat) {
+    case "gsm":
+      return cell.lac * CID_RANGE + cell.cid;
+    case "umts": {
+      const rnc = knownRnc(cell.rnc);
+      return rnc === null ? null : rnc * CID_RANGE + cell.cid;
+    }
+    case "lte":
+      return cell.enbid === 0 ? null : cell.enbid * CELLS_PER_ENB + cell.clid;
+    case "nr": {
+      const identity = nrCellIdentity(network, cell);
+      if (identity === null) return null;
+      const cellsPerGnb = 2 ** (NCI_BITS - identity.gnbidLength);
+      return identity.clid < cellsPerGnb ? identity.gnbid * cellsPerGnb + identity.clid : null;
+    }
+  }
+}
+
+function observedIdentityOf(cell: ObservedCell, network: Network | undefined): ObservedIdentity | null {
+  if (!network?.hasMeasurementsTool) return null;
+  const cellKey = observedCellKeyOf(cell, network);
+  return cellKey === null ? null : { plmn: cell.plmn, rat: DATABASE_RATS[cell.rat], cellKey };
+}
+
 function unmatchedCellOf(network: Network, enbid: number): UnmatchedCell {
   return { countryCode: network.countryCode, operator: network.operator, operatorIds: [network.operatorId, ...network.partnerIds], enbid };
 }
@@ -831,18 +860,28 @@ export async function matchCells(
   const stationIds = unique(results.flatMap((result) => result.stationIds));
   const matchedCells = matches.flatMap(({ result, storedCell }) => (storedCell && result.cellId !== null ? [storedCell] : []));
 
-  const [stationList, cellList, officialSites] = await Promise.all([
+  const [stationList, cellList, officialSites, observedSites] = await Promise.all([
     include.includes("stations") ? loadStations(stationIds) : undefined,
     include.includes("cells") ? serializeMatchedCells(matchedCells, featuresByStation) : undefined,
     include.includes("officialSites") ? findOfficialSitesForUnknownCells(req, observed, results, networks) : undefined,
+    include.includes("observedSites")
+      ? findObservedSites(
+          req,
+          observed.map((cell) => observedIdentityOf(cell, networks.get(cell.plmn))),
+        )
+      : undefined,
   ]);
 
   const answer: CellMatchAnswer = { results };
   if (stationList) answer.stations = stationList;
   if (cellList) answer.cells = cellList;
   if (officialSites) {
-    answer.results = results.map((result, index) => ({ ...result, officialSiteIds: officialSites.siteIds[index] ?? [] }));
+    answer.results = answer.results.map((result, index) => ({ ...result, officialSiteIds: officialSites.siteIds[index] ?? [] }));
     answer.officialSites = officialSites.sites;
+  }
+  if (observedSites) {
+    answer.results = answer.results.map((result, index) => ({ ...result, ...observedSites.placements[index] }));
+    answer.observedSites = observedSites.sites;
   }
   return answer;
 }

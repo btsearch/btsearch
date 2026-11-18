@@ -9,6 +9,7 @@ import { createRouteHarness } from "../../../../../helpers/routeHarness.js";
 
 const userId = userSession().user.id;
 const otherUserId = "22222222-2222-4222-8222-222222222222";
+const newestRun = { id: 41, runAt: new Date("2026-11-17T02:10:00Z") };
 
 async function get(route: typeof getDevices | typeof getDevice, url: string, session = userSession()) {
   const app = await createRouteHarness(route, { session });
@@ -84,18 +85,41 @@ describe("GET /measurements/devices/:id", () => {
 
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.enqueueFor("select", "devices", [deviceRow()], groups);
+    dbMock.enqueueFor("select", "calibration_runs", [newestRun]);
     dbMock.enqueueFor("select", "ta_calibrations", fits);
+    dbMock.enqueueFor("select", "error_models", []);
     const owner = (await get(getDevice, `/measurements/devices/${deviceId}`)).json().data;
 
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: true });
     dbMock.enqueueFor("select", "devices", [deviceRow({ userId: otherUserId })], groups, [{ deviceId, ...weight, own: null, setBy: null }]);
+    dbMock.enqueueFor("select", "calibration_runs", [newestRun]);
     dbMock.enqueueFor("select", "ta_calibrations", fits);
+    dbMock.enqueueFor("select", "error_models", []);
     const administrator = (await get(getDevice, `/measurements/devices/${deviceId}`, userSession(userId, "admin"))).json().data;
 
     expect(owner.timingAdvanceCalibrations).toEqual(calibration);
     expect(owner).not.toHaveProperty("weight");
     expect(administrator.timingAdvanceCalibrations).toEqual(calibration);
     expect(administrator.weight).toEqual({ ...weight, own: null });
+  });
+
+  it("answers the error models of the device's group with the group's source, in source, technology and area class order", async () => {
+    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    dbMock.enqueueFor("select", "devices", [deviceRow()], [{ deviceId, taGroupId: 9, source: "modemLog", deviceModelId: 7 }]);
+    dbMock.enqueueFor("select", "calibration_runs", [newestRun]);
+    dbMock.enqueueFor("select", "ta_calibrations", []);
+    dbMock.enqueueFor("select", "error_models", [
+      { taGroupId: 9, rat: "NR", areaClass: "town", sigmaMeters: 18, tailMeanMeters: 40, outlierShare: 0.01 },
+      { taGroupId: 9, rat: "LTE", areaClass: "country", sigmaMeters: 55, tailMeanMeters: 120, outlierShare: 0.03 },
+      { taGroupId: 9, rat: "LTE", areaClass: "town", sigmaMeters: 42.5, tailMeanMeters: 85, outlierShare: 0.02 },
+    ]);
+    const device = (await get(getDevice, `/measurements/devices/${deviceId}`)).json().data;
+
+    expect(device.timingAdvanceErrorModels).toEqual([
+      { source: "modemLog", rat: "lte", areaClass: "town", sigmaMeters: 42.5, tailMeanMeters: 85, outlierShare: 0.02 },
+      { source: "modemLog", rat: "lte", areaClass: "country", sigmaMeters: 55, tailMeanMeters: 120, outlierShare: 0.03 },
+      { source: "modemLog", rat: "nr", areaClass: "town", sigmaMeters: 18, tailMeanMeters: 40, outlierShare: 0.01 },
+    ]);
   });
 
   it("tells an administrator who revoked a device and the weight set on it, and its owner neither", async () => {

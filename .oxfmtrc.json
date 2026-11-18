@@ -5,7 +5,12 @@
   "tabWidth": 2,
   "trailingComma": "all",
   "arrowParens": "always",
-  "ignorePatterns": ["*.gen.ts", "packages/drizzle/migrations/*/snapshot.json", "apps/server/tests/fixtures/attestation/*"],
+  "ignorePatterns": [
+    "*.gen.ts",
+    "packages/drizzle/migrations/*/snapshot.json",
+    "apps/server/tests/fixtures/attestation/*",
+    "engine/fixtures/**/*.json"
+  ],
   "sortImports": {
     "newlinesBetween": true,
     "groups": [["builtin", "external"], ["internal", "parent", "sibling", "index", "unknown"], "type-import"]

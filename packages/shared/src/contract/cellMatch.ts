@@ -3,6 +3,8 @@ import { z } from "zod/v4";
 import { BSIC_MAX, CELL_FIELD_NOTES, GNBID_MAX, PSC_MAX, cellSchema } from "./cells.ts";
 import { csvEnumSchema } from "./common.ts";
 import { CELL_MATCHES_FOUND, CELL_NETWORK_MATCHES } from "./constants.ts";
+import { observedCellSiteSchema } from "./observed.ts";
+import { officialSiteRefSchema } from "./officialSites.ts";
 import { stationSchema } from "./stations.ts";
 
 export const CELL_MATCH_LIMIT = 5000;
@@ -16,7 +18,7 @@ export type CellMatch = (typeof CELL_MATCHES)[number];
 export const CELL_MATCH_REASONS = ["cellUnknown", "operatorUnknown", "noIdentifiers", "analyzerDisabled", "severalStations"] as const;
 export type CellMatchReason = (typeof CELL_MATCH_REASONS)[number];
 
-export const CELL_MATCH_INCLUDES = ["stations", "cells", "officialSites"] as const;
+export const CELL_MATCH_INCLUDES = ["stations", "cells", "officialSites", "observedSites"] as const;
 export type CellMatchInclude = (typeof CELL_MATCH_INCLUDES)[number];
 
 export const CELL_DIFFERENCE_FIELDS = [
@@ -213,23 +215,28 @@ export const cellMatchResultSchema = z.object({
     .max(OFFICIAL_SITES_PER_CELL)
     .optional()
     .describe("Only returned with `include=officialSites`. Sites in the official register that may hold a cell that was not found"),
+  observedCellId: z
+    .number()
+    .int()
+    .nullable()
+    .optional()
+    .describe(
+      "Only returned with `include=observedSites`. The observed cell with this identity, " +
+        "or the cell it copies when phones uploaded a shared cell under another network. `null` when `observedSiteId` is",
+    ),
+  observedSiteId: z
+    .number()
+    .int()
+    .nullable()
+    .optional()
+    .describe(
+      "Only returned with `include=observedSites`. Where uploads place the cell, as you may see the site in `GET /observed/sites/{id}`. " +
+        "`null` when phones have not uploaded the cell, when it is on no site or on one you may not see, when observed data is switched off, " +
+        "and when `measurements` is not among the `tools` of the network's country. " +
+        "Also `null` for a cell sent without its own identity: a UMTS cell without `rnc`, or a non-standalone NR cell found by its `anchor`",
+    ),
 });
 export type CellMatchResult = z.infer<typeof cellMatchResultSchema>;
-
-export const officialSiteRefSchema = z.object({
-  id: z.number().int(),
-  sourceKey: z.string().describe("The key of the source the site comes from, as in `GET /official/sources`"),
-  siteId: z.string().nullable().describe("The id the operator uses for the site, as listed in the register"),
-  operatorId: z.number().int().nullable().describe("`null` if the register names a licensee that is not mapped to an operator"),
-  regionId: z.number().int().nullable(),
-  location: z.object({
-    latitude: z.number(),
-    longitude: z.number(),
-    city: z.string().nullable(),
-    address: z.string().nullable(),
-  }),
-});
-export type OfficialSiteRef = z.infer<typeof officialSiteRefSchema>;
 
 export const cellMatchAnswerSchema = z.object({
   results: z.array(cellMatchResultSchema).describe("One result per cell sent, in the same order"),
@@ -242,5 +249,9 @@ export const cellMatchAnswerSchema = z.object({
     .array(officialSiteRefSchema)
     .optional()
     .describe("Only returned with `include=officialSites`. Every site referenced in the results, listed once"),
+  observedSites: z
+    .array(observedCellSiteSchema)
+    .optional()
+    .describe("Only returned with `include=observedSites`. Every site referenced in the results, listed once"),
 });
 export type CellMatchAnswer = z.infer<typeof cellMatchAnswerSchema>;

@@ -1,5 +1,5 @@
 import { deviceWeights, deviceWeightsNow, devices, users } from "@openbts/drizzle";
-import type { MeasurementDevice, MeasurementDeviceTimingAdvanceCalibration, MeasurementDeviceWeight, UserRef } from "@openbts/shared/contract";
+import type { MeasurementDevice, MeasurementDeviceWeight, UserRef } from "@openbts/shared/contract";
 import { eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { FastifyRequest } from "fastify";
@@ -8,7 +8,7 @@ import db from "../../../database/psql.js";
 import { unique } from "../../../lib/collections.js";
 import { loadUserRefs, toUserRef } from "../../users/userRef.js";
 import { canManageMeasurements } from "../access.js";
-import { loadTimingAdvanceCalibrations } from "./calibration.js";
+import { type DeviceCalibration, loadDeviceCalibrations } from "./calibration.js";
 import { type DeviceRow, selectDevices } from "./read.js";
 
 type AdministratorDetails = {
@@ -16,9 +16,11 @@ type AdministratorDetails = {
   revokers?: ReadonlyMap<string, UserRef>;
 };
 type DeviceDetails = AdministratorDetails & {
-  timingAdvanceCalibrations: ReadonlyMap<string, MeasurementDeviceTimingAdvanceCalibration[]>;
+  calibrations: ReadonlyMap<string, DeviceCalibration>;
   owners?: ReadonlyMap<string, UserRef>;
 };
+
+const UNCALIBRATED: DeviceCalibration = { timingAdvanceCalibrations: [], timingAdvanceErrorModels: [] };
 
 async function loadDeviceWeights(deviceIds: readonly string[]): Promise<Map<string, MeasurementDeviceWeight>> {
   if (deviceIds.length === 0) return new Map();
@@ -58,12 +60,12 @@ async function loadAdministratorDetails(rows: readonly DeviceRow[]): Promise<Adm
 }
 
 export async function loadDeviceDetails(req: FastifyRequest, rows: readonly DeviceRow[], includesOwner = false): Promise<DeviceDetails> {
-  const [timingAdvanceCalibrations, administratorDetails, owners] = await Promise.all([
-    loadTimingAdvanceCalibrations(rows.map((row) => row.id)),
+  const [calibrations, administratorDetails, owners] = await Promise.all([
+    loadDeviceCalibrations(rows.map((row) => row.id)),
     canManageMeasurements(req).then((canManage) => (canManage ? loadAdministratorDetails(rows) : {})),
     includesOwner ? loadUserRefs(rows.map((row) => row.userId)) : undefined,
   ]);
-  return { timingAdvanceCalibrations, ...administratorDetails, owners };
+  return { calibrations, ...administratorDetails, owners };
 }
 
 function toRevocation(row: DeviceRow, revokers: ReadonlyMap<string, UserRef> | undefined): MeasurementDevice["revocation"] {
@@ -72,7 +74,7 @@ function toRevocation(row: DeviceRow, revokers: ReadonlyMap<string, UserRef> | u
   if (revokers) revocation.by = row.revokedById === null ? null : (revokers.get(row.revokedById) ?? null);
   return revocation;
 }
-export function toMeasurementDevice(row: DeviceRow, { timingAdvanceCalibrations, weights, revokers, owners }: DeviceDetails): MeasurementDevice {
+export function toMeasurementDevice(row: DeviceRow, { calibrations, weights, revokers, owners }: DeviceDetails): MeasurementDevice {
   const device: MeasurementDevice = {
     id: row.id,
     label: row.label,
@@ -88,7 +90,7 @@ export function toMeasurementDevice(row: DeviceRow, { timingAdvanceCalibrations,
     lastUploadAt: row.lastUploadAt?.toISOString() ?? null,
     os: row.os,
     app: row.app,
-    timingAdvanceCalibrations: timingAdvanceCalibrations.get(row.id) ?? [],
+    ...(calibrations.get(row.id) ?? UNCALIBRATED),
   };
   const weight = weights?.get(row.id);
   if (weight) device.weight = weight;

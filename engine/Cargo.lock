@@ -606,6 +606,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "engine-geo",
+ "serde_json",
 ]
 
 [[package]]
