@@ -5,7 +5,7 @@ use crate::identity::Rat;
 
 use super::{Context, Output, Reading};
 
-const NR_MODEM_LOG_STEP_KHZ: i64 = 120;
+const NR_MODEM_STEP_SPACING_KHZ: i64 = 120;
 const GSM_SATURATED_TIMING_ADVANCE: i64 = 63;
 const GSM_RSSI_FLOOR_DBM: i64 = -110;
 const GSM_RSSI_CEILING_DBM: i64 = -51;
@@ -78,12 +78,12 @@ fn has_a_current_timing_advance(reading: &Reading) -> bool {
 }
 
 fn timing_advance_in_steps(reading: &Reading, value: i64) -> Option<i64> {
-    if reading.entry.rat == Rat::Gsm {
-        return (value < GSM_SATURATED_TIMING_ADVANCE).then_some(value);
+    match (reading.entry.rat, reading.source) {
+        (Rat::Gsm, _) => (value < GSM_SATURATED_TIMING_ADVANCE).then_some(value),
+        (Rat::Nr, ReaderSource::ModemLog | ReaderSource::ModemPoll) => {
+            let spacing = reading.measurement.subcarrier_spacing_khz?;
+            matches!(spacing, 15 | 30 | 60 | 120).then(|| value * (NR_MODEM_STEP_SPACING_KHZ / spacing))
+        }
+        _ => Some(value),
     }
-    if reading.entry.rat != Rat::Nr || reading.source != ReaderSource::ModemLog {
-        return Some(value);
-    }
-    let spacing = reading.measurement.subcarrier_spacing_khz?;
-    matches!(spacing, 15 | 30 | 60 | 120).then(|| value * (NR_MODEM_LOG_STEP_KHZ / spacing))
 }

@@ -281,7 +281,12 @@ export const measurementSchema = z
     rscpDbm: integerSchema.optional(),
     ecNoDb: integerSchema.optional(),
     bitErrorRate: integerSchema.optional(),
-    timingAdvance: integerSchema.optional().describe("In the steps of the cell's technology: LTE 0 to 1282, GSM 0 to 219, NR as the reader gives it"),
+    timingAdvance: integerSchema
+      .optional()
+      .describe(
+        "In the steps of the cell's technology: LTE 0 to 1282, GSM 0 to 219, NR 0 to 3846 as the reader gives it. " +
+          "From `modemLog` and `modemPoll` readers, NR is the T_A index of TS 38.213 section 4.2, sent with the `subcarrierSpacingKhz` it counts in",
+      ),
     ...provenanceShape,
   })
   .describe("One cell of a snapshot. Send the signal fields of the cell's technology");
@@ -591,9 +596,12 @@ export const measurementDeviceSchema = z.object({
     )
     .describe(
       "How this phone's timing advance turns into meters, as calibrated against the stations in the database over the last 7 nights: " +
-        "a distance is `timingAdvance * metersPerStep + offsetMeters`. A source and technology that is not listed has no calibration yet. " +
-        "Use 3GPP's step for it, with no offset: 553.46 m for GSM, 78.07 m for LTE and 9.76 m for NR read from the modem. " +
-        "NR read through Android's API gives no distance until it is calibrated",
+        "a distance is `timingAdvance * metersPerStep + offsetMeters`. " +
+        "For NR from `modemLog` and `modemPoll`, first multiply `timingAdvance` by 120 and divide it by the reading's `subcarrierSpacingKhz`. " +
+        "Such a reading gives no distance without a spacing of 15, 30, 60 or 120 kHz. " +
+        "A source and technology that is not listed has no calibration yet. " +
+        "Use 3GPP's step for it, with no offset: 553.46 m for GSM, 78.07 m for LTE and 9.76 m for NR from `modemLog` and `modemPoll`. " +
+        "NR from `api` gives no distance until it is calibrated",
     ),
   weight: z
     .object({
