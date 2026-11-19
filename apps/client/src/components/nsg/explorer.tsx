@@ -11,7 +11,7 @@ import { formatBytes, formatDuration, formatTime, formatValue } from "./display"
 import { MobileSummary } from "./mobileSummary";
 import { OperatorName } from "./operatorName";
 import { ReplayControls } from "./replayControls";
-import { getCellrecSimLabel } from "./simLabel";
+import { getCellrecSimLabel, getCellrecSimOperator, getCellrecSimTag } from "./simLabel";
 import { SnapshotDetails } from "./snapshot";
 import { useReplay } from "./useReplay";
 import { useStationCorrelation } from "./useStationCorrelation";
@@ -178,14 +178,16 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
       const elapsedUs =
         playheadMs !== null && log ? Math.round((playheadMs - log.startTimestampMs) * 1000) : (operatorMoment?.elapsedUs ?? cell.elapsedUs);
       const eventIndex = playheadMs !== null && log ? log.events.length : (operatorMoment?.id ?? cell.eventIndex);
+      const snapshotServing = snapshot?.cells.find((candidate) => candidate.registered === true && simKey(candidate) === value);
       const measured =
-        primary?.registered === true && simKey(primary) === value && (playheadMs !== null || primary.eventIndex === eventIndex)
-          ? primary
+        snapshotServing && (playheadMs !== null || snapshotServing.eventIndex === eventIndex)
+          ? snapshotServing
           : latestRegisteredCell(registeredBySim.get(value) ?? [], elapsedUs, eventIndex);
       const operator = measured
         ? getCellOperator(measured)
-        : operatorResolver.get({ slotId: cell.slotId, subId: cell.subId, rat: cell.rat, elapsedUs, eventIndex });
+        : (operatorResolver.get({ slotId: cell.slotId, subId: cell.subId, rat: cell.rat, elapsedUs, eventIndex }) ?? getCellrecSimOperator(cell));
       const cellrecLabel = getCellrecSimLabel(measured ?? cell, operators, t);
+      const cellrecTag = getCellrecSimTag(measured ?? cell, t);
       return {
         value,
         operator,
@@ -194,7 +196,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <OperatorName operator={operator} labelClassName="text-sm leading-5" />
             <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
-              {cellrecLabel ?? `${formatValue(cell.slotId)} / ${formatValue(cell.subId)}`}
+              {cellrecTag ?? `${formatValue(cell.slotId)} / ${formatValue(cell.subId)}`}
             </span>
           </span>
         ),
