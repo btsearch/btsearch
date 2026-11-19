@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat, getHeadlineSignal } from "./cellPresentation";
 import { formatDecibelValue, formatTime, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
+import { useCellrecSimLabel } from "./simLabel";
 import { getCellOperator } from "@/features/nsg-explorer/cells/operators";
 import { type Snapshot, getPrimaryCell } from "@/features/nsg-explorer/cells/snapshots";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 export function CellDetails({ cell, showRadioContext = true }: { cell: NsgCell; showRadioContext?: boolean }) {
   const { t } = useTranslation("nsg");
+  const cellrecSimLabel = useCellrecSimLabel();
   const operator = getCellOperator(cell);
   const identityFields = getCellIdentityFields(cell);
   const measurementFields = getCellMeasurementFields(cell);
@@ -25,7 +27,7 @@ export function CellDetails({ cell, showRadioContext = true }: { cell: NsgCell; 
           <span className="font-semibold">{cell.rat}</span>
           <OperatorName operator={operator} labelClassName="text-sm" />
           <span className="ml-auto text-muted-foreground">
-            {t("labels.slot")} {formatValue(cell.slotId)} / {formatValue(cell.subId)}
+            {cellrecSimLabel(cell) ?? `${t("labels.slot")} ${formatValue(cell.slotId)} / ${formatValue(cell.subId)}`}
           </span>
         </div>
       ) : null}
@@ -65,6 +67,7 @@ export function MeasurementHistory({
   onSelect: (eventIndex: number) => void;
 }) {
   const { t } = useTranslation("nsg");
+  const cellrecSimLabel = useCellrecSimLabel();
   const scrollRef = useRef<HTMLDivElement>(null);
   // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual requires the compiler's automatic bailout
   const virtualizer = useVirtualizer({
@@ -119,9 +122,7 @@ export function MeasurementHistory({
                   </span>
                   <span className="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{formatCellIdentity(cell)}</span>
                   <span className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">
-                    <span>
-                      {t("labels.slot")} {formatValue(cell.slotId)} / {formatValue(cell.subId)}
-                    </span>
+                    <span>{cellrecSimLabel(cell) ?? `${t("labels.slot")} ${formatValue(cell.slotId)} / ${formatValue(cell.subId)}`}</span>
                     <span className="ml-auto">{t("common:labels.cells", { count: snapshot.cells.length })}</span>
                   </span>
                 </button>

@@ -1,13 +1,14 @@
 {
   "import": {
-    "select": "Otwórz log NSG",
-    "drop": "Upuść tutaj log NSG",
-    "hint": "Wybierz log NSG (.log lub skompresowany .gz), aby przejrzeć zapisane pomiary",
+    "select": "Otwórz log",
+    "drop": "Upuść tutaj log NSG lub nagranie Cellrec",
+    "hint": "Wybierz log, aby przejrzeć zapisane pomiary",
+    "formats": "Obsługiwane pliki: .log i .gz (NSG) oraz .crec (Cellreader / BTSearch)",
     "clear": "Zamknij log",
     "parsing": "Wczytywanie logu...",
     "progress": "Postęp wczytywania logu",
-    "failed": "Nie udało się wczytać logu NSG",
-    "retry": "Upewnij się, że to prawidłowy log NSG w formacie .log lub .gz, i spróbuj ponownie"
+    "failed": "Nie udało się wczytać logu",
+    "retry": "Upewnij się, że to prawidłowy log NSG (.log lub .gz) albo nagranie Cellrec (.crec), i spróbuj ponownie"
   },
   "filters": {
     "sim": "Karta SIM",
@@ -18,6 +19,9 @@
   "labels": {
     "slot": "Slot",
     "subscription": "Subskrypcja",
+    "sim": "SIM {{slot}}",
+    "simNetwork": "SIM {{slot}} · {{network}}",
+    "dataSim": "(dane)",
     "default24Bit": "założono 24 bity"
   },
   "export": {
@@ -125,7 +129,12 @@
     "timeRegressions_few": "W {{count, number}} rekordach znacznik czasu jest wcześniejszy niż w poprzednim rekordzie",
     "timeRegressions_many": "W {{count, number}} rekordach znacznik czasu jest wcześniejszy niż w poprzednim rekordzie",
     "timeRegressions_other": "W {{count, number}} rekordach znacznik czasu jest wcześniejszy niż w poprzednim rekordzie",
+    "cellrecRecords_one": "Odczytano {{count, number}} rekord Cellrec",
+    "cellrecRecords_few": "Odczytano {{count, number}} rekordy Cellrec",
+    "cellrecRecords_many": "Odczytano {{count, number}} rekordów Cellrec",
+    "cellrecRecords_other": "Odczytano {{count, number}} rekordu Cellrec",
     "header": "Oryginalny nagłówek logu",
+    "cellrecHeader": "Nagłówek pliku",
     "eventTypes": "Typy zdarzeń"
   },
   "tabs": {

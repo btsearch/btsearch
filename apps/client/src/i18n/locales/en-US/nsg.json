@@ -1,13 +1,14 @@
 {
   "import": {
-    "select": "Open NSG log",
-    "drop": "Drop an NSG log here",
-    "hint": "Choose an NSG log (.log or compressed .gz) to browse its recorded measurements",
+    "select": "Open log",
+    "drop": "Drop an NSG log or Cellrec recording here",
+    "hint": "Choose a log to browse its recorded measurements",
+    "formats": "Accepts .log and .gz (NSG) and .crec (Cellreader / BTSearch)",
     "clear": "Close log",
     "parsing": "Reading log...",
     "progress": "Log import progress",
-    "failed": "Could not read this NSG log",
-    "retry": "Make sure it is a valid NSG log (.log or .gz), then try again"
+    "failed": "Could not read this log",
+    "retry": "Make sure it is a valid NSG log (.log or .gz) or Cellrec recording (.crec), then try again"
   },
   "filters": {
     "sim": "SIM card",
@@ -18,6 +19,9 @@
   "labels": {
     "slot": "Slot",
     "subscription": "Subscription",
+    "sim": "SIM {{slot}}",
+    "simNetwork": "SIM {{slot}} · {{network}}",
+    "dataSim": "(data)",
     "default24Bit": "24-bit assumed"
   },
   "export": {
@@ -113,7 +117,10 @@
     "records_other": "{{count, number}} Android events decoded. Total records: {{records, number}}. Other record types include undecoded modem data",
     "timeRegressions_one": "{{count, number}} record has a timestamp earlier than the previous record",
     "timeRegressions_other": "{{count, number}} records have timestamps earlier than the previous record",
+    "cellrecRecords_one": "{{count, number}} Cellrec record read",
+    "cellrecRecords_other": "{{count, number}} Cellrec records read",
     "header": "Original log header",
+    "cellrecHeader": "File header",
     "eventTypes": "Event types"
   },
   "tabs": {

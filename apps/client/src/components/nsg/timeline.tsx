@@ -4,6 +4,7 @@ import { CartesianGrid, ReferenceLine, Scatter, ScatterChart, type TooltipConten
 
 import { getSignalIdentityFields } from "./cellPresentation";
 import { formatDecibelValue, formatTime, formatValue } from "./display";
+import { useCellrecSimLabel } from "./simLabel";
 import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { NsgCell } from "@/lib/nsg-parser/model";
@@ -96,12 +97,15 @@ export function Timeline({
 }) {
   const { t } = useTranslation("nsg");
   const [metric, setMetric] = useState<NsgTimelineMetric>(() => getInitialNsgTimelineMetric(cells));
+  const cellrecSimLabel = useCellrecSimLabel();
   const series = useMemo(() => {
     const groups = new Map<string, SignalPoint[]>();
     for (const cell of cells) {
       const value = getMetricValue(cell, metric);
       if (value === null) continue;
-      const name = `${cell.rat} · ${t("labels.slot")} ${formatValue(cell.slotId)} · ${t("labels.subscription")} ${formatValue(cell.subId)}`;
+      const simLabel =
+        cellrecSimLabel(cell) ?? `${t("labels.slot")} ${formatValue(cell.slotId)} · ${t("labels.subscription")} ${formatValue(cell.subId)}`;
+      const name = `${cell.rat} · ${simLabel}`;
       const group = groups.get(name) ?? [];
       group.push({ timestamp: cell.timestampMs, value, eventIndex: cell.eventIndex, cell, series: name });
       if (!groups.has(name)) groups.set(name, group);
@@ -112,7 +116,7 @@ export function Timeline({
       count: points.length,
       color: COLORS[index % COLORS.length],
     }));
-  }, [cells, metric, t]);
+  }, [cells, metric, t, cellrecSimLabel]);
   const count = series.reduce((total, item) => total + item.count, 0);
   const plottedCount = series.reduce((total, item) => total + item.points.length, 0);
   const unit = getMetricUnit(metric);

@@ -120,7 +120,11 @@ export function DetailPanels({
               <br />
               {formatTime(log.endTimestampMs, true)}
             </p>
-            <p className="leading-relaxed text-muted-foreground">{t("metadata.records", { count: log.events.length, records: log.recordCount })}</p>
+            <p className="leading-relaxed text-muted-foreground">
+              {log.format === "cellrec"
+                ? t("metadata.cellrecRecords", { count: log.recordCount })
+                : t("metadata.records", { count: log.events.length, records: log.recordCount })}
+            </p>
             <details className="border-t pt-3">
               <summary className="cursor-pointer font-medium">{t("chart.title")}</summary>
               <div className="mt-2">
@@ -133,7 +137,7 @@ export function DetailPanels({
               </div>
             </details>
             <details className="min-w-0 border-t pt-3">
-              <summary className="cursor-pointer font-medium">{t("metadata.header")}</summary>
+              <summary className="cursor-pointer font-medium">{t(log.format === "cellrec" ? "metadata.cellrecHeader" : "metadata.header")}</summary>
               <pre className="mt-2 max-h-64 w-full max-w-full overflow-auto rounded-md bg-muted/30 p-2 text-[10px]">{log.headerXml}</pre>
             </details>
             <details className="border-t pt-3">

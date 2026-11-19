@@ -11,6 +11,7 @@ import { formatBytes, formatDuration, formatTime, formatValue } from "./display"
 import { MobileSummary } from "./mobileSummary";
 import { OperatorName } from "./operatorName";
 import { ReplayControls } from "./replayControls";
+import { getCellrecSimLabel } from "./simLabel";
 import { SnapshotDetails } from "./snapshot";
 import { useReplay } from "./useReplay";
 import { useStationCorrelation } from "./useStationCorrelation";
@@ -184,15 +185,16 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
       const operator = measured
         ? getCellOperator(measured)
         : operatorResolver.get({ slotId: cell.slotId, subId: cell.subId, rat: cell.rat, elapsedUs, eventIndex });
+      const cellrecLabel = getCellrecSimLabel(measured ?? cell, operators, t);
       return {
         value,
         operator,
-        label: t("labels.slot") + " " + formatValue(cell.slotId) + " / " + formatValue(cell.subId),
+        label: cellrecLabel ?? t("labels.slot") + " " + formatValue(cell.slotId) + " / " + formatValue(cell.subId),
         content: (
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <OperatorName operator={operator} labelClassName="text-sm leading-5" />
             <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
-              {formatValue(cell.slotId)} / {formatValue(cell.subId)}
+              {cellrecLabel ?? `${formatValue(cell.slotId)} / ${formatValue(cell.subId)}`}
             </span>
           </span>
         ),
@@ -226,6 +228,10 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     return trails;
   }, [locations, cells, simCells, sim]);
   const signalTrail = signalTrails.get(signalSimKey) ?? signalTrails.get("?:?")!;
+  const signalSimLabel =
+    log?.format === "cellrec" && signalTrail.sim
+      ? (simOptions.find((option) => option.value === signalSimKey)?.label ?? t("labels.sim", { slot: formatValue(signalTrail.sim.slotId) }))
+      : null;
   const servingTimeline = useMemo(
     () => createServingCellTimeline(selectedSimCells, sim === "all" ? "all" : (simCells.get(sim) ?? null)),
     [selectedSimCells, simCells, sim],
@@ -274,7 +280,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     try {
       const { createCellsCsv } = await import("@/features/nsg-explorer/export/cellsCsv");
       const csv = new Blob([createCellsCsv(log, cells)], { type: "text/csv;charset=utf-8" });
-      downloadBlob(csv, log.sourceName.replace(/\.(?:log(?:\.gz)?|gz)$/i, "") + "-cells.csv");
+      downloadBlob(csv, log.sourceName.replace(/\.(?:log(?:\.gz)?|gz|crec)$/i, "") + "-cells.csv");
     } catch {
       toast.error(t("export.failed"));
     } finally {
@@ -374,7 +380,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
           <input
             ref={inputRef}
             type="file"
-            accept=".log,.gz,application/gzip,application/x-gzip"
+            accept=".log,.gz,.crec,application/gzip,application/x-gzip,application/vnd.btsearch.cellrec"
             className="hidden"
             aria-label={t("import.select")}
             onChange={(event) => {
@@ -489,6 +495,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
               <div className="space-y-2">
                 <h2 className="text-sm font-semibold">{t("import.drop")}</h2>
                 <p className="text-xs leading-relaxed text-muted-foreground">{t("import.hint")}</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">{t("import.formats")}</p>
                 <Button className={isCompact ? "h-11" : undefined} disabled={isParsing} onClick={() => inputRef.current?.click()}>
                   <HugeiconsIcon icon={Upload04Icon} data-icon="inline-start" />
                   {t("import.select")}
@@ -534,6 +541,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
               signalTrail={signalTrail}
               signalTrails={signalTrails}
               signalSimKey={signalSimKey}
+              signalSimLabel={signalSimLabel}
               selectedOperator={selectedOperator}
               playheadMs={playheadMs}
               replayClock={replayClock}

@@ -57,9 +57,10 @@ type SignalLegendProps = {
   color: string;
   operator: ResolvedOperator | null;
   signalSim: SignalTrail["sim"];
+  signalSimLabel: string | null;
 };
 
-function SignalLegend({ compact, dbm, color, operator, signalSim }: SignalLegendProps) {
+function SignalLegend({ compact, dbm, color, operator, signalSim, signalSimLabel }: SignalLegendProps) {
   const { t } = useTranslation("nsg");
   const content = (
     <>
@@ -71,7 +72,10 @@ function SignalLegend({ compact, dbm, color, operator, signalSim }: SignalLegend
         <SignalReading dbm={dbm} className="font-mono text-xs font-semibold tabular-nums" />
       </div>
       <p className="mt-0.5 text-[11px] text-muted-foreground">
-        {signalSim ? t("map.signalSim", { slot: formatValue(signalSim.slotId), subscription: formatValue(signalSim.subId) }) : t("map.signalNoSim")}
+        {signalSimLabel ??
+          (signalSim
+            ? t("map.signalSim", { slot: formatValue(signalSim.slotId), subscription: formatValue(signalSim.subId) })
+            : t("map.signalNoSim"))}
       </p>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-foreground tabular-nums">
         {SIGNAL_BANDS.map((band) => (
@@ -217,6 +221,7 @@ type RouteMapProps = {
   signalTrail: SignalTrail;
   signalTrails: ReadonlyMap<string, SignalTrail>;
   signalSimKey: string;
+  signalSimLabel: string | null;
   selectedOperator: ResolvedOperator | null;
   playheadMs: number | null;
   replayClock: ReplayClock;
@@ -239,6 +244,7 @@ export default function RouteMap({
   signalTrail,
   signalTrails,
   signalSimKey,
+  signalSimLabel,
   selectedOperator,
   playheadMs,
   replayClock,
@@ -376,6 +382,7 @@ export default function RouteMap({
             color={selectedSignal?.color ?? SIGNAL_UNKNOWN_COLOR}
             operator={operator}
             signalSim={signalTrail.sim}
+            signalSimLabel={signalSimLabel}
           />
         ) : null}
       </div>

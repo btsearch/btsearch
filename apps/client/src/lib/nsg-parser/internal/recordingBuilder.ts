@@ -196,6 +196,7 @@ export class RecordingBuilder {
     const end = this.timestamp(this.maximumElapsedUs);
     this.finished = true;
     this.result = {
+      format: "nsg",
       sourceName: this.source.name,
       sourceBytes: this.source.size,
       headerXml: this.headerXml,

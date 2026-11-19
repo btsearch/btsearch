@@ -67,6 +67,7 @@ export type NsgCell = NsgTimestamp & {
   subId: number | null;
   slotId: number | null;
   isDefaultSubscription: boolean | null;
+  simPlmn?: string | null;
   mcc: string | null;
   mnc: string | null;
   operatorName: string | null;
@@ -119,6 +120,7 @@ export type NsgProgress = {
 };
 
 export type NsgLog = {
+  format: "nsg" | "cellrec";
   sourceName: string;
   sourceBytes: number;
   headerXml: string;
