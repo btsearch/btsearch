@@ -75,6 +75,7 @@ const PROPOSED_SECTOR_PREFIX = "q";
 const STORED_SECTOR_KEY = /^sector-(\d+)$/;
 const SA_FIRST_RANK = 0;
 const NSA_RANK = 1;
+const NO_AZIMUTH_RANK = Number.MAX_SAFE_INTEGER;
 const PER_CELL: AreaCode = { mode: "perCell" };
 
 export function newDraftKey(): DraftKey {
@@ -238,13 +239,26 @@ function getCellRank(cell: CellDraft): number {
   return field === null ? 0 : (getCellNumber(cell, field) ?? 0);
 }
 
-function sortRecordCells(cells: readonly StationCell[], ownerPlmn: string | null): CellDraft[] {
-  const rows = cells.map((cell) => ({ draft: toCellDraft(cell, ownerPlmn), bandRank: cell.band?.labelMhz ?? 0 }));
+function getAzimuthRank(cell: StationCell, azimuthsBySectorId: ReadonlyMap<number, number | null>): number {
+  if (cell.rat !== "nr" || cell.mode === "sa") return 0;
+  if (cell.sectorId === null) return NO_AZIMUTH_RANK;
+  return azimuthsBySectorId.get(cell.sectorId) ?? NO_AZIMUTH_RANK;
+}
+
+function sortRecordCells(record: StationRecord): CellDraft[] {
+  const ownerPlmn = record.operator?.primaryPlmn ?? null;
+  const azimuthsBySectorId = new Map(record.sectors.map((sector) => [sector.id, sector.azimuth]));
+  const rows = record.cells.map((cell) => ({
+    draft: toCellDraft(cell, ownerPlmn),
+    bandRank: cell.band?.labelMhz ?? 0,
+    azimuthRank: getAzimuthRank(cell, azimuthsBySectorId),
+  }));
   rows.sort(
     (left, right) =>
       getRatRank(left.draft.rat) - getRatRank(right.draft.rat) ||
       getModeRank(left.draft) - getModeRank(right.draft) ||
       left.bandRank - right.bandRank ||
+      left.azimuthRank - right.azimuthRank ||
       getNodeRank(left.draft) - getNodeRank(right.draft) ||
       getCellRank(left.draft) - getCellRank(right.draft) ||
       (left.draft.id ?? 0) - (right.draft.id ?? 0),
@@ -333,7 +347,7 @@ export function toPlaceDraft(location: PlaceSource): PlaceDraft {
 
 export function toStationSnapshot(record: StationRecord): StationSnapshot {
   const { backhaul } = record;
-  const cells = sortRecordCells(record.cells, record.operator?.primaryPlmn ?? null);
+  const cells = sortRecordCells(record);
 
   return {
     station: {

@@ -29,7 +29,7 @@ export default function MobileTopAd({ adSlot, onDismiss }: MobileTopAdProps) {
   );
 
   return (
-    <GoogleAd adSlot={adSlot} adSize="320x50" className={AD_CONTAINER_CLASS_NAME}>
+    <GoogleAd adSlot={adSlot} adSize="320x50" houseAdSize="320x50" className={AD_CONTAINER_CLASS_NAME}>
       {dismissButton}
     </GoogleAd>
   );

@@ -17,9 +17,9 @@
     "tsx": "4.23.15"
   },
   "devDependencies": {
-    "oxfmt": "0.75.0",
-    "oxlint": "1.90.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxfmt": "0.80.0",
+    "oxlint": "1.95.0",
+    "oxlint-tsgolint": "7.0.2008",
     "typescript": "7.0.2"
   },
   "engines": {

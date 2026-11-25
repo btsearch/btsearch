@@ -144,7 +144,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
           ) : null}
           <SidebarAccountItem user={session?.user} isPending={isPending} onSignIn={() => setAuthDialogOpen(true)} />
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-            <GoogleAd key={pathname} adSlot="4992722827" adFormat="rectangle" className="w-full h-62.5" />
+            <GoogleAd key={pathname} adSlot="4992722827" adFormat="rectangle" houseAdSize="224x200" className="w-full h-62.5" />
           </SidebarMenuItem>
           {isGuest ? (
             <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">

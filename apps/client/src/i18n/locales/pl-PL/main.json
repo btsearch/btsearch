@@ -158,7 +158,8 @@
     "moreEstimatedSites": "Pokazano {{shown, number}} z {{total, number}} szacowanych stacji. Przybliż, aby zobaczyć wszystkie"
   },
   "ads": {
-    "dismiss": "Ukryj reklamę"
+    "dismiss": "Ukryj reklamę",
+    "bunnylock": "bunnylock - blokada pasm i komórek LTE/5G. Pobierz z GitHuba"
   },
   "stats": {
     "internalData": "Wewnętrzna baza"

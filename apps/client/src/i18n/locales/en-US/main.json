@@ -158,7 +158,8 @@
     "moreEstimatedSites": "Showing {{shown, number}} of {{total, number}} estimated stations. Zoom in to see all"
   },
   "ads": {
-    "dismiss": "Dismiss advertisement"
+    "dismiss": "Dismiss advertisement",
+    "bunnylock": "bunnylock - lock LTE/5G bands and cells. Download from GitHub"
   },
   "stats": {
     "internalData": "Internal database"

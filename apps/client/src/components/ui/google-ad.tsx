@@ -1,5 +1,7 @@
-import { type CSSProperties, type ReactNode, useEffect, useRef } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
+import { HouseAd, type HouseAdSize } from "@/components/ui/house-ad";
+import { useAdsenseScriptStatus } from "@/hooks/useCookieConsent";
 import { authClient } from "@/lib/auth/client";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,7 @@ interface GoogleAdProps {
   adSlot: string;
   adFormat?: AdFormat;
   adSize?: AdSize;
+  houseAdSize: HouseAdSize;
   children?: ReactNode;
   className?: string;
 }
@@ -35,6 +38,8 @@ const AD_SIZE_STYLES: Record<AdSize, CSSProperties> = {
 };
 
 const AD_PRELOAD_MARGIN = "200px 0px";
+const AD_FILL_TIMEOUT_MS = 3000;
+const COLLAPSED_AD_STYLE: CSSProperties = { position: "absolute", width: "100%", height: 0, overflow: "hidden" };
 
 function pushAd() {
   try {
@@ -44,17 +49,36 @@ function pushAd() {
   }
 }
 
-export function GoogleAd({ adSlot, adFormat = "auto", adSize, children, className }: GoogleAdProps) {
+export function GoogleAd(props: GoogleAdProps) {
   const { data: session, isPending } = authClient.useSession();
-  const shouldRenderAd = !!AD_CLIENT && !STAFF_ROLES.has(session?.user?.role as string);
+  if (!AD_CLIENT || STAFF_ROLES.has(session?.user?.role as string)) return null;
+  return <AdSlot {...props} isPending={isPending} />;
+}
+
+function AdSlot({ adSlot, adFormat = "auto", adSize, houseAdSize, children, className, isPending }: GoogleAdProps & { isPending: boolean }) {
+  const scriptStatus = useAdsenseScriptStatus();
   const containerRef = useRef<HTMLDivElement>(null);
+  const adRef = useRef<HTMLModElement>(null);
   const pushed = useRef(false);
+  const [requested, setRequested] = useState(false);
+  const [adMissing, setAdMissing] = useState(false);
 
   useEffect(() => {
-    if (!shouldRenderAd) {
-      pushed.current = false;
-      return;
-    }
+    const ad = adRef.current;
+    if (!requested || scriptStatus !== "loaded" || ad === null) return;
+
+    const checkFill = () => setAdMissing(ad.dataset.adStatus !== "filled");
+    const observer = new MutationObserver(checkFill);
+    observer.observe(ad, { attributes: true, attributeFilter: ["data-ad-status"] });
+    if (ad.dataset.adStatus !== undefined) checkFill();
+    const timer = setTimeout(checkFill, AD_FILL_TIMEOUT_MS);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [requested, scriptStatus]);
+
+  useEffect(() => {
     if (isPending) return;
     if (pushed.current) return;
 
@@ -65,6 +89,7 @@ export function GoogleAd({ adSlot, adFormat = "auto", adSize, children, classNam
       if (pushed.current) return;
       pushed.current = true;
       pushAd();
+      setRequested(true);
     };
 
     if (!("IntersectionObserver" in window)) {
@@ -83,13 +108,13 @@ export function GoogleAd({ adSlot, adFormat = "auto", adSize, children, classNam
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, [isPending, shouldRenderAd]);
+  }, [isPending]);
 
-  if (!shouldRenderAd) return null;
-
+  const showHouseAd = scriptStatus === "failed" || adMissing;
   const style = adSize === undefined ? AD_FORMAT_STYLES[adFormat] : AD_SIZE_STYLES[adSize];
   const ad = (
     <ins
+      ref={adRef}
       className="adsbygoogle"
       style={style}
       data-ad-client={AD_CLIENT}
@@ -100,11 +125,12 @@ export function GoogleAd({ adSlot, adFormat = "auto", adSize, children, classNam
   );
 
   return (
-    <div ref={containerRef} className={cn("w-full", className)}>
+    <div ref={containerRef} className={cn("relative w-full", className)}>
+      {showHouseAd ? <HouseAd size={houseAdSize} /> : null}
       {adSize === undefined ? (
-        ad
+        <div style={showHouseAd ? COLLAPSED_AD_STYLE : undefined}>{ad}</div>
       ) : (
-        <div className="shrink-0 overflow-hidden" style={style}>
+        <div className="shrink-0 overflow-hidden" style={showHouseAd ? { ...style, ...COLLAPSED_AD_STYLE } : style}>
           {ad}
         </div>
       )}

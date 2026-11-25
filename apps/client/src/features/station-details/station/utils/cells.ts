@@ -79,6 +79,7 @@ const CELL_TYPE_NAME_KEYS_BY_TYPE: ReadonlyMap<string, string> = new Map(Object.
 const NCI_BITS = 36;
 const ECI_ENBID_FACTOR = 256;
 const LONG_CID_RNC_FACTOR = 65536;
+const NO_AZIMUTH_SORT_VALUE = Number.MAX_SAFE_INTEGER;
 
 export function getCellIdentifier(cell: StationCell, field: CellIdentifierField): number | null {
   const identifiers: CellIdentifiers = cell;
@@ -153,10 +154,16 @@ function getIdentitySortValue(cell: StationCell): number {
   return cell.mode === "sa" ? getStandaloneIdentity(cell) : (cell.pci ?? 0);
 }
 
-function compareCells(left: StationCell, right: StationCell): number {
+function getAzimuthSortValue(cell: StationCell, sectorsById: SectorIndex): number {
+  if (!isNsaCell(cell)) return 0;
+  return findCellSector(cell, sectorsById)?.azimuth ?? NO_AZIMUTH_SORT_VALUE;
+}
+
+function compareCells(left: StationCell, right: StationCell, sectorsById: SectorIndex): number {
   return (
     getModeSortValue(left) - getModeSortValue(right) ||
     getBandSortValue(left.band) - getBandSortValue(right.band) ||
+    getAzimuthSortValue(left, sectorsById) - getAzimuthSortValue(right, sectorsById) ||
     getIdentitySortValue(left) - getIdentitySortValue(right)
   );
 }
@@ -225,7 +232,7 @@ function hasColumnContent(column: CellColumn, cells: readonly StationCell[], sec
 }
 
 function buildCellTable(rat: RatType, cells: readonly StationCell[], sectorsById: SectorIndex, ownerPlmn: string | null): CellTable {
-  const sortedCells = [...cells].sort(compareCells);
+  const sortedCells = [...cells].sort((left, right) => compareCells(left, right, sectorsById));
   const sharedValues = listSharedValues(rat, sortedCells);
   const sharedExtraPlmns = findSharedExtraPlmns(sortedCells, ownerPlmn);
   const columns = listColumns(rat, sharedValues, sharedExtraPlmns.length > 0).filter((column) =>

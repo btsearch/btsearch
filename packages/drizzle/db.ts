@@ -24,7 +24,7 @@ export function connectDatabase(connection: Partial<postgres.ConnectionParameter
       client,
       relations,
       jit: true,
-      codecs: refineCodecs(postgresJsCodecs, {
+      codecs: refineCodecs(postgresJsCodecs(client), {
         timestamp: { normalize: textToDate },
         timestamptz: { normalize: textToDateWithTz },
       }),
