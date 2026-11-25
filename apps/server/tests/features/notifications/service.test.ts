@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
 import https from "node:https";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import webpush from "web-push";
+import { generateRequestDetails } from "web-push";
 
 import { dbMock } from "../../helpers/boundaries.js";
 
@@ -12,6 +12,7 @@ vi.mock("node:dns", () => ({
   ),
 }));
 vi.mock("node:https", () => ({ default: { request: vi.fn() } }));
+vi.mock("web-push", async (importOriginal) => ({ ...(await importOriginal<typeof import("web-push")>()), generateRequestDetails: vi.fn() }));
 
 let deliverQueuedStationWatchNotifications: typeof import("../../../src/features/notifications/service.js").deliverQueuedStationWatchNotifications;
 
@@ -20,7 +21,7 @@ beforeEach(async () => {
   vi.stubEnv("VAPID_PUBLIC_KEY", "test-public-key");
   vi.stubEnv("VAPID_PRIVATE_KEY", "test-private-key");
   ({ deliverQueuedStationWatchNotifications } = await import("../../../src/features/notifications/service.js"));
-  vi.spyOn(webpush, "generateRequestDetails").mockReturnValue({
+  vi.mocked(generateRequestDetails).mockReturnValue({
     endpoint: "https://push.example.com/notification",
     method: "POST",
     headers: {},
@@ -65,8 +66,8 @@ describe("deliverQueuedStationWatchNotifications", () => {
 
     expect(await deliverQueuedStationWatchNotifications()).toBe(1);
 
-    expect(webpush.generateRequestDetails).toHaveBeenCalledOnce();
-    const payload: unknown = JSON.parse(String(vi.mocked(webpush.generateRequestDetails).mock.calls[0]?.[1]));
+    expect(generateRequestDetails).toHaveBeenCalledOnce();
+    const payload: unknown = JSON.parse(String(vi.mocked(generateRequestDetails).mock.calls[0]?.[1]));
     expect(payload).toEqual({ title, body, actionUrl: "/stations/1", notificationId: "notification-1" });
     expect(https.request).toHaveBeenCalledOnce();
     expect(dbMock.pendingResults()).toBe(0);
@@ -76,7 +77,7 @@ describe("deliverQueuedStationWatchNotifications", () => {
     dbMock.enqueueFor("select", "notifications", []);
 
     expect(await deliverQueuedStationWatchNotifications()).toBe(0);
-    expect(webpush.generateRequestDetails).not.toHaveBeenCalled();
+    expect(generateRequestDetails).not.toHaveBeenCalled();
     expect(https.request).not.toHaveBeenCalled();
     expect(dbMock.calls).toHaveLength(1);
   });
@@ -85,7 +86,7 @@ describe("deliverQueuedStationWatchNotifications", () => {
     dbMock.enqueueFor("select", "notifications", new Error("Queue lookup failed"));
 
     await expect(deliverQueuedStationWatchNotifications()).rejects.toThrow("Queue lookup failed");
-    expect(webpush.generateRequestDetails).not.toHaveBeenCalled();
+    expect(generateRequestDetails).not.toHaveBeenCalled();
     expect(https.request).not.toHaveBeenCalled();
   });
 });

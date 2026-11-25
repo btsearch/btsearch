@@ -1,6 +1,6 @@
 import { notifications, officialSites, operators, pushSubscriptions, stations, users } from "@openbts/drizzle";
 import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
-import webpush from "web-push";
+import { generateRequestDetails, setVapidDetails } from "web-push";
 
 import db from "../../database/psql.js";
 import { getLabels, t } from "../../i18n/index.js";
@@ -16,7 +16,7 @@ import { getOfficialSitesWatchers, getStationWatchers, getStationsWatchers } fro
 
 const { VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env;
 
-if (VAPID_SUBJECT && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+if (VAPID_SUBJECT && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 export type StationNotificationType = "station_cells_changed" | "station_photos_added" | "station_comment_approved" | "station_official_permit_added";
 export type NotificationType =
@@ -163,7 +163,7 @@ async function deliverPush(subs: { endpoint: string; p256dh: string; auth: strin
     subs.map(async (sub) => {
       try {
         const endpoint = await resolvePublicPushEndpoint(sub.endpoint);
-        await sendPushRequest(webpush.generateRequestDetails({ endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload));
+        await sendPushRequest(generateRequestDetails({ endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload));
         anySucceeded = true;
       } catch (err: unknown) {
         const { statusCode: status, code } = err as { statusCode?: number; code?: string };
