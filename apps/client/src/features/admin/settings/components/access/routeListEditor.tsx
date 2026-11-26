@@ -147,7 +147,7 @@ export function RouteListEditor({ list, entries, labelledBy, fieldLabel, emptyTe
       {problem === null ? null : (
         <FieldError id={problemId} className={cn("mt-2 flex items-start gap-1.5", SMALL_TEXT_CLASS)}>
           <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1 wrap-anywhere">{t(problem.key, problem.values)}</span>
+          <span className="min-w-0 flex-1 wrap-anywhere">{t(problem.key, problem.values ?? {})}</span>
         </FieldError>
       )}
       <p id={helpId} className="mt-2 text-xs leading-4 text-muted-foreground">

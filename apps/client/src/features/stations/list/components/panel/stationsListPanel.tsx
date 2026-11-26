@@ -15,6 +15,7 @@ import {
   StationsStatusSection,
   StationsStructureSection,
 } from "./stationsListSections";
+import { DeferredHouseAd } from "@/features/ads/components/deferredHouseAd";
 
 export const StationsListPanel = memo(function StationsListPanel({ filters, onFiltersChange, variant }: StationsListPanelProps) {
   const panel = useStationsListPanel(filters, variant);
@@ -54,6 +55,7 @@ export const StationsListPanel = memo(function StationsListPanel({ filters, onFi
           <StationsMissingSection {...sectionProps} />
         </ListPanelSlot>
       ) : null}
+      <DeferredHouseAd enabled className="pt-2 pb-3" />
     </>
   );
 }, hasSameListPanelProps);

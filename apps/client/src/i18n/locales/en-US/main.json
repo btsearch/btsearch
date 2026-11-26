@@ -161,6 +161,15 @@
     "dismiss": "Dismiss advertisement",
     "bunnylock": "bunnylock - lock LTE/5G bands and cells. Download from GitHub"
   },
+  "about": {
+    "ads": {
+      "title": "Ads",
+      "bunnylock": "Open-source Android app that locks LTE/5G bands, network type and cells. Works on phones with Qualcomm, MediaTek or Unisoc chips and on Pixels with Tensor. Requires root or Shizuku."
+    },
+    "legal": {
+      "trademarks": "Logos, names and trademarks shown on {{app}} belong to their respective owners. We use them only to identify those owners, which does not imply any affiliation with or endorsement by them."
+    }
+  },
   "stats": {
     "internalData": "Internal database"
   },

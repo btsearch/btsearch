@@ -68,7 +68,7 @@ export function pickFreshData<Data>(data: Data | undefined, dataUpdatedAt: numbe
 
 export function useEditText(): EditText {
   const { t } = useTranslation();
-  const translate: Translate = (key, values) => t(key, values);
+  const translate: Translate = (key, values) => t(key, values ?? {});
 
   return {
     formatPart: (part) => formatTextPart(part, translate),

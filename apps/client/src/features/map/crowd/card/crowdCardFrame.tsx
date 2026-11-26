@@ -23,6 +23,7 @@ export function CrowdCardFrame({ label, children }: CrowdCardFrameProps) {
   return (
     <motion.section
       aria-label={label}
+      data-covers-ad-corner
       initial={CARD_HIDDEN}
       animate={CARD_SHOWN}
       exit={CARD_HIDDEN}

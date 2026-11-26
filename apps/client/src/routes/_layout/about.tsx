@@ -1,4 +1,7 @@
+import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -14,12 +17,7 @@ import {
 } from "@/components/reui/timeline";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import NetWorksIcon from "@/features/station-details/components/logos/networks.svg?react";
-import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
-import PlayIcon from "@/features/station-details/components/logos/play.svg?react";
-import PlusIcon from "@/features/station-details/components/logos/plus.svg?react";
-import TmobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
-import { SI2PEMLogo } from "@/features/station-details/components/si2pemLogo";
+import { HOUSE_ADS } from "@/features/ads/houseAds";
 import { APP_NAME } from "@/lib/api";
 import { buildStaticPageHead } from "@/lib/seo";
 
@@ -102,6 +100,8 @@ const authors = [
 const thanksContent = `Przede wszystkim serdecznie dziękujemy wszystkim "łowcom BTS-ów", którzy bezinteresownie przysyłali dane o stacjach bazowych i bez których baza danych BTSearch byłaby po prostu pusta.`;
 
 function AboutPage() {
+  const { t } = useTranslation("main");
+
   return (
     <main className="flex-1 overflow-y-auto custom-scrollbar p-4">
       <div className="max-w-4xl space-y-10">
@@ -158,20 +158,29 @@ function AboutPage() {
           </article>
         </section>
 
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">{t("about.ads.title")}</h2>
+          <ul className="space-y-3">
+            {HOUSE_ADS.map((entry) => (
+              <li key={entry.name} className="space-y-0.5 text-sm">
+                <a
+                  href={entry.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 text-primary underline hover:opacity-80"
+                >
+                  {entry.name}
+                  <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
+                </a>
+                <p className="text-muted-foreground">{t(entry.descriptionKey)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section className="space-y-4 border-t pt-8">
           <h2 className="text-xl font-semibold">Informacje prawne</h2>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <NetWorksIcon aria-label="NetWorks" className="size-6 shrink-0" />
-            <OrangeIcon aria-label="Orange" className="h-6 w-auto shrink-0" />
-            <TmobileIcon aria-label="T-Mobile" className="size-6 shrink-0" />
-            <PlusIcon aria-label="Plus" className="size-6 shrink-0" />
-            <PlayIcon aria-label="Play" className="h-6 w-auto max-w-20 shrink-0" />
-            <SI2PEMLogo label="SI2PEM" className="h-5 shrink-0" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Przedstawione logo i nazwy operatorów oraz serwisu SI2PEM są własnością ich prawnych właścicieli. Wykorzystanie w serwisie {APP_NAME} ma
-            wyłącznie charakter informacyjny i nie oznacza afiliacji ani poparcia ze strony tych podmiotów.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("about.legal.trademarks", { app: APP_NAME })}</p>
           <p className="text-sm text-muted-foreground">
             Dane o wysokości n.p.m. pochodzą z{" "}
             <a

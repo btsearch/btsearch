@@ -161,6 +161,15 @@
     "dismiss": "Ukryj reklamę",
     "bunnylock": "bunnylock - blokada pasm i komórek LTE/5G. Pobierz z GitHuba"
   },
+  "about": {
+    "ads": {
+      "title": "Reklamy",
+      "bunnylock": "Aplikacja open source na Androida, która blokuje pasma i komórki LTE/5G oraz typ sieci. Działa na telefonach z układami Qualcomm, MediaTek i Unisoc oraz na Pixelach z układem Tensor. Wymaga roota lub Shizuku."
+    },
+    "legal": {
+      "trademarks": "Logotypy, nazwy i znaki towarowe widoczne w serwisie {{app}} należą do ich prawnych właścicieli. Używamy ich wyłącznie do wskazania tych podmiotów. Nie oznacza to, że jesteśmy z nimi powiązani ani że popierają nasz serwis."
+    }
+  },
   "stats": {
     "internalData": "Wewnętrzna baza"
   },

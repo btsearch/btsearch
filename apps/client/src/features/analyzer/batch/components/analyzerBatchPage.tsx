@@ -163,7 +163,7 @@ function LoadedBatch({ draft, reference, stationReads, isStaff, isAdmin, areSubm
       stationId: refusal.stationId,
       rowIndex,
       where: describeWhere(refusal.stationId, rowIndex),
-      message: t(refusal.messageKey, refusal.values),
+      message: t(refusal.messageKey, refusal.values ?? {}),
     };
   });
   const problemItems = view.problems.map((problem): BatchErrorItem => ({

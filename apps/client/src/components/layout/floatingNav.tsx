@@ -37,6 +37,7 @@ import { useNavLists } from "@/hooks/useNavLists";
 import { useSettings } from "@/hooks/useSettings";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { authClient } from "@/lib/auth/client";
+import { loadMotionFeatures } from "@/lib/loadMotionFeatures";
 import {
   type TranslatedNavItem,
   type TranslatedNavSection,
@@ -51,8 +52,6 @@ import {
   translateNav,
 } from "@/lib/navConfig";
 import { cn } from "@/lib/utils";
-
-const loadMotionFeatures = () => import("@/lib/motionFeatures").then((module) => module.default);
 
 const ACTION_TARGET_ID = "floating-nav-actions";
 const HIDDEN_STORAGE_KEY = "floating-nav-hidden";

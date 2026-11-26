@@ -225,7 +225,7 @@ function StationChangeCardInner({ view, reference, refusals, texts, isStaff, isP
       ) : null}
       {stationRefusals.map((refusal, position) =>
         refusal.rowIndexes.length > 0 ? null : (
-          <StatusStrip key={`${refusal.messageKey}:${position}`} tone="danger" title={t(refusal.messageKey, refusal.values)} />
+          <StatusStrip key={`${refusal.messageKey}:${position}`} tone="danger" title={t(refusal.messageKey, refusal.values ?? {})} />
         ),
       )}
       {rats.map((rat, ratPosition) => {

@@ -14,6 +14,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/com
 import { NavActionsProvider } from "@/contexts/navActions";
 import { PageContentContext } from "@/contexts/pageContent";
 import { PageSectionsProvider } from "@/contexts/pageSections";
+import { CornerHouseAd } from "@/features/ads/components/cornerHouseAd";
 import { ImpersonationBar } from "@/features/impersonation/impersonationBar";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useAppBadge } from "@/features/notifications/useAppBadge";
@@ -46,7 +47,7 @@ export interface RouteHandle {
 }
 
 const EMPTY_BREADCRUMBS: BreadcrumbSegment[] = [];
-const MobileTopAd = lazy(() => import("@/components/layout/mobileTopAd"));
+const MobileTopAd = lazy(() => import("@/features/ads/components/mobileTopAd"));
 const MOBILE_TOP_AD_SLOT = import.meta.env.VITE_ADSENSE_CLIENT ? (import.meta.env.VITE_ADSENSE_MAP_MOBILE_SLOT as string | undefined) : undefined;
 
 function MobileTopAdPlaceholder() {
@@ -140,6 +141,7 @@ function AppLayout() {
                 {pageContent}
               </div>
               <FloatingNav />
+              <CornerHouseAd placement="viewport" />
             </div>
           ) : (
             <SidebarProvider>
@@ -233,6 +235,7 @@ function AppLayout() {
                 </header>
                 {isWCO ? <ImpersonationBar /> : null}
                 <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto", mainClassNameRoute?.mainClassName)}>{pageContent}</div>
+                <CornerHouseAd placement="content" />
               </SidebarInset>
             </SidebarProvider>
           )}

@@ -12,10 +12,10 @@ import { NavUser, NavUserSkeleton } from "./navUser";
 import { AuthDialog } from "@/components/auth/authDialog";
 import { LanguageSwitcher } from "@/components/preferences/languageSwitcher";
 import { ThemeToggle } from "@/components/preferences/themeToggle";
-import { GoogleAd } from "@/components/ui/google-ad";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { usePageSectionsList } from "@/contexts/pageSections";
 import { useReferenceAccess } from "@/features/admin/reference/access/useReferenceAccess";
+import { GoogleAd } from "@/features/ads/components/googleAd";
 import { countriesQueryOptions } from "@/features/shared/lookups";
 import { useSettings } from "@/hooks/useSettings";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
@@ -144,7 +144,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
           ) : null}
           <SidebarAccountItem user={session?.user} isPending={isPending} onSignIn={() => setAuthDialogOpen(true)} />
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-            <GoogleAd key={pathname} adSlot="4992722827" adFormat="rectangle" houseAdSize="224x200" className="w-full h-62.5" />
+            <GoogleAd key={pathname} adSlot="4992722827" adFormat="rectangle" className="w-full" slotClassName="h-62.5" />
           </SidebarMenuItem>
           {isGuest ? (
             <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">

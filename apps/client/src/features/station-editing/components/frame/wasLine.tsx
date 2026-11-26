@@ -39,7 +39,7 @@ export function FieldMarks({ marks, variant = "line", className }: FieldMarksPro
   const { t } = useTranslation();
   if (marks === undefined || marks.length === 0) return null;
 
-  const texts = marks.map((mark) => ({ tone: mark.tone, text: formatTextPart(mark.value, (key, values) => t(key, values)) }));
+  const texts = marks.map((mark) => ({ tone: mark.tone, text: formatTextPart(mark.value, (key, values) => t(key, values ?? {})) }));
   if (variant === "line") {
     return (
       <>

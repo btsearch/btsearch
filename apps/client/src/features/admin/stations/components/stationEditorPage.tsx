@@ -352,8 +352,8 @@ export function SavedStationEditor({ record }: SavedStationEditorProps) {
       <ConfirmDialog
         open={isRemovalOpen}
         onOpenChange={setIsRemovalOpen}
-        title={t("edit.editor.removeSiteId.title", removalAsk?.removal)}
-        description={t("edit.editor.removeSiteId.description", removalAsk?.removal)}
+        title={t("edit.editor.removeSiteId.title", removalAsk?.removal ?? {})}
+        description={t("edit.editor.removeSiteId.description", removalAsk?.removal ?? {})}
         confirmLabel={t("edit.editor.removeSiteId.confirm")}
         onConfirm={confirmRemoval}
       />

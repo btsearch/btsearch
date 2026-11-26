@@ -1,9 +1,10 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
-import { HouseAd, type HouseAdSize } from "@/components/ui/house-ad";
-import { useAdsenseScriptStatus } from "@/hooks/useCookieConsent";
-import { authClient } from "@/lib/auth/client";
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { useAdsenseStatus } from "../hooks/useAdsenseStatus";
+import { useHouseAdsDismissed } from "../hooks/useHouseAdsDismissed";
+import { useShowsAds } from "../hooks/useShowsAds";
+import type { HouseAdSize } from "../houseAds";
+import { HouseAd } from "./houseAd";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -21,9 +22,10 @@ interface GoogleAdProps {
   adSlot: string;
   adFormat?: AdFormat;
   adSize?: AdSize;
-  houseAdSize: HouseAdSize;
+  houseAdSize?: HouseAdSize;
   children?: ReactNode;
   className?: string;
+  slotClassName?: string;
 }
 
 const AD_FORMAT_STYLES: Record<AdFormat, CSSProperties> = {
@@ -41,6 +43,8 @@ const AD_PRELOAD_MARGIN = "200px 0px";
 const AD_FILL_TIMEOUT_MS = 3000;
 const COLLAPSED_AD_STYLE: CSSProperties = { position: "absolute", width: "100%", height: 0, overflow: "hidden" };
 
+const unfilledSlots = new Set<string>();
+
 function pushAd() {
   try {
     (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -50,24 +54,39 @@ function pushAd() {
 }
 
 export function GoogleAd(props: GoogleAdProps) {
-  const { data: session, isPending } = authClient.useSession();
-  if (!AD_CLIENT || STAFF_ROLES.has(session?.user?.role as string)) return null;
+  const { showsAds, isPending } = useShowsAds();
+  if (!AD_CLIENT || !showsAds) return null;
   return <AdSlot {...props} isPending={isPending} />;
 }
 
-function AdSlot({ adSlot, adFormat = "auto", adSize, houseAdSize, children, className, isPending }: GoogleAdProps & { isPending: boolean }) {
-  const scriptStatus = useAdsenseScriptStatus();
+function AdSlot({
+  adSlot,
+  adFormat = "auto",
+  adSize,
+  houseAdSize,
+  children,
+  className,
+  slotClassName,
+  isPending,
+}: GoogleAdProps & { isPending: boolean }) {
+  const adsenseStatus = useAdsenseStatus();
+  const houseAdsDismissed = useHouseAdsDismissed();
   const containerRef = useRef<HTMLDivElement>(null);
   const adRef = useRef<HTMLModElement>(null);
   const pushed = useRef(false);
   const [requested, setRequested] = useState(false);
-  const [adMissing, setAdMissing] = useState(false);
+  const [adMissing, setAdMissing] = useState(() => unfilledSlots.has(adSlot));
 
   useEffect(() => {
     const ad = adRef.current;
-    if (!requested || scriptStatus !== "loaded" || ad === null) return;
+    if (!requested || adsenseStatus !== "ready" || ad === null) return;
 
-    const checkFill = () => setAdMissing(ad.dataset.adStatus !== "filled");
+    const checkFill = () => {
+      const missing = ad.dataset.adStatus !== "filled";
+      if (missing) unfilledSlots.add(adSlot);
+      else unfilledSlots.delete(adSlot);
+      setAdMissing(missing);
+    };
     const observer = new MutationObserver(checkFill);
     observer.observe(ad, { attributes: true, attributeFilter: ["data-ad-status"] });
     if (ad.dataset.adStatus !== undefined) checkFill();
@@ -76,7 +95,7 @@ function AdSlot({ adSlot, adFormat = "auto", adSize, houseAdSize, children, clas
       observer.disconnect();
       clearTimeout(timer);
     };
-  }, [requested, scriptStatus]);
+  }, [requested, adsenseStatus, adSlot]);
 
   useEffect(() => {
     if (isPending) return;
@@ -110,7 +129,9 @@ function AdSlot({ adSlot, adFormat = "auto", adSize, houseAdSize, children, clas
     return () => observer.disconnect();
   }, [isPending]);
 
-  const showHouseAd = scriptStatus === "failed" || adMissing;
+  const adUnavailable = adsenseStatus === "blocked" || adMissing;
+  const showHouseAd = adUnavailable && houseAdSize !== undefined && !houseAdsDismissed;
+  const collapsed = adUnavailable && !showHouseAd;
   const style = adSize === undefined ? AD_FORMAT_STYLES[adFormat] : AD_SIZE_STYLES[adSize];
   const ad = (
     <ins
@@ -125,16 +146,18 @@ function AdSlot({ adSlot, adFormat = "auto", adSize, houseAdSize, children, clas
   );
 
   return (
-    <div ref={containerRef} className={cn("relative w-full", className)}>
+    <div ref={containerRef} className={collapsed ? "relative" : cn("relative w-full", className)}>
       {showHouseAd ? <HouseAd size={houseAdSize} /> : null}
       {adSize === undefined ? (
-        <div style={showHouseAd ? COLLAPSED_AD_STYLE : undefined}>{ad}</div>
+        <div className={slotClassName} style={adUnavailable ? COLLAPSED_AD_STYLE : undefined}>
+          {ad}
+        </div>
       ) : (
-        <div className="shrink-0 overflow-hidden" style={showHouseAd ? { ...style, ...COLLAPSED_AD_STYLE } : style}>
+        <div className="shrink-0 overflow-hidden" style={adUnavailable ? { ...style, ...COLLAPSED_AD_STYLE } : style}>
           {ad}
         </div>
       )}
-      {children}
+      {collapsed ? null : children}
     </div>
   );
 }

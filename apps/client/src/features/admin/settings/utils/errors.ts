@@ -65,5 +65,5 @@ export function showSettingsError(error: unknown): void {
     showApiError(error);
     return;
   }
-  toast.error(i18next.t("common:error.actionFailed"), { description: i18next.t(text.key, text.values) });
+  toast.error(i18next.t("common:error.actionFailed"), { description: i18next.t(text.key, text.values ?? {}) });
 }

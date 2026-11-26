@@ -94,7 +94,7 @@ function NoteLine({ icon, tone, className, children }: NoteLineProps) {
 
 export function RowNotes({ row, conflict, spreadCount, isBandMissing, isExcluded, refusals, networkName, lineClassName }: RowNotesProps) {
   const { t } = useTranslation();
-  const refusalText = [...new Set(refusals.map((refusal) => t(refusal.messageKey, refusal.values)))].join(TEXT_SEPARATOR);
+  const refusalText = [...new Set(refusals.map((refusal) => t(refusal.messageKey, refusal.values ?? {})))].join(TEXT_SEPARATOR);
 
   return (
     <>

@@ -13,8 +13,8 @@ import { SocialSignInErrorNotice } from "@/components/auth/socialSignInErrorNoti
 import { PhotoUploadProgressBar } from "@/components/photos/photoUploadProgressBar";
 import { ThemeProvider } from "@/components/preferences/themeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { loadAdsenseScript } from "@/features/ads/hooks/useAdsenseStatus";
 import { FloatingDialogStackProvider } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { loadAdsenseScript } from "@/hooks/useCookieConsent";
 import i18n from "@/i18n/config";
 import { APP_NAME } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
